@@ -1,0 +1,6 @@
+domain: ocm.software
+layout:
+- go.kubebuilder.io/v3
+projectName: ocm-controller
+repo: github.com/open-component-model/ocm-controller
+version: "3"
