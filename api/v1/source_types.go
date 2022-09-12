@@ -18,24 +18,26 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// ProviderRef defines a provider for this Source.
+type ProviderRef struct {
+	ApiVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+}
 
 // SourceSpec defines the desired state of Source
 type SourceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Source. Edit source_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	ComponentRef types.NamespacedName `json:"componentRef"`
+	ProviderRef  ProviderRef          `json:"providerRef"`
 }
 
 // SourceStatus defines the observed state of Source
 type SourceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Ready    bool   `json:"read"`
+	Snapshot string `json:"snapshot"`
 }
 
 //+kubebuilder:object:root=true

@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1 contains API Schema definitions for the ocmcontroller v1 API group
-//+kubebuilder:object:generate=true
-//+groupName=ocmcontroller.ocm.software
+// +kubebuilder:object:generate=true
+// +groupName=ocmcontroller.ocm.software
 package v1
 
 import (

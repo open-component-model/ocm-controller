@@ -17,25 +17,37 @@ limitations under the License.
 package v1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// Repository defines the OCM Repository.
+type Repository struct {
+	URL       string
+	SecretRef types.NamespacedName
+}
+
+// Verify holds the secret which contains the signing and verification keys.
+type Verify struct {
+	SecretRef types.NamespacedName
+}
 
 // OCMComponentSpec defines the desired state of OCMComponent
 type OCMComponentSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of OCMComponent. Edit ocmcomponent_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Interval   time.Duration `json:"interval"`
+	Name       string        `json:"name"`
+	Version    string        `json:"version"`
+	Repository Repository    `json:"repository"`
+	Verify     Verify        `json:"verify"`
 }
 
 // OCMComponentStatus defines the observed state of OCMComponent
 type OCMComponentStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	ComponentDescriptor string `json:"componentDescriptor"`
+	DeployPackage       string `json:"deployPackage"`
+	Verified            bool   `json:"verified"`
 }
 
 //+kubebuilder:object:root=true

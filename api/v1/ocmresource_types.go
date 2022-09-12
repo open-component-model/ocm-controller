@@ -20,22 +20,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // OCMResourceSpec defines the desired state of OCMResource
 type OCMResourceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of OCMResource. Edit ocmresource_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Resource names a Source that this OCMResource watches.
+	Resource string `json:"resource"`
 }
 
 // OCMResourceStatus defines the observed state of OCMResource
 type OCMResourceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Ready denotes the state of processing a Source.
+	Ready bool `json:"ready"`
+	// Snapshot is a snapshot of a Source in the in-cluster OCI storage.
+	Snapshot string `json:"snapshot"`
 }
 
 //+kubebuilder:object:root=true

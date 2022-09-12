@@ -1,6 +1,18 @@
-apiVersion: ocmcontroller.ocm.software/v1
+apiVersion: delivery.ocm.software/v1alpha1
 kind: Action
 metadata:
-  name: action-sample
+  name: localize
+  namespace: wge-system
 spec:
-  # TODO(user): Add fields here
+  componentRef:
+    name: wge
+    namespace: wge-admin
+  sourceRef:
+    name: wge-admin-source
+  providerRef:
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: Localization
+    name: wge-localizer
+status:
+  ready: true
+  snapshot: string

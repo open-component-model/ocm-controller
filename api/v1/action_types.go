@@ -18,24 +18,25 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// SourceRef defines the reference to a Source.
+type SourceRef struct {
+	Name string `json:"name"`
+}
 
 // ActionSpec defines the desired state of Action
 type ActionSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Action. Edit action_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	ComponentRef types.NamespacedName `json:"componentRef"`
+	SourceRef    SourceRef            `json:"sourceRef"`
+	ProviderRef  ProviderRef          `json:"providerRef"`
 }
 
 // ActionStatus defines the observed state of Action
 type ActionStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Ready    bool   `json:"read"`
+	Snapshot string `json:"snapshot"`
 }
 
 //+kubebuilder:object:root=true

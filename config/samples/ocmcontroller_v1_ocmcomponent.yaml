@@ -1,6 +1,20 @@
-apiVersion: ocmcontroller.ocm.software/v1
+apiVersion: delivery.ocm.software/v1alpha1
 kind: OCMComponent
 metadata:
-  name: ocmcomponent-sample
+  name: weave-gitops
+  namespace: weave-gitops-system
 spec:
-  # TODO(user): Add fields here
+  interval: 10m
+  name: github.com/weaveworks/weave-gitops
+  version: v0.9.x
+  repository:
+    url: ghcr.io/weaveworks
+    secretRef:
+      name: oci-creds
+  verify:
+    secretRef:
+      name: my-public-key
+status:
+  componentDescriptor: weave-gitops-system/github-com-weaveworks-wge-v0-9-4
+  deployPackage: weave-gitops-system/github-com-weaveworks-wge-v0-9-4-deploy-config
+  verified: true

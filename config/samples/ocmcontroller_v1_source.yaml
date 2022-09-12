@@ -1,6 +1,16 @@
-apiVersion: ocmcontroller.ocm.software/v1
+apiVersion: delivery.ocm.software/v1alpha1
 kind: Source
 metadata:
-  name: source-sample
+  name: ui-server
+  namespace: wge-system
 spec:
-  # TODO(user): Add fields here
+  componentRef:
+    name: weave-gitops
+    namespace: wge-system
+  providerRef:
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: OCMResource
+    name: wge-ui-server
+status:
+  ready: true
+  snapshot: string
