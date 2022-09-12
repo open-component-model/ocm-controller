@@ -1,0 +1,6 @@
+apiVersion: ocmcontroller.ocm.software/v1
+kind: OCMComponent
+metadata:
+  name: ocmcomponent-sample
+spec:
+  # TODO(user): Add fields here

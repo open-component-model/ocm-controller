@@ -1,0 +1,6 @@
+apiVersion: ocmcontroller.ocm.software/v1
+kind: OCMResource
+metadata:
+  name: ocmresource-sample
+spec:
+  # TODO(user): Add fields here

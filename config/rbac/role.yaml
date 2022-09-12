@@ -1,0 +1,111 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - actions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - actions/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - actions/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - ocmcomponents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - ocmcomponents/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - ocmcomponents/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - ocmresources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - ocmresources/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - ocmresources/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - sources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - sources/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - sources/status
+  verbs:
+  - get
+  - patch
+  - update

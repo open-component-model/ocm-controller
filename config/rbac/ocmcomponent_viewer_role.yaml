@@ -1,0 +1,20 @@
+# permissions for end users to view ocmcomponents.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocmcomponent-viewer-role
+rules:
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - ocmcomponents
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ocmcontroller.ocm.software
+  resources:
+  - ocmcomponents/status
+  verbs:
+  - get
