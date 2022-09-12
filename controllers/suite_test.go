@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -19,7 +18,7 @@ var (
 	testEnv   *envtest.Environment
 )
 
-func setup() error {
+func setup() {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
@@ -29,37 +28,28 @@ func setup() error {
 	var err error
 	cfg, err = testEnv.Start()
 	if err != nil {
-		return fmt.Errorf("failed to start test environment: %w", err)
+		panic(fmt.Errorf("failed to start test environment: %w", err))
 	}
 
 	if err = ocmcontrollerv1.AddToScheme(scheme.Scheme); err != nil {
-		return fmt.Errorf("failed to add scheme: %w", err)
+		panic(fmt.Errorf("failed to add scheme: %w", err))
 	}
 
 	//+kubebuilder:scaffold:scheme
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		panic(fmt.Errorf("failed to create client: %w", err))
 	}
-	return nil
 }
 
-func teardown() error {
+func teardown() {
 	if err := testEnv.Stop(); err != nil {
-		return fmt.Errorf("failed to stop test environment: %w", err)
+		panic(fmt.Errorf("failed to stop test environment: %w", err))
 	}
-	return nil
 }
 
 func TestMain(m *testing.M) {
-	if err := setup(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	code := m.Run()
-	if err := teardown(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	os.Exit(code)
+	setup()
+	defer teardown()
+	m.Run()
 }

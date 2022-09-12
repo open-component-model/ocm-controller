@@ -5,5 +5,4 @@ import (
 )
 
 func TestSourceController(t *testing.T) {
-
 }
