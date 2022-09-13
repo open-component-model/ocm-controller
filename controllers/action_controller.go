@@ -18,13 +18,22 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 // ActionReconciler reconciles a Action object
@@ -39,24 +48,73 @@ type ActionReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Action object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	action := &actionv1.Action{}
+	if err := r.Client.Get(ctx, req.NamespacedName, action); err != nil {
+		if apierrors.IsNotFound(err) {
+			// Object not found, return.  Created objects are automatically garbage collected.
+			// For additional cleanup logic use finalizers.
+			return ctrl.Result{}, nil
+		}
+
+		// Error reading the object - requeue the request.
+		return ctrl.Result{}, fmt.Errorf("failed to get action object: %w", err)
+	}
+
+	// Initialize the patch helper.
+	patchHelper, err := patch.NewHelper(action, r.Client)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
+	}
+
+	owner, err := Get(ctx, r.Client, &corev1.ObjectReference{
+		Kind:       action.Spec.ProviderRef.Kind,
+		Name:       action.Spec.ProviderRef.Name,
+		APIVersion: action.Spec.ProviderRef.ApiVersion,
+	}, action.Namespace)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to find owner for action: %w", err)
+	}
+
+	// Set external object ControllerReference to the ClusterClass.
+	if err := controllerutil.SetOwnerReference(owner, action, r.Client.Scheme()); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to set owner reference: %w", err)
+	}
+
+	// Patch the external object.
+	if err := patchHelper.Patch(ctx, action); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
+	}
 
 	return ctrl.Result{}, nil
+}
+
+// Get uses the client and reference to get an external, unstructured object.
+func Get(ctx context.Context, c client.Reader, ref *corev1.ObjectReference, namespace string) (*unstructured.Unstructured, error) {
+	if ref == nil {
+		return nil, errors.Errorf("cannot get object - object reference not set")
+	}
+	obj := new(unstructured.Unstructured)
+	obj.SetAPIVersion(ref.APIVersion)
+	obj.SetKind(ref.Kind)
+	obj.SetName(ref.Name)
+	key := client.ObjectKey{Name: obj.GetName(), Namespace: namespace}
+	if err := c.Get(ctx, key, obj); err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve %s external object %q/%q", obj.GetKind(), key.Namespace, key.Name)
+	}
+	return obj, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ActionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocmcontrollerv1.Action{}).
+		For(&actionv1.Action{}).
+		Watches(
+			&source.Kind{Type: &actionv1.Action{}},
+			&handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
