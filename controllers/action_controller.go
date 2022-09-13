@@ -25,6 +25,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,6 +41,8 @@ import (
 type ActionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	externalTracker external.ObjectTracker
 }
 
 //+kubebuilder:rbac:groups=ocmcontroller.ocm.software,resources=actions,verbs=get;list;watch;create;update;patch;delete
@@ -71,7 +74,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
-	owner, err := Get(ctx, r.Client, &corev1.ObjectReference{
+	owner, err := r.Get(ctx, &corev1.ObjectReference{
 		Kind:       action.Spec.ProviderRef.Kind,
 		Name:       action.Spec.ProviderRef.Name,
 		APIVersion: action.Spec.ProviderRef.ApiVersion,
@@ -90,11 +93,16 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
 	}
 
+	// Ensure we add a watcher to the external object.
+	if err := r.externalTracker.Watch(ctrl.Log, owner, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.OCMResource{}}); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to set up watch for parent object: %w", err)
+	}
+
 	return ctrl.Result{}, nil
 }
 
 // Get uses the client and reference to get an external, unstructured object.
-func Get(ctx context.Context, c client.Reader, ref *corev1.ObjectReference, namespace string) (*unstructured.Unstructured, error) {
+func (r *ActionReconciler) Get(ctx context.Context, ref *corev1.ObjectReference, namespace string) (*unstructured.Unstructured, error) {
 	if ref == nil {
 		return nil, errors.Errorf("cannot get object - object reference not set")
 	}
@@ -103,7 +111,7 @@ func Get(ctx context.Context, c client.Reader, ref *corev1.ObjectReference, name
 	obj.SetKind(ref.Kind)
 	obj.SetName(ref.Name)
 	key := client.ObjectKey{Name: obj.GetName(), Namespace: namespace}
-	if err := c.Get(ctx, key, obj); err != nil {
+	if err := r.Client.Get(ctx, key, obj); err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve %s external object %q/%q", obj.GetKind(), key.Namespace, key.Name)
 	}
 	return obj, nil
@@ -111,10 +119,19 @@ func Get(ctx context.Context, c client.Reader, ref *corev1.ObjectReference, name
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ActionReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	controller, err := ctrl.NewControllerManagedBy(mgr).
 		For(&actionv1.Action{}).
 		Watches(
 			&source.Kind{Type: &actionv1.Action{}},
 			&handler.EnqueueRequestForObject{}).
-		Complete(r)
+		Build(r)
+
+	if err != nil {
+		return errors.Wrap(err, "failed setting up with a controller manager")
+	}
+
+	r.externalTracker = external.ObjectTracker{
+		Controller: controller,
+	}
+	return nil
 }
