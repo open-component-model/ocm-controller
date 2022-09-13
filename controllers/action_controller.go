@@ -42,6 +42,7 @@ type ActionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
+	// TODO: Write our own Watch.
 	externalTracker external.ObjectTracker
 }
 
@@ -74,7 +75,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
-	owner, err := r.Get(ctx, &corev1.ObjectReference{
+	providerObj, err := r.Get(ctx, &corev1.ObjectReference{
 		Kind:       action.Spec.ProviderRef.Kind,
 		Name:       action.Spec.ProviderRef.Name,
 		APIVersion: action.Spec.ProviderRef.ApiVersion,
@@ -84,7 +85,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Set external object ControllerReference to the provider ref.
-	if err := controllerutil.SetControllerReference(owner, action, r.Client.Scheme()); err != nil {
+	if err := controllerutil.SetControllerReference(action, providerObj, r.Client.Scheme()); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set owner reference: %w", err)
 	}
 
@@ -94,7 +95,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Ensure we add a watcher to the external object.
-	if err := r.externalTracker.Watch(ctrl.Log, owner, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Action{}}); err != nil {
+	if err := r.externalTracker.Watch(ctrl.Log, providerObj, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Action{}}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set up watch for parent object: %w", err)
 	}
 
