@@ -80,8 +80,8 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, fmt.Errorf("failed to find owner for action: %w", err)
 	}
 
-	// Set external object ControllerReference to the ClusterClass.
-	if err := controllerutil.SetOwnerReference(owner, action, r.Client.Scheme()); err != nil {
+	// Set external object ControllerReference to the provider ref.
+	if err := controllerutil.SetControllerReference(owner, action, r.Client.Scheme()); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set owner reference: %w", err)
 	}
 
