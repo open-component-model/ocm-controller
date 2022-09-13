@@ -5,39 +5,39 @@ projectName: ocm-controller
 repo: github.com/open-component-model/ocm-controller
 resources:
 - api:
-    crdVersion: v1
+    crdVersion: v1alpha1
     namespaced: true
   controller: true
   domain: ocm.software
   group: ocmcontroller
   kind: OCMComponent
-  path: github.com/open-component-model/ocm-controller/api/v1
-  version: v1
+  path: github.com/open-component-model/ocm-controller/api/v1alpha1
+  version: v1alpha1
 - api:
-    crdVersion: v1
+    crdVersion: v1alpha1
     namespaced: true
   controller: true
   domain: ocm.software
   group: ocmcontroller
   kind: Source
-  path: github.com/open-component-model/ocm-controller/api/v1
-  version: v1
+  path: github.com/open-component-model/ocm-controller/api/v1alpha1
+  version: v1alpha1
 - api:
-    crdVersion: v1
+    crdVersion: v1alpha1
     namespaced: true
   controller: true
   domain: ocm.software
   group: ocmcontroller
   kind: Action
-  path: github.com/open-component-model/ocm-controller/api/v1
-  version: v1
+  path: github.com/open-component-model/ocm-controller/api/v1alpha1
+  version: v1alpha1
 - api:
-    crdVersion: v1
+    crdVersion: v1alpha1
     namespaced: true
   controller: true
   domain: ocm.software
   group: ocmcontroller
   kind: OCMResource
-  path: github.com/open-component-model/ocm-controller/api/v1
-  version: v1
+  path: github.com/open-component-model/ocm-controller/api/v1alpha1
+  version: v1alpha1
 version: "3"

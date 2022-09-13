@@ -15,7 +15,7 @@ spec:
     singular: ocmcomponent
   scope: Namespaced
   versions:
-  - name: v1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: OCMComponent is the Schema for the ocmcomponents API
@@ -35,13 +35,56 @@ spec:
           spec:
             description: OCMComponentSpec defines the desired state of OCMComponent
             properties:
-              foo:
-                description: Foo is an example field of OCMComponent. Edit ocmcomponent_types.go
-                  to remove/update
+              interval:
+                description: A Duration represents the elapsed time between two instants
+                  as an int64 nanosecond count. The representation limits the largest
+                  representable duration to approximately 290 years.
+                format: int64
+                type: integer
+              name:
                 type: string
+              repository:
+                description: Repository defines the OCM Repository.
+                properties:
+                  secretRef:
+                    type: object
+                  url:
+                    type: string
+                required:
+                - secretRef
+                - url
+                type: object
+              verify:
+                description: Verify holds the secret which contains the signing and
+                  verification keys.
+                properties:
+                  secretRef:
+                    type: object
+                required:
+                - secretRef
+                type: object
+              version:
+                type: string
+            required:
+            - interval
+            - name
+            - repository
+            - verify
+            - version
             type: object
           status:
             description: OCMComponentStatus defines the observed state of OCMComponent
+            properties:
+              componentDescriptor:
+                type: string
+              deployPackage:
+                type: string
+              verified:
+                type: boolean
+            required:
+            - componentDescriptor
+            - deployPackage
+            - verified
             type: object
         type: object
     served: true

@@ -15,7 +15,7 @@ spec:
     singular: action
   scope: Namespaced
   versions:
-  - name: v1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Action is the Schema for the actions API
@@ -35,13 +35,45 @@ spec:
           spec:
             description: ActionSpec defines the desired state of Action
             properties:
-              foo:
-                description: Foo is an example field of Action. Edit action_types.go
-                  to remove/update
-                type: string
+              componentRef:
+                type: object
+              providerRef:
+                description: ProviderRef defines a provider for this Source.
+                properties:
+                  apiVersion:
+                    type: string
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              sourceRef:
+                description: SourceRef defines the reference to a Source.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - componentRef
+            - providerRef
+            - sourceRef
             type: object
           status:
             description: ActionStatus defines the observed state of Action
+            properties:
+              read:
+                type: boolean
+              snapshot:
+                type: string
+            required:
+            - read
+            - snapshot
             type: object
         type: object
     served: true

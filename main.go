@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1"
+	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/controllers"
 	//+kubebuilder:scaffold:imports
 )

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1alpha1
 
 import (
 	"time"
@@ -25,13 +25,13 @@ import (
 
 // Repository defines the OCM Repository.
 type Repository struct {
-	URL       string
-	SecretRef types.NamespacedName
+	URL       string               `json:"url"`
+	SecretRef types.NamespacedName `json:"secretRef"`
 }
 
 // Verify holds the secret which contains the signing and verification keys.
 type Verify struct {
-	SecretRef types.NamespacedName
+	SecretRef types.NamespacedName `json:"secretRef"`
 }
 
 // OCMComponentSpec defines the desired state of OCMComponent

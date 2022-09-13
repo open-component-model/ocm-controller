@@ -14,27 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// SourceRef defines the reference to a Source.
-type SourceRef struct {
-	Name string `json:"name"`
+// ProviderRef defines a provider for this Source.
+type ProviderRef struct {
+	ApiVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
 }
 
-// ActionSpec defines the desired state of Action
-type ActionSpec struct {
+// SourceSpec defines the desired state of Source
+type SourceSpec struct {
 	ComponentRef types.NamespacedName `json:"componentRef"`
-	SourceRef    SourceRef            `json:"sourceRef"`
 	ProviderRef  ProviderRef          `json:"providerRef"`
 }
 
-// ActionStatus defines the observed state of Action
-type ActionStatus struct {
+// SourceStatus defines the observed state of Source
+type SourceStatus struct {
 	Ready    bool   `json:"read"`
 	Snapshot string `json:"snapshot"`
 }
@@ -42,24 +43,24 @@ type ActionStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Action is the Schema for the actions API
-type Action struct {
+// Source is the Schema for the sources API
+type Source struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ActionSpec   `json:"spec,omitempty"`
-	Status ActionStatus `json:"status,omitempty"`
+	Spec   SourceSpec   `json:"spec,omitempty"`
+	Status SourceStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// ActionList contains a list of Action
-type ActionList struct {
+// SourceList contains a list of Source
+type SourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Action `json:"items"`
+	Items           []Source `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Action{}, &ActionList{})
+	SchemeBuilder.Register(&Source{}, &SourceList{})
 }

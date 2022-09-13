@@ -14,47 +14,52 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-// OCMResourceSpec defines the desired state of OCMResource
-type OCMResourceSpec struct {
-	// Resource names a Source that this OCMResource watches.
-	Resource string `json:"resource"`
+// SourceRef defines the reference to a Source.
+type SourceRef struct {
+	Name string `json:"name"`
 }
 
-// OCMResourceStatus defines the observed state of OCMResource
-type OCMResourceStatus struct {
-	// Ready denotes the state of processing a Source.
-	Ready bool `json:"ready"`
-	// Snapshot is a snapshot of a Source in the in-cluster OCI storage.
+// ActionSpec defines the desired state of Action
+type ActionSpec struct {
+	ComponentRef types.NamespacedName `json:"componentRef"`
+	SourceRef    SourceRef            `json:"sourceRef"`
+	ProviderRef  ProviderRef          `json:"providerRef"`
+}
+
+// ActionStatus defines the observed state of Action
+type ActionStatus struct {
+	Ready    bool   `json:"read"`
 	Snapshot string `json:"snapshot"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// OCMResource is the Schema for the ocmresources API
-type OCMResource struct {
+// Action is the Schema for the actions API
+type Action struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   OCMResourceSpec   `json:"spec,omitempty"`
-	Status OCMResourceStatus `json:"status,omitempty"`
+	Spec   ActionSpec   `json:"spec,omitempty"`
+	Status ActionStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// OCMResourceList contains a list of OCMResource
-type OCMResourceList struct {
+// ActionList contains a list of Action
+type ActionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []OCMResource `json:"items"`
+	Items           []Action `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&OCMResource{}, &OCMResourceList{})
+	SchemeBuilder.Register(&Action{}, &ActionList{})
 }

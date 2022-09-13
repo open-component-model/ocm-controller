@@ -15,7 +15,7 @@ spec:
     singular: ocmresource
   scope: Namespaced
   versions:
-  - name: v1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: OCMResource is the Schema for the ocmresources API
@@ -35,13 +35,25 @@ spec:
           spec:
             description: OCMResourceSpec defines the desired state of OCMResource
             properties:
-              foo:
-                description: Foo is an example field of OCMResource. Edit ocmresource_types.go
-                  to remove/update
+              resource:
+                description: Resource names a Source that this OCMResource watches.
                 type: string
+            required:
+            - resource
             type: object
           status:
             description: OCMResourceStatus defines the observed state of OCMResource
+            properties:
+              ready:
+                description: Ready denotes the state of processing a Source.
+                type: boolean
+              snapshot:
+                description: Snapshot is a snapshot of a Source in the in-cluster
+                  OCI storage.
+                type: string
+            required:
+            - ready
+            - snapshot
             type: object
         type: object
     served: true

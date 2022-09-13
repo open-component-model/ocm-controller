@@ -14,53 +14,47 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
-// ProviderRef defines a provider for this Source.
-type ProviderRef struct {
-	ApiVersion string `json:"apiVersion"`
-	Kind       string `json:"kind"`
-	Name       string `json:"name"`
+// OCMResourceSpec defines the desired state of OCMResource
+type OCMResourceSpec struct {
+	// Resource names a Source that this OCMResource watches.
+	Resource string `json:"resource"`
 }
 
-// SourceSpec defines the desired state of Source
-type SourceSpec struct {
-	ComponentRef types.NamespacedName `json:"componentRef"`
-	ProviderRef  ProviderRef          `json:"providerRef"`
-}
-
-// SourceStatus defines the observed state of Source
-type SourceStatus struct {
-	Ready    bool   `json:"read"`
+// OCMResourceStatus defines the observed state of OCMResource
+type OCMResourceStatus struct {
+	// Ready denotes the state of processing a Source.
+	Ready bool `json:"ready"`
+	// Snapshot is a snapshot of a Source in the in-cluster OCI storage.
 	Snapshot string `json:"snapshot"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// Source is the Schema for the sources API
-type Source struct {
+// OCMResource is the Schema for the ocmresources API
+type OCMResource struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SourceSpec   `json:"spec,omitempty"`
-	Status SourceStatus `json:"status,omitempty"`
+	Spec   OCMResourceSpec   `json:"spec,omitempty"`
+	Status OCMResourceStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// SourceList contains a list of Source
-type SourceList struct {
+// OCMResourceList contains a list of OCMResource
+type OCMResourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Source `json:"items"`
+	Items           []OCMResource `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Source{}, &SourceList{})
+	SchemeBuilder.Register(&OCMResource{}, &OCMResourceList{})
 }

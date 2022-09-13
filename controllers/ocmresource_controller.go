@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1"
+	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 // OCMResourceReconciler reconciles a OCMResource object

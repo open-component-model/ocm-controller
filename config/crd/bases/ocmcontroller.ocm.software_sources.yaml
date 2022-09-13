@@ -15,7 +15,7 @@ spec:
     singular: source
   scope: Namespaced
   versions:
-  - name: v1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Source is the Schema for the sources API
@@ -35,13 +35,36 @@ spec:
           spec:
             description: SourceSpec defines the desired state of Source
             properties:
-              foo:
-                description: Foo is an example field of Source. Edit source_types.go
-                  to remove/update
-                type: string
+              componentRef:
+                type: object
+              providerRef:
+                description: ProviderRef defines a provider for this Source.
+                properties:
+                  apiVersion:
+                    type: string
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+            required:
+            - componentRef
+            - providerRef
             type: object
           status:
             description: SourceStatus defines the observed state of Source
+            properties:
+              read:
+                type: boolean
+              snapshot:
+                type: string
+            required:
+            - read
+            - snapshot
             type: object
         type: object
     served: true

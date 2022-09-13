@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1"
+	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
