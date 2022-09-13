@@ -94,7 +94,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Ensure we add a watcher to the external object.
-	if err := r.externalTracker.Watch(ctrl.Log, owner, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.OCMResource{}}); err != nil {
+	if err := r.externalTracker.Watch(ctrl.Log, owner, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Action{}}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set up watch for parent object: %w", err)
 	}
 
