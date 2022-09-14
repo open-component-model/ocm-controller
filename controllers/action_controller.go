@@ -67,12 +67,6 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, fmt.Errorf("failed to get action object: %w", err)
 	}
 
-	// Initialize the patch helper.
-	patchHelper, err := patch.NewHelper(action, r.Client)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
-	}
-
 	providerObj, err := Get(ctx, r.Client, &corev1.ObjectReference{
 		Kind:       action.Spec.ProviderRef.Kind,
 		Name:       action.Spec.ProviderRef.Name,
@@ -87,9 +81,15 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, fmt.Errorf("failed to set owner reference: %w", err)
 	}
 
+	// Initialize the patch helper.
+	patchHelper, err := patch.NewHelper(providerObj, r.Client)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
+	}
+
 	// Patch the external object.
 	if err := patchHelper.Patch(ctx, providerObj); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
+		return ctrl.Result{}, fmt.Errorf("failed to patch provider object: %w", err)
 	}
 
 	// Ensure we add a watcher to the external object.
