@@ -2,17 +2,17 @@ apiVersion: x-delivery.ocm.software/v1alpha1
 kind: Action
 metadata:
   name: localize
-  namespace: wge-system
+  namespace: wego-system
 spec:
   componentRef:
     name: wge
-    namespace: wge-admin
+    namespace: wego-system
   sourceRef:
     name: wge-admin-source
   providerRef:
-    apiVersion: delivery.ocm.software/v1alpha1
+    apiVersion: x-delivery.ocm.software/v1alpha1
     kind: Localization
     name: wge-localizer
 status:
-  ready: true
+  ready: false
   snapshot: string

@@ -54,7 +54,7 @@ type SourceReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
 	source := &actionv1.Source{}
 	if err := r.Client.Get(ctx, req.NamespacedName, source); err != nil {
@@ -86,7 +86,9 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	providerStatus, ok := providerObj.Object["status"]
 	if !ok {
-		return ctrl.Result{}, fmt.Errorf("failed to find status on referenced provider obj: %+v", *providerObj)
+		// No status field, rescheduling reconcile.
+		log.Info("provider object doesn't have a status field yet", "provider", providerObj)
+		return ctrl.Result{}, nil
 	}
 	typedStatus, ok := providerStatus.(map[string]interface{})
 	if !ok {

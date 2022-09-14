@@ -2,9 +2,9 @@ apiVersion: x-delivery.ocm.software/v1alpha1
 kind: OCMResource
 metadata:
   name: wge-ui-server
-  namespace: wge-system
+  namespace: wego-system
 spec:
   resource: wge-ui-server
 status:
-  ready: true
+  ready: false
   snapshot: string

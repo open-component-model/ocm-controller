@@ -2,7 +2,7 @@ apiVersion: x-delivery.ocm.software/v1alpha1
 kind: OCMComponent
 metadata:
   name: weave-gitops
-  namespace: weave-gitops-system
+  namespace: wego-system
 spec:
   interval: 600
   name: github.com/weaveworks/weave-gitops
