@@ -16,7 +16,6 @@ import (
 	"github.com/distribution/distribution/v3/configuration"
 	"github.com/distribution/distribution/v3/registry/handlers"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/filesystem"
-	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -81,7 +80,6 @@ func NewRegistry(cfg Config) (*Registry, error) {
 		return nil, err
 	}
 
-	logrus.SetLevel(logrus.FatalLevel)
 	regHandler := handlers.NewApp(context.Background(), registryConfig)
 
 	reg := &http.Server{

@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
-	github.com/sirupsen/logrus v1.8.1
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
 	sigs.k8s.io/cluster-api v1.2.1
@@ -27,6 +26,7 @@ require (
 	github.com/onsi/gomega v1.19.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
+	github.com/sirupsen/logrus v1.8.1 // indirect
 	k8s.io/apiserver v0.25.0 // indirect
 )
 
