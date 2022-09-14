@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: ocmcomponents.ocmcontroller.ocm.software
+  name: ocmcomponents.x-delivery.ocm.software
 spec:
-  group: ocmcontroller.ocm.software
+  group: x-delivery.ocm.software
   names:
     kind: OCMComponent
     listKind: OCMComponentList

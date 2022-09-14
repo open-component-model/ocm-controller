@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API Schema definitions for the ocmcontroller v1alpha1 API group
+// Package v1alpha1 contains API Schema definitions for the x-delivery v1alpha1 API group
 // +kubebuilder:object:generate=true
-// +groupName=ocmcontroller.ocm.software
+// +groupName=x-delivery.ocm.software
 package v1alpha1
 
 import (

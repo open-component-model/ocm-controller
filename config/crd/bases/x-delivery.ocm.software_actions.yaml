@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: sources.ocmcontroller.ocm.software
+  name: actions.x-delivery.ocm.software
 spec:
-  group: ocmcontroller.ocm.software
+  group: x-delivery.ocm.software
   names:
-    kind: Source
-    listKind: SourceList
-    plural: sources
-    singular: source
+    kind: Action
+    listKind: ActionList
+    plural: actions
+    singular: action
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Source is the Schema for the sources API
+        description: Action is the Schema for the actions API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,7 +33,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SourceSpec defines the desired state of Source
+            description: ActionSpec defines the desired state of Action
             properties:
               componentRef:
                 type: object
@@ -51,12 +51,21 @@ spec:
                 - kind
                 - name
                 type: object
+              sourceRef:
+                description: SourceRef defines the reference to a Source.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
             required:
             - componentRef
             - providerRef
+            - sourceRef
             type: object
           status:
-            description: SourceStatus defines the observed state of Source
+            description: ActionStatus defines the observed state of Action
             properties:
               read:
                 type: boolean

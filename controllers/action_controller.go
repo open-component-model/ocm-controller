@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -46,9 +45,9 @@ type ActionReconciler struct {
 	externalTracker external.ObjectTracker
 }
 
-//+kubebuilder:rbac:groups=ocmcontroller.ocm.software,resources=actions,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ocmcontroller.ocm.software,resources=actions/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ocmcontroller.ocm.software,resources=actions/finalizers,verbs=update
+//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=actions,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=actions/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=actions/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -105,7 +104,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // Get uses the client and reference to get an external, unstructured object.
 func (r *ActionReconciler) Get(ctx context.Context, ref *corev1.ObjectReference, namespace string) (*unstructured.Unstructured, error) {
 	if ref == nil {
-		return nil, errors.Errorf("cannot get object - object reference not set")
+		return nil, fmt.Errorf("cannot get object - object reference not set")
 	}
 	obj := new(unstructured.Unstructured)
 	obj.SetAPIVersion(ref.APIVersion)
@@ -113,7 +112,7 @@ func (r *ActionReconciler) Get(ctx context.Context, ref *corev1.ObjectReference,
 	obj.SetName(ref.Name)
 	key := client.ObjectKey{Name: obj.GetName(), Namespace: namespace}
 	if err := r.Client.Get(ctx, key, obj); err != nil {
-		return nil, errors.Wrapf(err, "failed to retrieve %s external object %q/%q", obj.GetKind(), key.Namespace, key.Name)
+		return nil, fmt.Errorf("failed to retrieve %s external object %q/%q: %w", obj.GetKind(), key.Namespace, key.Name, err)
 	}
 	return obj, nil
 }
@@ -128,7 +127,7 @@ func (r *ActionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Build(r)
 
 	if err != nil {
-		return errors.Wrap(err, "failed setting up with a controller manager")
+		return fmt.Errorf("failed setting up with a controller manager: %w", err)
 	}
 
 	r.externalTracker = external.ObjectTracker{

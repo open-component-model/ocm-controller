@@ -2,7 +2,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: sources.ocmcontroller.ocm.software
+  name: sources.x-delivery.ocm.software
 spec:
   conversion:
     strategy: Webhook

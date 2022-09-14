@@ -6,7 +6,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - actions
   verbs:
@@ -18,13 +18,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - actions/finalizers
   verbs:
   - update
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - actions/status
   verbs:
@@ -32,7 +32,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - ocmcomponents
   verbs:
@@ -44,13 +44,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - ocmcomponents/finalizers
   verbs:
   - update
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - ocmcomponents/status
   verbs:
@@ -58,7 +58,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - ocmresources
   verbs:
@@ -70,13 +70,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - ocmresources/finalizers
   verbs:
   - update
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - ocmresources/status
   verbs:
@@ -84,7 +84,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - sources
   verbs:
@@ -96,13 +96,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - sources/finalizers
   verbs:
   - update
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - sources/status
   verbs:

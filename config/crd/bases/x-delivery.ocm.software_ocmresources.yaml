@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: actions.ocmcontroller.ocm.software
+  name: ocmresources.x-delivery.ocm.software
 spec:
-  group: ocmcontroller.ocm.software
+  group: x-delivery.ocm.software
   names:
-    kind: Action
-    listKind: ActionList
-    plural: actions
-    singular: action
+    kind: OCMResource
+    listKind: OCMResourceList
+    plural: ocmresources
+    singular: ocmresource
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Action is the Schema for the actions API
+        description: OCMResource is the Schema for the ocmresources API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,46 +33,26 @@ spec:
           metadata:
             type: object
           spec:
-            description: ActionSpec defines the desired state of Action
+            description: OCMResourceSpec defines the desired state of OCMResource
             properties:
-              componentRef:
-                type: object
-              providerRef:
-                description: ProviderRef defines a provider for this Source.
-                properties:
-                  apiVersion:
-                    type: string
-                  kind:
-                    type: string
-                  name:
-                    type: string
-                required:
-                - apiVersion
-                - kind
-                - name
-                type: object
-              sourceRef:
-                description: SourceRef defines the reference to a Source.
-                properties:
-                  name:
-                    type: string
-                required:
-                - name
-                type: object
-            required:
-            - componentRef
-            - providerRef
-            - sourceRef
-            type: object
-          status:
-            description: ActionStatus defines the observed state of Action
-            properties:
-              read:
-                type: boolean
-              snapshot:
+              resource:
+                description: Resource names a Source that this OCMResource watches.
                 type: string
             required:
-            - read
+            - resource
+            type: object
+          status:
+            description: OCMResourceStatus defines the observed state of OCMResource
+            properties:
+              ready:
+                description: Ready denotes the state of processing a Source.
+                type: boolean
+              snapshot:
+                description: Snapshot is a snapshot of a Source in the in-cluster
+                  OCI storage.
+                type: string
+            required:
+            - ready
             - snapshot
             type: object
         type: object

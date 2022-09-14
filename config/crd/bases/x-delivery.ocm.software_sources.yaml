@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: ocmresources.ocmcontroller.ocm.software
+  name: sources.x-delivery.ocm.software
 spec:
-  group: ocmcontroller.ocm.software
+  group: x-delivery.ocm.software
   names:
-    kind: OCMResource
-    listKind: OCMResourceList
-    plural: ocmresources
-    singular: ocmresource
+    kind: Source
+    listKind: SourceList
+    plural: sources
+    singular: source
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: OCMResource is the Schema for the ocmresources API
+        description: Source is the Schema for the sources API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,26 +33,37 @@ spec:
           metadata:
             type: object
           spec:
-            description: OCMResourceSpec defines the desired state of OCMResource
+            description: SourceSpec defines the desired state of Source
             properties:
-              resource:
-                description: Resource names a Source that this OCMResource watches.
-                type: string
+              componentRef:
+                type: object
+              providerRef:
+                description: ProviderRef defines a provider for this Source.
+                properties:
+                  apiVersion:
+                    type: string
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
             required:
-            - resource
+            - componentRef
+            - providerRef
             type: object
           status:
-            description: OCMResourceStatus defines the observed state of OCMResource
+            description: SourceStatus defines the observed state of Source
             properties:
-              ready:
-                description: Ready denotes the state of processing a Source.
+              read:
                 type: boolean
               snapshot:
-                description: Snapshot is a snapshot of a Source in the in-cluster
-                  OCI storage.
                 type: string
             required:
-            - ready
+            - read
             - snapshot
             type: object
         type: object

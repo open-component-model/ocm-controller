@@ -5,7 +5,7 @@ metadata:
   name: source-viewer-role
 rules:
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - sources
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - ocmcontroller.ocm.software
+  - x-delivery.ocm.software
   resources:
   - sources/status
   verbs:

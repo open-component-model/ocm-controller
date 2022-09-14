@@ -18,24 +18,33 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/cluster-api/controllers/external"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 // SourceReconciler reconciles a Source object
 type SourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	// TODO: Write our own Watch.
+	externalTracker external.ObjectTracker
 }
 
-//+kubebuilder:rbac:groups=ocmcontroller.ocm.software,resources=sources,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ocmcontroller.ocm.software,resources=sources/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ocmcontroller.ocm.software,resources=sources/finalizers,verbs=update
+//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=sources,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=sources/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=sources/finalizers,verbs=update
+//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=*,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -49,12 +58,36 @@ type SourceReconciler struct {
 func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
+	source := &actionv1.Source{}
+	if err := r.Client.Get(ctx, req.NamespacedName, source); err != nil {
+		if apierrors.IsNotFound(err) {
+			// Object not found, return.  Created objects are automatically garbage collected.
+			// For additional cleanup logic use finalizers.
+			return ctrl.Result{}, nil
+		}
+
+		// Error reading the object - requeue the request.
+		return ctrl.Result{}, fmt.Errorf("failed to get source object: %w", err)
+	}
+
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocmcontrollerv1.Source{}).
-		Complete(r)
+	controller, err := ctrl.NewControllerManagedBy(mgr).
+		For(&actionv1.Source{}).
+		Watches(
+			&source.Kind{Type: &actionv1.Source{}},
+			&handler.EnqueueRequestForObject{}).
+		Build(r)
+
+	if err != nil {
+		return fmt.Errorf("failed setting up with a controller manager: %w", err)
+	}
+
+	r.externalTracker = external.ObjectTracker{
+		Controller: controller,
+	}
+	return nil
 }

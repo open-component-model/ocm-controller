@@ -2,10 +2,10 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/ocmcontroller.ocm.software_ocmcomponents.yaml
-- bases/ocmcontroller.ocm.software_sources.yaml
-- bases/ocmcontroller.ocm.software_actions.yaml
-- bases/ocmcontroller.ocm.software_ocmresources.yaml
+- bases/x-delivery.ocm.software_ocmcomponents.yaml
+- bases/x-delivery.ocm.software_sources.yaml
+- bases/x-delivery.ocm.software_actions.yaml
+- bases/x-delivery.ocm.software_ocmresources.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
