@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -74,7 +73,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
-	providerObj, err := r.Get(ctx, &corev1.ObjectReference{
+	providerObj, err := Get(ctx, r.Client, &corev1.ObjectReference{
 		Kind:       action.Spec.ProviderRef.Kind,
 		Name:       action.Spec.ProviderRef.Name,
 		APIVersion: action.Spec.ProviderRef.ApiVersion,
@@ -99,22 +98,6 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	return ctrl.Result{}, nil
-}
-
-// Get uses the client and reference to get an external, unstructured object.
-func (r *ActionReconciler) Get(ctx context.Context, ref *corev1.ObjectReference, namespace string) (*unstructured.Unstructured, error) {
-	if ref == nil {
-		return nil, fmt.Errorf("cannot get object - object reference not set")
-	}
-	obj := new(unstructured.Unstructured)
-	obj.SetAPIVersion(ref.APIVersion)
-	obj.SetKind(ref.Kind)
-	obj.SetName(ref.Name)
-	key := client.ObjectKey{Name: obj.GetName(), Namespace: namespace}
-	if err := r.Client.Get(ctx, key, obj); err != nil {
-		return nil, fmt.Errorf("failed to retrieve %s external object %q/%q: %w", obj.GetKind(), key.Namespace, key.Name, err)
-	}
-	return obj, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

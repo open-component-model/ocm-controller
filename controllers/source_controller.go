@@ -20,9 +20,11 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/controllers/external"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -48,10 +50,6 @@ type SourceReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Source object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
@@ -68,6 +66,52 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 		// Error reading the object - requeue the request.
 		return ctrl.Result{}, fmt.Errorf("failed to get source object: %w", err)
+	}
+
+	providerObj, err := Get(ctx, r.Client, &corev1.ObjectReference{
+		Kind:       source.Spec.ProviderRef.Kind,
+		Name:       source.Spec.ProviderRef.Name,
+		APIVersion: source.Spec.ProviderRef.ApiVersion,
+	}, source.Namespace)
+
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get referenced provider: %w", err)
+	}
+
+	// Initialize the patch helper.
+	patchHelper, err := patch.NewHelper(source, r.Client)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
+	}
+
+	providerStatus, ok := providerObj.Object["status"]
+	if !ok {
+		return ctrl.Result{}, fmt.Errorf("failed to find status on referenced provider obj: %+v", *providerObj)
+	}
+	typedStatus, ok := providerStatus.(map[string]interface{})
+	if !ok {
+		return ctrl.Result{}, fmt.Errorf("status object of referenced provider is not a map: %+v", providerStatus)
+	}
+	ready, ok := typedStatus["ready"]
+	if !ok {
+		return ctrl.Result{}, fmt.Errorf("failed to find ready field on referenced provider obj's status: %+v", typedStatus)
+	}
+	typedReady, ok := ready.(bool)
+	if !ok {
+		return ctrl.Result{}, fmt.Errorf("status was not a boolean: %+v", typedReady)
+	}
+
+	// we always patch the source object to make sure the status aligns with the provider status.
+	source.Status.Ready = typedReady
+
+	// Patch the external object.
+	if err := patchHelper.Patch(ctx, source); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
+	}
+
+	// Setup watch for the provider referenced object so this `reconcile` is triggered for provider status changes.
+	if err := r.externalTracker.Watch(ctrl.Log, providerObj, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Source{}}); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to set up watch for provider object: %w", err)
 	}
 
 	return ctrl.Result{}, nil
