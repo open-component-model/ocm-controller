@@ -3,6 +3,8 @@ module github.com/open-component-model/ocm-controller
 go 1.18
 
 require (
+	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
+	github.com/sirupsen/logrus v1.8.1
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
 	sigs.k8s.io/cluster-api v1.2.1
@@ -11,10 +13,20 @@ require (
 
 require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
+	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
+	github.com/docker/go-metrics v0.0.1 // indirect
+	github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1 // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/gobuffalo/flect v0.2.5 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
+	github.com/gomodule/redigo v1.8.2 // indirect
+	github.com/gorilla/handlers v1.5.1 // indirect
+	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/onsi/gomega v1.19.0 // indirect
+	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opencontainers/image-spec v1.0.2 // indirect
 	k8s.io/apiserver v0.25.0 // indirect
 )
 
