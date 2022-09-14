@@ -104,6 +104,13 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// we always patch the source object to make sure the status aligns with the provider status.
 	source.Status.Ready = typedReady
 
+	// set up snapshot if it exists
+	if snapshot, ok := typedStatus["snapshot"]; ok {
+		if typedSnapshot, ok := snapshot.(string); ok {
+			source.Status.Snapshot = typedSnapshot
+		}
+	}
+
 	// Patch the external object.
 	if err := patchHelper.Patch(ctx, source); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
