@@ -20,18 +20,23 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
+
+// SecretRef is a reference to a secret used to access the OCI repository.
+type SecretRef struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}
 
 // Repository defines the OCM Repository.
 type Repository struct {
-	URL       string               `json:"url"`
-	SecretRef types.NamespacedName `json:"secretRef"`
+	URL       string    `json:"url"`
+	SecretRef SecretRef `json:"secretRef"`
 }
 
 // Verify holds the secret which contains the signing and verification keys.
 type Verify struct {
-	SecretRef types.NamespacedName `json:"secretRef"`
+	SecretRef SecretRef `json:"secretRef"`
 }
 
 // OCMComponentSpec defines the desired state of OCMComponent

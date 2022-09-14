@@ -47,6 +47,16 @@ spec:
                 description: Repository defines the OCM Repository.
                 properties:
                   secretRef:
+                    description: SecretRef is a reference to a secret used to access
+                      the OCI repository.
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
                     type: object
                   url:
                     type: string
@@ -59,6 +69,16 @@ spec:
                   verification keys.
                 properties:
                   secretRef:
+                    description: SecretRef is a reference to a secret used to access
+                      the OCI repository.
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
                     type: object
                 required:
                 - secretRef

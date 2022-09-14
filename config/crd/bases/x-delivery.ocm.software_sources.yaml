@@ -36,6 +36,15 @@ spec:
             description: SourceSpec defines the desired state of Source
             properties:
               componentRef:
+                description: ComponentRef defines a reference to a component.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
                 type: object
               providerRef:
                 description: ProviderRef defines a provider for this Source.

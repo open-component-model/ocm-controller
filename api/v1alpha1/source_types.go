@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 // ProviderRef defines a provider for this Source.
@@ -30,8 +29,8 @@ type ProviderRef struct {
 
 // SourceSpec defines the desired state of Source
 type SourceSpec struct {
-	ComponentRef types.NamespacedName `json:"componentRef"`
-	ProviderRef  ProviderRef          `json:"providerRef"`
+	ComponentRef ComponentRef `json:"componentRef"`
+	ProviderRef  ProviderRef  `json:"providerRef"`
 }
 
 // SourceStatus defines the observed state of Source

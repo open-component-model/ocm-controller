@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 // SourceRef defines the reference to a Source.
@@ -26,11 +25,17 @@ type SourceRef struct {
 	Name string `json:"name"`
 }
 
+// ComponentRef defines a reference to a component.
+type ComponentRef struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}
+
 // ActionSpec defines the desired state of Action
 type ActionSpec struct {
-	ComponentRef types.NamespacedName `json:"componentRef"`
-	SourceRef    SourceRef            `json:"sourceRef"`
-	ProviderRef  ProviderRef          `json:"providerRef"`
+	ComponentRef ComponentRef `json:"componentRef"`
+	SourceRef    SourceRef    `json:"sourceRef"`
+	ProviderRef  ProviderRef  `json:"providerRef"`
 }
 
 // ActionStatus defines the observed state of Action
