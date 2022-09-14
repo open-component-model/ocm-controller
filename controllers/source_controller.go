@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +28,7 @@ import (
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -76,31 +78,38 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}, source.Namespace)
 
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get referenced provider: %w", err)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to get referenced provider: %w", err)
 	}
 	log.V(4).Info("found provider object", "provider", providerObj)
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(source, r.Client)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
 	providerStatus, ok := providerObj.Object["status"]
 	if !ok {
-		// No status field, rescheduling reconcile.
+		// No status field. We don't need to requeue since change to the object will trigger reconcile.
 		log.Info("provider object doesn't have a status field yet", "provider", providerObj)
 		return ctrl.Result{}, nil
 	}
 	typedStatus, ok := providerStatus.(map[string]interface{})
 	if !ok {
+		// No need to requeue since the object is not properly formatted and needs changes anyways.
 		return ctrl.Result{}, fmt.Errorf("status object of referenced provider is not a map: %+v", providerStatus)
 	}
 	ready, ok := typedStatus["ready"]
 	if !ok {
+		// No need to requeue since the object is not properly formatted and needs changes anyways.
 		return ctrl.Result{}, fmt.Errorf("failed to find ready field on referenced provider obj's status: %+v", typedStatus)
 	}
 	typedReady, ok := ready.(bool)
 	if !ok {
+		// No need to requeue since the object is not properly formatted and needs changes anyways.
 		return ctrl.Result{}, fmt.Errorf("status was not a boolean: %+v", typedReady)
 	}
 
@@ -116,12 +125,40 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// Patch the source object.
 	if err := patchHelper.Patch(ctx, source); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to patch source object: %w", err)
 	}
 	log.V(4).Info("patch successful")
+
 	// Setup watch for the provider referenced object so this `reconcile` is triggered for provider status changes.
 	if err := r.externalTracker.Watch(ctrl.Log, providerObj, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Source{}}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to set up watch for provider object: %w", err)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to set up watch for provider object: %w", err)
+	}
+
+	// Set up Owner relationship with the provider ref object.
+	// Initialize the patch helper.
+	patchHelper, err = patch.NewHelper(providerObj, r.Client)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to create patch helper for provider object: %w", err)
+	}
+
+	// Set external object OwnerReference to the provider ref.
+	if err := controllerutil.SetOwnerReference(source, providerObj, r.Client.Scheme()); err != nil {
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to set owner reference for child provider object: %w", err)
+	}
+
+	// Patch the provider object.
+	if err := patchHelper.Patch(ctx, providerObj); err != nil {
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to patch provider object: %w", err)
 	}
 
 	return ctrl.Result{}, nil

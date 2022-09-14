@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -79,24 +80,32 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	log.V(4).Info("found provider object", "provider", providerObj)
 	// Set external object ControllerReference to the provider ref.
 	if err := controllerutil.SetControllerReference(action, providerObj, r.Client.Scheme()); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to set owner reference: %w", err)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to set owner reference: %w", err)
 	}
 
 	log.V(4).Info("set up controller reference")
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(providerObj, r.Client)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
 	// Patch the external object.
 	if err := patchHelper.Patch(ctx, providerObj); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to patch provider object: %w", err)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to patch provider object: %w", err)
 	}
 	log.V(4).Info("path successful")
 	// Ensure we add a watcher to the external object.
 	if err := r.externalTracker.Watch(ctrl.Log, providerObj, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Action{}}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to set up watch for parent object: %w", err)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to set up watch for parent object: %w", err)
 	}
 
 	return ctrl.Result{}, nil

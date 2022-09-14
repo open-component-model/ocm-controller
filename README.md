@@ -12,3 +12,8 @@ make
 ./bin/manager -zap-log-level 4
 ```
 - apply all the sample objects
+
+To trigger the `reconcile` loop ( because manually updating the status doesn't trigger it ) run something like this:
+```console
+kubectl annotate --overwrite ... "trigger/reconcile=$(date -u+%)"
+```
