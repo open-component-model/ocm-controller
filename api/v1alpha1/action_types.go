@@ -40,7 +40,7 @@ type ActionSpec struct {
 
 // ActionStatus defines the observed state of Action
 type ActionStatus struct {
-	Ready    bool   `json:"read"`
+	Ready    bool   `json:"ready"`
 	Snapshot string `json:"snapshot"`
 }
 

@@ -76,12 +76,12 @@ spec:
           status:
             description: ActionStatus defines the observed state of Action
             properties:
-              read:
+              ready:
                 type: boolean
               snapshot:
                 type: string
             required:
-            - read
+            - ready
             - snapshot
             type: object
         type: object

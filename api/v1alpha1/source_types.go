@@ -35,7 +35,7 @@ type SourceSpec struct {
 
 // SourceStatus defines the observed state of Source
 type SourceStatus struct {
-	Ready    bool   `json:"read"`
+	Ready    bool   `json:"ready"`
 	Snapshot string `json:"snapshot"`
 }
 
