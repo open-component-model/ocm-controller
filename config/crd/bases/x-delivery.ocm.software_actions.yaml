@@ -63,9 +63,15 @@ spec:
               sourceRef:
                 description: SourceRef defines the reference to a Source.
                 properties:
+                  apiVersion:
+                    type: string
+                  kind:
+                    type: string
                   name:
                     type: string
                 required:
+                - apiVersion
+                - kind
                 - name
                 type: object
             required:

@@ -22,7 +22,9 @@ import (
 
 // SourceRef defines the reference to a Source.
 type SourceRef struct {
-	Name string `json:"name"`
+	Name       string `json:"name"`
+	Kind       string `json:"kind"`
+	ApiVersion string `json:"apiVersion"`
 }
 
 // ComponentRef defines a reference to a component.
