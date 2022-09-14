@@ -54,8 +54,9 @@ type SourceReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	log := log.FromContext(ctx).WithName("source-controller")
 
+	log.V(4).Info("starting reconcile loop")
 	source := &actionv1.Source{}
 	if err := r.Client.Get(ctx, req.NamespacedName, source); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -67,7 +68,7 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// Error reading the object - requeue the request.
 		return ctrl.Result{}, fmt.Errorf("failed to get source object: %w", err)
 	}
-
+	log.V(4).Info("found source", "source", source)
 	providerObj, err := Get(ctx, r.Client, &corev1.ObjectReference{
 		Kind:       source.Spec.ProviderRef.Kind,
 		Name:       source.Spec.ProviderRef.Name,
@@ -77,7 +78,7 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get referenced provider: %w", err)
 	}
-
+	log.V(4).Info("found provider object", "provider", providerObj)
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(source, r.Client)
 	if err != nil {
@@ -105,7 +106,7 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// we always patch the source object to make sure the status aligns with the provider status.
 	source.Status.Ready = typedReady
-
+	log.V(4).Info("patching source object")
 	// set up snapshot if it exists
 	if snapshot, ok := typedStatus["snapshot"]; ok {
 		if typedSnapshot, ok := snapshot.(string); ok {
@@ -117,7 +118,7 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err := patchHelper.Patch(ctx, source); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
 	}
-
+	log.V(4).Info("patch successful")
 	// Setup watch for the provider referenced object so this `reconcile` is triggered for provider status changes.
 	if err := r.externalTracker.Watch(ctrl.Log, providerObj, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Source{}}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set up watch for provider object: %w", err)

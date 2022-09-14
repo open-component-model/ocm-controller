@@ -53,7 +53,8 @@ type ActionReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx).WithName("action-controller")
+	log.V(4).Info("starting reconcile loop")
 
 	action := &actionv1.Action{}
 	if err := r.Client.Get(ctx, req.NamespacedName, action); err != nil {
@@ -66,7 +67,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// Error reading the object - requeue the request.
 		return ctrl.Result{}, fmt.Errorf("failed to get action object: %w", err)
 	}
-
+	log.V(4).Info("reconciling action", "action", action)
 	providerObj, err := Get(ctx, r.Client, &corev1.ObjectReference{
 		Kind:       action.Spec.ProviderRef.Kind,
 		Name:       action.Spec.ProviderRef.Name,
@@ -75,12 +76,13 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to find owner for action: %w", err)
 	}
-
+	log.V(4).Info("found provider object", "provider", providerObj)
 	// Set external object ControllerReference to the provider ref.
 	if err := controllerutil.SetControllerReference(action, providerObj, r.Client.Scheme()); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set owner reference: %w", err)
 	}
 
+	log.V(4).Info("set up controller reference")
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(providerObj, r.Client)
 	if err != nil {
@@ -91,7 +93,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err := patchHelper.Patch(ctx, providerObj); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch provider object: %w", err)
 	}
-
+	log.V(4).Info("path successful")
 	// Ensure we add a watcher to the external object.
 	if err := r.externalTracker.Watch(ctrl.Log, providerObj, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Action{}}); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to set up watch for parent object: %w", err)
