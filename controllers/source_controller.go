@@ -113,7 +113,7 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
-	// Patch the external object.
+	// Patch the source object.
 	if err := patchHelper.Patch(ctx, source); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
 	}

@@ -6,5 +6,5 @@ metadata:
 spec:
   resource: wge-ui-server
 status:
-  ready: false
-  snapshot: string
+  ready: true
+  snapshot: "updated snapshot string"

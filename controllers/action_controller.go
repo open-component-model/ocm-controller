@@ -88,7 +88,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Patch the external object.
-	if err := patchHelper.Patch(ctx, action); err != nil {
+	if err := patchHelper.Patch(ctx, providerObj); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch action object: %w", err)
 	}
 
