@@ -24,8 +24,7 @@ import (
 
 // SecretRef is a reference to a secret used to access the OCI repository.
 type SecretRef struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
+	Name string `json:"name"`
 }
 
 // Repository defines the OCM Repository.
