@@ -160,7 +160,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	defer vfs.Cleanup(fs)
 
 	// put the stuff into the oci registry and return the snapshot? ( patch the snapshot and status to Ready ).
-	if err := r.transferToObjectStorage(ctx, "localhost:5000", fs); err != nil {
+	if err := r.transferToObjectStorage(ctx, "localhost:5000", fs, component.Name, resource.Spec.Resource); err != nil {
 		return ctrl.Result{
 			RequeueAfter: component.Spec.Interval,
 		}, err
@@ -223,7 +223,7 @@ func (r *OCMResourceReconciler) getComponentVersion(ctx ocm.Context, session ocm
 	return cv, nil
 }
 
-func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, ociRegistryEndpoint string, virtualFs vfs.FileSystem) error {
+func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, ociRegistryEndpoint string, virtualFs vfs.FileSystem, repo, resourceName string) error {
 	log := log.FromContext(ctx)
 	rootDir := "/"
 
@@ -241,8 +241,19 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 		Revision: "rev",
 	}
 
-	// TODO: Find a way to configure this from something...
-	pusher := registry.NewClient(ociRegistryEndpoint + "/skarlso/ocm-test:v0.0.1")
+	//if !strings.Contains(ociRegistryEndpoint, "http://") {
+	//	ociRegistryEndpoint = "http://" + ociRegistryEndpoint
+	//}
+
+	//u, err := url.Parse(ociRegistryEndpoint)
+	//if err != nil {
+	//	return fmt.Errorf("failed to join path for registry url: %w", err)
+	//}
+
+	taggedURL := fmt.Sprintf("%s/%s/%s:%d", ociRegistryEndpoint, repo, resourceName, time.Now().Unix())
+	log.V(4).Info("pushing joined url", "url", taggedURL)
+	pusher := registry.NewClient(taggedURL)
+
 	if err := pusher.Push(ctx, artifactPath, sourceDir, metadata); err != nil {
 		return fmt.Errorf("failed to push artifact: %w", err)
 	}
