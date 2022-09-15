@@ -29,7 +29,6 @@ import (
 	ociclient "github.com/fluxcd/pkg/oci/client"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
-	"github.com/open-component-model/ocm-controller/pkg/registry"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/cpi"
 	"github.com/open-component-model/ocm/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -52,6 +51,7 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 
 	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	registry "github.com/open-component-model/ocm-controller/pkg/registry"
 )
 
 // OCMResourceReconciler reconciles a OCMResource object
@@ -241,11 +241,12 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 		Revision: "rev",
 	}
 
-	pusher := registry.NewClient(ociRegistryEndpoint)
+	// TODO: Find a way to configure this from something...
+	pusher := registry.NewClient(ociRegistryEndpoint + "/skarlso/ocm-test:v0.0.1")
 	if err := pusher.Push(ctx, artifactPath, sourceDir, metadata); err != nil {
 		return fmt.Errorf("failed to push artifact: %w", err)
 	}
-	log.V(4).Info("successfully uploaded artifact to location", "location", artifactPath)
+	log.V(4).Info("successfully uploaded artifact to location", "location", artifactPath, "sourcedir", sourceDir)
 
 	return nil
 }
