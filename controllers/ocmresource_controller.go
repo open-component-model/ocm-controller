@@ -20,15 +20,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/containers/image/v5/pkg/compression"
+	ociclient "github.com/fluxcd/pkg/oci/client"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
+	"github.com/open-component-model/ocm-controller/pkg/registry"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/cpi"
 	"github.com/open-component-model/ocm/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -159,7 +160,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	defer vfs.Cleanup(fs)
 
 	// put the stuff into the oci registry and return the snapshot? ( patch the snapshot and status to Ready ).
-	if err := r.transferToObjectStorage(ctx, "url...", fs); err != nil {
+	if err := r.transferToObjectStorage(ctx, "localhost:5000", fs); err != nil {
 		return ctrl.Result{
 			RequeueAfter: component.Spec.Interval,
 		}, err
@@ -232,24 +233,19 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 	}
 
 	sourceDir := filepath.Join(os.TempDir(), fi.Name())
+	artifactPath := filepath.Join(os.TempDir(), fi.Name()+".tar.gz")
 
-	if err := vfs.Walk(virtualFs, rootDir, func(path string, fi fs.FileInfo, err error) error {
-		if m := fi.Mode(); !(m.IsRegular() || m.IsDir()) {
-			return nil
-		}
-
-		if fi.IsDir() {
-			return nil
-		}
-
-		abspath := filepath.Join(sourceDir, path)
-		log.Info("got absolute path", "path", abspath)
-		// TODO: Use oci registry implementation
-
-		return nil
-	}); err != nil {
-		return fmt.Errorf("transfer to object storage error: %w", err)
+	// We have the source dir, just tar and upload it to the registry.
+	metadata := ociclient.Metadata{
+		Source:   "github.com/open-component-model/ocm-controller",
+		Revision: "rev",
 	}
+
+	pusher := registry.NewClient(ociRegistryEndpoint)
+	if err := pusher.Push(ctx, artifactPath, sourceDir, metadata); err != nil {
+		return fmt.Errorf("failed to push artifact: %w", err)
+	}
+	log.V(4).Info("successfully uploaded artifact to location", "location", artifactPath)
 
 	return nil
 }
