@@ -17,10 +17,21 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
+	"net/url"
+	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/containers/image/v5/pkg/compression"
+	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/mandelsoft/vfs/pkg/vfs"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/cpi"
+	"github.com/open-component-model/ocm/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -31,6 +42,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/open-component-model/ocm/pkg/common"
+	"github.com/open-component-model/ocm/pkg/contexts/credentials"
+	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmmeta "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 
 	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
@@ -109,7 +127,177 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	log.V(4).Info("found component object", "component", component)
 
+	session := ocm.NewSession(nil)
+	defer session.Close()
+
+	ocmCtx := ocm.ForContext(ctx)
+	// configure credentials
+	if err := r.configureCredentials(ctx, ocmCtx, component); err != nil {
+		log.V(4).Error(err, "failed to find credentials")
+		// ignore not found errors for now
+		if !apierrors.IsNotFound(err) {
+			return ctrl.Result{
+				RequeueAfter: component.Spec.Interval,
+			}, fmt.Errorf("failed to configure credentials for component: %w", err)
+		}
+	}
+	// get component version
+	cv, err := r.getComponentVersion(ocmCtx, session, component)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: component.Spec.Interval,
+		}, err
+	}
+
+	// configure virtual filesystem
+	fs, err := r.configureTemplateFilesystem(ctx, cv, resource.Spec.Resource)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: component.Spec.Interval,
+		}, err
+	}
+	defer vfs.Cleanup(fs)
+
+	// put the stuff into the oci registry and return the snapshot? ( patch the snapshot and status to Ready ).
+	if err := r.transferToObjectStorage(ctx, "url...", fs); err != nil {
+		return ctrl.Result{
+			RequeueAfter: component.Spec.Interval,
+		}, err
+	}
+
 	return ctrl.Result{}, nil
+}
+
+func (r *OCMResourceReconciler) configureCredentials(ctx context.Context, ocmCtx ocm.Context, component *actionv1.OCMComponent) error {
+	// create the consumer id for credentials
+	consumerID, err := getConsumerIdentityForRepository(component.Spec.Repository)
+	if err != nil {
+		return err
+	}
+
+	// fetch the credentials for the component storage
+	creds, err := r.getCredentialsForRepository(ctx, component.GetNamespace(), component.Spec.Repository)
+	if err != nil {
+		return err
+	}
+
+	// TODO: set credentials should return an error
+	ocmCtx.CredentialsContext().SetCredentialsForConsumer(consumerID, creds)
+
+	return nil
+}
+
+func (r *OCMResourceReconciler) getCredentialsForRepository(ctx context.Context, namespace string, repo actionv1.Repository) (credentials.Credentials, error) {
+	var secret corev1.Secret
+	secretKey := client.ObjectKey{
+		Namespace: namespace,
+		Name:      repo.SecretRef.Name,
+	}
+	if err := r.Get(ctx, secretKey, &secret); err != nil {
+		return nil, err
+	}
+
+	props := make(common.Properties)
+	for key, value := range secret.Data {
+		props.SetNonEmptyValue(key, string(value))
+	}
+
+	return credentials.NewCredentials(props), nil
+}
+
+func (r *OCMResourceReconciler) getComponentVersion(ctx ocm.Context, session ocm.Session, component *actionv1.OCMComponent) (ocm.ComponentVersionAccess, error) {
+	// configure the repository access
+	repoSpec := genericocireg.NewRepositorySpec(ocireg.NewRepositorySpec(component.Spec.Repository.URL), nil)
+	repo, err := session.LookupRepository(ctx, repoSpec)
+	if err != nil {
+		return nil, fmt.Errorf("repo error: %w", err)
+	}
+
+	// get the component version
+	cv, err := session.LookupComponentVersion(repo, component.Spec.Name, component.Spec.Version)
+	if err != nil {
+		return nil, fmt.Errorf("component error: %w", err)
+	}
+
+	return cv, nil
+}
+
+func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, ociRegistryEndpoint string, virtualFs vfs.FileSystem) error {
+	log := log.FromContext(ctx)
+	rootDir := "/"
+
+	fi, err := virtualFs.Stat(rootDir)
+	if err != nil {
+		return err
+	}
+
+	sourceDir := filepath.Join(os.TempDir(), fi.Name())
+
+	if err := vfs.Walk(virtualFs, rootDir, func(path string, fi fs.FileInfo, err error) error {
+		if m := fi.Mode(); !(m.IsRegular() || m.IsDir()) {
+			return nil
+		}
+
+		if fi.IsDir() {
+			return nil
+		}
+
+		abspath := filepath.Join(sourceDir, path)
+		log.Info("got absolute path", "path", abspath)
+		// TODO: Use oci registry implementation
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("transfer to object storage error: %w", err)
+	}
+
+	return nil
+}
+
+func (r *OCMResourceReconciler) configureTemplateFilesystem(ctx context.Context, cv ocm.ComponentVersionAccess, resourceName string) (vfs.FileSystem, error) {
+	// get the template
+	_, templateBytes, err := r.getResourceForComponentVersion(cv, resourceName)
+	if err != nil {
+		return nil, fmt.Errorf("template error: %w", err)
+	}
+
+	// setup virtual filesystem
+	virtualFS, err := osfs.NewTempFileSystem()
+	if err != nil {
+		return nil, fmt.Errorf("fs error: %w", err)
+	}
+
+	// extract the template
+	if err := utils.ExtractTarToFs(virtualFS, templateBytes); err != nil {
+		return nil, fmt.Errorf("extract tar error: %w", err)
+	}
+
+	return virtualFS, nil
+}
+
+func (r *OCMResourceReconciler) getResourceForComponentVersion(cv ocm.ComponentVersionAccess, resourceName string) (ocm.ResourceAccess, *bytes.Buffer, error) {
+	resource, err := cv.GetResource(ocmmeta.NewIdentity(resourceName))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rd, err := cpi.ResourceReader(resource)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rd.Close()
+
+	decompress, _, err := compression.AutoDecompress(rd)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	data := new(bytes.Buffer)
+	if _, err := data.ReadFrom(decompress); err != nil {
+		return nil, nil, err
+	}
+
+	return resource, data, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -129,6 +317,25 @@ func (r *OCMResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Controller: controller,
 	}
 	return nil
+}
+
+func getConsumerIdentityForRepository(repo actionv1.Repository) (credentials.ConsumerIdentity, error) {
+	regURL, err := url.Parse(repo.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	if regURL.Scheme == "" {
+		regURL, err = url.Parse(fmt.Sprintf("oci://%s", repo.URL))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return credentials.ConsumerIdentity{
+		"type":     "OCIRegistry",
+		"hostname": regURL.Host,
+	}, nil
 }
 
 func (r *OCMResourceReconciler) getParentSource(ctx context.Context, obj *actionv1.OCMResource) (*actionv1.Source, error) {

@@ -8,7 +8,7 @@ spec:
   name: github.com/weaveworks/weave-gitops
   version: v0.9.x
   repository:
-    url: ghcr.io/weaveworks
+    url: ghcr.io/skarlso/ocm/v0.0.1
     secretRef:
       name: oci-creds
   verify:
