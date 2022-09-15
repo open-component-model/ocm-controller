@@ -5,8 +5,8 @@ metadata:
   namespace: wego-system
 spec:
   interval: 600
-  name: github.com/weaveworks/weave-gitops
-  version: v0.9.x
+  name: github.com/skarlso/ocm-test
+  version: 0.0.1
   repository:
     url: ghcr.io/skarlso/ocm/v0.0.1
     secretRef:
