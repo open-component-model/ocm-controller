@@ -5,7 +5,7 @@ metadata:
   name: action-editor-role
 rules:
 - apiGroups:
-  - x-delivery.ocm.software
+  - delivery.ocm.software
   resources:
   - actions
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - x-delivery.ocm.software
+  - delivery.ocm.software
   resources:
   - actions/status
   verbs:

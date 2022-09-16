@@ -5,7 +5,7 @@ metadata:
   name: ocmcomponent-editor-role
 rules:
 - apiGroups:
-  - x-delivery.ocm.software
+  - delivery.ocm.software
   resources:
   - ocmcomponents
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - x-delivery.ocm.software
+  - delivery.ocm.software
   resources:
   - ocmcomponents/status
   verbs:

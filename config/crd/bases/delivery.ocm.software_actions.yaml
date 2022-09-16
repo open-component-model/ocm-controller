@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: actions.x-delivery.ocm.software
+  name: actions.delivery.ocm.software
 spec:
-  group: x-delivery.ocm.software
+  group: delivery.ocm.software
   names:
     kind: Action
     listKind: ActionList

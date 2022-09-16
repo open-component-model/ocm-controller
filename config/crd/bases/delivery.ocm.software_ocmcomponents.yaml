@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: ocmcomponents.x-delivery.ocm.software
+  name: ocmcomponents.delivery.ocm.software
 spec:
-  group: x-delivery.ocm.software
+  group: delivery.ocm.software
   names:
     kind: OCMComponent
     listKind: OCMComponentList
@@ -92,6 +92,7 @@ spec:
               componentDescriptor:
                 type: string
               deployPackage:
+                description: 'TODO: DeployPackage could be a configMap....'
                 type: string
               verified:
                 type: boolean

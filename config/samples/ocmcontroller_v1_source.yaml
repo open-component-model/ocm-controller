@@ -1,4 +1,4 @@
-apiVersion: x-delivery.ocm.software/v1alpha1
+apiVersion: delivery.ocm.software/v1alpha1
 kind: Source
 metadata:
   name: ui-server
@@ -8,7 +8,7 @@ spec:
     name: weave-gitops
     namespace: wego-system
   providerRef:
-    apiVersion: x-delivery.ocm.software/v1alpha1
+    apiVersion: delivery.ocm.software/v1alpha1
     kind: OCMResource
     name: wge-ui-server
 status:

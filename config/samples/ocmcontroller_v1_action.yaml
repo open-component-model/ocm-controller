@@ -1,4 +1,4 @@
-apiVersion: x-delivery.ocm.software/v1alpha1
+apiVersion: delivery.ocm.software/v1alpha1
 kind: Action
 metadata:
   name: localize
@@ -9,8 +9,10 @@ spec:
     namespace: wego-system
   sourceRef:
     name: wge-admin-source
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: Source
   providerRef:
-    apiVersion: x-delivery.ocm.software/v1alpha1
+    apiVersion: delivery.ocm.software/v1alpha1
     kind: Localization
     name: wge-localizer
 status:

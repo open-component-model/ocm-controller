@@ -5,7 +5,7 @@ metadata:
   name: ocmresource-viewer-role
 rules:
 - apiGroups:
-  - x-delivery.ocm.software
+  - delivery.ocm.software
   resources:
   - ocmresources
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - x-delivery.ocm.software
+  - delivery.ocm.software
   resources:
   - ocmresources/status
   verbs:

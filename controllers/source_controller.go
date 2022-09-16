@@ -44,10 +44,10 @@ type SourceReconciler struct {
 	externalTracker external.ObjectTracker
 }
 
-//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=sources,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=sources/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=sources/finalizers,verbs=update
-//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=*,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=sources,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=sources/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=sources/finalizers,verbs=update
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=*,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

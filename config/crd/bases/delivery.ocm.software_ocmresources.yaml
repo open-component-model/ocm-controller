@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: sources.x-delivery.ocm.software
+  name: ocmresources.delivery.ocm.software
 spec:
-  group: x-delivery.ocm.software
+  group: delivery.ocm.software
   names:
-    kind: Source
-    listKind: SourceList
-    plural: sources
-    singular: source
+    kind: OCMResource
+    listKind: OCMResourceList
+    plural: ocmresources
+    singular: ocmresource
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Source is the Schema for the sources API
+        description: OCMResource is the Schema for the ocmresources API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,43 +33,23 @@ spec:
           metadata:
             type: object
           spec:
-            description: SourceSpec defines the desired state of Source
+            description: OCMResourceSpec defines the desired state of OCMResource
             properties:
-              componentRef:
-                description: ComponentRef defines a reference to a component.
-                properties:
-                  name:
-                    type: string
-                  namespace:
-                    type: string
-                required:
-                - name
-                - namespace
-                type: object
-              providerRef:
-                description: ProviderRef defines a provider for this Source.
-                properties:
-                  apiVersion:
-                    type: string
-                  kind:
-                    type: string
-                  name:
-                    type: string
-                required:
-                - apiVersion
-                - kind
-                - name
-                type: object
+              resource:
+                description: Resource names a Source that this OCMResource watches.
+                type: string
             required:
-            - componentRef
-            - providerRef
+            - resource
             type: object
           status:
-            description: SourceStatus defines the observed state of Source
+            description: OCMResourceStatus defines the observed state of OCMResource
             properties:
               ready:
+                description: Ready denotes the state of processing a Source.
                 type: boolean
               snapshot:
+                description: Snapshot is a snapshot of a Source in the in-cluster
+                  OCI storage.
                 type: string
             required:
             - ready

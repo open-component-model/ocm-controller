@@ -36,9 +36,9 @@ type OCMComponentReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=ocmcomponents,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=ocmcomponents/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=x-delivery.ocm.software,resources=ocmcomponents/finalizers,verbs=update
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponents,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponents/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponents/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
