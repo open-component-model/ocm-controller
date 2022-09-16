@@ -266,7 +266,8 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 		Revision: "rev",
 	}
 
-	taggedURL := fmt.Sprintf("%s/%s/%s:%d", ociRegistryEndpoint, repo, resourceName, time.Now().Unix())
+	snapshotName := fmt.Sprintf("%s/%s:%d", repo, resourceName, time.Now().Unix())
+	taggedURL := fmt.Sprintf("%s/%s", ociRegistryEndpoint, snapshotName)
 	log.V(4).Info("pushing joined url", "url", taggedURL)
 	pusher := registry.NewClient(taggedURL)
 
@@ -275,7 +276,7 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 	}
 	log.V(4).Info("successfully uploaded artifact to location", "location", artifactPath, "sourcedir", sourceDir)
 
-	return taggedURL, nil
+	return snapshotName, nil
 }
 
 func (r *OCMResourceReconciler) configureTemplateFilesystem(ctx context.Context, cv ocm.ComponentVersionAccess, resourceName string) (vfs.FileSystem, error) {
