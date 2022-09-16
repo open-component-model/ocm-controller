@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/controllers/external"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -88,6 +89,12 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, fmt.Errorf("failed to get resource object: %w", err)
 	}
 	log.V(4).Info("found resource", "resource", resource)
+
+	if resource.Status.Ready {
+		// TODO: I wonder if this is a good idea. This means that this resource will never be updated / reprocessed.
+		log.V(4).Info("skipping resource as it has already been reconciled", "resource", resource)
+		return ctrl.Result{}, nil
+	}
 
 	// Set up a watch on the parent Source
 	parent, err := r.getParentSource(ctx, resource)
@@ -160,10 +167,28 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	defer vfs.Cleanup(fs)
 
 	// put the stuff into the oci registry and return the snapshot? ( patch the snapshot and status to Ready ).
-	if err := r.transferToObjectStorage(ctx, "localhost:5000", fs, component.Name, resource.Spec.Resource); err != nil {
+	snapshot, err := r.transferToObjectStorage(ctx, "localhost:5000", fs, component.Name, resource.Spec.Resource)
+	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: component.Spec.Interval,
 		}, err
+	}
+
+	// Initialize the patch helper.
+	patchHelper, err := patch.NewHelper(resource, r.Client)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: component.Spec.Interval,
+		}, fmt.Errorf("failed to create patch helper: %w", err)
+	}
+
+	resource.Status.Snapshot = snapshot
+	resource.Status.Ready = true
+
+	if err := patchHelper.Patch(ctx, resource); err != nil {
+		return ctrl.Result{
+			RequeueAfter: component.Spec.Interval,
+		}, fmt.Errorf("failed to patch resource and set snaphost value: %w", err)
 	}
 
 	return ctrl.Result{}, nil
@@ -223,13 +248,13 @@ func (r *OCMResourceReconciler) getComponentVersion(ctx ocm.Context, session ocm
 	return cv, nil
 }
 
-func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, ociRegistryEndpoint string, virtualFs vfs.FileSystem, repo, resourceName string) error {
+func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, ociRegistryEndpoint string, virtualFs vfs.FileSystem, repo, resourceName string) (string, error) {
 	log := log.FromContext(ctx)
 	rootDir := "/"
 
 	fi, err := virtualFs.Stat(rootDir)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	sourceDir := filepath.Join(os.TempDir(), fi.Name())
@@ -246,11 +271,11 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 	pusher := registry.NewClient(taggedURL)
 
 	if err := pusher.Push(ctx, artifactPath, sourceDir, metadata); err != nil {
-		return fmt.Errorf("failed to push artifact: %w", err)
+		return "", fmt.Errorf("failed to push artifact: %w", err)
 	}
 	log.V(4).Info("successfully uploaded artifact to location", "location", artifactPath, "sourcedir", sourceDir)
 
-	return nil
+	return taggedURL, nil
 }
 
 func (r *OCMResourceReconciler) configureTemplateFilesystem(ctx context.Context, cv ocm.ComponentVersionAccess, resourceName string) (vfs.FileSystem, error) {
