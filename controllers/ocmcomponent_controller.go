@@ -18,12 +18,15 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
@@ -45,6 +48,17 @@ type OCMComponentReconciler struct {
 func (r *OCMComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("ocmcomponent-reconcile")
 	log.Info("starting ocm component loop")
+
+	component := &actionv1.OCMComponent{}
+	if err := r.Client.Get(ctx, req.NamespacedName, component); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+
+		// Error reading the object - requeue the request.
+		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
+	}
+	log.V(4).Info("found component", "component", component)
 
 	return ctrl.Result{}, nil
 }

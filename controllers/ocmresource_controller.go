@@ -45,7 +45,8 @@ import (
 // OCMResourceReconciler reconciles a OCMResource object
 type OCMResourceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme          *runtime.Scheme
+	OCIRegistryAddr string
 
 	// TODO: Write our own Watch.
 	externalTracker external.ObjectTracker
@@ -109,8 +110,6 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}, component); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.V(4).Info("component not found", "component", parent.Spec.ComponentRef)
-			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
 			return ctrl.Result{}, nil
 		}
 
@@ -136,6 +135,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			}, fmt.Errorf("failed to configure credentials for component: %w", err)
 		}
 	}
+
 	// get component version
 	cv, err := csdk.GetComponentVersion(ocmCtx, session, component.Spec.Repository.URL, component.Spec.Name, component.Spec.Version)
 	if err != nil {
@@ -153,8 +153,12 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 	defer vfs.Cleanup(fs)
 
-	// put the stuff into the oci registry and return the snapshot? ( patch the snapshot and status to Ready ).
-	snapshot, err := r.transferToObjectStorage(ctx, "localhost:5000", fs, component.Name, resource.Spec.Resource)
+	registryURL := r.OCIRegistryAddr
+	// add localhost if the only thing defined is a port
+	if registryURL[0] == ':' {
+		registryURL = "localhost" + registryURL
+	}
+	snapshot, err := r.transferToObjectStorage(ctx, registryURL, fs, component.Name, resource.Spec.Resource)
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: component.Spec.Interval,

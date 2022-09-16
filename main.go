@@ -117,8 +117,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.OCMResourceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		OCIRegistryAddr: ociRegistryAddr,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OCMResource")
 		os.Exit(1)
