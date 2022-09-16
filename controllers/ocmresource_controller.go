@@ -241,15 +241,6 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 		Revision: "rev",
 	}
 
-	//if !strings.Contains(ociRegistryEndpoint, "http://") {
-	//	ociRegistryEndpoint = "http://" + ociRegistryEndpoint
-	//}
-
-	//u, err := url.Parse(ociRegistryEndpoint)
-	//if err != nil {
-	//	return fmt.Errorf("failed to join path for registry url: %w", err)
-	//}
-
 	taggedURL := fmt.Sprintf("%s/%s/%s:%d", ociRegistryEndpoint, repo, resourceName, time.Now().Unix())
 	log.V(4).Info("pushing joined url", "url", taggedURL)
 	pusher := registry.NewClient(taggedURL)
