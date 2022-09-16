@@ -25,6 +25,10 @@ import (
 
 	ociclient "github.com/fluxcd/pkg/oci/client"
 	"github.com/mandelsoft/vfs/pkg/vfs"
+	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	registry "github.com/open-component-model/ocm-controller/pkg/registry"
+	csdk "github.com/open-component-model/ocm-controllers-sdk"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,12 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	registry "github.com/open-component-model/ocm-controller/pkg/registry"
-	csdk "github.com/open-component-model/ocm-controllers-sdk"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 )
 
 // OCMResourceReconciler reconciles a OCMResource object
@@ -119,6 +117,9 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}, fmt.Errorf("failed to get component object: %w", err)
 	}
 
+	// TODO: Would gather the ComponentDescritor object from the cluster that OCMComponent controller applied.
+	// Location to the component descriptor.
+
 	log.V(4).Info("found component object", "component", component)
 
 	session := ocm.NewSession(nil)
@@ -176,6 +177,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	resource.Status.Snapshot = snapshot
 	resource.Status.Ready = true
 
+	// TODO: Add an ObservedGeneration predicate to avoid an infinite loop of update/reconcile.
 	if err := patchHelper.Patch(ctx, resource); err != nil {
 		return ctrl.Result{
 			RequeueAfter: component.Spec.Interval,
@@ -220,9 +222,6 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 func (r *OCMResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
 		For(&actionv1.OCMResource{}).
-		Watches(
-			&source.Kind{Type: &actionv1.OCMResource{}},
-			&handler.EnqueueRequestForObject{}).
 		Build(r)
 
 	if err != nil {

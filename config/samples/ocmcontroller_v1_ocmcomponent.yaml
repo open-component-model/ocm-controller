@@ -15,6 +15,6 @@ spec:
     secretRef:
       name: my-public-key
 status:
-  componentDescriptor: weave-gitops-system/github-com-weaveworks-wge-v0-9-4
+  componentDescriptor: weave-system/github-com-weaveworks-wge-v0-9-4
   deployPackage: weave-gitops-system/github-com-weaveworks-wge-v0-9-4-deploy-config
   verified: true

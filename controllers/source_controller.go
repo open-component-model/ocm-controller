@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
@@ -168,9 +167,6 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *SourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
 		For(&actionv1.Source{}).
-		Watches(
-			&source.Kind{Type: &actionv1.Source{}},
-			&handler.EnqueueRequestForObject{}).
 		Build(r)
 
 	if err != nil {

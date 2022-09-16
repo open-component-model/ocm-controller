@@ -59,6 +59,7 @@ func (r *OCMComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
 	}
 	log.V(4).Info("found component", "component", component)
+	// TODO: Check if component is verified and only proceed if yes.
 
 	return ctrl.Result{}, nil
 }

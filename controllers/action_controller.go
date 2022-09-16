@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,9 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 // ActionReconciler reconciles a Action object
@@ -115,9 +113,6 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *ActionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
 		For(&actionv1.Action{}).
-		Watches(
-			&source.Kind{Type: &actionv1.Action{}},
-			&handler.EnqueueRequestForObject{}).
 		Build(r)
 
 	if err != nil {

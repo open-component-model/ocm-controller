@@ -50,8 +50,9 @@ type OCMComponentSpec struct {
 // OCMComponentStatus defines the observed state of OCMComponent
 type OCMComponentStatus struct {
 	ComponentDescriptor string `json:"componentDescriptor"`
-	DeployPackage       string `json:"deployPackage"`
-	Verified            bool   `json:"verified"`
+	// TODO: DeployPackage could be a configMap....
+	DeployPackage string `json:"deployPackage"`
+	Verified      bool   `json:"verified"`
 }
 
 //+kubebuilder:object:root=true
