@@ -1,9 +1,21 @@
 # OCM Controller Design
 
-- [1 ]()
-- [1 ]()
-- [1 ]()
-- [1 ]()
+- [1 Overview](#overview)
+- [1.1 Architecture ](#11-architecture)
+- [1.2 Concepts](#12-concepts)
+- [1.2.1 Snapshot](#121-snapshot)
+- [1.2.2 Source](#121-source)
+- [1.2.3 Action](#123-action)
+- [1.3 Custom Resource Definitions](#13-custom-resource-definitions)
+- [1.3.1 OCM Component CR](#131-ocmcomponent-cr)
+- [1.3.2 Source CR](#132-source-cr)
+- [1.3.3 Action CR](#133-action-cr)
+- [1.3.4 OCMResource CR](#134-ocmresource-cr)
+- [2 Controllers](#2-controllers)
+- [2.1 OCM Core Controller](#21-ocm-core-controller)
+- [3 Sample Workflow](#3-sample-workflow)
+- [3.1 Overview](#31-overview)
+- [3.2 Walkthrough](#32-walkthrough)
 
 ## 1 Overview
 
@@ -167,7 +179,7 @@ For a given OCMComponent, the `ocm-controller` should also reconcile the Deploy 
 The `ocm-controller` is responsible for creating an in-cluster OCI registry which will be used as storage for snapshots. The registry should be created on startup with a new repository created for each OCMComponent. The registry should be accessed via port "5001" on  the `ocm-core-controller` which is exposed within the cluster as a Kubernetes service. The service endpoint can be used to when deploying providers in order to configure access from to the OCI storage.
 
 
-## 3 Sample Workflow with Custom Resources
+## 3 Sample Workflow
 
 ### 3.1 Overview
 
@@ -237,9 +249,7 @@ spec:
   resource: wge-ui-server
 ```
 
-### Create the Action
-
-Now we will create an `Action` to consume the snapshot localize the `Source`:
+Create an `Action` to consume the snapshot localize the `Source`:
 
 ```yaml
 apiVersion: delivery.ocm.software/v1alpha1
