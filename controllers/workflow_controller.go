@@ -20,8 +20,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -63,7 +65,69 @@ func (r *WorkflowClassReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	log.V(4).Info("reconciling workflow class", "workflow-class", workflowClass)
 
+	for _, workflow := range workflowClass.Spec.Workflows {
+		obj, err := r.createObject(ctx, log, workflow, workflowClass)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to create object with name '%s': %w", workflow.Name, err)
+		}
+		log.V(4).Info("created object", "obj", obj)
+	}
+
 	return ctrl.Result{}, nil
+}
+
+func (r *WorkflowClassReconciler) createObject(ctx context.Context, log logr.Logger, workflow actionv1.Workflow, workflowClass *actionv1.WorkflowClass) (client.Object, error) {
+	log = log.WithValues("workflow", workflowClass)
+	stage, ok := workflowClass.Spec.Stages[workflow.Name]
+	if !ok {
+		return nil, fmt.Errorf("failed to find referenced workflow item with name '%s'", workflow.Name)
+	}
+	var obj client.Object
+	switch stage.Type {
+	case "Action":
+		// TODO: Create the provider resource and link its name in here.
+
+		obj = &actionv1.Action{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Action",
+				APIVersion: actionv1.GroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      workflow.Name,
+				Namespace: workflowClass.Namespace,
+			},
+			Spec: actionv1.ActionSpec{
+				ComponentRef: actionv1.ComponentRef{
+					Namespace: workflowClass.Namespace,
+					Name:      "component-name",
+				},
+				ProviderRef: actionv1.ProviderRef{
+					ApiVersion: stage.Provider.APIVersion,
+					Kind:       stage.Provider.Kind,
+					Name:       "the generated name from the previous call",
+				},
+			},
+		}
+		if workflow.Input != "" {
+			dependentStage, ok := workflowClass.Spec.Stages[workflow.Input]
+			if !ok {
+				return nil, fmt.Errorf("failed to find referenced workflow input with name '%s'", workflow.Input)
+			}
+			obj.(*actionv1.Action).Spec.SourceRef = actionv1.SourceRef{
+				Name:       workflow.Input,
+				Kind:       dependentStage.Type,
+				ApiVersion: actionv1.GroupVersion.String(),
+			}
+		}
+	case "Source":
+		obj = &actionv1.Source{}
+	}
+
+	if err := r.Client.Create(ctx, obj); err != nil {
+		log.Error(err, "failed to create the appropriate resource", "obj", obj)
+		return nil, fmt.Errorf("failed to create appropriate resource: %w", err)
+	}
+	return obj, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
