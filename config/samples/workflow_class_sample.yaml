@@ -1,0 +1,77 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: WorkflowClass
+metadata:
+  name: my-installation-class
+spec:
+  stages:
+    manifests: # this is the name of our "stage"
+      type: Source
+      provider: # this field is used to create the provider CR
+        apiVersion: source.ocm.software/v1alpha1
+        kind: ComponentResource
+      spec:
+        resource: kubernetes-manifests # this field is copied to the provider CR spec
+    localizer: # this is the name of our "stage"
+      type: Action
+      provider: # this field is used to create the provider CR
+        apiVersion: transform.ocm.software/v1alpha1
+        kind: Localizer
+      spec:
+        rules:
+          - file: deploy.yaml
+            image: spec.template.spec.containers[0].image
+            resource: podinfo
+    config: # this is the name of our "stage"
+      type: Action
+      provider: # this field is used to create the provider CR
+        apiVersion: transform.ocm.software/v1alpha1
+        kind: Configurator
+      spec:
+        values:
+          color: red
+          message: Welcome to podinfo!
+          imagePullSecrets: []
+        rules:
+          - value: (( color ))
+            file: configmap.yaml
+            path: data.PODINFO_UI_COLOR
+          - value: (( message ))
+            file: configmap.yaml
+            path: data.PODINFO_UI_MESSAGE
+          - value: (( color ))-value
+            file: config/configmap.yaml
+            path: data.VALUE
+          - value: (( imagePullSecrets ))
+            file: serviceaccount.yaml
+            path: imagePullSecrets
+        schema:
+          type: object
+          additionalProperties: false
+          properties:
+            namespace:
+              type: string
+            color:
+              type: string
+            message:
+              type: string
+            imagePullSecrets:
+              type: array
+              items:
+                type: string
+    deploy: # this is the name of our "stage"
+      type: Action
+      provider: # this field is used to create the provider CR
+        apiVersion: transform.ocm.software/v1alpha1
+        kind: KustomizationTemplate
+      spec:
+        interval: 10m0s
+        prune: true
+        targetNamespace: (( namespace ))
+  workflow: # here we chain our "stages" together
+    - name: manifests
+    - name: localizer
+      input: manifests
+    - name: config
+      input: localizer
+    - name: deploy
+      input: config

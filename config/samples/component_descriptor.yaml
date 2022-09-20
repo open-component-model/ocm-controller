@@ -4,9 +4,6 @@ metadata:
   name: wego-component-descriptor
   namespace: wego-system
 spec:
-  componentReferences: []
-  name: github.com/skarlso/ocm-test
-  provider: skarlso
   resources:
     - access:
         type: github
@@ -16,6 +13,3 @@ spec:
       relation: external
       type: filesystem
       version: 0.0.1
-  version: v0.0.1
-  repositoryContexts: []
-  sources: []
