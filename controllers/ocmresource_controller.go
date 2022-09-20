@@ -26,8 +26,8 @@ import (
 	ociclient "github.com/fluxcd/pkg/oci/client"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	registry "github.com/open-component-model/ocm-controller/pkg/registry"
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
+	"github.com/open-component-model/ocm-controllers-sdk/oci"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -208,7 +208,7 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 	snapshotName := csdk.GetSnapshotName(repo, resourceName)
 	taggedURL := fmt.Sprintf("%s/%s", ociRegistryEndpoint, snapshotName)
 	log.V(4).Info("pushing joined url", "url", taggedURL)
-	pusher := registry.NewClient(taggedURL)
+	pusher := oci.NewClient(taggedURL)
 
 	if err := pusher.Push(ctx, artifactPath, sourceDir, metadata); err != nil {
 		return "", fmt.Errorf("failed to push artifact: %w", err)
