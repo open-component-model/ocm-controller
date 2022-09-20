@@ -21,11 +21,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Provider defines the provider of this workflow.
 type Provider struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 }
 
+// WorkflowStage is a single stage in the list of workflows.
 type WorkflowStage struct {
 	Provider Provider `json:"provider"`
 	// +kubebuilder:validation:Enum:=Source;Action
@@ -33,6 +35,7 @@ type WorkflowStage struct {
 	Spec apiextensionsv1.JSON `json:"spec"`
 }
 
+// Workflow defines the workflow section which depicts the order of processing of the given resources.
 type Workflow struct {
 	Input string `json:"input,omitempty"`
 	Name  string `json:"name"`
