@@ -101,7 +101,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	log.V(4).Info("finding component ref", "resource", resource)
-	component := &actionv1.OCMComponent{}
+	component := &actionv1.OCMComponentVersion{}
 	if err := r.Client.Get(ctx, types.NamespacedName{
 		Name:      parent.Spec.ComponentRef.Name,
 		Namespace: parent.Spec.ComponentRef.Namespace,
@@ -117,7 +117,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}, fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	// TODO: Would gather the ComponentDescritor object from the cluster that OCMComponent controller applied.
+	// TODO: Would gather the ComponentDescritor object from the cluster that OCMComponentVersion controller applied.
 	// Location to the component descriptor.
 
 	log.V(4).Info("found component object", "component", component)

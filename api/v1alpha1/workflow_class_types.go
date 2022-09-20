@@ -35,8 +35,8 @@ type WorkflowStage struct {
 	Spec apiextensionsv1.JSON `json:"spec"`
 }
 
-// Workflow defines the workflow section which depicts the order of processing of the given resources.
-type Workflow struct {
+// ClassWorkflow defines the workflow section which depicts the order of processing of the given resources.
+type ClassWorkflow struct {
 	Input string `json:"input,omitempty"`
 	Name  string `json:"name"`
 }
@@ -44,7 +44,7 @@ type Workflow struct {
 // WorkflowClassSpec defines the desired state of WorkflowClass
 type WorkflowClassSpec struct {
 	Stages    map[string]WorkflowStage `json:"stages"`
-	Workflows []Workflow               `json:"workflow"`
+	Workflows []ClassWorkflow          `json:"workflow"`
 }
 
 // WorkflowClassStatus defines the observed state of WorkflowClass

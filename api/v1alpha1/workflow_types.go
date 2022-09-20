@@ -32,17 +32,16 @@ type Overrides struct {
 	Actions apiextensionsv1.JSON `json:"actions"`
 }
 
-// InstallationWorkflowSpec defines the desired state of InstallationWorkflow
-type InstallationWorkflowSpec struct {
-	Component      string        `json:"component"`
-	Version        string        `json:"version"`
+// WorkflowSpec defines the desired state of Workflow
+type WorkflowSpec struct {
+	ComponentRef   ComponentRef  `json:"componentRef"`
 	ServiceAccount string        `json:"serviceAccount"`
 	ClassResource  ClassResource `json:"classResource"`
 	Overrides      Overrides     `json:"overrides"`
 }
 
-// InstallationWorkflowStatus defines the observed state of InstallationWorkflow
-type InstallationWorkflowStatus struct {
+// WorkflowStatus defines the observed state of Workflow
+type WorkflowStatus struct {
 	Ready    bool   `json:"ready"`
 	Snapshot string `json:"snapshot"`
 }
@@ -50,24 +49,24 @@ type InstallationWorkflowStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// InstallationWorkflow is the Schema for the actions API
-type InstallationWorkflow struct {
+// Workflow is the Schema for the actions API
+type Workflow struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   InstallationWorkflowSpec   `json:"spec,omitempty"`
-	Status InstallationWorkflowStatus `json:"status,omitempty"`
+	Spec   WorkflowSpec   `json:"spec,omitempty"`
+	Status WorkflowStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// InstallationWorkflowList contains a list of InstallationWorkflow
-type InstallationWorkflowList struct {
+// WorkflowList contains a list of Workflow
+type WorkflowList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []InstallationWorkflow `json:"items"`
+	Items           []Workflow `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&InstallationWorkflow{}, &InstallationWorkflowList{})
+	SchemeBuilder.Register(&Workflow{}, &WorkflowList{})
 }

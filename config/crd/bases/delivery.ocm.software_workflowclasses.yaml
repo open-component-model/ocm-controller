@@ -65,7 +65,7 @@ spec:
                 type: object
               workflow:
                 items:
-                  description: Workflow defines the workflow section which depicts
+                  description: ClassWorkflow defines the workflow section which depicts
                     the order of processing of the given resources.
                   properties:
                     input:

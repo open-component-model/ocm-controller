@@ -1,24 +1,20 @@
-# permissions for end users to edit ocmcomponents.
+# permissions for end users to view ocmcomponentversions.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ocmcomponent-editor-role
+  name: ocmcomponent-viewer-role
 rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - ocmcomponents
+  - ocmcomponentversions
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - ocmcomponents/status
+  - ocmcomponentversions/status
   verbs:
   - get

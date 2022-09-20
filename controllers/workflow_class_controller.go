@@ -24,6 +24,7 @@ import (
 	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -76,17 +77,19 @@ func (r *WorkflowClassReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
-func (r *WorkflowClassReconciler) createObject(ctx context.Context, log logr.Logger, workflow actionv1.Workflow, workflowClass *actionv1.WorkflowClass) (client.Object, error) {
+func (r *WorkflowClassReconciler) createObject(ctx context.Context, log logr.Logger, workflow actionv1.ClassWorkflow, workflowClass *actionv1.WorkflowClass) (client.Object, error) {
 	log = log.WithValues("workflow", workflowClass)
 	stage, ok := workflowClass.Spec.Stages[workflow.Name]
 	if !ok {
 		return nil, fmt.Errorf("failed to find referenced workflow item with name '%s'", workflow.Name)
 	}
+	provider, err := r.createProviderObject(ctx, log, stage.Provider, workflow.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create provider object: %w", err)
+	}
 	var obj client.Object
 	switch stage.Type {
 	case "Action":
-		// TODO: Create the provider resource and link its name in here.
-
 		obj = &actionv1.Action{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Action",
@@ -99,12 +102,12 @@ func (r *WorkflowClassReconciler) createObject(ctx context.Context, log logr.Log
 			Spec: actionv1.ActionSpec{
 				ComponentRef: actionv1.ComponentRef{
 					Namespace: workflowClass.Namespace,
-					Name:      "component-name",
+					Name:      "get this from the Workflow componentRef",
 				},
 				ProviderRef: actionv1.ProviderRef{
 					ApiVersion: stage.Provider.APIVersion,
 					Kind:       stage.Provider.Kind,
-					Name:       "the generated name from the previous call",
+					Name:       provider.GetName(),
 				},
 			},
 		}
@@ -144,4 +147,17 @@ func (r *WorkflowClassReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Controller: controller,
 	}
 	return nil
+}
+
+func (r *WorkflowClassReconciler) createProviderObject(ctx context.Context, log logr.Logger, provider actionv1.Provider, workflow string) (client.Object, error) {
+	name := fmt.Sprintf("workflow-%s", workflow)
+	obj := new(unstructured.Unstructured)
+	obj.SetAPIVersion(provider.APIVersion)
+	obj.SetKind(provider.Kind)
+	obj.SetName(name)
+	if err := r.Client.Create(ctx, obj); err != nil {
+		log.Error(err, "failed to create the provider object", "obj", obj)
+		return nil, fmt.Errorf("failed to create provider object: %w", err)
+	}
+	return obj, nil
 }

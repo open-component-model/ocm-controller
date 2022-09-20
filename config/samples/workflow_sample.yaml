@@ -1,10 +1,11 @@
 apiVersion: delivery.ocm.software/v1alpha1
-kind: InstallationWorkflow
+kind: Workflow
 metadata:
   name: wge-ui-server
 spec:
-  component: github.com/weaveworks/weave-gitops-enterprise
-  version: v0.9.4
+  componentRef:
+    name: github.com/weaveworks/weave-gitops-enterprise
+    namespace: wego-system
   serviceAccount: realization-sa
   classResource:
     name: my-workflow-class
