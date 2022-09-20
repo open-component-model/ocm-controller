@@ -8,10 +8,9 @@ replace google.golang.org/grpc => google.golang.org/grpc v1.29.0
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
 	github.com/fluxcd/pkg/oci v0.9.0
-	github.com/google/go-containerregistry v0.11.0
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
 	github.com/open-component-model/ocm v0.0.1-0.20220914050144-82476b46c507
-	github.com/open-component-model/ocm-controllers-sdk v0.0.2
+	github.com/open-component-model/ocm-controllers-sdk v0.0.3
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
 	sigs.k8s.io/cluster-api v1.2.1
@@ -80,6 +79,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.1+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.1 // indirect
 	github.com/gomodule/redigo v1.8.2 // indirect
+	github.com/google/go-containerregistry v0.11.0 // indirect
 	github.com/google/go-github/v45 v45.2.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
