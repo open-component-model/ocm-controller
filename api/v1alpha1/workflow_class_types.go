@@ -26,10 +26,11 @@ type Provider struct {
 	Kind       string `json:"kind"`
 }
 
-type WorkflowSpec struct {
-	Provider Provider             `json:"provider"`
-	Type     string               `json:"type"`
-	Spec     apiextensionsv1.JSON `json:"spec"`
+type WorkflowStage struct {
+	Provider Provider `json:"provider"`
+	// +kubebuilder:validation:Enum:=Source;Action
+	Type string               `json:"type"`
+	Spec apiextensionsv1.JSON `json:"spec"`
 }
 
 type Workflow struct {
@@ -39,8 +40,8 @@ type Workflow struct {
 
 // WorkflowClassSpec defines the desired state of WorkflowClass
 type WorkflowClassSpec struct {
-	Stages    map[string]WorkflowSpec `json:"stages"`
-	Workflows []Workflow              `json:"workflow"`
+	Stages    map[string]WorkflowStage `json:"stages"`
+	Workflows []Workflow               `json:"workflow"`
 }
 
 // WorkflowClassStatus defines the observed state of WorkflowClass
