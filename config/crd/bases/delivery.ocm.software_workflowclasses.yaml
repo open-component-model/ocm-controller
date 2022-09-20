@@ -36,6 +36,27 @@ spec:
             description: WorkflowClassSpec defines the desired state of WorkflowClass
             properties:
               stages:
+                additionalProperties:
+                  properties:
+                    provider:
+                      properties:
+                        apiVersion:
+                          type: string
+                        kind:
+                          type: string
+                      required:
+                      - apiVersion
+                      - kind
+                      type: object
+                    spec:
+                      x-kubernetes-preserve-unknown-fields: true
+                    type:
+                      type: string
+                  required:
+                  - provider
+                  - spec
+                  - type
+                  type: object
                 type: object
               workflow:
                 items:

@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type Provider struct {
@@ -29,11 +29,7 @@ type Provider struct {
 type WorkflowSpec struct {
 	Provider Provider             `json:"provider"`
 	Type     string               `json:"type"`
-	Spec     runtime.RawExtension `json:"spec"`
-}
-
-type Stages struct {
-	Objects map[string]WorkflowSpec `json:"-"`
+	Spec     apiextensionsv1.JSON `json:"spec"`
 }
 
 type Workflow struct {
@@ -43,8 +39,8 @@ type Workflow struct {
 
 // WorkflowClassSpec defines the desired state of WorkflowClass
 type WorkflowClassSpec struct {
-	Stages    Stages     `json:"stages"`
-	Workflows []Workflow `json:"workflow"`
+	Stages    map[string]WorkflowSpec `json:"stages"`
+	Workflows []Workflow              `json:"workflow"`
 }
 
 // WorkflowClassStatus defines the observed state of WorkflowClass
