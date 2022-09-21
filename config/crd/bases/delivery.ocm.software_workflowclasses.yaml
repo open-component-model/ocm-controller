@@ -37,7 +37,7 @@ spec:
             properties:
               stages:
                 additionalProperties:
-                  description: WorkflowStage is a single stage in the list of workflows.
+                  description: Stage is a single stage in the list of workflows.
                   properties:
                     provider:
                       description: Provider defines the provider of this workflow.
@@ -65,7 +65,7 @@ spec:
                 type: object
               workflow:
                 items:
-                  description: ClassWorkflow defines the workflow section which depicts
+                  description: WorkflowItem defines the workflow section which depicts
                     the order of processing of the given resources.
                   properties:
                     input:

@@ -19,11 +19,8 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/go-logr/logr"
-	"github.com/mandelsoft/vfs/pkg/vfs"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -49,9 +46,9 @@ type WorkflowReconciler struct {
 	externalTracker external.ObjectTracker
 }
 
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=actions,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=actions/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=actions/finalizers,verbs=update
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=workflows,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=workflows/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=workflows/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -114,35 +111,27 @@ func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: component.Spec.Interval,
-		}, err
+		}, fmt.Errorf("failed to get component version: %w", err)
 	}
 
-	// configure virtual filesystem -- Do I even need this? Wouldn't it just be a frigging file?
-	fs, err := csdk.ConfigureTemplateFilesystem(ctx, cv, workflow.Spec.ClassResource.Name)
+	_, b, err := csdk.GetResourceForComponentVersion(cv, workflow.Spec.ClassResource.Name)
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: component.Spec.Interval,
-		}, err
+		}, fmt.Errorf("failed to get resource for component version: %w", err)
 	}
-	defer vfs.Cleanup(fs)
 
-	// at this point we have the resource yaml on the filesystem. Now, we just fetch it and parse it.
-	templateFile := filepath.Join(os.TempDir(), fs.Name(), workflow.Spec.ClassResource.Name+".yaml")
-	content, err := os.ReadFile(templateFile)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to read template file: %w", err)
-	}
 	workflowClass := &actionv1.WorkflowClass{}
-	if err := yaml.Unmarshal(content, workflowClass); err != nil {
+	if err := yaml.Unmarshal(b.Bytes(), workflowClass); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to unmarshall template file content into WorkflowClass: %w", err)
 	}
 
 	log.V(4).Info("reconciling workflow class", "workflow-class", workflowClass)
 
-	for _, w := range workflowClass.Spec.Workflows {
-		obj, err := r.createObject(ctx, log, w, workflowClass)
+	for _, w := range workflowClass.Spec.Workflow {
+		obj, err := r.createObject(ctx, log, w, workflowClass, workflow)
 		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to create object with name '%s': %w", workflow.Name, err)
+			return ctrl.Result{}, fmt.Errorf("failed to create object with name '%s': %w", w.Name, err)
 		}
 		log.V(4).Info("created object", "obj", obj)
 	}
@@ -150,13 +139,13 @@ func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{}, nil
 }
 
-func (r *WorkflowReconciler) createObject(ctx context.Context, log logr.Logger, workflow actionv1.ClassWorkflow, workflowClass *actionv1.WorkflowClass) (client.Object, error) {
+func (r *WorkflowReconciler) createObject(ctx context.Context, log logr.Logger, workflow actionv1.WorkflowItem, workflowClass *actionv1.WorkflowClass, w *actionv1.Workflow) (client.Object, error) {
 	log = log.WithValues("workflow", workflow)
 	stage, ok := workflowClass.Spec.Stages[workflow.Name]
 	if !ok {
 		return nil, fmt.Errorf("failed to find referenced workflow item with name '%s'", workflow.Name)
 	}
-	provider, err := r.createProviderObject(ctx, log, stage.Provider, workflow.Name)
+	provider, err := r.createProviderObject(ctx, log, stage.Provider, workflowClass.Name, workflow.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create provider object: %w", err)
 	}
@@ -196,7 +185,24 @@ func (r *WorkflowReconciler) createObject(ctx context.Context, log logr.Logger, 
 			}
 		}
 	case "Source":
-		obj = &actionv1.Source{}
+		obj = &actionv1.Source{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Source",
+				APIVersion: actionv1.GroupVersion.String(),
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      workflow.Name,
+				Namespace: workflowClass.Namespace,
+			},
+			Spec: actionv1.SourceSpec{
+				ComponentRef: w.Spec.ComponentRef,
+				ProviderRef: actionv1.ProviderRef{
+					ApiVersion: stage.Provider.APIVersion,
+					Kind:       stage.Provider.Kind,
+					Name:       provider.GetName(),
+				},
+			},
+		}
 	}
 
 	if err := r.Client.Create(ctx, obj); err != nil {
@@ -206,8 +212,8 @@ func (r *WorkflowReconciler) createObject(ctx context.Context, log logr.Logger, 
 	return obj, nil
 }
 
-func (r *WorkflowReconciler) createProviderObject(ctx context.Context, log logr.Logger, provider actionv1.Provider, workflow string) (client.Object, error) {
-	name := fmt.Sprintf("workflow-%s", workflow)
+func (r *WorkflowReconciler) createProviderObject(ctx context.Context, log logr.Logger, provider actionv1.Provider, workflowName, stageName string) (client.Object, error) {
+	name := fmt.Sprintf("%s-%s", workflowName, stageName)
 	obj := new(unstructured.Unstructured)
 	obj.SetAPIVersion(provider.APIVersion)
 	obj.SetKind(provider.Kind)

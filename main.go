@@ -124,7 +124,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "OCMResource")
 		os.Exit(1)
 	}
-	if err = (&controllers.WorkflowClassReconciler{
+	if err = (&controllers.WorkflowReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

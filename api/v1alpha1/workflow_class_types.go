@@ -27,24 +27,24 @@ type Provider struct {
 	Kind       string `json:"kind"`
 }
 
-// WorkflowStage is a single stage in the list of workflows.
-type WorkflowStage struct {
+// Stage is a single stage in the list of workflows.
+type Stage struct {
 	Provider Provider `json:"provider"`
 	// +kubebuilder:validation:Enum:=Source;Action
 	Type string               `json:"type"`
 	Spec apiextensionsv1.JSON `json:"spec"`
 }
 
-// ClassWorkflow defines the workflow section which depicts the order of processing of the given resources.
-type ClassWorkflow struct {
+// WorkflowItem defines the workflow section which depicts the order of processing of the given resources.
+type WorkflowItem struct {
 	Input string `json:"input,omitempty"`
 	Name  string `json:"name"`
 }
 
 // WorkflowClassSpec defines the desired state of WorkflowClass
 type WorkflowClassSpec struct {
-	Stages    map[string]WorkflowStage `json:"stages"`
-	Workflows []ClassWorkflow          `json:"workflow"`
+	Stages   map[string]Stage `json:"stages"`
+	Workflow []WorkflowItem   `json:"workflow"`
 }
 
 // WorkflowClassStatus defines the observed state of WorkflowClass
