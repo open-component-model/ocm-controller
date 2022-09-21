@@ -125,6 +125,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	session := ocm.NewSession(nil)
 	defer session.Close()
 
+	// TODO: This should be done by the OCMComponentVersion reconciler.
 	ocmCtx := ocm.ForContext(ctx)
 	// configure credentials
 	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, component.Spec.Repository.URL, component.Spec.Repository.SecretRef.Name, component.Namespace); err != nil {

@@ -59,7 +59,29 @@ func (r *OCMComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
 	}
 	log.V(4).Info("found component", "component", component)
-	// TODO: Check if component is verified and only proceed if yes.
+	//
+	//session := ocm.NewSession(nil)
+	//defer session.Close()
+	//
+	//ocmCtx := ocm.ForContext(ctx)
+	//// configure credentials
+	//if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, component.Spec.Repository.URL, component.Spec.Repository.SecretRef.Name, component.Namespace); err != nil {
+	//	log.V(4).Error(err, "failed to find credentials")
+	//	// ignore not found errors for now
+	//	if !apierrors.IsNotFound(err) {
+	//		return ctrl.Result{
+	//			RequeueAfter: component.Spec.Interval,
+	//		}, fmt.Errorf("failed to configure credentials for component: %w", err)
+	//	}
+	//}
+	//
+	//// get component version
+	//cv, err := csdk.GetComponentVersion(ocmCtx, session, component.Spec.Repository.URL, component.Spec.Name, component.Spec.Version)
+	//if err != nil {
+	//	return ctrl.Result{
+	//		RequeueAfter: component.Spec.Interval,
+	//	}, err
+	//}
 
 	return ctrl.Result{}, nil
 }

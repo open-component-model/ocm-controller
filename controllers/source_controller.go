@@ -98,17 +98,17 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	typedStatus, ok := providerStatus.(map[string]interface{})
 	if !ok {
-		// No need to requeue since the object is not properly formatted and needs changes anyways.
+		// No need to requeue since the object is not properly formatted and needs changes anyway.
 		return ctrl.Result{}, fmt.Errorf("status object of referenced provider is not a map: %+v", providerStatus)
 	}
 	ready, ok := typedStatus["ready"]
 	if !ok {
-		// No need to requeue since the object is not properly formatted and needs changes anyways.
+		// No need to requeue since the object is not properly formatted and needs changes anyway.
 		return ctrl.Result{}, fmt.Errorf("failed to find ready field on referenced provider obj's status: %+v", typedStatus)
 	}
 	typedReady, ok := ready.(bool)
 	if !ok {
-		// No need to requeue since the object is not properly formatted and needs changes anyways.
+		// No need to requeue since the object is not properly formatted and needs changes anyway.
 		return ctrl.Result{}, fmt.Errorf("status was not a boolean: %+v", typedReady)
 	}
 
