@@ -5,10 +5,10 @@ metadata:
   namespace: wego-system
 spec:
   interval: 600
-  name: github.com/skarlso/ocm-test
+  name: github.com/skarlso/ocm-workflow-class
   version: 0.0.1
   repository:
-    url: ghcr.io/skarlso/ocm/v0.0.1
+    url: ghcr.io/skarlso/ocm/v0.0.2
     secretRef:
       name: oci-creds
   verify:

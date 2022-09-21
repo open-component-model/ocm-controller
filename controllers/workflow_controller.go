@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -75,9 +74,9 @@ func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// We would have to somehow find that object. What would be its name? The component would live as name component name
 	// and then the namespace, right?
 	component := &actionv1.OCMComponentVersion{}
-	if err := r.Client.Get(ctx, types.NamespacedName{
-		Namespace: workflow.Spec.ComponentRef.Name,
-		Name:      workflow.Spec.ComponentRef.Namespace,
+	if err := r.Client.Get(ctx, client.ObjectKey{
+		Namespace: workflow.Spec.ComponentRef.Namespace,
+		Name:      workflow.Spec.ComponentRef.Name,
 	}, component); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
