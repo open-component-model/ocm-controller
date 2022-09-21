@@ -73,7 +73,7 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	providerObj, err := Get(ctx, r.Client, &corev1.ObjectReference{
 		Kind:       source.Spec.ProviderRef.Kind,
 		Name:       source.Spec.ProviderRef.Name,
-		APIVersion: source.Spec.ProviderRef.ApiVersion,
+		APIVersion: source.Spec.ProviderRef.APIVersion,
 	}, source.Namespace)
 
 	if err != nil {
