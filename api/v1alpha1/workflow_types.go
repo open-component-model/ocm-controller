@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/fluxcd/pkg/apis/meta"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,10 +35,10 @@ type Overrides struct {
 
 // WorkflowSpec defines the desired state of Workflow
 type WorkflowSpec struct {
-	ComponentRef   ComponentRef  `json:"componentRef"`
-	ServiceAccount string        `json:"serviceAccount"`
-	ClassResource  ClassResource `json:"classResource"`
-	Overrides      Overrides     `json:"overrides"`
+	ComponentRef   meta.NamespacedObjectReference `json:"componentRef"`
+	ClassResource  ClassResource                  `json:"classResource"`
+	Overrides      Overrides                      `json:"overrides"`
+	ServiceAccount string                         `json:"serviceAccount"`
 }
 
 // WorkflowStatus defines the observed state of Workflow

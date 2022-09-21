@@ -48,15 +48,18 @@ spec:
                 - type
                 type: object
               componentRef:
-                description: ComponentRef defines a reference to a component.
+                description: NamespacedObjectReference contains enough information
+                  to locate the referenced Kubernetes resource object in any namespace.
                 properties:
                   name:
+                    description: Name of the referent.
                     type: string
                   namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
                     type: string
                 required:
                 - name
-                - namespace
                 type: object
               overrides:
                 description: Overrides define user given values to be applied to package
