@@ -95,11 +95,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.OCMComponentReconciler{
+	if err = (&controllers.OCMComponentVersionReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "OCMComponent")
+		setupLog.Error(err, "unable to create controller", "controller", "OCMComponentVersion")
 		os.Exit(1)
 	}
 	if err = (&controllers.SourceReconciler{
@@ -122,6 +122,13 @@ func main() {
 		OCIRegistryAddr: ociRegistryAddr,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OCMResource")
+		os.Exit(1)
+	}
+	if err = (&controllers.WorkflowReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "WorkflowClass")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

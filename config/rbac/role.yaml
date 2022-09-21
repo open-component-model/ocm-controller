@@ -34,7 +34,7 @@ rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - ocmcomponents
+  - ocmcomponentversions
   verbs:
   - create
   - delete
@@ -46,13 +46,13 @@ rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - ocmcomponents/finalizers
+  - ocmcomponentversions/finalizers
   verbs:
   - update
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - ocmcomponents/status
+  - ocmcomponentversions/status
   verbs:
   - get
   - patch

@@ -30,26 +30,26 @@ import (
 	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
-// OCMComponentReconciler reconciles a OCMComponent object
-type OCMComponentReconciler struct {
+// OCMComponentVersionReconciler reconciles a OCMComponentVersion object
+type OCMComponentVersionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponents,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponents/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponents/finalizers,verbs=update
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponentversions,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponentversions/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponentversions/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
-func (r *OCMComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithName("ocmcomponent-reconcile")
+func (r *OCMComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 	log.Info("starting ocm component loop")
 
-	component := &actionv1.OCMComponent{}
+	component := &actionv1.OCMComponentVersion{}
 	if err := r.Client.Get(ctx, req.NamespacedName, component); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -59,14 +59,36 @@ func (r *OCMComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
 	}
 	log.V(4).Info("found component", "component", component)
-	// TODO: Check if component is verified and only proceed if yes.
+	//
+	//session := ocm.NewSession(nil)
+	//defer session.Close()
+	//
+	//ocmCtx := ocm.ForContext(ctx)
+	//// configure credentials
+	//if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, component.Spec.Repository.URL, component.Spec.Repository.SecretRef.Name, component.Namespace); err != nil {
+	//	log.V(4).Error(err, "failed to find credentials")
+	//	// ignore not found errors for now
+	//	if !apierrors.IsNotFound(err) {
+	//		return ctrl.Result{
+	//			RequeueAfter: component.Spec.Interval,
+	//		}, fmt.Errorf("failed to configure credentials for component: %w", err)
+	//	}
+	//}
+	//
+	//// get component version
+	//cv, err := csdk.GetComponentVersion(ocmCtx, session, component.Spec.Repository.URL, component.Spec.Name, component.Spec.Version)
+	//if err != nil {
+	//	return ctrl.Result{
+	//		RequeueAfter: component.Spec.Interval,
+	//	}, err
+	//}
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *OCMComponentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *OCMComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocmcontrollerv1.OCMComponent{}).
+		For(&ocmcontrollerv1.OCMComponentVersion{}).
 		Complete(r)
 }

@@ -1,0 +1,17 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Workflow
+metadata:
+  name: wge-ui-server
+spec:
+  componentRef:
+    name: github.com/weaveworks/weave-gitops-enterprise
+    namespace: wego-system
+  serviceAccount: realization-sa
+  classResource:
+    name: my-workflow-class
+    type: realization-class.ocm.software
+  overrides:
+    actions:
+      config:
+        values:
+          namespace: my-app

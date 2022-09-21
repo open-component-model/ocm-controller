@@ -38,8 +38,8 @@ type Verify struct {
 	SecretRef SecretRef `json:"secretRef"`
 }
 
-// OCMComponentSpec defines the desired state of OCMComponent
-type OCMComponentSpec struct {
+// OCMComponentVersionSpec defines the desired state of OCMComponentVersion
+type OCMComponentVersionSpec struct {
 	Interval   time.Duration `json:"interval"`
 	Name       string        `json:"name"`
 	Version    string        `json:"version"`
@@ -47,8 +47,8 @@ type OCMComponentSpec struct {
 	Verify     Verify        `json:"verify"`
 }
 
-// OCMComponentStatus defines the observed state of OCMComponent
-type OCMComponentStatus struct {
+// OCMComponentVersionStatus defines the observed state of OCMComponentVersion
+type OCMComponentVersionStatus struct {
 	ComponentDescriptor string `json:"componentDescriptor"`
 	// TODO: DeployPackage could be a configMap....
 	DeployPackage string `json:"deployPackage"`
@@ -58,24 +58,24 @@ type OCMComponentStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// OCMComponent is the Schema for the ocmcomponents API
-type OCMComponent struct {
+// OCMComponentVersion is the Schema for the OCMComponentVersions API
+type OCMComponentVersion struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   OCMComponentSpec   `json:"spec,omitempty"`
-	Status OCMComponentStatus `json:"status,omitempty"`
+	Spec   OCMComponentVersionSpec   `json:"spec,omitempty"`
+	Status OCMComponentVersionStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// OCMComponentList contains a list of OCMComponent
-type OCMComponentList struct {
+// OCMComponentVersionList contains a list of OCMComponentVersion
+type OCMComponentVersionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []OCMComponent `json:"items"`
+	Items           []OCMComponentVersion `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&OCMComponent{}, &OCMComponentList{})
+	SchemeBuilder.Register(&OCMComponentVersion{}, &OCMComponentVersionList{})
 }

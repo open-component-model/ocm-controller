@@ -1,13 +1,13 @@
-# permissions for end users to view ocmcomponents.
+# permissions for end users to view sources.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ocmcomponent-viewer-role
+  name: workflow-viewer-role
 rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - ocmcomponents
+  - workflows
   verbs:
   - get
   - list
@@ -15,6 +15,6 @@ rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - ocmcomponents/status
+  - workflows/status
   verbs:
   - get
