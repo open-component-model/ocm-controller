@@ -17,20 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/fluxcd/pkg/apis/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ProviderRef defines a provider for this Source.
-type ProviderRef struct {
-	ApiVersion string `json:"apiVersion"`
-	Kind       string `json:"kind"`
-	Name       string `json:"name"`
-}
-
 // SourceSpec defines the desired state of Source
 type SourceSpec struct {
-	ComponentRef ComponentRef `json:"componentRef"`
-	ProviderRef  ProviderRef  `json:"providerRef"`
+	ComponentRef meta.NamespacedObjectReference     `json:"componentRef"`
+	ProviderRef  meta.NamespacedObjectKindReference `json:"providerRef"`
 }
 
 // SourceStatus defines the observed state of Source

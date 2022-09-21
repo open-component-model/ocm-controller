@@ -70,7 +70,7 @@ func (r *ActionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	providerObj, err := Get(ctx, r.Client, &corev1.ObjectReference{
 		Kind:       action.Spec.ProviderRef.Kind,
 		Name:       action.Spec.ProviderRef.Name,
-		APIVersion: action.Spec.ProviderRef.ApiVersion,
+		APIVersion: action.Spec.ProviderRef.APIVersion,
 	}, action.Namespace)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to find owner for action: %w", err)

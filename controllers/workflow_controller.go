@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -161,12 +162,12 @@ func (r *WorkflowReconciler) createObject(ctx context.Context, log logr.Logger, 
 				Namespace: workflowClass.Namespace,
 			},
 			Spec: actionv1.ActionSpec{
-				ComponentRef: actionv1.ComponentRef{
+				ComponentRef: meta.NamespacedObjectReference{
 					Namespace: workflowClass.Namespace,
 					Name:      "get this from the Workflow componentRef",
 				},
-				ProviderRef: actionv1.ProviderRef{
-					ApiVersion: stage.Provider.APIVersion,
+				ProviderRef: meta.NamespacedObjectKindReference{
+					APIVersion: stage.Provider.APIVersion,
 					Kind:       stage.Provider.Kind,
 					Name:       provider.GetName(),
 				},
@@ -177,10 +178,10 @@ func (r *WorkflowReconciler) createObject(ctx context.Context, log logr.Logger, 
 			if !ok {
 				return nil, fmt.Errorf("failed to find referenced workflow input with name '%s'", workflow.Input)
 			}
-			obj.(*actionv1.Action).Spec.SourceRef = actionv1.SourceRef{
+			obj.(*actionv1.Action).Spec.SnapshotSourceRef = meta.NamespacedObjectKindReference{
 				Name:       workflow.Input,
 				Kind:       dependentStage.Type,
-				ApiVersion: actionv1.GroupVersion.String(),
+				APIVersion: actionv1.GroupVersion.String(),
 			}
 		}
 	case "Source":
@@ -195,8 +196,8 @@ func (r *WorkflowReconciler) createObject(ctx context.Context, log logr.Logger, 
 			},
 			Spec: actionv1.SourceSpec{
 				ComponentRef: w.Spec.ComponentRef,
-				ProviderRef: actionv1.ProviderRef{
-					ApiVersion: stage.Provider.APIVersion,
+				ProviderRef: meta.NamespacedObjectKindReference{
+					APIVersion: stage.Provider.APIVersion,
 					Kind:       stage.Provider.Kind,
 					Name:       provider.GetName(),
 				},

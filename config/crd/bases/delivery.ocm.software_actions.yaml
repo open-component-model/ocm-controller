@@ -36,48 +36,69 @@ spec:
             description: ActionSpec defines the desired state of Action
             properties:
               componentRef:
-                description: ComponentRef defines a reference to a component.
+                description: NamespacedObjectReference contains enough information
+                  to locate the referenced Kubernetes resource object in any namespace.
                 properties:
                   name:
+                    description: Name of the referent.
                     type: string
                   namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
                     type: string
                 required:
                 - name
-                - namespace
                 type: object
               providerRef:
-                description: ProviderRef defines a provider for this Source.
+                description: NamespacedObjectKindReference contains enough information
+                  to locate the typed referenced Kubernetes resource object in any
+                  namespace.
                 properties:
                   apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
                     type: string
                   kind:
+                    description: Kind of the referent.
                     type: string
                   name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
                     type: string
                 required:
-                - apiVersion
                 - kind
                 - name
                 type: object
-              sourceRef:
-                description: SourceRef defines the reference to a Source.
+              snapshotSourceRef:
+                description: NamespacedObjectKindReference contains enough information
+                  to locate the typed referenced Kubernetes resource object in any
+                  namespace.
                 properties:
                   apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
                     type: string
                   kind:
+                    description: Kind of the referent.
                     type: string
                   name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
                     type: string
                 required:
-                - apiVersion
                 - kind
                 - name
                 type: object
             required:
             - componentRef
             - providerRef
-            - sourceRef
+            - snapshotSourceRef
             type: object
           status:
             description: ActionStatus defines the observed state of Action

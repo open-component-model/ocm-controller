@@ -7,6 +7,7 @@ replace google.golang.org/grpc => google.golang.org/grpc v1.29.0
 
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
+	github.com/fluxcd/pkg/apis/meta v0.15.0
 	github.com/fluxcd/pkg/oci v0.9.0
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
 	github.com/open-component-model/ocm v0.0.1-0.20220921091537-cff4051fd481
