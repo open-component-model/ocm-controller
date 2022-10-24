@@ -86,6 +86,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	parent := &actionv1.Source{}
 	if err := csdk.GetParentObject(ctx, r.Client, "Source", actionv1.GroupVersion.Group, resource, parent); err != nil {
 		log.Info("parent source for ocm resource is not yet available... requeuing...")
+		log.V(4).Error(err, "failed to find parent source")
 		return ctrl.Result{
 			RequeueAfter: 1 * time.Minute,
 		}, nil

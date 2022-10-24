@@ -81,65 +81,17 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			RequeueAfter: 1 * time.Minute,
 		}, fmt.Errorf("failed to get referenced provider: %w", err)
 	}
-	log.V(4).Info("found provider object", "provider", providerObj)
-	// Initialize the patch helper.
-	patchHelper, err := patch.NewHelper(source, r.Client)
-	if err != nil {
-		return ctrl.Result{
-			RequeueAfter: 1 * time.Minute,
-		}, fmt.Errorf("failed to create patch helper: %w", err)
-	}
 
-	providerStatus, ok := providerObj.Object["status"]
-	if !ok {
-		// No status field. We don't need to requeue since change to the object will trigger reconcile.
-		log.Info("provider object doesn't have a status field yet", "provider", providerObj)
+	if source.Status.Ready && source.Status.Snapshot != "" {
+		// This source has already been reconciled.
 		return ctrl.Result{}, nil
 	}
-	typedStatus, ok := providerStatus.(map[string]interface{})
-	if !ok {
-		// No need to requeue since the object is not properly formatted and needs changes anyway.
-		return ctrl.Result{}, fmt.Errorf("status object of referenced provider is not a map: %+v", providerStatus)
-	}
-	ready, ok := typedStatus["ready"]
-	if !ok {
-		// No need to requeue since the object is not properly formatted and needs changes anyway.
-		return ctrl.Result{}, fmt.Errorf("failed to find ready field on referenced provider obj's status: %+v", typedStatus)
-	}
-	typedReady, ok := ready.(bool)
-	if !ok {
-		// No need to requeue since the object is not properly formatted and needs changes anyway.
-		return ctrl.Result{}, fmt.Errorf("status was not a boolean: %+v", typedReady)
-	}
+	log.V(4).Info("found provider object", "provider", providerObj)
 
-	// we always patch the source object to make sure the status aligns with the provider status.
-	source.Status.Ready = typedReady
-	log.V(4).Info("patching source object")
-	// set up snapshot if it exists
-	if snapshot, ok := typedStatus["snapshot"]; ok {
-		if typedSnapshot, ok := snapshot.(string); ok {
-			source.Status.Snapshot = typedSnapshot
-		}
-	}
-
-	// Patch the source object.
-	if err := patchHelper.Patch(ctx, source); err != nil {
-		return ctrl.Result{
-			RequeueAfter: 1 * time.Minute,
-		}, fmt.Errorf("failed to patch source object: %w", err)
-	}
-	log.V(4).Info("patch successful")
-
-	// Setup watch for the provider referenced object so this `reconcile` is triggered for provider status changes.
-	if err := r.externalTracker.Watch(ctrl.Log, providerObj, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Source{}}); err != nil {
-		return ctrl.Result{
-			RequeueAfter: 1 * time.Minute,
-		}, fmt.Errorf("failed to set up watch for provider object: %w", err)
-	}
-
+	// Setting up ownership of the object if it doesn't exist yet.
 	// Set up Owner relationship with the provider ref object.
 	// Initialize the patch helper.
-	patchHelper, err = patch.NewHelper(providerObj, r.Client)
+	patchHelper, err := patch.NewHelper(providerObj, r.Client)
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: 1 * time.Minute,
@@ -160,6 +112,60 @@ func (r *SourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}, fmt.Errorf("failed to patch provider object: %w", err)
 	}
 
+	// Setup watch for the provider referenced object so this `reconcile` is triggered for provider status changes.
+	if err := r.externalTracker.Watch(ctrl.Log, providerObj, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Source{}}); err != nil {
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to set up watch for provider object: %w", err)
+	}
+
+	providerStatus, ok := providerObj.Object["status"]
+	if !ok {
+		log.Info("provider object doesn't have a status field yet", "provider", providerObj)
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, nil
+	}
+	typedStatus, ok := providerStatus.(map[string]interface{})
+	if !ok {
+		// No need to requeue since the object is not properly formatted and needs changes anyway.
+		return ctrl.Result{}, fmt.Errorf("status object of referenced provider is not a map: %+v", providerStatus)
+	}
+	ready, ok := typedStatus["ready"]
+	if !ok {
+		// No need to requeue since the object is not properly formatted and needs changes anyway.
+		return ctrl.Result{}, fmt.Errorf("failed to find ready field on referenced provider obj's status: %+v", typedStatus)
+	}
+	typedReady, ok := ready.(bool)
+	if !ok {
+		// No need to requeue since the object is not properly formatted and needs changes anyway.
+		return ctrl.Result{}, fmt.Errorf("status was not a boolean: %+v", typedReady)
+	}
+
+	// Initialize the patch helper.
+	patchHelper, err = patch.NewHelper(source, r.Client)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to create patch helper: %w", err)
+	}
+	// we always patch the source object to make sure the status aligns with the provider status.
+	source.Status.Ready = typedReady
+	log.V(4).Info("patching source object")
+	// set up snapshot if it exists
+	if snapshot, ok := typedStatus["snapshot"]; ok {
+		if typedSnapshot, ok := snapshot.(string); ok {
+			source.Status.Snapshot = typedSnapshot
+		}
+	}
+
+	// Patch the source object.
+	if err := patchHelper.Patch(ctx, source); err != nil {
+		return ctrl.Result{
+			RequeueAfter: 1 * time.Minute,
+		}, fmt.Errorf("failed to patch source object: %w", err)
+	}
+	log.V(4).Info("patch successful")
 	return ctrl.Result{}, nil
 }
 
