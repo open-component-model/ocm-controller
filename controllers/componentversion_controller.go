@@ -30,26 +30,26 @@ import (
 	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
-// OCMComponentVersionReconciler reconciles a OCMComponentVersion object
-type OCMComponentVersionReconciler struct {
+// ComponentVersionReconciler reconciles a ComponentVersion object
+type ComponentVersionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponentversions,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponentversions/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmcomponentversions/finalizers,verbs=update
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
-func (r *OCMComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 	log.Info("starting ocm component loop")
 
-	component := &actionv1.OCMComponentVersion{}
+	component := &actionv1.ComponentVersion{}
 	if err := r.Client.Get(ctx, req.NamespacedName, component); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -87,8 +87,8 @@ func (r *OCMComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *OCMComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocmcontrollerv1.OCMComponentVersion{}).
+		For(&ocmcontrollerv1.ComponentVersion{}).
 		Complete(r)
 }

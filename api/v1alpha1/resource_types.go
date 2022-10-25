@@ -20,14 +20,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// OCMResourceSpec defines the desired state of OCMResource
-type OCMResourceSpec struct {
-	// Resource names a Source that this OCMResource watches.
+// ResourceSpec defines the desired state of Resource
+type ResourceSpec struct {
+	// Resource names a Source that this Resource watches.
 	Resource string `json:"resource"`
 }
 
-// OCMResourceStatus defines the observed state of OCMResource
-type OCMResourceStatus struct {
+// ResourceStatus defines the observed state of Resource
+type ResourceStatus struct {
 	// Ready denotes the state of processing a Source.
 	Ready bool `json:"ready"`
 	// Snapshot is a snapshot of a Source in the in-cluster OCI storage.
@@ -37,24 +37,24 @@ type OCMResourceStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// OCMResource is the Schema for the ocmresources API
-type OCMResource struct {
+// Resource is the Schema for the resources API
+type Resource struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   OCMResourceSpec   `json:"spec,omitempty"`
-	Status OCMResourceStatus `json:"status,omitempty"`
+	Spec   ResourceSpec   `json:"spec,omitempty"`
+	Status ResourceStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// OCMResourceList contains a list of OCMResource
-type OCMResourceList struct {
+// ResourceList contains a list of Resource
+type ResourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []OCMResource `json:"items"`
+	Items           []Resource `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&OCMResource{}, &OCMResourceList{})
+	SchemeBuilder.Register(&Resource{}, &ResourceList{})
 }

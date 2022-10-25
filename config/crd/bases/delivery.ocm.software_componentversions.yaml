@@ -5,21 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: ocmcomponentversions.delivery.ocm.software
+  name: componentversions.delivery.ocm.software
 spec:
   group: delivery.ocm.software
   names:
-    kind: OCMComponentVersion
-    listKind: OCMComponentVersionList
-    plural: ocmcomponentversions
-    singular: ocmcomponentversion
+    kind: ComponentVersion
+    listKind: ComponentVersionList
+    plural: componentversions
+    singular: componentversion
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: OCMComponentVersion is the Schema for the OCMComponentVersions
-          API
+        description: ComponentVersion is the Schema for the ComponentVersions API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +33,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: OCMComponentVersionSpec defines the desired state of OCMComponentVersion
+            description: ComponentVersionSpec defines the desired state of ComponentVersion
             properties:
               interval:
                 description: A Duration represents the elapsed time between two instants
@@ -88,7 +87,7 @@ spec:
             - version
             type: object
           status:
-            description: OCMComponentVersionStatus defines the observed state of OCMComponentVersion
+            description: ComponentVersionStatus defines the observed state of ComponentVersion
             properties:
               componentDescriptor:
                 type: string

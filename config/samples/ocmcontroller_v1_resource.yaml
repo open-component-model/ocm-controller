@@ -1,5 +1,5 @@
 apiVersion: delivery.ocm.software/v1alpha1
-kind: OCMResource
+kind: Resource
 metadata:
   name: wge-ui-server
   namespace: wego-system

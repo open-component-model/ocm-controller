@@ -40,8 +40,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// OCMResourceReconciler reconciles a OCMResource object
-type OCMResourceReconciler struct {
+// ResourceReconciler reconciles a Resource object
+type ResourceReconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	OCIRegistryAddr string
@@ -50,20 +50,20 @@ type OCMResourceReconciler struct {
 	externalTracker external.ObjectTracker
 }
 
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmresources,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmresources/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=ocmresources/finalizers,verbs=update
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
-func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithName("ocmresource-controller")
+func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := log.FromContext(ctx).WithName("resource-controller")
 
 	log.V(4).Info("starting reconcile loop")
-	resource := &actionv1.OCMResource{}
+	resource := &actionv1.Resource{}
 	if err := r.Client.Get(ctx, req.NamespacedName, resource); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -102,7 +102,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	log.V(4).Info("finding component ref", "resource", resource)
-	component := &actionv1.OCMComponentVersion{}
+	component := &actionv1.ComponentVersion{}
 	if err := r.Client.Get(ctx, types.NamespacedName{
 		Name:      parent.Spec.ComponentRef.Name,
 		Namespace: parent.Spec.ComponentRef.Namespace,
@@ -118,7 +118,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}, fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	// TODO: Would gather the ComponentDescritor object from the cluster that OCMComponentVersion controller applied.
+	// TODO: Would gather the ComponentDescritor object from the cluster that ComponentVersion controller applied.
 	// Location to the component descriptor.
 
 	log.V(4).Info("found component object", "component", component)
@@ -126,7 +126,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	session := ocm.NewSession(nil)
 	defer session.Close()
 
-	// TODO: This should be done by the OCMComponentVersion reconciler.
+	// TODO: This should be done by the ComponentVersion reconciler.
 	ocmCtx := ocm.ForContext(ctx)
 	// configure credentials
 	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, component.Spec.Repository.URL, component.Spec.Repository.SecretRef.Name, component.Namespace); err != nil {
@@ -189,7 +189,7 @@ func (r *OCMResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, ociRegistryEndpoint string, virtualFs vfs.FileSystem, repo, resourceName string) (string, error) {
+func (r *ResourceReconciler) transferToObjectStorage(ctx context.Context, ociRegistryEndpoint string, virtualFs vfs.FileSystem, repo, resourceName string) (string, error) {
 	log := log.FromContext(ctx)
 	rootDir := "/"
 
@@ -221,9 +221,9 @@ func (r *OCMResourceReconciler) transferToObjectStorage(ctx context.Context, oci
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *OCMResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&actionv1.OCMResource{}).
+		For(&actionv1.Resource{}).
 		Build(r)
 
 	if err != nil {

@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: ocmresources.delivery.ocm.software
+  name: resources.delivery.ocm.software
 spec:
   group: delivery.ocm.software
   names:
-    kind: OCMResource
-    listKind: OCMResourceList
-    plural: ocmresources
-    singular: ocmresource
+    kind: Resource
+    listKind: ResourceList
+    plural: resources
+    singular: resource
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: OCMResource is the Schema for the ocmresources API
+        description: Resource is the Schema for the resources API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,16 +33,16 @@ spec:
           metadata:
             type: object
           spec:
-            description: OCMResourceSpec defines the desired state of OCMResource
+            description: ResourceSpec defines the desired state of Resource
             properties:
               resource:
-                description: Resource names a Source that this OCMResource watches.
+                description: Resource names a Source that this Resource watches.
                 type: string
             required:
             - resource
             type: object
           status:
-            description: OCMResourceStatus defines the observed state of OCMResource
+            description: ResourceStatus defines the observed state of Resource
             properties:
               ready:
                 description: Ready denotes the state of processing a Source.

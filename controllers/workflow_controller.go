@@ -74,7 +74,7 @@ func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// Assuming OCMComponent already created the OCM object... Or maybe just downloaded it?
 	// We would have to somehow find that object. What would be its name? The component would live as name component name
 	// and then the namespace, right?
-	component := &actionv1.OCMComponentVersion{}
+	component := &actionv1.ComponentVersion{}
 	if err := r.Client.Get(ctx, client.ObjectKey{
 		Namespace: workflow.Spec.ComponentRef.Namespace,
 		Name:      workflow.Spec.ComponentRef.Name,

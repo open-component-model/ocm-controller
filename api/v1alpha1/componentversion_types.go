@@ -38,8 +38,8 @@ type Verify struct {
 	SecretRef SecretRef `json:"secretRef"`
 }
 
-// OCMComponentVersionSpec defines the desired state of OCMComponentVersion
-type OCMComponentVersionSpec struct {
+// ComponentVersionSpec defines the desired state of ComponentVersion
+type ComponentVersionSpec struct {
 	Interval   time.Duration `json:"interval"`
 	Name       string        `json:"name"`
 	Version    string        `json:"version"`
@@ -47,8 +47,8 @@ type OCMComponentVersionSpec struct {
 	Verify     Verify        `json:"verify"`
 }
 
-// OCMComponentVersionStatus defines the observed state of OCMComponentVersion
-type OCMComponentVersionStatus struct {
+// ComponentVersionStatus defines the observed state of ComponentVersion
+type ComponentVersionStatus struct {
 	ComponentDescriptor string `json:"componentDescriptor"`
 	// TODO: DeployPackage could be a configMap....
 	DeployPackage string `json:"deployPackage"`
@@ -58,24 +58,24 @@ type OCMComponentVersionStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// OCMComponentVersion is the Schema for the OCMComponentVersions API
-type OCMComponentVersion struct {
+// ComponentVersion is the Schema for the ComponentVersions API
+type ComponentVersion struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   OCMComponentVersionSpec   `json:"spec,omitempty"`
-	Status OCMComponentVersionStatus `json:"status,omitempty"`
+	Spec   ComponentVersionSpec   `json:"spec,omitempty"`
+	Status ComponentVersionStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// OCMComponentVersionList contains a list of OCMComponentVersion
-type OCMComponentVersionList struct {
+// ComponentVersionList contains a list of ComponentVersion
+type ComponentVersionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []OCMComponentVersion `json:"items"`
+	Items           []ComponentVersion `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&OCMComponentVersion{}, &OCMComponentVersionList{})
+	SchemeBuilder.Register(&ComponentVersion{}, &ComponentVersionList{})
 }

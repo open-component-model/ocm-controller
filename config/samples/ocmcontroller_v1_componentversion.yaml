@@ -1,5 +1,5 @@
 apiVersion: delivery.ocm.software/v1alpha1
-kind: OCMComponentVersion
+kind: ComponentVersion
 metadata:
   name: weave-gitops
   namespace: wego-system

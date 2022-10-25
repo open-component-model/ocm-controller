@@ -95,11 +95,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.OCMComponentVersionReconciler{
+	if err = (&controllers.ComponentVersionReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "OCMComponentVersion")
+		setupLog.Error(err, "unable to create controller", "controller", "ComponentVersion")
 		os.Exit(1)
 	}
 	if err = (&controllers.SourceReconciler{
@@ -116,12 +116,12 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Action")
 		os.Exit(1)
 	}
-	if err = (&controllers.OCMResourceReconciler{
+	if err = (&controllers.ResourceReconciler{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		OCIRegistryAddr: ociRegistryAddr,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "OCMResource")
+		setupLog.Error(err, "unable to create controller", "controller", "Resource")
 		os.Exit(1)
 	}
 	if err = (&controllers.WorkflowReconciler{
