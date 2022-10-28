@@ -3,10 +3,8 @@
 # It should be run by config/default
 resources:
 - bases/delivery.ocm.software_componentversions.yaml
-- bases/delivery.ocm.software_sources.yaml
-- bases/delivery.ocm.software_actions.yaml
-- bases/delivery.ocm.software_resources.yaml
 - bases/delivery.ocm.software_componentdescriptors.yaml
+- bases/delivery.ocm.software_resources.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
