@@ -19,15 +19,21 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	ocmcontrollerv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	csdk "github.com/open-component-model/ocm-controllers-sdk"
+
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
 
 // ComponentVersionReconciler reconciles a ComponentVersion object
@@ -40,55 +46,133 @@ type ComponentVersionReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions/finalizers,verbs=update
 
+// SetupWithManager sets up the controller with the Manager.
+func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.ComponentVersion{}).
+		Complete(r)
+}
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
+
 	log.Info("starting ocm component loop")
 
-	component := &actionv1.ComponentVersion{}
+	component := &v1alpha1.ComponentVersion{}
 	if err := r.Client.Get(ctx, req.NamespacedName, component); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-
-		// Error reading the object - requeue the request.
 		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
 	}
-	log.V(4).Info("found component", "component", component)
-	//
-	//session := ocm.NewSession(nil)
-	//defer session.Close()
-	//
-	//ocmCtx := ocm.ForContext(ctx)
-	//// configure credentials
-	//if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, component.Spec.Repository.URL, component.Spec.Repository.SecretRef.Name, component.Namespace); err != nil {
-	//	log.V(4).Error(err, "failed to find credentials")
-	//	// ignore not found errors for now
-	//	if !apierrors.IsNotFound(err) {
-	//		return ctrl.Result{
-	//			RequeueAfter: component.Spec.Interval,
-	//		}, fmt.Errorf("failed to configure credentials for component: %w", err)
-	//	}
-	//}
-	//
-	//// get component version
-	//cv, err := csdk.GetComponentVersion(ocmCtx, session, component.Spec.Repository.URL, component.Spec.Name, component.Spec.Version)
-	//if err != nil {
-	//	return ctrl.Result{
-	//		RequeueAfter: component.Spec.Interval,
-	//	}, err
-	//}
 
-	return ctrl.Result{}, nil
+	log.V(4).Info("found component", "component", component)
+
+	return r.reconcile(ctx, component)
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocmcontrollerv1.ComponentVersion{}).
-		Complete(r)
+func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentVersion) (ctrl.Result, error) {
+	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
+
+	session := ocm.NewSession(nil)
+	defer session.Close()
+
+	ocmCtx := ocm.ForContext(ctx)
+
+	// configure registry credentials
+	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
+		log.V(4).Error(err, "failed to find credentials")
+		// ignore not found errors for now
+		if !apierrors.IsNotFound(err) {
+			return ctrl.Result{
+				RequeueAfter: obj.Spec.Interval,
+			}, fmt.Errorf("failed to configure credentials for component: %w", err)
+		}
+	}
+
+	// get component version
+	cv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, obj.Spec.Name, obj.Spec.Version)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: obj.Spec.Interval,
+		}, fmt.Errorf("failed to get component version: %w", err)
+	}
+
+	// convert ComponentDescriptor to v32alpha1
+	dv := &compdesc.DescriptorVersion{}
+	cd, err := dv.ConvertFrom(cv.GetDescriptor())
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to convret component descriptor: %w", err)
+	}
+
+	// setup the component descriptor kubernetes resource
+	descriptor := &v1alpha1.ComponentDescriptor{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: obj.GetNamespace(),
+			Name:      strings.ReplaceAll(cv.GetName(), "/", "."),
+		},
+	}
+
+	// create or update the component descriptor kubernetes resource
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, descriptor, func() error {
+		if descriptor.ObjectMeta.CreationTimestamp.IsZero() {
+			controllerutil.SetOwnerReference(obj, descriptor, r.Scheme)
+		}
+		descriptor.Spec = cd.(*compdesc.ComponentDescriptor).Spec
+		return nil
+	})
+
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.Spec.Interval},
+			fmt.Errorf("failed to create or update component descriptor: %w", err)
+	}
+
+	log.Info("successfully completed operation", op)
+
+	// if references.expand is false then return here
+	if !obj.Spec.References.Expand {
+		return ctrl.Result{RequeueAfter: obj.Spec.Interval}, err
+	}
+
+	// iterate referenced component descriptors
+	for _, ref := range cv.GetDescriptor().References {
+		rcv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, ref.ComponentName, ref.Version)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: obj.Spec.Interval},
+				fmt.Errorf("failed to get component version: %w", err)
+		}
+
+		dv := &compdesc.DescriptorVersion{}
+		rcd, err := dv.ConvertFrom(rcv.GetDescriptor())
+		if err != nil {
+			return ctrl.Result{RequeueAfter: obj.Spec.Interval},
+				fmt.Errorf("failed to convert component descriptor: %w", err)
+		}
+
+		rdescriptor := &v1alpha1.ComponentDescriptor{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: obj.GetNamespace(),
+				Name:      strings.ReplaceAll(rcv.GetName(), "/", "."),
+			},
+		}
+
+		op, err := controllerutil.CreateOrUpdate(ctx, r.Client, rdescriptor, func() error {
+			if descriptor.ObjectMeta.CreationTimestamp.IsZero() {
+				controllerutil.SetOwnerReference(obj, rdescriptor, r.Scheme)
+			}
+			descriptor.Spec = rcd.(*compdesc.ComponentDescriptor).Spec
+			return nil
+		})
+
+		if err != nil {
+			return ctrl.Result{RequeueAfter: obj.Spec.Interval},
+				fmt.Errorf("failed to create or update component descriptor: %w", err)
+		}
+
+		log.Info("successfully completed operation", op)
+	}
+
+	return ctrl.Result{RequeueAfter: obj.Spec.Interval}, nil
 }
