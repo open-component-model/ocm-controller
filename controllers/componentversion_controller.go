@@ -24,6 +24,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -129,13 +130,14 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
 	}
 
-	log.Info("successfully completed operation", op)
+	log.V(4).Info("successfully completed mutation", "operation", op)
 
 	// if references.expand is false then return here
 	if !obj.Spec.References.Expand {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
+	expandedRefs := make(map[string]string)
 	// iterate referenced component descriptors
 	for _, ref := range cv.GetDescriptor().References {
 		rcv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, ref.ComponentName, ref.Version)
@@ -171,8 +173,35 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 				fmt.Errorf("failed to create or update component descriptor: %w", err)
 		}
 
-		log.Info("successfully completed operation", op)
+		expandedRefs[ref.Name] = rdescriptor.GetNamespace() + "/" + rdescriptor.GetName()
+
+		log.V(4).Info("successfully completed mutation", "operation", op)
 	}
 
+	// Initialize the patch helper.
+	patchHelper, err := patch.NewHelper(obj, r.Client)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: obj.GetRequeueAfter(),
+		}, fmt.Errorf("failed to create patch helper: %w", err)
+	}
+
+	// write component descriptor details to status
+	if obj.Status.ComponentDescriptors == nil {
+		obj.Status.ComponentDescriptors = make(map[string]string)
+	}
+
+	obj.Status.ComponentDescriptors["root"] = descriptor.GetNamespace() + "/" + descriptor.GetName()
+	for k, v := range expandedRefs {
+		obj.Status.ComponentDescriptors[k] = v
+	}
+
+	if err := patchHelper.Patch(ctx, obj); err != nil {
+		return ctrl.Result{
+			RequeueAfter: obj.GetRequeueAfter(),
+		}, fmt.Errorf("failed to patch resource: %w", err)
+	}
+
+	log.Info("reconciliation complete")
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }

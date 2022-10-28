@@ -66,7 +66,7 @@ type ReferencesConfig struct {
 
 // ComponentVersionStatus defines the observed state of ComponentVersion
 type ComponentVersionStatus struct {
-	ComponentDescriptor string `json:"componentDescriptor,omitempty"`
+	ComponentDescriptors map[string]string `json:"componentDescriptors,omitempty"`
 
 	Verified bool `json:"verified,omitempty"`
 }

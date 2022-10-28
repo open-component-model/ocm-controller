@@ -80,12 +80,20 @@ spec:
                 type: object
               version:
                 type: string
+            required:
+            - interval
+            - name
+            - repository
+            - verify
+            - version
             type: object
           status:
             description: ComponentVersionStatus defines the observed state of ComponentVersion
             properties:
-              componentDescriptor:
-                type: string
+              componentDescriptors:
+                additionalProperties:
+                  type: string
+                type: object
               verified:
                 type: boolean
             type: object
