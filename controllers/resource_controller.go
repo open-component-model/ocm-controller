@@ -21,11 +21,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	ociclient "github.com/fluxcd/pkg/oci/client"
 	"github.com/mandelsoft/vfs/pkg/vfs"
-	actionv1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
 	"github.com/open-component-model/ocm-controllers-sdk/oci"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
@@ -36,7 +35,6 @@ import (
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -54,6 +52,22 @@ type ResourceReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources/finalizers,verbs=update
 
+// SetupWithManager sets up the controller with the Manager.
+func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	controller, err := ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.Resource{}).
+		Build(r)
+
+	if err != nil {
+		return fmt.Errorf("failed setting up with a controller manager: %w", err)
+	}
+
+	r.externalTracker = external.ObjectTracker{
+		Controller: controller,
+	}
+	return nil
+}
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 //
@@ -63,7 +77,7 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log := log.FromContext(ctx).WithName("resource-controller")
 
 	log.V(4).Info("starting reconcile loop")
-	resource := &actionv1.Resource{}
+	resource := &v1alpha1.Resource{}
 	if err := r.Client.Get(ctx, req.NamespacedName, resource); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -76,57 +90,33 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 	log.V(4).Info("found resource", "resource", resource)
 
-	if resource.Status.Ready {
-		// TODO: I wonder if this is a good idea. This means that this resource will never be updated / reprocessed.
-		log.V(4).Info("skipping resource as it has already been reconciled", "resource", resource)
-		return ctrl.Result{}, nil
-	}
+	return r.reconcile(ctx, resource)
+}
 
-	// Set up a watch on the parent Source
-	parent := &actionv1.Source{}
-	if err := csdk.GetParentObject(ctx, r.Client, "Source", actionv1.GroupVersion.Group, resource, parent); err != nil {
-		log.Info("parent source for ocm resource is not yet available... requeuing...")
-		log.V(4).Error(err, "failed to find parent source")
-		return ctrl.Result{
-			RequeueAfter: 1 * time.Minute,
-		}, nil
-	}
+func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resource) (ctrl.Result, error) {
+	log := log.FromContext(ctx).WithName("resource-controller")
+	log.V(4).Info("finding component ref", "resource", obj)
 
-	log.V(4).Info("found parent source", "parent", parent)
-	// Watch the parent for changes in componentRef?
-	// get that component and do what with it?
-	if err := r.externalTracker.Watch(ctrl.Log, parent, &handler.EnqueueRequestForOwner{OwnerType: &actionv1.Source{}}); err != nil {
-		return ctrl.Result{
-			RequeueAfter: 1 * time.Minute,
-		}, fmt.Errorf("failed to set up watch for source object: %w", err)
+	component := &v1alpha1.ComponentVersion{}
+	componentKey := types.NamespacedName{
+		Name:      obj.Spec.ComponentRef.Name,
+		Namespace: obj.Spec.ComponentRef.Namespace,
 	}
-
-	log.V(4).Info("finding component ref", "resource", resource)
-	component := &actionv1.ComponentVersion{}
-	if err := r.Client.Get(ctx, types.NamespacedName{
-		Name:      parent.Spec.ComponentRef.Name,
-		Namespace: parent.Spec.ComponentRef.Namespace,
-	}, component); err != nil {
+	if err := r.Get(ctx, componentKey, component); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.V(4).Info("component not found", "component", parent.Spec.ComponentRef)
-			return ctrl.Result{}, nil
+			log.V(4).Info("component not found", "component", obj.Spec.ComponentRef)
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
 		// Error reading the object - requeue the request.
-		return ctrl.Result{
-			RequeueAfter: 1 * time.Minute,
-		}, fmt.Errorf("failed to get component object: %w", err)
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	// TODO: Would gather the ComponentDescritor object from the cluster that ComponentVersion controller applied.
-	// Location to the component descriptor.
-
-	log.V(4).Info("found component object", "component", component)
-
+	// TODO: This should be done by the ComponentVersion reconciler.
 	session := ocm.NewSession(nil)
 	defer session.Close()
 
-	// TODO: This should be done by the ComponentVersion reconciler.
 	ocmCtx := ocm.ForContext(ctx)
 	// configure credentials
 	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, component.Spec.Repository.URL, component.Spec.Repository.SecretRef.Name, component.Namespace); err != nil {
@@ -134,7 +124,7 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		// ignore not found errors for now
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{
-				RequeueAfter: component.Spec.Interval,
+				RequeueAfter: obj.GetRequeueAfter(),
 			}, fmt.Errorf("failed to configure credentials for component: %w", err)
 		}
 	}
@@ -142,17 +132,13 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// get component version
 	cv, err := csdk.GetComponentVersion(ocmCtx, session, component.Spec.Repository.URL, component.Spec.Name, component.Spec.Version)
 	if err != nil {
-		return ctrl.Result{
-			RequeueAfter: component.Spec.Interval,
-		}, err
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
 	// configure virtual filesystem
-	fs, err := csdk.ConfigureTemplateFilesystem(ctx, cv, resource.Spec.Resource)
+	fs, err := csdk.ConfigureTemplateFilesystem(ctx, cv, obj.Spec.Resource)
 	if err != nil {
-		return ctrl.Result{
-			RequeueAfter: component.Spec.Interval,
-		}, err
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 	defer vfs.Cleanup(fs)
 
@@ -161,28 +147,24 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if registryURL[0] == ':' {
 		registryURL = "localhost" + registryURL
 	}
-	snapshot, err := r.transferToObjectStorage(ctx, registryURL, fs, component.Name, resource.Spec.Resource)
+	snapshot, err := r.transferToObjectStorage(ctx, registryURL, fs, component.Name, obj.Spec.Resource)
 	if err != nil {
-		return ctrl.Result{
-			RequeueAfter: component.Spec.Interval,
-		}, err
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
 	// Initialize the patch helper.
-	patchHelper, err := patch.NewHelper(resource, r.Client)
+	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
-		return ctrl.Result{
-			RequeueAfter: component.Spec.Interval,
-		}, fmt.Errorf("failed to create patch helper: %w", err)
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	resource.Status.Snapshot = snapshot
-	resource.Status.Ready = true
+	obj.Status.Snapshot = snapshot
+	obj.Status.Ready = true
 
 	// TODO: Add an ObservedGeneration predicate to avoid an infinite loop of update/reconcile.
-	if err := patchHelper.Patch(ctx, resource); err != nil {
+	if err := patchHelper.Patch(ctx, obj); err != nil {
 		return ctrl.Result{
-			RequeueAfter: component.Spec.Interval,
+			RequeueAfter: obj.GetRequeueAfter(),
 		}, fmt.Errorf("failed to patch resource and set snaphost value: %w", err)
 	}
 
@@ -218,20 +200,4 @@ func (r *ResourceReconciler) transferToObjectStorage(ctx context.Context, ociReg
 	log.V(4).Info("successfully uploaded artifact to location", "location", artifactPath, "sourcedir", sourceDir)
 
 	return snapshotName, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&actionv1.Resource{}).
-		Build(r)
-
-	if err != nil {
-		return fmt.Errorf("failed setting up with a controller manager: %w", err)
-	}
-
-	r.externalTracker = external.ObjectTracker{
-		Controller: controller,
-	}
-	return nil
 }
