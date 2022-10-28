@@ -40,11 +40,16 @@ type Verify struct {
 
 // ComponentVersionSpec defines the desired state of ComponentVersion
 type ComponentVersionSpec struct {
-	Interval   time.Duration `json:"interval"`
-	Name       string        `json:"name"`
-	Version    string        `json:"version"`
-	Repository Repository    `json:"repository"`
-	Verify     Verify        `json:"verify"`
+	Interval   time.Duration    `json:"interval,omitempty"`
+	Name       string           `json:"name,omitempty"`
+	Version    string           `json:"version,omitempty"`
+	Repository Repository       `json:"repository,omitempty"`
+	Verify     Verify           `json:"verify,omitempty"`
+	References ReferencesConfig `json:"references,omitempty"`
+}
+
+type ReferencesConfig struct {
+	Expand bool `json:"expand,omitempty"`
 }
 
 // ComponentVersionStatus defines the observed state of ComponentVersion
