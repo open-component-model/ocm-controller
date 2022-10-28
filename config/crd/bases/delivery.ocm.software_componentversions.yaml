@@ -36,11 +36,7 @@ spec:
             description: ComponentVersionSpec defines the desired state of ComponentVersion
             properties:
               interval:
-                description: A Duration represents the elapsed time between two instants
-                  as an int64 nanosecond count. The representation limits the largest
-                  representable duration to approximately 290 years.
-                format: int64
-                type: integer
+                type: string
               name:
                 type: string
               references:
@@ -90,15 +86,8 @@ spec:
             properties:
               componentDescriptor:
                 type: string
-              deployPackage:
-                description: 'TODO: DeployPackage could be a configMap....'
-                type: string
               verified:
                 type: boolean
-            required:
-            - componentDescriptor
-            - deployPackage
-            - verified
             type: object
         type: object
     served: true

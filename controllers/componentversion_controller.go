@@ -87,7 +87,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 		// ignore not found errors for now
 		if !apierrors.IsNotFound(err) {
 			return ctrl.Result{
-				RequeueAfter: obj.Spec.Interval,
+				RequeueAfter: obj.GetRequeueAfter(),
 			}, fmt.Errorf("failed to configure credentials for component: %w", err)
 		}
 	}
@@ -96,7 +96,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	cv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, obj.Spec.Name, obj.Spec.Version)
 	if err != nil {
 		return ctrl.Result{
-			RequeueAfter: obj.Spec.Interval,
+			RequeueAfter: obj.GetRequeueAfter(),
 		}, fmt.Errorf("failed to get component version: %w", err)
 	}
 
@@ -125,7 +125,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	})
 
 	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.Spec.Interval},
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
 	}
 
@@ -133,21 +133,21 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 
 	// if references.expand is false then return here
 	if !obj.Spec.References.Expand {
-		return ctrl.Result{RequeueAfter: obj.Spec.Interval}, err
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
 	// iterate referenced component descriptors
 	for _, ref := range cv.GetDescriptor().References {
 		rcv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, ref.ComponentName, ref.Version)
 		if err != nil {
-			return ctrl.Result{RequeueAfter: obj.Spec.Interval},
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 				fmt.Errorf("failed to get component version: %w", err)
 		}
 
 		dv := &compdesc.DescriptorVersion{}
 		rcd, err := dv.ConvertFrom(rcv.GetDescriptor())
 		if err != nil {
-			return ctrl.Result{RequeueAfter: obj.Spec.Interval},
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 				fmt.Errorf("failed to convert component descriptor: %w", err)
 		}
 
@@ -167,12 +167,12 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 		})
 
 		if err != nil {
-			return ctrl.Result{RequeueAfter: obj.Spec.Interval},
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 				fmt.Errorf("failed to create or update component descriptor: %w", err)
 		}
 
 		log.Info("successfully completed operation", op)
 	}
 
-	return ctrl.Result{RequeueAfter: obj.Spec.Interval}, nil
+	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
