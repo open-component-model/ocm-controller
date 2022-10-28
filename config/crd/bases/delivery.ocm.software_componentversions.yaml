@@ -36,13 +36,14 @@ spec:
             description: ComponentVersionSpec defines the desired state of ComponentVersion
             properties:
               interval:
-                description: A Duration represents the elapsed time between two instants
-                  as an int64 nanosecond count. The representation limits the largest
-                  representable duration to approximately 290 years.
-                format: int64
-                type: integer
+                type: string
               name:
                 type: string
+              references:
+                properties:
+                  expand:
+                    type: boolean
+                type: object
               repository:
                 description: Repository defines the OCM Repository.
                 properties:
@@ -89,17 +90,12 @@ spec:
           status:
             description: ComponentVersionStatus defines the observed state of ComponentVersion
             properties:
-              componentDescriptor:
-                type: string
-              deployPackage:
-                description: 'TODO: DeployPackage could be a configMap....'
-                type: string
+              componentDescriptors:
+                additionalProperties:
+                  type: string
+                type: object
               verified:
                 type: boolean
-            required:
-            - componentDescriptor
-            - deployPackage
-            - verified
             type: object
         type: object
     served: true

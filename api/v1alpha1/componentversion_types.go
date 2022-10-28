@@ -40,19 +40,41 @@ type Verify struct {
 
 // ComponentVersionSpec defines the desired state of ComponentVersion
 type ComponentVersionSpec struct {
-	Interval   time.Duration `json:"interval"`
-	Name       string        `json:"name"`
-	Version    string        `json:"version"`
-	Repository Repository    `json:"repository"`
-	Verify     Verify        `json:"verify"`
+	// +required
+	Interval metav1.Duration `json:"interval"`
+
+	// +required
+	Name string `json:"name"`
+
+	// +required
+	Version string `json:"version"`
+
+	// +required
+	Repository Repository `json:"repository"`
+
+	// +required
+	Verify Verify `json:"verify"`
+
+	// +optional
+	References ReferencesConfig `json:"references,omitempty"`
+}
+
+type ReferencesConfig struct {
+	// +optional
+	Expand bool `json:"expand,omitempty"`
 }
 
 // ComponentVersionStatus defines the observed state of ComponentVersion
 type ComponentVersionStatus struct {
-	ComponentDescriptor string `json:"componentDescriptor"`
-	// TODO: DeployPackage could be a configMap....
-	DeployPackage string `json:"deployPackage"`
-	Verified      bool   `json:"verified"`
+	ComponentDescriptors map[string]string `json:"componentDescriptors,omitempty"`
+
+	Verified bool `json:"verified,omitempty"`
+}
+
+// GetRequeueAfter returns the duration after which the ComponentVersion must be
+// reconciled again.
+func (in ComponentVersion) GetRequeueAfter() time.Duration {
+	return in.Spec.Interval.Duration
 }
 
 //+kubebuilder:object:root=true

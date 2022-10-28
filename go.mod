@@ -5,12 +5,14 @@ go 1.19
 // Something requires the naming package. :( Which was an experimental package and has been removed.
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.0
 
+replace github.com/open-component-model/ocm => ../ocm
+
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
 	github.com/fluxcd/pkg/apis/meta v0.15.0
 	github.com/fluxcd/pkg/oci v0.9.0
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
-	github.com/open-component-model/ocm v0.0.1-0.20220921091537-cff4051fd481
+	github.com/open-component-model/ocm v0.0.1-0.20221027113832-3b98a1369cef
 	github.com/open-component-model/ocm-controllers-sdk v0.0.4
 	k8s.io/apimachinery v0.25.1
 	k8s.io/client-go v0.25.1
@@ -93,6 +95,7 @@ require (
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
+	github.com/mandelsoft/logging v0.0.0-20221012190501-e17f7961076e // indirect
 	github.com/mandelsoft/spiff v1.7.0-beta-3 // indirect
 	github.com/marstr/guid v1.1.0 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
@@ -102,7 +105,7 @@ require (
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
 	github.com/moby/term v0.0.0-20220808134915-39b0c02b01ae // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/onsi/gomega v1.20.1 // indirect
+	github.com/onsi/gomega v1.20.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
@@ -110,6 +113,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/cobra v1.5.0 // indirect
 	github.com/theupdateframework/notary v0.7.0 // indirect
+	github.com/tonglil/buflogr v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect

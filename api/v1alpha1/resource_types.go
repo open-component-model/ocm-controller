@@ -17,13 +17,29 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"time"
+
+	"github.com/fluxcd/pkg/apis/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ResourceSpec defines the desired state of Resource
 type ResourceSpec struct {
+	// +required
+	Interval metav1.Duration `json:"interval"`
+
+	// +required
+	ComponentRef meta.NamespacedObjectReference `json:"componentRef"`
+
 	// Resource names a Source that this Resource watches.
+	// +required
 	Resource string `json:"resource"`
+}
+
+// GetRequeueAfter returns the duration after which the Resource must be
+// reconciled again.
+func (in Resource) GetRequeueAfter() time.Duration {
+	return in.Spec.Interval.Duration
 }
 
 // ResourceStatus defines the observed state of Resource

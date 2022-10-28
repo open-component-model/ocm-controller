@@ -35,10 +35,28 @@ spec:
           spec:
             description: ResourceSpec defines the desired state of Resource
             properties:
+              componentRef:
+                description: NamespacedObjectReference contains enough information
+                  to locate the referenced Kubernetes resource object in any namespace.
+                properties:
+                  name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
+                    type: string
+                required:
+                - name
+                type: object
+              interval:
+                type: string
               resource:
                 description: Resource names a Source that this Resource watches.
                 type: string
             required:
+            - componentRef
+            - interval
             - resource
             type: object
           status:
