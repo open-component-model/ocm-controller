@@ -18,34 +18,41 @@ package controllers
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
-	"os"
-	"path/filepath"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
 	ociclient "github.com/fluxcd/pkg/oci/client"
-	"github.com/mandelsoft/vfs/pkg/vfs"
+	"github.com/google/go-containerregistry/pkg/name"
+	gcrv1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	csdk "github.com/open-component-model/ocm-controllers-sdk"
-	"github.com/open-component-model/ocm-controllers-sdk/oci"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
+
+type contextKey string
 
 // ResourceReconciler reconciles a Resource object
 type ResourceReconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	OCIRegistryAddr string
-
-	// TODO: Write our own Watch.
-	externalTracker external.ObjectTracker
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
@@ -54,103 +61,52 @@ type ResourceReconciler struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.Resource{}).
-		Build(r)
-
-	if err != nil {
-		return fmt.Errorf("failed setting up with a controller manager: %w", err)
-	}
-
-	r.externalTracker = external.ObjectTracker{
-		Controller: controller,
-	}
-	return nil
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1alpha1.Resource{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Complete(r)
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("resource-controller")
 
-	log.V(4).Info("starting reconcile loop")
+	log.Info("starting resource reconcile loop")
 	resource := &v1alpha1.Resource{}
 	if err := r.Client.Get(ctx, req.NamespacedName, resource); err != nil {
 		if apierrors.IsNotFound(err) {
-			// Object not found, return.  Created objects are automatically garbage collected.
-			// For additional cleanup logic use finalizers.
 			return ctrl.Result{}, nil
 		}
-
-		// Error reading the object - requeue the request.
 		return ctrl.Result{}, fmt.Errorf("failed to get resource object: %w", err)
 	}
-	log.V(4).Info("found resource", "resource", resource)
+	log.Info("found resource", "resource", resource)
 
 	return r.reconcile(ctx, resource)
 }
 
 func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resource) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("resource-controller")
-	log.V(4).Info("finding component ref", "resource", obj)
 
-	component := &v1alpha1.ComponentVersion{}
-	componentKey := types.NamespacedName{
-		Name:      obj.Spec.ComponentRef.Name,
+	log.Info("finding component ref", "resource", obj)
+
+	// get the component descriptor
+	cdKey := types.NamespacedName{
+		Name:      strings.ReplaceAll(obj.Spec.ComponentRef.Name, "/", "-"),
 		Namespace: obj.Spec.ComponentRef.Namespace,
 	}
-	if err := r.Get(ctx, componentKey, component); err != nil {
+
+	componentDescriptor := &v1alpha1.ComponentDescriptor{}
+	if err := r.Get(ctx, cdKey, componentDescriptor); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.V(4).Info("component not found", "component", obj.Spec.ComponentRef)
+			log.V(4).Info("component descriptor not found", "component", obj.Spec.ComponentRef)
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
-		// Error reading the object - requeue the request.
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	// TODO: This should be done by the ComponentVersion reconciler.
-	session := ocm.NewSession(nil)
-	defer session.Close()
-
-	ocmCtx := ocm.ForContext(ctx)
-	// configure credentials
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, component.Spec.Repository.URL, component.Spec.Repository.SecretRef.Name, component.Namespace); err != nil {
-		log.V(4).Error(err, "failed to find credentials")
-		// ignore not found errors for now
-		if !apierrors.IsNotFound(err) {
-			return ctrl.Result{
-				RequeueAfter: obj.GetRequeueAfter(),
-			}, fmt.Errorf("failed to configure credentials for component: %w", err)
-		}
-	}
-
-	// get component version
-	cv, err := csdk.GetComponentVersion(ocmCtx, session, component.Spec.Repository.URL, component.Spec.Name, component.Spec.Version)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
-	}
-
-	// configure virtual filesystem
-	fs, err := csdk.ConfigureTemplateFilesystem(ctx, cv, obj.Spec.Resource)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
-	}
-	defer vfs.Cleanup(fs)
-
-	registryURL := r.OCIRegistryAddr
-	// add localhost if the only thing defined is a port
-	if registryURL[0] == ':' {
-		registryURL = "localhost" + registryURL
-	}
-	snapshot, err := r.transferToObjectStorage(ctx, registryURL, fs, component.Name, obj.Spec.Resource)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
-	}
+	log.Info("got component descriptor", "component descriptor", cdKey.String())
 
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(obj, r.Client)
@@ -158,46 +114,141 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	obj.Status.Snapshot = snapshot
-	obj.Status.Ready = true
+	// lookup the resource
+	for _, res := range componentDescriptor.Spec.Resources {
+		if res.Name != obj.Spec.Resource.Name {
+			continue
+		}
 
-	// TODO: Add an ObservedGeneration predicate to avoid an infinite loop of update/reconcile.
+		// push the resource snapshot to oci
+		snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
+		if err := r.copyResourceToSnapshot(ctx, snapshotName, res); err != nil {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
+		}
+
+		// create/update the snapshot custom resource
+		snapshotCR := &v1alpha1.Snapshot{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: obj.GetNamespace(),
+				Name:      obj.Spec.SnapshotTemplate.Name,
+			},
+		}
+
+		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
+			if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
+				controllerutil.SetOwnerReference(obj, snapshotCR, r.Scheme)
+			}
+			snapshotCR.Spec = v1alpha1.SnapshotSpec{
+				Ref: strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/snapshots/"),
+			}
+			return nil
+		})
+
+		if err != nil {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+				fmt.Errorf("failed to create or update component descriptor: %w", err)
+		}
+
+		obj.Status.LastAppliedResourceVersion = res.Version
+
+		log.Info("sucessfully created snapshot", "name", snapshotName)
+	}
+
+	obj.Status.ObservedGeneration = obj.GetGeneration()
+
 	if err := patchHelper.Patch(ctx, obj); err != nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
 		}, fmt.Errorf("failed to patch resource and set snaphost value: %w", err)
 	}
 
-	return ctrl.Result{}, nil
+	log.Info("sucessfully reconciled resource", "name", obj.GetName())
+
+	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-func (r *ResourceReconciler) transferToObjectStorage(ctx context.Context, ociRegistryEndpoint string, virtualFs vfs.FileSystem, repo, resourceName string) (string, error) {
-	log := log.FromContext(ctx)
-	rootDir := "/"
-
-	fi, err := virtualFs.Stat(rootDir)
+func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapshotName string, res ocmapi.Resource) error {
+	ref := res.Access.Object["globalAccess"].(map[string]interface{})["ref"].(string)
+	sha := res.Access.Object["globalAccess"].(map[string]interface{})["digest"].(string)
+	digest, err := name.NewDigest(fmt.Sprintf("%s:%s@%s", ref, res.Version, sha), name.Insecure)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	sourceDir := filepath.Join(os.TempDir(), fi.Name())
-	artifactPath := filepath.Join(os.TempDir(), fi.Name()+".tar.gz")
-
-	// We have the source dir, just tar and upload it to the registry.
-	metadata := ociclient.Metadata{
-		Source:   "github.com/open-component-model/ocm-controller",
-		Revision: "rev",
+	// proxy image requests via the in-cluster oci-registry
+	proxyURL, err := url.Parse(fmt.Sprintf("http://%s", r.OCIRegistryAddr))
+	if err != nil {
+		return fmt.Errorf("failed to parse oci registry url: %w", err)
 	}
 
-	snapshotName := csdk.GetSnapshotName(repo, resourceName)
-	taggedURL := fmt.Sprintf("%s/%s", ociRegistryEndpoint, snapshotName)
-	log.V(4).Info("pushing joined url", "url", taggedURL)
-	pusher := oci.NewClient(taggedURL)
+	// create a transport to the in-cluster oci-registry
+	tr := newCustomTransport(remote.DefaultTransport.(*http.Transport).Clone(), proxyURL)
 
-	if err := pusher.Push(ctx, artifactPath, sourceDir, metadata); err != nil {
-		return "", fmt.Errorf("failed to push artifact: %w", err)
+	// set context values to be transmitted as headers on the registry requests
+	for k, v := range map[string]string{
+		"registry":   digest.Repository.Registry.String(),
+		"repository": digest.Repository.String(),
+		"digest":     digest.String(),
+		"image":      digest.Name(),
+		"tag":        res.Version,
+	} {
+		ctx = context.WithValue(ctx, contextKey(k), v)
 	}
-	log.V(4).Info("successfully uploaded artifact to location", "location", artifactPath, "sourcedir", sourceDir)
 
-	return snapshotName, nil
+	// fetch the layer
+	layer, err := remote.Layer(digest, remote.WithTransport(tr), remote.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	// create snapshot with single layer
+	snapshot, err := mutate.AppendLayers(empty.Image, layer)
+	if err != nil {
+		return fmt.Errorf("failed to get append layer: %w", err)
+	}
+
+	snapshotRef, err := name.ParseReference(snapshotName, name.Insecure)
+	if err != nil {
+		return fmt.Errorf("failed to create snapshot reference: %w", err)
+	}
+
+	ct := time.Now()
+	snapshotMeta := ociclient.Metadata{
+		Created: ct.Format(time.RFC3339),
+		Digest:  snapshotRef.String(),
+	}
+
+	// add metadata
+	snapshot = mutate.Annotations(snapshot, snapshotMeta.ToAnnotations()).(gcrv1.Image)
+
+	// write snapshot to registry
+	if err := remote.Write(snapshotRef, snapshot); err != nil {
+		return fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	return nil
+}
+
+type customTransport struct {
+	http.RoundTripper
+}
+
+func newCustomTransport(upstream *http.Transport, proxyURL *url.URL) *customTransport {
+	upstream.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	upstream.Proxy = http.ProxyURL(proxyURL)
+	upstream.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	return &customTransport{upstream}
+}
+
+func (ct *customTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	keys := []string{"digest", "registry", "repository", "tag", "image"}
+	for _, key := range keys {
+		value := req.Context().Value(contextKey(key))
+		if value != nil {
+			req.Header.Set("x-"+key, value.(string))
+		}
+	}
+	return ct.RoundTripper.RoundTrip(req)
 }
