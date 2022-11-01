@@ -54,12 +54,7 @@ func pullThroughMiddleware(h http.Handler, addr string, log dcontext.Logger) htt
 		req.URL.Host = addr
 		req.Host = addr
 
-		if req.Method != "GET" {
-			h.ServeHTTP(w, req)
-			return
-		}
-
-		if req.URL.Path == "/v2/" {
+		if req.Method != "GET" || req.URL.Path == "/v2/" {
 			h.ServeHTTP(w, req)
 			return
 		}
@@ -71,15 +66,7 @@ func pullThroughMiddleware(h http.Handler, addr string, log dcontext.Logger) htt
 				return
 			}
 
-			log.Info("GOT REPOSITORY", req.Header.Get("X-Repository"))
-			log.Info("GOT REGISTRY", req.Header.Get("X-Registry"))
-			log.Info("GOT TAG", req.Header.Get("X-Tag"))
-			log.Info("HAVE ADDR", addr)
-
 			repo := strings.Replace(req.Header.Get("X-Repository"), req.Header.Get("X-Registry"), addr, 1)
-
-			log.Info("MADE REPO", repo)
-
 			image := fmt.Sprintf("%s:%s", repo, req.Header.Get("X-Tag"))
 			ref, err := name.ParseReference(image)
 			if err != nil {
@@ -87,8 +74,6 @@ func pullThroughMiddleware(h http.Handler, addr string, log dcontext.Logger) htt
 				h.ServeHTTP(w, req)
 				return
 			}
-
-			log.Info("checking image ", image)
 
 			if _, err := remote.Get(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 				switch err.(type) {
