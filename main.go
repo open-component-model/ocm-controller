@@ -53,13 +53,14 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var ociRegistryAddr string
-	var ociRegistryStorageDir string
+	var ociRegistryPort string
+	var ociRegistryServicceName string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&ociRegistryAddr, "oci-registry-bind-address", ":5000", "The address the oci registry binds to.")
-	flag.StringVar(&ociRegistryStorageDir, "oci-registry-storage-dir", "/tmp", "The location on disk that will contain the oci registry content.")
+	flag.StringVar(&ociRegistryPort, "oci-registry-port", "5001", "The port the oci registry binds to.")
+	flag.StringVar(&ociRegistryServicceName, "oci-registry-service-name", "registry.ocm-system.svc.cluster.local",
+		"Service")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -110,25 +111,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	c := registry.Config{
-		StorageDirectory: ociRegistryStorageDir,
-		Addr:             ociRegistryAddr,
-	}
+	ctx := ctrl.SetupSignalHandler()
 
-	r, err := registry.NewRegistry(c)
-	if err != nil {
-		setupLog.Error(err, "failed to create oci registry")
-		os.Exit(1)
-	}
-
-	// start the registry
+	// start the registry a server
 	go func() {
-		// Block until our controller manager is elected leader. We presume our
-		// entire process will terminate if we lose leadership, so we don't need
-		// to handle that.
 		<-mgr.Elected()
 
 		setupLog.Info("starting oci registry server")
+
+		r := registry.New(ctx, ociRegistryPort)
 
 		if err := r.ListenAndServe(); err != nil {
 			setupLog.Error(err, "failed to start oci registry server")
@@ -137,7 +128,7 @@ func main() {
 	}()
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
