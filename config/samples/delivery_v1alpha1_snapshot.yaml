@@ -1,0 +1,6 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Snapshot
+metadata:
+  name: snapshot-sample
+spec:
+  # TODO(user): Add fields here
