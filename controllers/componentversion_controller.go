@@ -26,9 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
@@ -50,7 +52,7 @@ type ComponentVersionReconciler struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.ComponentVersion{}).
+		For(&v1alpha1.ComponentVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }
 
@@ -112,7 +114,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	descriptor := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
-			Name:      strings.ReplaceAll(cv.GetName(), "/", "."),
+			Name:      strings.ReplaceAll(cv.GetName(), "/", "-"),
 		},
 	}
 
@@ -137,8 +139,8 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	expandedRefs := make(map[string]string)
 	// iterate referenced component descriptors
+	expandedRefs := make(map[string]string)
 	for _, ref := range cv.GetDescriptor().References {
 		rcv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, ref.ComponentName, ref.Version)
 		if err != nil {
@@ -156,15 +158,15 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 		rdescriptor := &v1alpha1.ComponentDescriptor{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: obj.GetNamespace(),
-				Name:      strings.ReplaceAll(rcv.GetName(), "/", "."),
+				Name:      strings.ReplaceAll(rcv.GetName(), "/", "-"),
 			},
 		}
 
 		op, err := controllerutil.CreateOrUpdate(ctx, r.Client, rdescriptor, func() error {
-			if descriptor.ObjectMeta.CreationTimestamp.IsZero() {
+			if rdescriptor.ObjectMeta.CreationTimestamp.IsZero() {
 				controllerutil.SetOwnerReference(obj, rdescriptor, r.Scheme)
 			}
-			descriptor.Spec = rcd.(*compdesc.ComponentDescriptor).Spec
+			rdescriptor.Spec = rcd.(*compdesc.ComponentDescriptor).Spec
 			return nil
 		})
 
@@ -178,7 +180,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 		log.V(4).Info("successfully completed mutation", "operation", op)
 	}
 
-	// Initialize the patch helper.
+	// initialize the patch helper
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		return ctrl.Result{

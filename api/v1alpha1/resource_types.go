@@ -33,7 +33,28 @@ type ResourceSpec struct {
 
 	// Resource names a Source that this Resource watches.
 	// +required
-	Resource string `json:"resource"`
+	Resource ResourceReference `json:"resource"`
+
+	// +required
+	SnapshotTemplate SnapshotTemplateSpec `json:"snapshotTemplate"`
+}
+
+// ResourceReference contains a reference to a particular OCM resource
+type ResourceReference struct {
+	// +required
+	Name string `json:"name"`
+
+	// +optional
+	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
+}
+
+// SnapshotTemplateSpec defines the template used to create snapshots
+type SnapshotTemplateSpec struct {
+	// +required
+	Name string `json:"name"`
+
+	// +optional
+	Tag string `json:"tag,omitempty"`
 }
 
 // GetRequeueAfter returns the duration after which the Resource must be
@@ -44,10 +65,15 @@ func (in Resource) GetRequeueAfter() time.Duration {
 
 // ResourceStatus defines the observed state of Resource
 type ResourceStatus struct {
-	// Ready denotes the state of processing a Source.
-	Ready bool `json:"ready"`
-	// Snapshot is a snapshot of a Source in the in-cluster OCI storage.
-	Snapshot string `json:"snapshot"`
+	// ObservedGeneration is the last reconciled generation.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// +optional
+	LastAppliedResourceVersion string `json:"lastAppliedResourceVersion,omitempty"`
 }
 
 //+kubebuilder:object:root=true

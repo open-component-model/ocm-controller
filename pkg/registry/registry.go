@@ -4,112 +4,91 @@
 package registry
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/distribution/distribution/v3/configuration"
+	dcontext "github.com/distribution/distribution/v3/context"
 	"github.com/distribution/distribution/v3/registry/handlers"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/filesystem"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
-type Config struct {
-	StorageDirectory string
-	Addr             string
+// New creates a new docker registry server
+func New(ctx context.Context, addr string) *http.Server {
+	return newRegistry(ctx, addr)
 }
 
-func (c Config) ToRegistryConfiguration() (*configuration.Configuration, error) {
-	registryConfigString, err := registryConfiguration(c)
-	if err != nil {
-		return nil, err
-	}
-
-	registryConfig, err := configuration.Parse(strings.NewReader(registryConfigString))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse registry configuration: %w", err)
-	}
-	return registryConfig, nil
-}
-
-func registryConfiguration(c Config) (string, error) {
-	configTmpl := `
-version: 0.1
-storage:
-  filesystem:
-    rootdirectory: {{ .StorageDirectory }}
-  maintenance:
-    uploadpurging:
-      enabled: false
-    readonly:
-      enabled: false
-http:
-  net: tcp
-  addr: {{ .Addr }}
-log:
-  accesslog:
-    disabled: true
-  level: error
-`
-	tmpl := template.New("registryConfig")
-	template.Must(tmpl.Parse(configTmpl))
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, struct {
-		StorageDirectory string
-		Addr             string
-	}{c.StorageDirectory, c.Addr}); err != nil {
-		return "", fmt.Errorf("failed to render registry configuration: %w", err)
-	}
-
-	return buf.String(), nil
-}
-
-type Registry struct {
-	config   *configuration.Configuration
-	delegate *http.Server
-	address  string
-}
-
-func NewRegistry(cfg Config) (*Registry, error) {
-	registryConfig, err := cfg.ToRegistryConfiguration()
-	if err != nil {
-		return nil, err
-	}
-
-	regHandler := handlers.NewApp(context.Background(), registryConfig)
-
-	reg := &http.Server{
-		Addr:              registryConfig.HTTP.Addr,
-		Handler:           regHandler,
+func newRegistry(ctx context.Context, addr string) *http.Server {
+	config := getConfig(fmt.Sprintf(":%s", addr))
+	app := handlers.NewApp(ctx, config)
+	logger := dcontext.GetLogger(app)
+	return &http.Server{
+		Addr:              fmt.Sprintf(":%s", addr),
+		Handler:           pullThroughMiddleware(app, fmt.Sprintf("127.0.0.1:%s", addr), logger),
 		ReadHeaderTimeout: 1 * time.Second,
 	}
-
-	return &Registry{
-		config:   registryConfig,
-		delegate: reg,
-		address:  registryConfig.HTTP.Addr,
-	}, nil
 }
 
-func (r Registry) Address() string {
-	return r.address
-}
-
-func (r Registry) Shutdown(ctx context.Context) error {
-	return r.delegate.Shutdown(ctx)
-}
-
-func (r Registry) ListenAndServe() error {
-	var err error
-	err = r.delegate.ListenAndServe()
-
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
+func getConfig(addr string) *configuration.Configuration {
+	config := &configuration.Configuration{}
+	config.HTTP.Addr = addr
+	config.HTTP.DrainTimeout = time.Duration(10) * time.Second
+	config.Storage = map[string]configuration.Parameters{
+		"filesystem": map[string]interface{}{
+			"rootdirectory": "/tmp",
+		},
 	}
+	return config
+}
 
-	return nil
+func pullThroughMiddleware(h http.Handler, addr string, log dcontext.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		req.URL.Host = addr
+		req.Host = addr
+
+		if req.Method != "GET" || req.URL.Path == "/v2/" {
+			h.ServeHTTP(w, req)
+			return
+		}
+
+		if strings.Contains(req.URL.Path, "/blobs/") {
+			if req.Header.Get("X-Repository") == "" || req.Header.Get("X-Registry") == "" || req.Header.Get("X-Tag") == "" {
+				log.Error("headers missing")
+				h.ServeHTTP(w, req)
+				return
+			}
+
+			repo := strings.Replace(req.Header.Get("X-Repository"), req.Header.Get("X-Registry"), addr, 1)
+			image := fmt.Sprintf("%s:%s", repo, req.Header.Get("X-Tag"))
+			ref, err := name.ParseReference(image)
+			if err != nil {
+				log.Errorf("could not parse reference: %s", err)
+				h.ServeHTTP(w, req)
+				return
+			}
+
+			if _, err := remote.Get(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+				switch err.(type) {
+				case *transport.Error:
+					if err.(*transport.Error).StatusCode == http.StatusNotFound {
+						log.Info("caching image", "image", image)
+						src := fmt.Sprintf("%s:%s", req.Header.Get("X-Repository"), req.Header.Get("X-Tag"))
+						if err := crane.Copy(src, image); err != nil {
+							log.Errorf("could not copy image: %w", err)
+						}
+					}
+				}
+			}
+		}
+
+		h.ServeHTTP(w, req)
+	})
 }
