@@ -1,0 +1,19 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Localization
+metadata:
+  name: podinfo
+spec:
+  interval: 10m
+  sourceRef:
+    kind: Snapshot
+    name: podinfo-manifests
+    namespace: default
+  configRef:
+    componentRef:
+      name: github.com/phoban01/podinfo
+      namespace: default
+    resource:
+      name: config
+  snapshotTemplate:
+    name: podinfo-manifests-localized
+    tag: latest
