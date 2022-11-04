@@ -53,8 +53,15 @@ type SnapshotTemplateSpec struct {
 	// +required
 	Name string `json:"name"`
 
+	// Tag is supplied for convience and ease of integration with systems such as Flux
 	// +optional
 	Tag string `json:"tag,omitempty"`
+
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // GetRequeueAfter returns the duration after which the Resource must be
