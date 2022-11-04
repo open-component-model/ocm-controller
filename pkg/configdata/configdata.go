@@ -8,11 +8,11 @@ import (
 type ConfigData struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Configuration     []ConfigurationSpecItem `json:"configuration,omitempty"`
-	Localization      []LocalizationRule      `json:"localization,omitempty"`
+	Configuration     ConfigurationSpec  `json:"configuration,omitempty"`
+	Localization      []LocalizationRule `json:"localization,omitempty"`
 }
 
-type ConfigurationSpecItem struct {
+type ConfigurationSpec struct {
 	Defaults map[string]string   `json:"defaults"`
 	Schema   gojsonschema.Schema `json:"schema"`
 	Rules    []ConfigRule        `json:"rules"`

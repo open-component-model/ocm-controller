@@ -12,6 +12,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v0.17.0
 	github.com/fluxcd/pkg/oci v0.9.0
 	github.com/google/go-containerregistry v0.12.0
+	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
 	github.com/onsi/gomega v1.20.2
 	github.com/open-component-model/ocm v0.0.1-0.20221027113832-3b98a1369cef
 	github.com/open-component-model/ocm-controllers-sdk v0.0.4
@@ -100,7 +101,6 @@ require (
 	github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
 	github.com/mandelsoft/logging v0.0.0-20221012190501-e17f7961076e // indirect
 	github.com/mandelsoft/spiff v1.7.0-beta-3 // indirect
-	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31 // indirect
 	github.com/marstr/guid v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect

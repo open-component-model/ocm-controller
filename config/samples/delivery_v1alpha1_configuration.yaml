@@ -1,0 +1,6 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Configuration
+metadata:
+  name: configuration-sample
+spec:
+  # TODO(user): Add fields here

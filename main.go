@@ -122,6 +122,16 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Localization")
 		os.Exit(1)
 	}
+	if err = (&controllers.ConfigurationReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		OCIRegistryAddr:   fmt.Sprintf("localhost:%s", ociRegistryPort),
+		ReconcileInterval: time.Hour,
+		RetryInterval:     time.Minute,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
