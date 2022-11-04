@@ -1,0 +1,18 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ComponentVersion
+metadata:
+  name: nested-component
+  namespace: default
+spec:
+  interval: 10m0s
+  name: github.com/phoban01/nested
+  version: v1.1.0
+  repository:
+    url: ghcr.io/phoban01
+    secretRef:
+      name: creds
+  verify:
+    secretRef:
+      name: creds
+  references:
+    expand: true
