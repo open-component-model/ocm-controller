@@ -32,9 +32,14 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
 	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -115,44 +120,45 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	}
 
 	// lookup the resource
-	for _, res := range componentDescriptor.Spec.Resources {
-		if res.Name != obj.Spec.Resource.Name {
-			continue
-		}
-
-		// push the resource snapshot to oci
-		snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
-		if err := r.copyResourceToSnapshot(ctx, snapshotName, res); err != nil {
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
-		}
-
-		// create/update the snapshot custom resource
-		snapshotCR := &v1alpha1.Snapshot{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: obj.GetNamespace(),
-				Name:      obj.Spec.SnapshotTemplate.Name,
-			},
-		}
-
-		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
-			if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
-				controllerutil.SetOwnerReference(obj, snapshotCR, r.Scheme)
-			}
-			snapshotCR.Spec = v1alpha1.SnapshotSpec{
-				Ref: strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/snapshots/"),
-			}
-			return nil
-		})
-
-		if err != nil {
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-				fmt.Errorf("failed to create or update component descriptor: %w", err)
-		}
-
-		obj.Status.LastAppliedResourceVersion = res.Version
-
-		log.Info("sucessfully created snapshot", "name", snapshotName)
+	resource := componentDescriptor.GetResource(obj.Spec.Resource.Name)
+	if resource == nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
+
+	// push the resource snapshot to oci
+	snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
+	digest, err := r.copyResourceToSnapshot(ctx, snapshotName, resource)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
+	}
+
+	// create/update the snapshot custom resource
+	snapshotCR := &v1alpha1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.Spec.SnapshotTemplate.Name,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
+		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
+			controllerutil.SetOwnerReference(obj, snapshotCR, r.Scheme)
+		}
+		snapshotCR.Spec = v1alpha1.SnapshotSpec{
+			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/snapshots/"),
+			Digest: digest,
+		}
+		return nil
+	})
+
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to create or update component descriptor: %w", err)
+	}
+
+	obj.Status.LastAppliedResourceVersion = resource.Version
+
+	log.Info("sucessfully created snapshot", "name", snapshotName)
 
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
@@ -167,18 +173,29 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapshotName string, res ocmapi.Resource) error {
-	ref := res.Access.Object["globalAccess"].(map[string]interface{})["ref"].(string)
-	sha := res.Access.Object["globalAccess"].(map[string]interface{})["digest"].(string)
-	digest, err := name.NewDigest(fmt.Sprintf("%s:%s@%s", ref, res.Version, sha), name.Insecure)
+func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapshotName string, res *ocmapi.Resource) (string, error) {
+	accessSpec := localblob.AccessSpec{}
+	rawAccessSpec, err := res.Access.GetRaw()
+	if err := ocmruntime.DefaultJSONEncoding.Unmarshal(rawAccessSpec, &accessSpec); err != nil {
+		return "", fmt.Errorf("failed to unmarshal acces spec: %w", err)
+	}
+
+	globalAccess, err := accessSpec.GlobalAccess.Evaluate(ocm.DefaultContext())
 	if err != nil {
-		return fmt.Errorf("failed to get component object: %w", err)
+		return "", fmt.Errorf("failed to evaluate global access spec: %w", err)
+	}
+
+	ref := globalAccess.(*ociblob.AccessSpec).Reference
+	sha := globalAccess.(*ociblob.AccessSpec).Digest.String()
+	digest, err := name.NewDigest(fmt.Sprintf("%s:%s@%s", ref, res.GetVersion(), sha), name.Insecure)
+	if err != nil {
+		return "", fmt.Errorf("failed to create digest: %w", err)
 	}
 
 	// proxy image requests via the in-cluster oci-registry
 	proxyURL, err := url.Parse(fmt.Sprintf("http://%s", r.OCIRegistryAddr))
 	if err != nil {
-		return fmt.Errorf("failed to parse oci registry url: %w", err)
+		return "", fmt.Errorf("failed to parse oci registry url: %w", err)
 	}
 
 	// create a transport to the in-cluster oci-registry
@@ -198,24 +215,23 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapsho
 	// fetch the layer
 	layer, err := remote.Layer(digest, remote.WithTransport(tr), remote.WithContext(ctx))
 	if err != nil {
-		return fmt.Errorf("failed to get component object: %w", err)
+		return "", fmt.Errorf("failed to get component object: %w", err)
 	}
 
 	// create snapshot with single layer
 	snapshot, err := mutate.AppendLayers(empty.Image, layer)
 	if err != nil {
-		return fmt.Errorf("failed to get append layer: %w", err)
+		return "", fmt.Errorf("failed to get append layer: %w", err)
 	}
 
 	snapshotRef, err := name.ParseReference(snapshotName, name.Insecure)
 	if err != nil {
-		return fmt.Errorf("failed to create snapshot reference: %w", err)
+		return "", fmt.Errorf("failed to create snapshot reference: %w", err)
 	}
 
 	ct := time.Now()
 	snapshotMeta := ociclient.Metadata{
 		Created: ct.Format(time.RFC3339),
-		Digest:  snapshotRef.String(),
 	}
 
 	// add metadata
@@ -223,10 +239,10 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapsho
 
 	// write snapshot to registry
 	if err := remote.Write(snapshotRef, snapshot); err != nil {
-		return fmt.Errorf("failed to get component object: %w", err)
+		return "", fmt.Errorf("failed to write snapshot: %w", err)
 	}
 
-	return nil
+	return digest.DigestStr(), nil
 }
 
 type customTransport struct {
