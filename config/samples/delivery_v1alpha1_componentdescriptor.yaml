@@ -1,6 +1,0 @@
-apiVersion: delivery.ocm.software/v1alpha1
-kind: ComponentDescriptor
-metadata:
-  name: componentdescriptor-sample
-spec:
-  # TODO(user): Add fields here

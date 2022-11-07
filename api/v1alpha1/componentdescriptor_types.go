@@ -37,6 +37,16 @@ type ComponentDescriptor struct {
 	Status ComponentDescriptorStatus     `json:"status,omitempty"`
 }
 
+func (in ComponentDescriptor) GetResource(name string) *v3alpha1.Resource {
+	for _, r := range in.Spec.Resources {
+		if r.Name != name {
+			continue
+		}
+		return &r
+	}
+	return nil
+}
+
 //+kubebuilder:object:root=true
 
 // ComponentDescriptorList contains a list of ComponentDescriptor

@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: resources.delivery.ocm.software
+  name: configurations.delivery.ocm.software
 spec:
   group: delivery.ocm.software
   names:
-    kind: Resource
-    listKind: ResourceList
-    plural: resources
-    singular: resource
+    kind: Configuration
+    listKind: ConfigurationList
+    plural: configurations
+    singular: configuration
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Resource is the Schema for the resources API
+        description: Configuration is the Schema for the configurations API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,36 +33,41 @@ spec:
           metadata:
             type: object
           spec:
-            description: ResourceSpec defines the desired state of Resource
+            description: ConfigurationSpec defines the desired state of Configuration
             properties:
-              componentRef:
-                description: NamespacedObjectReference contains enough information
-                  to locate the referenced Kubernetes resource object in any namespace.
+              configRef:
                 properties:
-                  name:
-                    description: Name of the referent.
-                    type: string
-                  namespace:
-                    description: Namespace of the referent, when not specified it
-                      acts as LocalObjectReference.
-                    type: string
+                  componentRef:
+                    description: NamespacedObjectReference contains enough information
+                      to locate the referenced Kubernetes resource object in any namespace.
+                    properties:
+                      name:
+                        description: Name of the referent.
+                        type: string
+                      namespace:
+                        description: Namespace of the referent, when not specified
+                          it acts as LocalObjectReference.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  resource:
+                    properties:
+                      extraIdentity:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
                 required:
-                - name
+                - componentRef
+                - resource
                 type: object
               interval:
                 type: string
-              resource:
-                description: Resource names a Source that this Resource watches.
-                properties:
-                  extraIdentity:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  name:
-                    type: string
-                required:
-                - name
-                type: object
               snapshotTemplate:
                 description: SnapshotTemplateSpec defines the template used to create
                   snapshots
@@ -84,14 +89,41 @@ spec:
                 required:
                 - name
                 type: object
+              sourceRef:
+                description: NamespacedObjectKindReference contains enough information
+                  to locate the typed referenced Kubernetes resource object in any
+                  namespace.
+                properties:
+                  apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    type: string
+                  name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              values:
+                additionalProperties:
+                  type: string
+                type: object
             required:
-            - componentRef
+            - configRef
             - interval
-            - resource
             - snapshotTemplate
+            - sourceRef
             type: object
           status:
-            description: ResourceStatus defines the observed state of Resource
+            description: ConfigurationStatus defines the observed state of Configuration
             properties:
               conditions:
                 items:
@@ -161,7 +193,9 @@ spec:
                   - type
                   type: object
                 type: array
-              lastAppliedResourceVersion:
+              latestConfigVersion:
+                type: string
+              latestSnapshotDigest:
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the last reconciled generation.

@@ -1,0 +1,14 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Resource
+metadata:
+  name: podinfo-manifests
+spec:
+  interval: 10m0s
+  componentRef:
+    name: github.com/phoban01/podinfo
+    namespace: default
+  resource:
+    name: manifests
+  snapshotTemplate:
+    name: podinfo-manifests
+    tag: latest

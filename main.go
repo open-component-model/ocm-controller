@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -59,7 +60,8 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&ociRegistryPort, "oci-registry-port", "5001", "The port the oci registry binds to.")
-	flag.StringVar(&ociRegistryServicceName, "oci-registry-service-name", "registry.ocm-system.svc.cluster.local",
+	// flag.StringVar(&ociRegistryServicceName, "oci-registry-service-name", "registry.ocm-system.svc.cluster.local",
+	flag.StringVar(&ociRegistryServicceName, "oci-registry-service-name", "localhost:5001",
 		"Service")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -108,6 +110,26 @@ func main() {
 		OCIRegistryAddr: fmt.Sprintf("localhost:%s", ociRegistryPort),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
+		os.Exit(1)
+	}
+	if err = (&controllers.LocalizationReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		OCIRegistryAddr:   fmt.Sprintf("localhost:%s", ociRegistryPort),
+		ReconcileInterval: time.Hour,
+		RetryInterval:     time.Minute,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Localization")
+		os.Exit(1)
+	}
+	if err = (&controllers.ConfigurationReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		OCIRegistryAddr:   fmt.Sprintf("localhost:%s", ociRegistryPort),
+		ReconcileInterval: time.Hour,
+		RetryInterval:     time.Minute,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

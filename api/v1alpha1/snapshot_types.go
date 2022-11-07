@@ -17,19 +17,24 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // SnapshotSpec defines the desired state of Snapshot
 type SnapshotSpec struct {
-	// +required
-	Ref string `json:"ref"`
+	Ref    string `json:"ref"`
+	Digest string `json:"digest"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot
 type SnapshotStatus struct {
 	// +optional
-	URL string `json:"url,omitempty"`
+	Image string `json:"image,omitempty"`
+
+	// +optional
+	Layer string `json:"layer,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -42,6 +47,22 @@ type Snapshot struct {
 
 	Spec   SnapshotSpec   `json:"spec,omitempty"`
 	Status SnapshotStatus `json:"status,omitempty"`
+}
+
+func (in Snapshot) GetDigest() string {
+	if in.Status.Layer == "" || !strings.Contains(in.Status.Layer, "@") {
+		return ""
+	}
+
+	return strings.Split(in.Status.Layer, "@")[1]
+}
+
+func (in Snapshot) GetBlob() string {
+	if in.Status.Layer == "" || !strings.Contains(in.Status.Layer, "@") {
+		return ""
+	}
+
+	return strings.TrimPrefix(in.Status.Layer, "http://")
 }
 
 //+kubebuilder:object:root=true
