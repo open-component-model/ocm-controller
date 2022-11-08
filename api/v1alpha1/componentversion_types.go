@@ -67,18 +67,16 @@ type ReferencesConfig struct {
 
 // Reference contains all referred components and their versions.
 type Reference struct {
-	Name          string                   `json:"name"`
-	Version       string                   `json:"version"`
-	References    []Reference              `json:"references,omitempty"`
-	ExtraIdentity ocmdesc.IdentitySelector `json:"extraIdentity,omitempty"`
-	ComponentRef  ComponentRef             `json:"componentRef"`
+	Name          string            `json:"name"`
+	Version       string            `json:"version"`
+	References    []Reference       `json:"references,omitempty"`
+	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
+	ComponentRef  ComponentRef      `json:"componentRef"`
 }
 
 // ComponentVersionStatus defines the observed state of ComponentVersion
 type ComponentVersionStatus struct {
 	ComponentDescriptor Reference `json:"componentDescriptor,omitempty"`
-	Name                string    `json:"name"`
-	Version             string    `json:"version"`
 
 	Verified bool `json:"verified,omitempty"`
 }

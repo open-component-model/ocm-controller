@@ -34,8 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	csdk "github.com/open-component-model/ocm-controllers-sdk"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
@@ -47,6 +46,8 @@ import (
 type ComponentVersionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	OCMClient ocmclient.Fetcher
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions,verbs=get;list;watch;create;update;patch;delete
@@ -76,31 +77,14 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	log.V(4).Info("found component", "component", component)
-
-	session := ocm.NewSession(nil)
-	defer session.Close()
-
-	ocmCtx := ocm.ForContext(ctx)
-
-	return r.reconcile(ctx, ocmCtx, session, component)
+	return r.reconcile(ctx, component)
 }
 
-func (r *ComponentVersionReconciler) reconcile(ctx context.Context, ocmCtx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) (ctrl.Result, error) {
+func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentVersion) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
-	// configure registry credentials
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
-		log.V(4).Error(err, "failed to find credentials")
-		// ignore not found errors for now
-		if !apierrors.IsNotFound(err) {
-			return ctrl.Result{
-				RequeueAfter: obj.GetRequeueAfter(),
-			}, fmt.Errorf("failed to configure credentials for component: %w", err)
-		}
-	}
-
 	// get component version
-	cv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, obj.Spec.Name, obj.Spec.Version)
+	cv, err := r.OCMClient.GetComponentVersion(ctx, obj, obj.Spec.Name, obj.Spec.Version)
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -161,7 +145,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, ocmCtx ocm.C
 		Name:    cd.GetName(),
 		Version: cd.GetVersion(),
 	}
-	componentDescriptor.References, err = r.parseReferences(ctx, ocmCtx, session, obj, cv.GetDescriptor().References)
+	componentDescriptor.References, err = r.parseReferences(ctx, obj, cv.GetDescriptor().References)
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -189,11 +173,12 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, ocmCtx ocm.C
 }
 
 // parseReferences takes a list of references to embedded components and constructs a dependency tree out of them.
-func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, ocmCtx ocm.Context, session ocm.Session, parent *v1alpha1.ComponentVersion, references ocmdesc.References) ([]v1alpha1.Reference, error) {
+func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, parent *v1alpha1.ComponentVersion, references ocmdesc.References) ([]v1alpha1.Reference, error) {
 	log := log.FromContext(ctx)
 	result := make([]v1alpha1.Reference, 0)
 	for _, ref := range references {
-		rcv, err := csdk.GetComponentVersion(ocmCtx, session, parent.Spec.Repository.URL, ref.ComponentName, ref.Version)
+		// get component version
+		rcv, err := r.OCMClient.GetComponentVersion(ctx, parent, ref.ComponentName, ref.Version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get component version: %w", err)
 		}
@@ -204,7 +189,7 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, ocmCtx
 			return nil, fmt.Errorf("failed to convret component descriptor: %w", err)
 		}
 		// setup the component descriptor kubernetes resource
-		componentName, err := r.constructComponentName(rcv.GetName(), rcv.GetVersion(), ref.GetMeta().ExtraIdentity)
+		componentName, err := r.constructComponentName(ref.ComponentName, ref.Version, ref.GetMeta().ExtraIdentity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate name: %w", err)
 		}
@@ -215,8 +200,12 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, ocmCtx
 			},
 			Spec: v1alpha1.ComponentDescriptorSpec{
 				ComponentVersionSpec: cd.(*compdesc.ComponentDescriptor).Spec,
-				Version:              rcv.GetVersion(),
+				Version:              ref.Version,
 			},
+		}
+
+		if err := controllerutil.SetOwnerReference(parent, descriptor, r.Scheme); err != nil {
+			return nil, fmt.Errorf("failed to set owner reference: %w", err)
 		}
 
 		// create or update the component descriptor kubernetes resource
@@ -230,8 +219,8 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, ocmCtx
 		log.V(4).Info(fmt.Sprintf("%s(ed) descriptor", op), "descriptor", klog.KObj(descriptor))
 
 		reference := v1alpha1.Reference{
-			Name:    rcv.GetName(),
-			Version: rcv.GetVersion(),
+			Name:    ref.Name,
+			Version: ref.Version,
 			ComponentRef: v1alpha1.ComponentRef{
 				Name:      descriptor.Name,
 				Namespace: descriptor.Namespace,
@@ -240,7 +229,7 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, ocmCtx
 		}
 
 		if len(rcv.GetDescriptor().References) > 0 {
-			out, err := r.parseReferences(ctx, ocmCtx, session, parent, rcv.GetDescriptor().References)
+			out, err := r.parseReferences(ctx, parent, rcv.GetDescriptor().References)
 			if err != nil {
 				return nil, err
 			}
@@ -254,13 +243,13 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, ocmCtx
 // constructComponentName constructs a unique name from a component name and version.
 func (r *ComponentVersionReconciler) constructComponentName(name, version string, identity v1.Identity) (string, error) {
 	namingScheme := struct {
-		name     string
-		version  string
-		identity v1.Identity
+		componentName string
+		version       string
+		identity      v1.Identity
 	}{
-		name:     name,
-		version:  version,
-		identity: identity,
+		componentName: name,
+		version:       version,
+		identity:      identity,
 	}
 	h, err := hash.Hash(namingScheme, nil)
 	if err != nil {
