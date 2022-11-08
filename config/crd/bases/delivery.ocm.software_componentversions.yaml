@@ -90,12 +90,30 @@ spec:
           status:
             description: ComponentVersionStatus defines the observed state of ComponentVersion
             properties:
-              componentDescriptors:
-                additionalProperties:
-                  type: string
+              componentDescriptor:
+                description: Reference contains all referred components and their
+                  versions.
+                properties:
+                  name:
+                    type: string
+                  references:
+                    items: {}
+                    type: array
+                  version:
+                    type: string
+                required:
+                - name
+                - version
                 type: object
+              name:
+                type: string
               verified:
                 type: boolean
+              version:
+                type: string
+            required:
+            - name
+            - version
             type: object
         type: object
     served: true

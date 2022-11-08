@@ -168,7 +168,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		}, fmt.Errorf("failed to patch resource and set snaphost value: %w", err)
 	}
 
-	log.Info("sucessfully reconciled resource", "name", obj.GetName())
+	log.Info("successfully reconciled resource", "name", obj.GetName())
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
@@ -176,6 +176,10 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapshotName string, res *ocmapi.Resource) (string, error) {
 	accessSpec := localblob.AccessSpec{}
 	rawAccessSpec, err := res.Access.GetRaw()
+	if err != nil {
+		return "", fmt.Errorf("failed to GetRaw: %w", err)
+	}
+
 	if err := ocmruntime.DefaultJSONEncoding.Unmarshal(rawAccessSpec, &accessSpec); err != nil {
 		return "", fmt.Errorf("failed to unmarshal acces spec: %w", err)
 	}

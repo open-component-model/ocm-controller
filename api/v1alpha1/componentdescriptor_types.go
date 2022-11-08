@@ -25,6 +25,12 @@ import (
 type ComponentDescriptorStatus struct {
 }
 
+// ComponentDescriptorSpec adds a version to the top level component descriptor definition.
+type ComponentDescriptorSpec struct {
+	v3alpha1.ComponentVersionSpec `json:",inline"`
+	Version                       string `json:"version"`
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
@@ -33,8 +39,8 @@ type ComponentDescriptor struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   v3alpha1.ComponentVersionSpec `json:"spec,omitempty"`
-	Status ComponentDescriptorStatus     `json:"status,omitempty"`
+	Spec   ComponentDescriptorSpec   `json:"spec,omitempty"`
+	Status ComponentDescriptorStatus `json:"status,omitempty"`
 }
 
 func (in ComponentDescriptor) GetResource(name string) *v3alpha1.Resource {
