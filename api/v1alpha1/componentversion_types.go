@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"time"
 
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -64,9 +65,18 @@ type ReferencesConfig struct {
 	Expand bool `json:"expand,omitempty"`
 }
 
+// Reference contains all referred components and their versions.
+type Reference struct {
+	Name          string            `json:"name"`
+	Version       string            `json:"version"`
+	References    []Reference       `json:"references,omitempty"`
+	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
+	ComponentRef  ComponentRef      `json:"componentRef"`
+}
+
 // ComponentVersionStatus defines the observed state of ComponentVersion
 type ComponentVersionStatus struct {
-	ComponentDescriptors map[string]string `json:"componentDescriptors,omitempty"`
+	ComponentDescriptor Reference `json:"componentDescriptor,omitempty"`
 
 	Verified bool `json:"verified,omitempty"`
 }
@@ -75,6 +85,13 @@ type ComponentVersionStatus struct {
 // reconciled again.
 func (in ComponentVersion) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
+}
+
+// LookupReferenceForIdentity returns the reference that matches up with the given identity selector.
+func (in ComponentVersion) LookupReferenceForIdentity(key ocmdesc.IdentitySelector) Reference {
+	// Loop through the reference struct in References and return the reference that matches with the
+	// given ExtraIdentity.
+	return Reference{}
 }
 
 //+kubebuilder:object:root=true

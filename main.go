@@ -22,6 +22,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -87,9 +88,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	client := ocm.NewClient(mgr.GetClient())
 	if err = (&controllers.ComponentVersionReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		OCMClient: client,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentVersion")
 		os.Exit(1)

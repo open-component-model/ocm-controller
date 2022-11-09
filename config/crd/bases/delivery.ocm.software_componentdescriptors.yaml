@@ -34,8 +34,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: ComponentVersionSpec defines a virtual component with a repository
-              context, source and dependencies.
+            description: ComponentDescriptorSpec adds a version to the top level component
+              descriptor definition.
             properties:
               references:
                 description: References references component version dependencies
@@ -300,6 +300,10 @@ spec:
                   - version
                   type: object
                 type: array
+              version:
+                type: string
+            required:
+            - version
             type: object
           status:
             description: ComponentDescriptorStatus defines the observed state of ComponentDescriptor
