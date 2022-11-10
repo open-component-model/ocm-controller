@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"time"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -67,11 +68,21 @@ type ReferencesConfig struct {
 
 // Reference contains all referred components and their versions.
 type Reference struct {
-	Name          string            `json:"name"`
-	Version       string            `json:"version"`
-	References    []Reference       `json:"references,omitempty"`
+	// +required
+	Name string `json:"name"`
+
+	// +required
+	Version string `json:"version"`
+
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
+	References []Reference `json:"references,omitempty"`
+
+	// +optional
 	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
-	ComponentRef  ComponentRef      `json:"componentRef"`
+
+	// +optional
+	ComponentDescriptorRef meta.NamespacedObjectReference `json:"componentDescriptorRef,omitempty"`
 }
 
 // ComponentVersionStatus defines the observed state of ComponentVersion

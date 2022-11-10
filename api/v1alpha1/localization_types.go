@@ -41,18 +41,15 @@ type LocalizationSpec struct {
 
 type ConfigReference struct {
 	// +required
-	ComponentRef meta.NamespacedObjectReference `json:"componentRef"`
+	ComponentVersionRef meta.NamespacedObjectReference `json:"componentRef"`
 
 	// +required
 	Resource ResourceRef `json:"resource"`
 }
 
-type ComponentRef struct {
+type ReferencePath struct {
 	// +required
 	Name string `json:"name"`
-
-	// +optional
-	Namespace string `json:"namespace,omitempty"`
 }
 
 type ResourceRef struct {
@@ -61,6 +58,10 @@ type ResourceRef struct {
 
 	// +optional
 	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
+
+	// +optional
+	// TODO: This should be a list of names, for now to keep it simple, we restrict it to a single item.
+	ReferencePath ReferencePath `json:"referencePath,omitempty"`
 }
 
 // LocalizationStatus defines the observed state of Localization

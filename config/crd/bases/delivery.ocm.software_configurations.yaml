@@ -59,6 +59,15 @@ spec:
                         type: object
                       name:
                         type: string
+                      referencePath:
+                        description: 'TODO: This should be a list of names, for now
+                          to keep it simple, we restrict it to a single item.'
+                        properties:
+                          name:
+                            type: string
+                        required:
+                        - name
+                        type: object
                     required:
                     - name
                     type: object

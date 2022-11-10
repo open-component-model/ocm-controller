@@ -94,11 +94,16 @@ spec:
                 description: Reference contains all referred components and their
                   versions.
                 properties:
-                  componentRef:
+                  componentDescriptorRef:
+                    description: NamespacedObjectReference contains enough information
+                      to locate the referenced Kubernetes resource object in any namespace.
                     properties:
                       name:
+                        description: Name of the referent.
                         type: string
                       namespace:
+                        description: Namespace of the referent, when not specified
+                          it acts as LocalObjectReference.
                         type: string
                     required:
                     - name
@@ -110,12 +115,10 @@ spec:
                   name:
                     type: string
                   references:
-                    items: {}
-                    type: array
+                    x-kubernetes-preserve-unknown-fields: true
                   version:
                     type: string
                 required:
-                - componentRef
                 - name
                 - version
                 type: object
