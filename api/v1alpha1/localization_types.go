@@ -45,10 +45,11 @@ type ConfigReference struct {
 
 	// +required
 	Resource ResourceRef `json:"resource"`
+}
 
-	// +optional
-	// TODO: This should be a list of names, for now to keep it simple, we restrict it to a single item.
-	ReferencePath string `json:"referencePath,omitempty"`
+type ReferencePath struct {
+	// +required
+	Name string `json:"name"`
 }
 
 type ResourceRef struct {
@@ -57,6 +58,10 @@ type ResourceRef struct {
 
 	// +optional
 	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
+
+	// +optional
+	// TODO: This should be a list of names, for now to keep it simple, we restrict it to a single item.
+	ReferencePath ReferencePath `json:"referencePath,omitempty"`
 }
 
 // LocalizationStatus defines the observed state of Localization

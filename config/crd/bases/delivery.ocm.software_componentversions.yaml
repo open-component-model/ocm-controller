@@ -119,7 +119,6 @@ spec:
                   version:
                     type: string
                 required:
-                - componentDescriptorRef
                 - name
                 - version
                 type: object

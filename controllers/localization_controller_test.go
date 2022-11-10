@@ -6,7 +6,6 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -17,8 +16,6 @@ import (
 func TestGetNestedComponentDescriptor(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
-	err = corev1.AddToScheme(scheme)
 	assert.NoError(t, err)
 	fakeClient := fake.NewClientBuilder()
 
@@ -82,7 +79,11 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 		loc := &v1alpha1.Localization{
 			Spec: v1alpha1.LocalizationSpec{
 				ConfigRef: v1alpha1.ConfigReference{
-					ReferencePath: "nested-twice-second",
+					Resource: v1alpha1.ResourceRef{
+						ReferencePath: v1alpha1.ReferencePath{
+							Name: "nested-twice-second",
+						},
+					},
 				},
 			},
 		}

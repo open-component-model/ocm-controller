@@ -176,7 +176,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	if componentDescriptor == nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.ReferencePath)
+		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ReferencePath)
 	}
 
 	// get config resource
@@ -632,14 +632,14 @@ func (r *LocalizationReconciler) getComponentDescriptorObject(ctx context.Contex
 
 func (r *LocalizationReconciler) getComponentDescriptor(ctx context.Context, localization *v1alpha1.Localization, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
 	// Return early if there was no name defined.
-	if localization.Spec.ConfigRef.ReferencePath == "" {
+	if localization.Spec.ConfigRef.Resource.ReferencePath.Name == "" {
 		return r.getComponentDescriptorObject(ctx, obj.ComponentDescriptorRef)
 	}
 
 	// Handle the nested loop. If we get to this part, we check if the reference that we found
 	// is the one we were looking for.
 	// TODO: What about extra identity?
-	if obj.Name == localization.Spec.ConfigRef.ReferencePath {
+	if obj.Name == localization.Spec.ConfigRef.Resource.ReferencePath.Name {
 		return r.getComponentDescriptorObject(ctx, obj.ComponentDescriptorRef)
 	}
 
