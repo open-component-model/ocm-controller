@@ -68,13 +68,21 @@ type ReferencesConfig struct {
 
 // Reference contains all referred components and their versions.
 type Reference struct {
-	Name    string `json:"name"`
+	// +required
+	Name string `json:"name"`
+
+	// +required
 	Version string `json:"version"`
+
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
-	References             []Reference                    `json:"references,omitempty"`
-	ExtraIdentity          map[string]string              `json:"extraIdentity,omitempty"`
-	ComponentDescriptorRef meta.NamespacedObjectReference `json:"componentDescriptorRef"`
+	References []Reference `json:"references,omitempty"`
+
+	// +optional
+	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
+
+	// +optional
+	ComponentDescriptorRef meta.NamespacedObjectReference `json:"componentDescriptorRef,omitempty"`
 }
 
 // ComponentVersionStatus defines the observed state of ComponentVersion
