@@ -149,8 +149,8 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 
 	// read component descriptor
 	cdKey := types.NamespacedName{
-		Name:      strings.ReplaceAll(obj.Spec.ConfigRef.ComponentRef.Name, "/", "-"),
-		Namespace: obj.Spec.ConfigRef.ComponentRef.Namespace,
+		Name:      strings.ReplaceAll(obj.Spec.ConfigRef.ComponentVersionRef.Name, "/", "-"),
+		Namespace: obj.Spec.ConfigRef.ComponentVersionRef.Namespace,
 	}
 
 	componentDescriptor := &v1alpha1.ComponentDescriptor{}
@@ -329,10 +329,10 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 			}
 		case "ConfigRef":
 			namespace := l.GetNamespace()
-			if l.Spec.ConfigRef.ComponentRef.Namespace != "" {
-				namespace = l.Spec.ConfigRef.ComponentRef.Namespace
+			if l.Spec.ConfigRef.ComponentVersionRef.Namespace != "" {
+				namespace = l.Spec.ConfigRef.ComponentVersionRef.Namespace
 			}
-			return []string{fmt.Sprintf("%s/%s", namespace, strings.ReplaceAll(l.Spec.ConfigRef.ComponentRef.Name, "/", "-"))}
+			return []string{fmt.Sprintf("%s/%s", namespace, strings.ReplaceAll(l.Spec.ConfigRef.ComponentVersionRef.Name, "/", "-"))}
 		default:
 			return nil
 		}

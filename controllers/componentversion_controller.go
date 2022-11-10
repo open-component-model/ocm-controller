@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	hash "github.com/mitchellh/hashstructure"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -221,7 +222,7 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, parent
 		reference := v1alpha1.Reference{
 			Name:    ref.Name,
 			Version: ref.Version,
-			ComponentRef: v1alpha1.ComponentRef{
+			ComponentDescriptorRef: meta.NamespacedObjectReference{
 				Name:      descriptor.Name,
 				Namespace: descriptor.Namespace,
 			},

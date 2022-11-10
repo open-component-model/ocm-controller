@@ -31,6 +31,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -151,20 +152,31 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
 	}
 
+	// TODO: Change this to ComponentVersion
 	// read component descriptor
-	cdKey := types.NamespacedName{
-		Name:      strings.ReplaceAll(obj.Spec.ConfigRef.ComponentRef.Name, "/", "-"),
-		Namespace: obj.Spec.ConfigRef.ComponentRef.Namespace,
+	cv := types.NamespacedName{
+		Name:      obj.Spec.ConfigRef.ComponentVersionRef.Name,
+		Namespace: obj.Spec.ConfigRef.ComponentVersionRef.Namespace,
 	}
 
-	componentDescriptor := &v1alpha1.ComponentDescriptor{}
-	if err := r.Get(ctx, cdKey, componentDescriptor); err != nil {
+	componentVersion := &v1alpha1.ComponentVersion{}
+	if err := r.Get(ctx, cv, componentVersion); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	componentDescriptor, err := r.getComponentDescriptor(ctx, obj, componentVersion.Status.ComponentDescriptor)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get component descriptor from version")
+	}
+	if componentDescriptor == nil {
+		return ctrl.Result{
+			RequeueAfter: obj.GetRequeueAfter(),
+		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.ReferencePath)
 	}
 
 	// get config resource
@@ -340,10 +352,10 @@ func (r *LocalizationReconciler) indexBy(kind, field string) func(o client.Objec
 			}
 		case "ConfigRef":
 			namespace := l.GetNamespace()
-			if l.Spec.ConfigRef.ComponentRef.Namespace != "" {
-				namespace = l.Spec.ConfigRef.ComponentRef.Namespace
+			if l.Spec.ConfigRef.ComponentVersionRef.Namespace != "" {
+				namespace = l.Spec.ConfigRef.ComponentVersionRef.Namespace
 			}
-			return []string{fmt.Sprintf("%s/%s", namespace, strings.ReplaceAll(l.Spec.ConfigRef.ComponentRef.Name, "/", "-"))}
+			return []string{fmt.Sprintf("%s/%s", namespace, strings.ReplaceAll(l.Spec.ConfigRef.ComponentVersionRef.Name, "/", "-"))}
 		default:
 			return nil
 		}
@@ -602,4 +614,49 @@ func (r *LocalizationReconciler) writeSnapshot(ctx context.Context, snapshotName
 	}
 
 	return digest.String(), nil
+}
+
+func (r *LocalizationReconciler) getComponentDescriptorObject(ctx context.Context, ref meta.NamespacedObjectReference) (*v1alpha1.ComponentDescriptor, error) {
+	componentDescriptor := &v1alpha1.ComponentDescriptor{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Name:      ref.Name,
+		Namespace: ref.Namespace,
+	}, componentDescriptor); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find component descriptor: %w", err)
+	}
+	return componentDescriptor, nil
+}
+
+func (r *LocalizationReconciler) getComponentDescriptor(ctx context.Context, localization *v1alpha1.Localization, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
+	// Return early if there was no name defined.
+	if localization.Spec.ConfigRef.ReferencePath == "" {
+		return r.getComponentDescriptorObject(ctx, obj.ComponentDescriptorRef)
+	}
+
+	// Handle the nested loop. If we get to this part, we check if the reference that we found
+	// is the one we were looking for.
+	// TODO: What about extra identity?
+	if obj.Name == localization.Spec.ConfigRef.ReferencePath {
+		return r.getComponentDescriptorObject(ctx, obj.ComponentDescriptorRef)
+	}
+
+	// This is not the reference object we are looking for, let's dig deeper.
+	for _, ref := range obj.References {
+		desc, err := r.getComponentDescriptor(ctx, localization, ref)
+		if err != nil {
+			return nil, err
+		}
+		// recursive call for ref did not result in a reference
+		// get the next ref, do the same lookup again
+		if desc == nil {
+			continue
+		}
+
+		return desc, nil
+	}
+
+	return nil, nil
 }

@@ -41,18 +41,14 @@ type LocalizationSpec struct {
 
 type ConfigReference struct {
 	// +required
-	ComponentRef meta.NamespacedObjectReference `json:"componentRef"`
+	ComponentVersionRef meta.NamespacedObjectReference `json:"componentRef"`
 
 	// +required
 	Resource ResourceRef `json:"resource"`
-}
-
-type ComponentRef struct {
-	// +required
-	Name string `json:"name"`
 
 	// +optional
-	Namespace string `json:"namespace,omitempty"`
+	// TODO: This should be a list of names, for now to keep it simple, we restrict it to a single item.
+	ReferencePath string `json:"referencePath,omitempty"`
 }
 
 type ResourceRef struct {
