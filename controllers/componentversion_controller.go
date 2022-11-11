@@ -135,17 +135,21 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 
 	log.V(4).Info("successfully completed mutation", "operation", op)
 
+	// construct recursive descriptor structure
+	componentDescriptor := v1alpha1.Reference{
+		Name:    cd.GetName(),
+		Version: cd.GetVersion(),
+		ComponentDescriptorRef: meta.NamespacedObjectReference{
+			Name:      descriptor.GetName(),
+			Namespace: descriptor.GetNamespace(),
+		},
+	}
+
 	// if references.expand is false then return here
 	if !obj.Spec.References.Expand {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	// construct recursive descriptor structure
-	// TODO: only do this if expand is true.
-	componentDescriptor := v1alpha1.Reference{
-		Name:    cd.GetName(),
-		Version: cd.GetVersion(),
-	}
 	componentDescriptor.References, err = r.parseReferences(ctx, obj, cv.GetDescriptor().References)
 	if err != nil {
 		return ctrl.Result{
