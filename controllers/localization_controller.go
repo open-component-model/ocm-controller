@@ -49,7 +49,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/mandelsoft/vfs/pkg/osfs"
-	"github.com/mandelsoft/vfs/pkg/vfs"
 
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -217,7 +216,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	if err != nil {
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("fs error: %w", err)
 	}
-	defer vfs.Cleanup(virtualFS)
+	// defer vfs.Cleanup(virtualFS)
 
 	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(srcSnapshotData)); err != nil {
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("extract tar error: %w", err)

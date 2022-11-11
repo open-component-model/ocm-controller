@@ -1,16 +1,16 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Resource
 metadata:
-  name: podinfo-manifests
+  name: carts-manifests
 spec:
-  interval: 10m0s
+  interval: 1m0s
   componentVersionRef:
-    name: github.com/phoban01/podinfo
+    name: nested-component
     namespace: default
   resource:
-    referencePath:
-      name: reference
     name: manifests
+    referencePath:
+      name: carts
   snapshotTemplate:
-    name: podinfo-manifests
+    name: carts-manifests
     tag: latest
