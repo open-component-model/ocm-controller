@@ -37,7 +37,7 @@ type ComponentVersionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	OCMClient ocmclient.Fetcher
+	OCMClient ocmclient.FetchVerifier
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions,verbs=get;list;watch;create;update;patch;delete
@@ -67,6 +67,21 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	log.V(4).Info("found component", "component", component)
+
+	log.Info("running verification of component")
+	ok, err := r.OCMClient.VerifyComponent(ctx, component)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: component.GetRequeueAfter(),
+		}, fmt.Errorf("failed to verify component: %w", err)
+	}
+
+	if !ok {
+		return ctrl.Result{
+			RequeueAfter: component.GetRequeueAfter(),
+		}, fmt.Errorf("attempted to verify component, but the digest didn't match")
+	}
+
 	return r.reconcile(ctx, component)
 }
 

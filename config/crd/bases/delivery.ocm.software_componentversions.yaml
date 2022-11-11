@@ -75,8 +75,11 @@ spec:
                     required:
                     - name
                     type: object
+                  signature:
+                    type: string
                 required:
                 - secretRef
+                - signature
                 type: object
               version:
                 type: string
