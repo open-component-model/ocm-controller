@@ -70,10 +70,6 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 		},
 	}
 	client := fakeClient.WithObjects(componentDesc, notNestedComponentDesc).WithScheme(scheme).Build()
-	locr := &LocalizationReconciler{
-		Scheme: scheme,
-		Client: client,
-	}
 
 	t.Run("with reference path", func(t *testing.T) {
 		loc := &v1alpha1.Localization{
@@ -87,7 +83,7 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 				},
 			},
 		}
-		comp, err := locr.getComponentDescriptor(context.Background(), loc, obj.Status.ComponentDescriptor)
+		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.Resource.ReferencePath, obj.Status.ComponentDescriptor)
 		assert.NoError(t, err)
 		assert.Equal(t, componentName, comp.Name)
 	})
@@ -98,7 +94,7 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 				ConfigRef: v1alpha1.ConfigReference{},
 			},
 		}
-		comp, err := locr.getComponentDescriptor(context.Background(), loc, obj.Status.ComponentDescriptor)
+		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.Resource.ReferencePath, obj.Status.ComponentDescriptor)
 		assert.NoError(t, err)
 		assert.Equal(t, notNestedName, comp.Name)
 	})

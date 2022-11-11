@@ -29,23 +29,14 @@ type ResourceSpec struct {
 	Interval metav1.Duration `json:"interval"`
 
 	// +required
-	ComponentRef meta.NamespacedObjectReference `json:"componentRef"`
+	ComponentVersionRef meta.NamespacedObjectReference `json:"componentVersionRef"`
 
 	// Resource names a Source that this Resource watches.
 	// +required
-	Resource ResourceReference `json:"resource"`
+	Resource ResourceRef `json:"resource"`
 
 	// +required
 	SnapshotTemplate SnapshotTemplateSpec `json:"snapshotTemplate"`
-}
-
-// ResourceReference contains a reference to a particular OCM resource
-type ResourceReference struct {
-	// +required
-	Name string `json:"name"`
-
-	// +optional
-	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
 }
 
 // SnapshotTemplateSpec defines the template used to create snapshots

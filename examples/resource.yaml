@@ -4,10 +4,12 @@ metadata:
   name: podinfo-manifests
 spec:
   interval: 10m0s
-  componentRef:
+  componentVersionRef:
     name: github.com/phoban01/podinfo
     namespace: default
   resource:
+    referencePath:
+      name: reference
     name: manifests
   snapshotTemplate:
     name: podinfo-manifests

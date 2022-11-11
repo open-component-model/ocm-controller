@@ -9,11 +9,13 @@ spec:
     name: podinfo-manifests-localized
     namespace: default
   configRef:
-    componentRef:
+    componentVersionRef:
       name: github.com/phoban01/podinfo
       namespace: default
     resource:
       name: config
+      referencePath:
+        name: reference
   snapshotTemplate:
     name: podinfo-manifests-configured
     tag: latest

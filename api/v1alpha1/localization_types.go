@@ -41,7 +41,7 @@ type LocalizationSpec struct {
 
 type ConfigReference struct {
 	// +required
-	ComponentVersionRef meta.NamespacedObjectReference `json:"componentRef"`
+	ComponentVersionRef meta.NamespacedObjectReference `json:"componentVersionRef"`
 
 	// +required
 	Resource ResourceRef `json:"resource"`
