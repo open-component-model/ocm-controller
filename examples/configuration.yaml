@@ -9,7 +9,7 @@ spec:
     name: podinfo-manifests-localized
     namespace: default
   configRef:
-    componentRef:
+    componentVersionRef:
       name: github.com/phoban01/podinfo
       namespace: default
     resource:

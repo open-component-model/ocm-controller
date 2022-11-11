@@ -37,7 +37,7 @@ spec:
             properties:
               configRef:
                 properties:
-                  componentRef:
+                  componentVersionRef:
                     description: NamespacedObjectReference contains enough information
                       to locate the referenced Kubernetes resource object in any namespace.
                     properties:
@@ -72,7 +72,7 @@ spec:
                     - name
                     type: object
                 required:
-                - componentRef
+                - componentVersionRef
                 - resource
                 type: object
               interval:
