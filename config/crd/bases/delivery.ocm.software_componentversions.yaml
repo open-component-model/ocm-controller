@@ -94,7 +94,10 @@ spec:
                   type: object
                 type: array
               version:
-                type: string
+                properties:
+                  semver:
+                    type: string
+                type: object
             required:
             - component
             - interval
@@ -137,6 +140,8 @@ spec:
                 - name
                 - version
                 type: object
+              reconciledVersion:
+                type: string
               verified:
                 type: boolean
             type: object

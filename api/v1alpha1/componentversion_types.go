@@ -40,6 +40,10 @@ type Signature struct {
 	PublicKey SecretRefValue `json:"publicKey"`
 }
 
+type Version struct {
+	Semver string `json:"semver,omitempty"`
+}
+
 // ComponentVersionSpec defines the desired state of ComponentVersion
 type ComponentVersionSpec struct {
 	// +required
@@ -49,7 +53,7 @@ type ComponentVersionSpec struct {
 	Component string `json:"component"`
 
 	// +required
-	Version string `json:"version"`
+	Version Version `json:"version"`
 
 	// +required
 	Repository Repository `json:"repository"`
@@ -89,7 +93,8 @@ type Reference struct {
 type ComponentVersionStatus struct {
 	ComponentDescriptor Reference `json:"componentDescriptor,omitempty"`
 
-	Verified bool `json:"verified,omitempty"`
+	ReconciledVersion string `json:"reconciledVersion,omitempty"`
+	Verified          bool   `json:"verified,omitempty"`
 }
 
 // GetRequeueAfter returns the duration after which the ComponentVersion must be

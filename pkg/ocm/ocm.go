@@ -8,7 +8,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
+	"github.com/Masterminds/semver"
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
@@ -28,9 +30,11 @@ type Verifier interface {
 	VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, error)
 }
 
-// Fetcher gets an OCM component version based on a k8s component version.
+// Fetcher gets information about an OCM component version based on a k8s component version.
 type Fetcher interface {
 	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
+	GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
+	ListComponentVersions(ctx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]*semver.Version, error)
 }
 
 // FetchVerifier can fetch and verify components.
@@ -93,7 +97,7 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 
 	resolver := ocm.NewCompoundResolver(repo)
 
-	cv, err := session.LookupComponentVersion(repo, obj.Spec.Component, obj.Spec.Version)
+	cv, err := session.LookupComponentVersion(repo, obj.Spec.Component, obj.Spec.Version.Semver)
 	if err != nil {
 		return false, fmt.Errorf("component error: %w", err)
 	}
@@ -154,4 +158,54 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 	}
 
 	return nil, errors.New("public key not found")
+}
+
+func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
+	ocmCtx := ocm.ForContext(ctx)
+	session := ocm.NewSession(nil)
+	defer session.Close()
+
+	versions, err := c.ListComponentVersions(ocmCtx, session, obj)
+	if err != nil {
+		return "", fmt.Errorf("failed to get component versions: %w", err)
+	}
+
+	if len(versions) == 0 {
+		return "", fmt.Errorf("no versions found for component '%s'", obj.Spec.Component)
+	}
+
+	sort.SliceStable(versions, func(i, j int) bool {
+		return versions[i].GreaterThan(versions[j])
+	})
+
+	return versions[0].String(), nil
+}
+
+func (c *Client) ListComponentVersions(ctx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]*semver.Version, error) {
+	// configure the repository access
+	repoSpec := genericocireg.NewRepositorySpec(ocireg.NewRepositorySpec(obj.Spec.Repository.URL), nil)
+	repo, err := session.LookupRepository(ctx, repoSpec)
+	if err != nil {
+		return nil, fmt.Errorf("repo error: %w", err)
+	}
+
+	// get the component version
+	cv, err := session.LookupComponent(repo, obj.Spec.Component)
+	if err != nil {
+		return nil, fmt.Errorf("component error: %w", err)
+	}
+
+	versions, err := cv.ListVersions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list versions for component: %w", err)
+	}
+	var result []*semver.Version
+	for _, v := range versions {
+		parsed, err := semver.NewVersion(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse version '%s': %w", v, err)
+		}
+		result = append(result, parsed)
+	}
+	return result, nil
 }
