@@ -97,7 +97,8 @@ func TestComponentVersionReconcile(t *testing.T) {
 		Scheme: scheme,
 		Client: client,
 		OCMClient: &mockFetcher{
-			t: t,
+			verified: true,
+			t:        t,
 			cv: map[string]ocm.ComponentVersionAccess{
 				"github.com/skarlso/embedded": embedded,
 				"github.com/skarlso/root":     root,
@@ -111,14 +112,20 @@ func TestComponentVersionReconcile(t *testing.T) {
 }
 
 type mockFetcher struct {
-	err error
-	cv  map[string]ocm.ComponentVersionAccess
-	t   *testing.T
+	getComponentErr error
+	verifyErr       error
+	cv              map[string]ocm.ComponentVersionAccess
+	t               *testing.T
+	verified        bool
 }
 
 func (m *mockFetcher) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
 	m.t.Logf("called GetComponentVersion with name %s and version %s", name, version)
-	return m.cv[name], m.err
+	return m.cv[name], m.getComponentErr
+}
+
+func (m *mockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, error) {
+	return m.verified, m.verifyErr
 }
 
 type mockComponent struct {

@@ -12,6 +12,7 @@ spec:
     secretRef:
       name: creds
   verify:
+    signature: signature
     secretRef:
       name: creds
   references:

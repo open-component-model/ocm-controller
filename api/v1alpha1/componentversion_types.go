@@ -38,6 +38,7 @@ type Repository struct {
 // Verify holds the secret which contains the signing and verification keys.
 type Verify struct {
 	SecretRef SecretRef `json:"secretRef"`
+	Signature string    `json:"signature"`
 }
 
 // ComponentVersionSpec defines the desired state of ComponentVersion
