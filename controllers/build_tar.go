@@ -94,14 +94,6 @@ func BuildTar(artifactPath, sourceDir string) error {
 		tf.Close()
 		return err
 	}
-	if err := gw.Close(); err != nil {
-		tf.Close()
-		return err
-	}
-	if err := tf.Close(); err != nil {
-		return err
-	}
-
 	if err := tw.Close(); err != nil {
 		gw.Close()
 		tf.Close()

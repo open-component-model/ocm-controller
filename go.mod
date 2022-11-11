@@ -5,8 +5,6 @@ go 1.19
 // Something requires the naming package. :( Which was an experimental package and has been removed.
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.0
 
-replace github.com/open-component-model/ocm => ../ocm
-
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
 	github.com/fluxcd/pkg/apis/meta v0.17.0

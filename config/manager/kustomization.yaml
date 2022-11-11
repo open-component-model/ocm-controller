@@ -1,10 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
 resources:
-- manager.yaml
-
-generatorOptions:
-  disableNameSuffixHash: true
-
-configMapGenerator:
-- name: manager-config
-  files:
-  - controller_manager_config.yaml
+- deployment.yaml
+- service.yaml
+images:
+- name: controller
+  newName: controller
+  newTag: latest
+- name: open-component-model/ocm-controller
+  newName: ghcr.io/open-component-model/ocm-controller
+  newTag: v0.1.0
