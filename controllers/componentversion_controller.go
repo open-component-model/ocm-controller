@@ -37,7 +37,7 @@ import (
 
 	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -133,9 +133,6 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
 	}
 
-	log.V(4).Info("successfully completed mutation", "operation", op)
-
-	// construct recursive descriptor structure
 	componentDescriptor := v1alpha1.Reference{
 		Name:    cd.GetName(),
 		Version: cd.GetVersion(),
@@ -144,6 +141,8 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 			Namespace: descriptor.GetNamespace(),
 		},
 	}
+
+	log.V(4).Info("successfully completed mutation", "operation", op)
 
 	// if references.expand is false then return here
 	if !obj.Spec.References.Expand {

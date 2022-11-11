@@ -10,12 +10,12 @@ spec:
     namespace: default
   configRef:
     componentVersionRef:
-      name: github.com/phoban01/podinfo
+      name: nested-component
       namespace: default
     resource:
       name: config
       referencePath:
-        name: reference
+        name: carts
   snapshotTemplate:
     name: podinfo-manifests-configured
     tag: latest

@@ -397,7 +397,7 @@ func (r *ConfigurationReconciler) writeSnapshot(ctx context.Context, snapshotNam
 
 func (r *ConfigurationReconciler) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
 	// cofigure defaults
-	var templ map[string]interface{}
+	templ := make(map[string]interface{})
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
 		return nil, errors.Wrapf(err, "cannot unmarshal template")
 	}

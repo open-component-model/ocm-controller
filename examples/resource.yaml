@@ -5,12 +5,12 @@ metadata:
 spec:
   interval: 10m0s
   componentVersionRef:
-    name: github.com/phoban01/podinfo
+    name: nested-component
     namespace: default
   resource:
-    referencePath:
-      name: reference
     name: manifests
+    referencePath:
+      name: carts
   snapshotTemplate:
-    name: podinfo-manifests
+    name: carts-manifests
     tag: latest

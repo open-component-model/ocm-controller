@@ -5,8 +5,8 @@ metadata:
   namespace: default
 spec:
   interval: 10m0s
-  name: github.com/phoban01/nested
-  version: v1.1.0
+  name: github.com/open-component-model/ocm-sock-shop
+  version: v0.3.0
   repository:
     url: ghcr.io/phoban01
     secretRef:
