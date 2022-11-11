@@ -28,7 +28,7 @@ spec:
         image: open-component-model/ocm-controller
         name: manager
         ports:
-        - containerPort: 5001
+        - containerPort: 5000
           name: registry
           protocol: TCP
         securityContext:
