@@ -107,7 +107,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("failed to get configuration object: %w", err)
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to get configuration object: %w", err)
 	}
 
 	log.Info("reconciling configuration")
@@ -116,10 +116,12 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Configuration) (ctrl.Result, error) {
+	log := log.FromContext(ctx).WithName("configuration-controller")
 	// get source snapshot
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
+			log.Info("snapshot not found")
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 		return ctrl.Result{RequeueAfter: r.RetryInterval},
@@ -137,27 +139,29 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
 	}
 
-	// read component descriptor
-	cdvKey := types.NamespacedName{
+	cv := types.NamespacedName{
 		Name:      obj.Spec.ConfigRef.ComponentVersionRef.Name,
 		Namespace: obj.Spec.ConfigRef.ComponentVersionRef.Namespace,
 	}
 
 	componentVersion := &v1alpha1.ComponentVersion{}
-	if err := r.Get(ctx, cdvKey, componentVersion); err != nil {
+	if err := r.Get(ctx, cv, componentVersion); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component version: %w", err)
+			fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	// get config resource
 	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.ConfigRef.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component descriptor: %w", err)
+		return ctrl.Result{}, fmt.Errorf("failed to get component descriptor from version")
+	}
+	if componentDescriptor == nil {
+		return ctrl.Result{
+			RequeueAfter: obj.GetRequeueAfter(),
+		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ReferencePath)
 	}
 
 	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)

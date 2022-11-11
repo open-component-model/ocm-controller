@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  labels:
+    control-plane: controller
+spec:
+  type: ClusterIP
+  selector:
+    app: ocm-controller
+  ports:
+    - name: registry
+      port: 80
+      protocol: TCP
+      targetPort: registry
