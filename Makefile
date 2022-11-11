@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Gardener contributors.
+#
+# SPDX-License-Identifier: Apache-2.0
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -131,3 +134,13 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: generate-license
+generate-license:
+	for f in $(shell find . -name "*.go" -o -name "*.sh"); do \
+		reuse addheader -r \
+			--copyright="SAP SE or an SAP affiliate company and Open Component Model contributors." \
+			--license="Apache-2.0" \
+			$$f \
+			--skip-unrecognised; \
+	done
