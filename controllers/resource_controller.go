@@ -94,24 +94,23 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	log.Info("finding component ref", "resource", obj)
 
-	// get the component descriptor
-	cdKey := types.NamespacedName{
-		Name:      strings.ReplaceAll(obj.Spec.ComponentRef.Name, "/", "-"),
-		Namespace: obj.Spec.ComponentRef.Namespace,
+	// read component version
+	cdvKey := types.NamespacedName{
+		Name:      obj.Spec.ComponentVersionRef.Name,
+		Namespace: obj.Spec.ComponentVersionRef.Namespace,
 	}
 
-	componentDescriptor := &v1alpha1.ComponentDescriptor{}
-	if err := r.Get(ctx, cdKey, componentDescriptor); err != nil {
+	componentVersion := &v1alpha1.ComponentVersion{}
+	if err := r.Get(ctx, cdvKey, componentVersion); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.V(4).Info("component descriptor not found", "component", obj.Spec.ComponentRef)
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component object: %w", err)
+			fmt.Errorf("failed to get component version: %w", err)
 	}
 
-	log.Info("got component descriptor", "component descriptor", cdKey.String())
+	log.Info("got component version", "component version", cdvKey.String())
 
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(obj, r.Client)
@@ -119,7 +118,11 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	// lookup the resource
+	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to get component descriptor: %w", err)
+	}
 	resource := componentDescriptor.GetResource(obj.Spec.Resource.Name)
 	if resource == nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
@@ -142,7 +145,9 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
 		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
-			controllerutil.SetOwnerReference(obj, snapshotCR, r.Scheme)
+			if err := controllerutil.SetOwnerReference(obj, snapshotCR, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set owner to snapshot object: %w", err)
+			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
 			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/snapshots/"),

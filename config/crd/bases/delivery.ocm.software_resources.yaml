@@ -35,7 +35,7 @@ spec:
           spec:
             description: ResourceSpec defines the desired state of Resource
             properties:
-              componentRef:
+              componentVersionRef:
                 description: NamespacedObjectReference contains enough information
                   to locate the referenced Kubernetes resource object in any namespace.
                 properties:
@@ -60,6 +60,15 @@ spec:
                     type: object
                   name:
                     type: string
+                  referencePath:
+                    description: 'TODO: This should be a list of names, for now to
+                      keep it simple, we restrict it to a single item.'
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
                 required:
                 - name
                 type: object
@@ -85,7 +94,7 @@ spec:
                 - name
                 type: object
             required:
-            - componentRef
+            - componentVersionRef
             - interval
             - resource
             - snapshotTemplate

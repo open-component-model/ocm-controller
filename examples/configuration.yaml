@@ -14,6 +14,8 @@ spec:
       namespace: default
     resource:
       name: config
+      referencePath:
+        name: reference
   snapshotTemplate:
     name: podinfo-manifests-configured
     tag: latest
