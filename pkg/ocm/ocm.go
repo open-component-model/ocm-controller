@@ -81,7 +81,7 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 
 	ocmCtx := ocm.ForContext(ctx)
 
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, obj.Spec.Repository.URL, obj.Spec.Verify.SecretRef.Name, obj.Namespace); err != nil {
+	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
 		return false, err
 	}
 
@@ -97,43 +97,58 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 	if err != nil {
 		return false, fmt.Errorf("component error: %w", err)
 	}
+	for _, signature := range obj.Spec.Verify {
+		cert, err := c.getPublicKey(ctx, obj.Namespace, signature.PublicKey.SecretRef.Name, signature.Name)
+		if err != nil {
+			return false, fmt.Errorf("verify error: %w", err)
+		}
 
-	cert, err := c.getPublicKey(ctx, obj)
-	if err != nil {
-		return false, fmt.Errorf("verify error: %w", err)
+		opts := signing.NewOptions(
+			signing.VerifySignature(signature.Name),
+			signing.Resolver(resolver),
+			signing.VerifyDigests(),
+			signing.PublicKey(signature.Name, cert),
+		)
+
+		if err := opts.Complete(signingattr.Get(ocmCtx)); err != nil {
+			return false, fmt.Errorf("verify error: %w", err)
+		}
+
+		dig, err := signing.Apply(nil, nil, cv, opts)
+		if err != nil {
+			return false, err
+		}
+
+		var value string
+		for _, os := range cv.GetDescriptor().Signatures {
+			if os.Name == signature.Name {
+				value = os.Digest.Value
+				break
+			}
+		}
+		if value == "" {
+			return false, fmt.Errorf("signature with name '%s' not found in the list of provided ocm signatures", signature.Name)
+		}
+		if dig.Value != value {
+			return false, fmt.Errorf("%s signature did not match key value", signature.Name)
+		}
 	}
 
-	opts := signing.NewOptions(
-		signing.VerifySignature(obj.Spec.Verify.Signature),
-		signing.Resolver(resolver),
-		signing.VerifyDigests(),
-		signing.PublicKey(obj.Spec.Verify.Signature, cert),
-	)
-
-	if err := opts.Complete(signingattr.Get(ocmCtx)); err != nil {
-		return false, fmt.Errorf("verify error: %w", err)
-	}
-
-	dig, err := signing.Apply(nil, nil, cv, opts)
-	if err != nil {
-		return false, err
-	}
-
-	return dig.Value == cv.GetDescriptor().Signatures[0].Digest.Value, nil
+	return true, nil
 }
 
-func (c *Client) getPublicKey(ctx context.Context, obj *v1alpha1.ComponentVersion) ([]byte, error) {
+func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature string) ([]byte, error) {
 	var secret corev1.Secret
 	secretKey := client.ObjectKey{
-		Namespace: obj.GetNamespace(),
-		Name:      obj.Spec.Verify.SecretRef.Name,
+		Namespace: namespace,
+		Name:      name,
 	}
 	if err := c.client.Get(ctx, secretKey, &secret); err != nil {
 		return nil, err
 	}
 
 	for key, value := range secret.Data {
-		if key == obj.Spec.Verify.Signature {
+		if key == signature {
 			return value, nil
 		}
 	}
