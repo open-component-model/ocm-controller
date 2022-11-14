@@ -2,7 +2,6 @@ name: Build and publish a Docker image to ghcr.io
 on:
   push:
     tags: [ "v*.*.*" ]
-    branches: [ "22-automation" ]
   workflow_dispatch:
 
 env:
