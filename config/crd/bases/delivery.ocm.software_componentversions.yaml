@@ -63,24 +63,33 @@ spec:
                 - url
                 type: object
               verify:
-                description: Verify holds the secret which contains the signing and
-                  verification keys.
-                properties:
-                  secretRef:
-                    description: SecretRef is a reference to a secret used to access
-                      the OCI repository.
-                    properties:
-                      name:
-                        type: string
-                    required:
-                    - name
-                    type: object
-                  signature:
-                    type: string
-                required:
-                - secretRef
-                - signature
-                type: object
+                items:
+                  description: Signature defines the details of a signature to use
+                    for verification.
+                  properties:
+                    name:
+                      description: Name of the signature.
+                      type: string
+                    publicKey:
+                      description: Key which is used for verification.
+                      properties:
+                        secretRef:
+                          description: SecretRef is a reference to a secret used to
+                            access the OCI repository.
+                          properties:
+                            name:
+                              type: string
+                          required:
+                          - name
+                          type: object
+                      required:
+                      - secretRef
+                      type: object
+                  required:
+                  - name
+                  - publicKey
+                  type: object
+                type: array
               version:
                 type: string
             required:

@@ -24,10 +24,17 @@ type Repository struct {
 	SecretRef SecretRef `json:"secretRef"`
 }
 
-// Verify holds the secret which contains the signing and verification keys.
-type Verify struct {
+// SecretRefValue clearly denotes that the requested option is a Secret.
+type SecretRefValue struct {
 	SecretRef SecretRef `json:"secretRef"`
-	Signature string    `json:"signature"`
+}
+
+// Signature defines the details of a signature to use for verification.
+type Signature struct {
+	// Name of the signature.
+	Name string `json:"name"`
+	// Key which is used for verification.
+	PublicKey SecretRefValue `json:"publicKey"`
 }
 
 // ComponentVersionSpec defines the desired state of ComponentVersion
@@ -45,7 +52,7 @@ type ComponentVersionSpec struct {
 	Repository Repository `json:"repository"`
 
 	// +required
-	Verify Verify `json:"verify"`
+	Verify []Signature `json:"verify"`
 
 	// +optional
 	References ReferencesConfig `json:"references,omitempty"`

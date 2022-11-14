@@ -9,17 +9,18 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
@@ -59,7 +60,7 @@ func TestComponentVersionReconcile(t *testing.T) {
 					Name: secretName,
 				},
 			},
-			Verify: v1alpha1.Verify{},
+			Verify: []v1alpha1.Signature{},
 			References: v1alpha1.ReferencesConfig{
 				Expand: true,
 			},

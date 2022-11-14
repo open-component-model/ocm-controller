@@ -12,8 +12,9 @@ spec:
     secretRef:
       name: creds
   verify:
-    signature: signature
-    secretRef:
-      name: creds
+    - name: dev-signing-key
+      publicKey:
+        secretRef:
+          name: signing-key
   references:
     expand: true
