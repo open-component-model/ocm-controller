@@ -40,9 +40,11 @@ type ComponentVersionReconciler struct {
 	OCMClient ocmclient.FetchVerifier
 }
 
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions;componentdescriptors,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions/finalizers,verbs=update
+
+// +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts,verbs=get;list;watch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {

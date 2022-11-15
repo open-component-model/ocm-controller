@@ -7,6 +7,7 @@ package registry
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/distribution/distribution/v3/registry/handlers"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/filesystem"
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -23,17 +25,24 @@ import (
 )
 
 // New creates a new docker registry server
-func New(ctx context.Context, addr string) *http.Server {
-	return newRegistry(ctx, addr)
+func New(ctx context.Context, addr, namespace, serviceAccount string) *http.Server {
+	return newRegistry(ctx, addr, namespace, serviceAccount)
 }
 
-func newRegistry(ctx context.Context, addr string) *http.Server {
+func newRegistry(ctx context.Context, addr, namespace, serviceAccount string) *http.Server {
 	config := getConfig(fmt.Sprintf(":%s", addr))
 	app := handlers.NewApp(ctx, config)
 	logger := dcontext.GetLogger(app)
+	keychain, err := k8schain.NewInCluster(context.Background(), k8schain.Options{
+		Namespace:          namespace,
+		ServiceAccountName: serviceAccount,
+	})
+	if err != nil {
+		log.Fatalf("k8schain.New() = %v", err)
+	}
 	return &http.Server{
 		Addr:              fmt.Sprintf(":%s", addr),
-		Handler:           pullThroughMiddleware(app, fmt.Sprintf("127.0.0.1:%s", addr), logger),
+		Handler:           pullThroughMiddleware(app, fmt.Sprintf("127.0.0.1:%s", addr), logger, keychain),
 		ReadHeaderTimeout: 1 * time.Second,
 	}
 }
@@ -50,7 +59,7 @@ func getConfig(addr string) *configuration.Configuration {
 	return config
 }
 
-func pullThroughMiddleware(h http.Handler, addr string, log dcontext.Logger) http.Handler {
+func pullThroughMiddleware(h http.Handler, addr string, log dcontext.Logger, keychain authn.Keychain) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		req.URL.Host = addr
 		req.Host = addr
@@ -76,13 +85,13 @@ func pullThroughMiddleware(h http.Handler, addr string, log dcontext.Logger) htt
 				return
 			}
 
-			if _, err := remote.Get(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+			if _, err := remote.Get(ref, remote.WithAuthFromKeychain(keychain)); err != nil {
 				switch err.(type) {
 				case *transport.Error:
 					if err.(*transport.Error).StatusCode == http.StatusNotFound {
-						log.Info("caching image", "image", image)
+						log.Info("caching image ", "image", image)
 						src := fmt.Sprintf("%s:%s", req.Header.Get("X-Repository"), req.Header.Get("X-Tag"))
-						if err := crane.Copy(src, image); err != nil {
+						if err := crane.Copy(src, image, crane.WithAuthFromKeychain(keychain)); err != nil {
 							log.Errorf("could not copy image: %w", err)
 						}
 					}

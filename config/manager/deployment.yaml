@@ -25,8 +25,18 @@ spec:
         - /manager
         args:
         - --leader-elect
+        - --oci-registry-service-name=registry.ocm-system.svc.cluster.local
         image: open-component-model/ocm-controller
         name: manager
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
         ports:
         - containerPort: 5000
           name: registry
@@ -55,5 +65,5 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-      serviceAccountName: controller-manager
+      serviceAccountName: ocm-controller
       terminationGracePeriodSeconds: 10

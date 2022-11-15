@@ -191,7 +191,7 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapsho
 	}
 
 	// proxy image requests via the in-cluster oci-registry
-	proxyURL, err := url.Parse(fmt.Sprintf("http://%s", r.OCIRegistryAddr))
+	proxyURL, err := url.Parse(fmt.Sprintf("http://localhost:%d", 5001))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse oci registry url: %w", err)
 	}
