@@ -1,3 +1,4 @@
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -6,34 +7,18 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - delivery.ocm.software
+  - ""
   resources:
-  - actions
+  - secrets
+  - serviceaccounts
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - actions/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - actions/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
+  - componentdescriptors
   - componentversions
   verbs:
   - create
@@ -53,6 +38,58 @@ rules:
   - delivery.ocm.software
   resources:
   - componentversions/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - configurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - configurations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - configurations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - localizations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - localizations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - localizations/status
   verbs:
   - get
   - patch
@@ -86,7 +123,7 @@ rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - sources
+  - snapshots
   verbs:
   - create
   - delete
@@ -98,13 +135,13 @@ rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - sources/finalizers
+  - snapshots/finalizers
   verbs:
   - update
 - apiGroups:
   - delivery.ocm.software
   resources:
-  - sources/status
+  - snapshots/status
   verbs:
   - get
   - patch
