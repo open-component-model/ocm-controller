@@ -35,9 +35,9 @@ spec:
           spec:
             description: ComponentVersionSpec defines the desired state of ComponentVersion
             properties:
-              interval:
+              component:
                 type: string
-              name:
+              interval:
                 type: string
               references:
                 properties:
@@ -93,8 +93,8 @@ spec:
               version:
                 type: string
             required:
+            - component
             - interval
-            - name
             - repository
             - verify
             - version

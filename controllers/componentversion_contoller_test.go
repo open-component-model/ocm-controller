@@ -51,9 +51,9 @@ func TestComponentVersionReconcile(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: v1alpha1.ComponentVersionSpec{
-			Interval: metav1.Duration{Duration: 10 * time.Minute},
-			Name:     "github.com/skarlso/root",
-			Version:  "v0.0.1",
+			Interval:  metav1.Duration{Duration: 10 * time.Minute},
+			Component: "github.com/skarlso/root",
+			Version:   "v0.0.1",
 			Repository: v1alpha1.Repository{
 				URL: "https://github.com/Skarlso/test",
 				SecretRef: v1alpha1.SecretRef{

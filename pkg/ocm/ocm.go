@@ -93,7 +93,7 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 
 	resolver := ocm.NewCompoundResolver(repo)
 
-	cv, err := session.LookupComponentVersion(repo, obj.Spec.Name, obj.Spec.Version)
+	cv, err := session.LookupComponentVersion(repo, obj.Spec.Component, obj.Spec.Version)
 	if err != nil {
 		return false, fmt.Errorf("component error: %w", err)
 	}
