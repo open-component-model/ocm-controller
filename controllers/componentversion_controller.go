@@ -91,7 +91,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	// get component version
-	cv, err := r.OCMClient.GetComponentVersion(ctx, obj, obj.Spec.Name, obj.Spec.Version)
+	cv, err := r.OCMClient.GetComponentVersion(ctx, obj, obj.Spec.Component, obj.Spec.Version)
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),

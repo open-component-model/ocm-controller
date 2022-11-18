@@ -43,7 +43,7 @@ type ComponentVersionSpec struct {
 	Interval metav1.Duration `json:"interval"`
 
 	// +required
-	Name string `json:"name"`
+	Component string `json:"component"`
 
 	// +required
 	Version string `json:"version"`
