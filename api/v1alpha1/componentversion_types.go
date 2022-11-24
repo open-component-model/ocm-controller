@@ -20,6 +20,9 @@ type SecretRef struct {
 
 // Repository defines the OCM Repository.
 type Repository struct {
+	//TODO@souleb: do we need a scheme for the url?
+	// add description for each field
+	// Do we need a type field? (e.g. oci, git, s3, etc.)
 	URL       string    `json:"url"`
 	SecretRef SecretRef `json:"secretRef"`
 }

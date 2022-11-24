@@ -49,8 +49,14 @@ type ComponentVersionReconciler struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		//TODO@souleb: add delete predicate,
+		// I believe we want to clean up the component descriptor and resources on delete.
+		// We need a finalizer for that
 		For(&v1alpha1.ComponentVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
+
+	//TODO@souleb: add watch for component descriptors
+	// We want to be notified if a component descriptor changes, maybe by a human actor.
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -68,6 +74,8 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
 	}
 
+	//TODO@souleb: reduce logging verbosity, use events instead. This will be easier to use logs
+	// for debugging and events for monitoring
 	log.V(4).Info("found component", "component", component)
 
 	log.Info("running verification of component")
@@ -91,6 +99,10 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	// get component version
+	// TODO@souleb: resolve all referenced dependencies and pass them to the function
+	// this will allow us to return early if the dependencies are not ready, and set error
+	// conditions on the component version.
+	// We can the pass the needed dependencies to the function as Option
 	cv, err := r.OCMClient.GetComponentVersion(ctx, obj, obj.Spec.Component, obj.Spec.Version)
 	if err != nil {
 		return ctrl.Result{
@@ -102,7 +114,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	dv := &compdesc.DescriptorVersion{}
 	cd, err := dv.ConvertFrom(cv.GetDescriptor())
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to convret component descriptor: %w", err)
+		return ctrl.Result{}, fmt.Errorf("failed to convert component descriptor: %w", err)
 	}
 
 	// setup the component descriptor kubernetes resource
@@ -118,6 +130,10 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 			Name:      componentName,
 		},
 	}
+
+	//TODO@souleb: pulling instead of doing controllerutil.CreateOrUpdate
+	// - can give specific information in eventing
+	// - can control creation or update based on a given logic, for drift detection for example.
 
 	// create or update the component descriptor kubernetes resource
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, descriptor, func() error {
@@ -163,6 +179,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	}
 
 	// initialize the patch helper
+	//TODO@souleb: use the patch helper from Flux instead
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		return ctrl.Result{
@@ -196,7 +213,7 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, parent
 		dv := &compdesc.DescriptorVersion{}
 		cd, err := dv.ConvertFrom(rcv.GetDescriptor())
 		if err != nil {
-			return nil, fmt.Errorf("failed to convret component descriptor: %w", err)
+			return nil, fmt.Errorf("failed to convert component descriptor: %w", err)
 		}
 		// setup the component descriptor kubernetes resource
 		componentName, err := r.constructComponentName(ref.ComponentName, ref.Version, ref.GetMeta().ExtraIdentity)

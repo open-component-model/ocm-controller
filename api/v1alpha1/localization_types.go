@@ -48,6 +48,7 @@ type ResourceRef struct {
 	// +optional
 	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
 
+	//TODO@souleb: add a description
 	// +optional
 	// TODO: This should be a list of names, for now to keep it simple, we restrict it to a single item.
 	ReferencePath ReferencePath `json:"referencePath,omitempty"`
