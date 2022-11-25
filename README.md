@@ -4,6 +4,18 @@
 
 Main repository for ocm-controller.
 
+## Architecture
+
+The `ocm-controller` manages multiple Custom Resources and therefore contains several reconcilers. It also provides an OCI registry used to cache blobs and make them accessible to clients within the cluster. 
+
+![ocm controller reconcilers](./docs/diagrams/ocm-controller-reconcilers.png)
+
+The `ocm-controller` is responsible for the core work necessary to utilise resources from an `OCM` component in a Kubernetes cluster. This includes resolving `ComponentDescriptor` metadata for a particular component version, performing authentication to OCM repositories, retrieving artifacts from OCM repositories, making individual resources from the OCM component available within the cluster, performing localization and configuration. 
+
+Snapshots are used to pass blobs between controllers and snapshots are stored in the internal registry managed by the `ocm-controller`.
+
+![ocm controller architecture](./docs/diagrams/ocm-controller-reconcile-arch.png)
+
 ## Testing
 
 In order to test, run the manager locally with a kind cluster present on the system.
