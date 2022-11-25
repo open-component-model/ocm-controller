@@ -18,7 +18,9 @@ type ConfigurationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	//TODO@souleb: rename to SnapshotRef
 	// +required
+	//kubebuilder:default:={snapshot: default}
 	SourceRef meta.NamespacedObjectKindReference `json:"sourceRef"`
 
 	// +required

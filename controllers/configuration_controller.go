@@ -133,6 +133,27 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		Namespace: obj.Spec.ConfigRef.ComponentVersionRef.Namespace,
 	}
 
+	//TODO@souleb: index component descriptor by component version
+	// https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/client#FieldIndexer
+	// this will allow us to avoid fetching the component version to get the component descriptor
+	// Example:
+	// if err := mgr.GetCache().IndexField(context.TODO(), &deliveryv1alpha1.ComponentDescriptor{}, componentVersionKey, func(rawObj client.Object) []string {
+	// 	cd := rawObj.(*deliveryv1alpha1.ComponentDescriptor)
+	// 	owner := metav1.GetControllerOf(cd)
+	// 	if owner == nil {
+	// 		return nil
+	// 	}
+	// 	if owner.APIVersion != deliveryv1alpha1.GroupVersion.String() || owner.Kind != "ComponentVersion" {
+	// 		return nil
+	// 	}
+	// 	return []string{owner.Name}
+	// }); err != nil {	return fmt.Errorf("failed setting index fields: %w", err) }
+	//}
+	// we can then use the following to get the component descriptor
+	// var cd v1alpha1.ComponentDescriptorList
+	// if err := r.List(ctx, &cd, client.InNamespace(obj.Spec.ConfigRef.ComponentVersionRef.Namespace), client.MatchingFields{descriptorOwnerKey: obj.Spec.ConfigRef.ComponentVersionRef.Name}); err != nil {
+	// 	return ctrl.Result{RequeueAfter: r.RetryInterval}, err
+	// }
 	componentVersion := &v1alpha1.ComponentVersion{}
 	if err := r.Get(ctx, cv, componentVersion); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -153,6 +174,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ReferencePath)
 	}
 
+	// TO DO@souleb: guard against nil return value
 	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
 	config := configdata.ConfigData{}
 	if err := GetResource(ctx, r.OCIRegistryAddr, configResource, &config); err != nil {
@@ -227,6 +249,8 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
+	//TODO@soule: start by checking config generation change
+	// then after computing snapshot, check if snapshot changed based on config.LastSnapshotDigest
 	// create/update the snapshot custom resource
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
@@ -389,14 +413,14 @@ func (r *ConfigurationReconciler) writeSnapshot(ctx context.Context, snapshotNam
 }
 
 func (r *ConfigurationReconciler) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
-	// cofigure defaults
-	templ := make(map[string]interface{})
+	// configure defaults
+	templ := make(map[string]any)
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
 		return nil, errors.Wrapf(err, "cannot unmarshal template")
 	}
 
 	// configure values overrides... must be a better way
-	var valuesMap map[string]interface{}
+	var valuesMap map[string]any
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(values, &valuesMap); err != nil {
 		return nil, errors.Wrapf(err, "cannot unmarshal template")
 	}
@@ -408,7 +432,7 @@ func (r *ConfigurationReconciler) configurator(subst []localize.Substitution, de
 	}
 
 	// configure adjustments
-	list := []interface{}{}
+	list := []any{}
 	for _, e := range subst {
 		list = append(list, e)
 	}

@@ -124,6 +124,10 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
+	//TODO@souleb: Create the cr before attempting to push to registry and set a condition accordingly
+	// This also means that we need to check for the existence of the cr before attempting to push to the registry
+	// and if a cr exists, we need to check if the digest matches the one in the cr
+
 	// create/update the snapshot custom resource
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
