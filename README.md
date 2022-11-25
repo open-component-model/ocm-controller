@@ -14,7 +14,7 @@ The `ocm-controller` is responsible for the core work necessary to utilise resou
 
 Snapshots are used to pass blobs between controllers and snapshots are stored in the internal registry managed by the `ocm-controller`.
 
-![ocm controller architecture](./docs/diagrams/ocm-controller-reconcile-arch.png)
+![ocm controller architecture](./docs/diagrams/ocm-controllers-reconcile-arch.png)
 
 ## Testing
 
