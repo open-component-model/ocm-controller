@@ -60,8 +60,9 @@ spec:
                       name:
                         type: string
                       referencePath:
-                        description: 'TODO: This should be a list of names, for now
-                          to keep it simple, we restrict it to a single item.'
+                        description: 'TODO@souleb: add a description TODO: This should
+                          be a list of names, for now to keep it simple, we restrict
+                          it to a single item.'
                         properties:
                           name:
                             type: string
@@ -88,20 +89,21 @@ spec:
                   labels:
                     additionalProperties:
                       type: string
+                    description: 'TODO@souleb: add a description, is that actually
+                      used?'
                     type: object
                   name:
                     type: string
                   tag:
-                    description: Tag is supplied for convience and ease of integration
-                      with systems such as Flux
+                    description: 'TODO@souleb: add a description, and validation markers
+                      Tag is supplied for convience and ease of integration with systems
+                      such as Flux'
                     type: string
                 required:
                 - name
                 type: object
               sourceRef:
-                description: NamespacedObjectKindReference contains enough information
-                  to locate the typed referenced Kubernetes resource object in any
-                  namespace.
+                description: 'TODO@souleb: rename to SnapshotRef'
                 properties:
                   apiVersion:
                     description: API version of the referent, if not specified the
