@@ -57,6 +57,9 @@ spec:
                     - name
                     type: object
                   url:
+                    description: 'TODO@souleb: do we need a scheme for the url? add
+                      description for each field Do we need a type field? (e.g. oci,
+                      git, s3, etc.)'
                     type: string
                 required:
                 - secretRef
