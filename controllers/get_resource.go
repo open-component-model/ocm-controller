@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -26,30 +27,23 @@ import (
 
 func GetResource(ctx context.Context, snapshot v1alpha1.Snapshot, version, ociRegistryAddress string, result interface{}) error {
 	//ref = strings.TrimPrefix("http://", ref)
-	digest, err := name.NewDigest(fmt.Sprintf("%s@%s", snapshot.Spec.Ref, snapshot.Spec.Digest), name.Insecure)
+	n := strings.ReplaceAll(snapshot.Status.Layer, "http://registry.ocm-system.svc.cluster.local", "127.0.0.1:5000")
+	digest, err := name.NewDigest(n, name.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to create digest: %w", err)
 	}
 
+	fmt.Println("DIGEST: ", digest.String())
+
 	// proxy image requests via the in-cluster oci-registry
-	proxyURL, err := url.Parse(fmt.Sprintf("http://%s", ociRegistryAddress))
+	proxyURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:5000"))
 	if err != nil {
 		return fmt.Errorf("failed to parse oci registry url: %w", err)
 	}
 
-	// create transport to the in-cluster oci-registry
+	//
+	//create transport to the in-cluster oci-registry
 	tr := newCustomTransport(remote.DefaultTransport.(*http.Transport).Clone(), proxyURL)
-
-	// set context values to be transmitted as headers on the registry requests
-	for k, v := range map[string]string{
-		"registry":   digest.Repository.Registry.String(),
-		"repository": digest.Repository.String(),
-		"digest":     digest.String(),
-		"image":      digest.Name(),
-		"tag":        version,
-	} {
-		ctx = context.WithValue(ctx, contextKey(k), v)
-	}
 
 	// fetch the layer
 	remoteLayer, err := remote.Layer(digest, remote.WithTransport(tr), remote.WithContext(ctx))
@@ -59,7 +53,7 @@ func GetResource(ctx context.Context, snapshot v1alpha1.Snapshot, version, ociRe
 
 	data, err := remoteLayer.Uncompressed()
 	if err != nil {
-		return fmt.Errorf("failed to read layer: %w", err)
+		return fmt.Errorf("failed to uncompress layer: %w", err)
 	}
 
 	configBytes, err := io.ReadAll(data)

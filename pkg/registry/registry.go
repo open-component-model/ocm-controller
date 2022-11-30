@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/distribution/distribution/v3/configuration"
@@ -18,10 +17,6 @@ import (
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/filesystem"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
-	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
 // New creates a new docker registry server
@@ -63,42 +58,53 @@ func pullThroughMiddleware(h http.Handler, addr string, log dcontext.Logger, key
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		req.URL.Host = addr
 		req.Host = addr
-
-		if req.Method != "GET" || req.URL.Path == "/v2/" {
-			h.ServeHTTP(w, req)
-			return
-		}
-
-		if strings.Contains(req.URL.Path, "/blobs/") {
-			if req.Header.Get("X-Repository") == "" || req.Header.Get("X-Registry") == "" || req.Header.Get("X-Tag") == "" {
-				log.Error("headers missing")
-				h.ServeHTTP(w, req)
-				return
-			}
-
-			repo := strings.Replace(req.Header.Get("X-Repository"), req.Header.Get("X-Registry"), addr, 1)
-			image := fmt.Sprintf("%s:%s", repo, req.Header.Get("X-Tag"))
-			ref, err := name.ParseReference(image)
-			if err != nil {
-				log.Errorf("could not parse reference: %s", err)
-				h.ServeHTTP(w, req)
-				return
-			}
-
-			if _, err := remote.Get(ref, remote.WithAuthFromKeychain(keychain)); err != nil {
-				switch err.(type) {
-				case *transport.Error:
-					if err.(*transport.Error).StatusCode == http.StatusNotFound {
-						log.Info("caching image ", "image", image)
-						src := fmt.Sprintf("%s:%s", req.Header.Get("X-Repository"), req.Header.Get("X-Tag"))
-						if err := crane.Copy(src, image, crane.WithAuthFromKeychain(keychain)); err != nil {
-							log.Errorf("could not copy image: %w", err)
-						}
-					}
-				}
-			}
-		}
-
 		h.ServeHTTP(w, req)
+
+		//if req.Method != "GET" || req.URL.Path == "/v2/" {
+		//	h.ServeHTTP(w, req)
+		//	return
+		//}
+		//
+		//if strings.Contains(req.URL.Path, "/blobs/") {
+		//	fmt.Println("THIS IS WHAT I WANT Repo: ", req.Header.Get("X-Repository"))
+		//	fmt.Println("THIS IS WHAT I WANT Registry: ", req.Header.Get("X-Registry"))
+		//	fmt.Println("THIS IS WHAT I WANT: Tag: ", req.Header.Get("X-Tag"))
+		//	if req.Header.Get("X-Repository") == "" || req.Header.Get("X-Registry") == "" || req.Header.Get("X-Tag") == "" {
+		//		log.Error("headers missing")
+		//		h.ServeHTTP(w, req)
+		//		return
+		//	}
+		//
+		//	repo := req.Header.Get("X-Repository")
+		//repo := strings.Replace(req.Header.Get("X-Repository"), req.Header.Get("X-Registry"), addr, 1)
+		//image := fmt.Sprintf("%s:%s", repo, req.Header.Get("X-Tag"))
+		//digest := req.Header.Get("X-Digest")
+		//actualImage := req.Header.Get("X-Image")
+		//fmt.Println("REPO: ", repo)
+		//fmt.Println("IMAGE: ", image)
+		//fmt.Println("Digest: ", digest)
+		//fmt.Println("Actual Image: ", actualImage)
+		//ref, err := name.ParseReference(repo)
+		//if err != nil {
+		//	log.Errorf("could not parse reference: %s", err)
+		//	h.ServeHTTP(w, req)
+		//	return
+		//}
+		//
+		//if _, err := remote.Get(ref, remote.WithAuthFromKeychain(keychain)); err != nil {
+		//	switch err.(type) {
+		//	case *transport.Error:
+		//		if err.(*transport.Error).StatusCode == http.StatusNotFound {
+		//			log.Infof("caching image %s", repo)
+		//			src := fmt.Sprintf("%s:%s", req.Header.Get("X-Repository"), req.Header.Get("X-Tag"))
+		//if err := crane.Copy(repo, image, crane.WithAuthFromKeychain(keychain)); err != nil {
+		//	log.Error(err, "could not copy image")
+		//}
+		//}
+		//}
+		//}
+		//}
+
+		//h.ServeHTTP(w, req)
 	})
 }

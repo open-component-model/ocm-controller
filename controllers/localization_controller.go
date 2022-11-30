@@ -233,7 +233,8 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	}
 
 	// create snapshot
-	snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
+	snapshotName := fmt.Sprintf("%s/snapshots/%s/%s/%s/%s", r.OCIRegistryAddr, componentVersion.Spec.Component, componentVersion.Spec.Version, configResource.Name, configResource.Version)
+	//snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
 	snapshotDigest, err := r.writeSnapshot(ctx, snapshotName, artifactPath.Name())
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err

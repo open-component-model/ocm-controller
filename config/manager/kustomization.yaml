@@ -5,8 +5,8 @@ resources:
 - service.yaml
 images:
 - name: controller
-  newName: ghcr.io/phoban01/ocm-controller
+  newName: ghcr.io/open-component-model/ocm-controller
   newTag: latest
 - name: open-component-model/ocm-controller
-  newName: ghcr.io/phoban01/ocm-controller
-  newTag: latest
+  newName: localhost:5001/open-component-model/ocm-controller
+  newTag: v0.0.1

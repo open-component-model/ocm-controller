@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/fluxcd/pkg/apis/meta"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -22,9 +21,6 @@ func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta
 		Name:      ref.Name,
 		Namespace: ref.Namespace,
 	}, componentDescriptor); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("failed to find component descriptor: %w", err)
 	}
 	return componentDescriptor, nil
@@ -58,5 +54,5 @@ func GetComponentDescriptor(ctx context.Context, c client.Client, refPath v1alph
 		return desc, nil
 	}
 
-	return nil, nil
+	return nil, fmt.Errorf("reference not found %s", refPath.Name)
 }

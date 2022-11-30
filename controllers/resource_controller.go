@@ -112,13 +112,16 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get component descriptor: %w", err)
 	}
+
 	resource := componentDescriptor.GetResource(obj.Spec.Resource.Name)
 	if resource == nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
 	// push the resource snapshot to oci
-	snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
+	//snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
+	snapshotName := fmt.Sprintf("%s/snapshots/%s/%s/%s/%s", r.OCIRegistryAddr, componentVersion.Spec.Component, componentVersion.Spec.Version, resource.Name, resource.Version)
+	log.Info("pushing resource to snapshot", "snapshot-name", snapshotName)
 	digest, err := r.copyResourceToSnapshot(ctx, componentVersion, snapshotName, resource)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
@@ -207,9 +210,9 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, compone
 	}
 
 	// TODO: Change localhost:5000 to the registry service name.
-	repoName := fmt.Sprintf("localhost:5000/%s/%s/%s/%s", componentVersion.Spec.Component, componentVersion.Spec.Version, resource.Meta().Name, resource.Meta().Version)
+	//repoName := fmt.Sprintf("localhost:5000/%s/%s/%s/%s", componentVersion.Spec.Component, componentVersion.Spec.Version, resource.Meta().Name, resource.Meta().Version)
 	//localhost:5000/github.com/phoban01/webpage/webpage/v1.0.0@digest
-	repo, err := name.NewRepository(repoName, name.Insecure)
+	repo, err := name.NewRepository(snapshotName, name.Insecure)
 	if err != nil {
 		return "", fmt.Errorf("failed to create digest: %w", err)
 	}
@@ -217,6 +220,15 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, compone
 	layer := stream.NewLayer(reader)
 	// create a transport to the in-cluster oci-registry
 	tr := newCustomTransport(remote.DefaultTransport.(*http.Transport).Clone(), proxyURL)
+
+	// set context values to be transmitted as headers on the registry requests
+	for k, v := range map[string]string{
+		"registry":   "localhost:5000",
+		"repository": snapshotName,
+		"tag":        resource.Meta().Version,
+	} {
+		ctx = context.WithValue(ctx, contextKey(k), v)
+	}
 
 	// create snapshot with single layer
 	snapshot, err := mutate.AppendLayers(empty.Image, layer)
