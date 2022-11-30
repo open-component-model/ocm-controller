@@ -20,15 +20,14 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/stream"
 	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
+	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -47,6 +46,7 @@ type ResourceReconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	OCIRegistryAddr string
+	OCMClient       ocmclient.FetchVerifier
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
@@ -119,7 +119,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	// push the resource snapshot to oci
 	snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
-	digest, err := r.copyResourceToSnapshot(ctx, snapshotName, resource)
+	digest, err := r.copyResourceToSnapshot(ctx, componentVersion, snapshotName, resource)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
@@ -171,64 +171,57 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapshotName string, res *ocmapi.Resource) (string, error) {
-	accessSpec := localblob.AccessSpec{}
-	rawAccessSpec, err := res.Access.GetRaw()
+func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, snapshotName string, res *ocmapi.Resource) (string, error) {
+	//access, err := GetImageReference(res)
+	//if err != nil {
+	//	return "", fmt.Errorf("failed to create digest: %w", err)
+	//}
+	cv, err := r.OCMClient.GetComponentVersion(ctx, componentVersion, componentVersion.Spec.Component, componentVersion.Spec.Version)
 	if err != nil {
-		return "", fmt.Errorf("failed to GetRaw: %w", err)
+		return "", fmt.Errorf("failed to get component version: %w", err)
 	}
 
-	if err := ocmruntime.DefaultJSONEncoding.Unmarshal(rawAccessSpec, &accessSpec); err != nil {
-		return "", fmt.Errorf("failed to unmarshal acces spec: %w", err)
+	resource, err := cv.GetResource(ocmmetav1.NewIdentity(res.Name))
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch resource: %w", err)
 	}
 
-	globalAccess, err := accessSpec.GlobalAccess.Evaluate(ocm.DefaultContext())
+	access, err := resource.AccessMethod()
 	if err != nil {
-		return "", fmt.Errorf("failed to evaluate global access spec: %w", err)
+		return "", fmt.Errorf("failed to fetch access spec: %w", err)
+	}
+	reader, err := access.Reader()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch reader: %w", err)
 	}
 
-	ref := globalAccess.(*ociblob.AccessSpec).Reference
-	sha := globalAccess.(*ociblob.AccessSpec).Digest.String()
-	digest, err := name.NewDigest(fmt.Sprintf("%s:%s@%s", ref, res.GetVersion(), sha), name.Insecure)
-	if err != nil {
-		return "", fmt.Errorf("failed to create digest: %w", err)
-	}
+	// reference:version@sha
+	// The problem here is that we don't just want to deal with OCI objects. So the repository is something we construct
+	// out of an access method. However, this NewRepository thing requires an actual repository. That is fine. Maybe it
+	// can be a local space?
 
 	// proxy image requests via the in-cluster oci-registry
-	proxyURL, err := url.Parse(fmt.Sprintf("http://localhost:%d", 5001))
+	proxyURL, err := url.Parse(fmt.Sprintf("http://localhost:%d", 5000))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse oci registry url: %w", err)
 	}
 
+	// TODO: Change localhost:5000 to the registry service name.
+	repoName := fmt.Sprintf("localhost:5000/%s/%s/%s/%s", componentVersion.Spec.Component, componentVersion.Spec.Version, resource.Meta().Name, resource.Meta().Version)
+	//localhost:5000/github.com/phoban01/webpage/webpage/v1.0.0@digest
+	repo, err := name.NewRepository(repoName, name.Insecure)
+	if err != nil {
+		return "", fmt.Errorf("failed to create digest: %w", err)
+	}
+
+	layer := stream.NewLayer(reader)
 	// create a transport to the in-cluster oci-registry
 	tr := newCustomTransport(remote.DefaultTransport.(*http.Transport).Clone(), proxyURL)
-
-	// set context values to be transmitted as headers on the registry requests
-	for k, v := range map[string]string{
-		"registry":   digest.Repository.Registry.String(),
-		"repository": digest.Repository.String(),
-		"digest":     digest.String(),
-		"image":      digest.Name(),
-		"tag":        res.Version,
-	} {
-		ctx = context.WithValue(ctx, contextKey(k), v)
-	}
-
-	// fetch the layer
-	layer, err := remote.Layer(digest, remote.WithTransport(tr), remote.WithContext(ctx))
-	if err != nil {
-		return "", fmt.Errorf("failed to get component object: %w", err)
-	}
 
 	// create snapshot with single layer
 	snapshot, err := mutate.AppendLayers(empty.Image, layer)
 	if err != nil {
 		return "", fmt.Errorf("failed to get append layer: %w", err)
-	}
-
-	snapshotRef, err := name.ParseReference(snapshotName, name.Insecure)
-	if err != nil {
-		return "", fmt.Errorf("failed to create snapshot reference: %w", err)
 	}
 
 	ct := time.Now()
@@ -238,13 +231,20 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapsho
 
 	// add metadata
 	snapshot = mutate.Annotations(snapshot, snapshotMeta.ToAnnotations()).(gcrv1.Image)
-
-	// write snapshot to registry
-	if err := remote.Write(snapshotRef, snapshot); err != nil {
-		return "", fmt.Errorf("failed to write snapshot: %w", err)
+	layers, err := snapshot.Layers()
+	if err != nil {
+		return "", fmt.Errorf("failed to get first layer: %w", err)
 	}
 
-	return digest.DigestStr(), nil
+	if err := remote.WriteLayer(repo, layers[0], remote.WithTransport(tr), remote.WithContext(ctx)); err != nil {
+		return "", fmt.Errorf("failed to write layer: %w", err)
+	}
+
+	digest, err := layers[0].Digest()
+	if err != nil {
+		return "", fmt.Errorf("failed to get digest from layer: %w", err)
+	}
+	return digest.String(), nil
 }
 
 type customTransport struct {

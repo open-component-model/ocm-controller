@@ -98,6 +98,7 @@ func main() {
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		OCIRegistryAddr: fmt.Sprintf("localhost:%s", ociRegistryPort),
+		OCMClient:       client,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
 		os.Exit(1)

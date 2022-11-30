@@ -176,8 +176,13 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 
 	// TO DO@souleb: guard against nil return value
 	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
+	if configResource == nil {
+		return ctrl.Result{
+			RequeueAfter: obj.GetRequeueAfter(),
+		}, fmt.Errorf("couldn't find config resource for resource name '%s'", obj.Spec.ConfigRef.Resource.Name)
+	}
 	config := configdata.ConfigData{}
-	if err := GetResource(ctx, r.OCIRegistryAddr, configResource, &config); err != nil {
+	if err := GetResource(ctx, *srcSnapshot, configResource.Version, r.OCIRegistryAddr, &config); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get component resource: %w", err)
 	}

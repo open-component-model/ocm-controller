@@ -157,7 +157,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	// get config resource
 	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
 	config := configdata.ConfigData{}
-	if err := GetResource(ctx, r.OCIRegistryAddr, configResource, &config); err != nil {
+	if err := GetResource(ctx, *srcSnapshot, configResource.Version, r.OCIRegistryAddr, &config); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get component resource: %w", err)
 	}

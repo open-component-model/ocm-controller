@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartefact"
@@ -23,13 +24,9 @@ import (
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 )
 
-func GetResource(ctx context.Context, ociRegistryAddress string, resource *ocmapi.Resource, result interface{}) error {
-	access, err := GetImageReference(resource)
-	if err != nil {
-		return fmt.Errorf("failed to create digest: %w", err)
-	}
-
-	digest, err := name.NewDigest(access, name.Insecure)
+func GetResource(ctx context.Context, snapshot v1alpha1.Snapshot, version, ociRegistryAddress string, result interface{}) error {
+	//ref = strings.TrimPrefix("http://", ref)
+	digest, err := name.NewDigest(fmt.Sprintf("%s@%s", snapshot.Spec.Ref, snapshot.Spec.Digest), name.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to create digest: %w", err)
 	}
@@ -49,7 +46,7 @@ func GetResource(ctx context.Context, ociRegistryAddress string, resource *ocmap
 		"repository": digest.Repository.String(),
 		"digest":     digest.String(),
 		"image":      digest.Name(),
-		"tag":        resource.Version,
+		"tag":        version,
 	} {
 		ctx = context.WithValue(ctx, contextKey(k), v)
 	}
