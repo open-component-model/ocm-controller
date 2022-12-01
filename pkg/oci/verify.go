@@ -30,7 +30,7 @@ func NewVerifier(d string) *Verifier {
 // It returns a boolean, which is true if the blob is verified, and an error.
 func (v *Verifier) Verify(rd io.ReadCloser) (bool, error) {
 	if _, err := io.Copy(v.verifier, rd); err != nil {
-		return false, fmt.Errorf("failed to verify blob: %v", err)
+		return false, fmt.Errorf("failed to verify blob: %w", err)
 	}
 	return v.verifier.Verified(), nil
 }

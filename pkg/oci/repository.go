@@ -101,6 +101,12 @@ func (r *Repository) PushBlob(blob io.ReadCloser) error {
 	return r.pushBlob(layer)
 }
 
+// PushStreamBlob pushes a stream to the repository. It accepts a v1.Image interface.
+func (r *Repository) PushStreamBlob(blob io.ReadCloser, digest string) error {
+	layer := stream.NewLayer(blob)
+	return r.pushBlob(layer)
+}
+
 // PushBlob pushes a blob to the repository. It accepts a v1.Layer interface.
 func (r *Repository) pushBlob(layer v1.Layer) error {
 	return remote.WriteLayer(r.Repository, layer, r.remoteOpts...)
