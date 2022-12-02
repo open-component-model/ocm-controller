@@ -20,9 +20,6 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-      initContainers:
-        - name: init-registry
-          image: open-component-model/ocm-registry-server
       containers:
       - command:
         - /manager

@@ -17,28 +17,24 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - serviceaccounts
   - services
-  - pods
   verbs:
-  - get
-  - list
-  - watch
   - create
-  - update
-  - patch
   - delete
+  - get
+  - patch
+  - update
 - apiGroups:
-  - "apps"
+  - apps
   resources:
   - deployments
   verbs:
-  - get
-  - list
-  - watch
   - create
-  - update
-  - patch
   - delete
+  - get
+  - patch
+  - update
 - apiGroups:
   - delivery.ocm.software
   resources:

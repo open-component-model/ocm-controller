@@ -43,6 +43,8 @@ type ComponentVersionReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions;componentdescriptors,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;create;update;patch;delete
+//+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;create;update;patch;delete
 
 // +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts,verbs=get;list;watch
 

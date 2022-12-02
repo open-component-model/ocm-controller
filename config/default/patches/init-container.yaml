@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocm-controller
+  labels:
+    control-plane: controller
+spec:
+  selector:
+    matchLabels:
+      app: ocm-controller
+  template:
+    spec:
+      initContainers:
+        - name: init-registry
+          image: open-component-model/ocm-registry-server
