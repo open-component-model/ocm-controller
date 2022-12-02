@@ -142,8 +142,15 @@ func TestRepository_FetchImageFromRemote(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	cachedLayers, err := cachedImage.Layers()
 	g.Expect(err).NotTo(HaveOccurred())
-	// the layers number should match
+	// the layers should match
 	g.Expect(len(layers)).To(Equal(len(cachedLayers)))
+	for i := range layers {
+		l, err := layers[i].Digest()
+		g.Expect(err).NotTo(HaveOccurred())
+		cachedL, err := cachedLayers[i].Digest()
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(l).To(Equal(cachedL))
+	}
 }
 
 func TestRepository_FetchBlobFromRemote(t *testing.T) {
@@ -156,11 +163,11 @@ func TestRepository_FetchBlobFromRemote(t *testing.T) {
 	repo, err := NewRepository(addr + "/" + repoName)
 	g.Expect(err).NotTo(HaveOccurred())
 	// fetch the image from the remote registry
-	img, err := repo.FetchImageFrom(remoteImage)
+	desc, _, err := FetchManifestFrom(remoteImage)
 	g.Expect(err).NotTo(HaveOccurred())
-	layers, err := img.Layers()
+	layers := desc.Layers
 	g.Expect(err).NotTo(HaveOccurred())
-	digest, err := layers[0].Digest()
+	digest := layers[0].Digest
 	g.Expect(err).NotTo(HaveOccurred())
 	// fetch the blob from the remote registry
 	rc, err := repo.FetchBlobFrom("docker.io/library/busybox@"+digest.String(), true)
