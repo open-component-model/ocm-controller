@@ -1,7 +1,9 @@
 package oci
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,9 +13,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -95,13 +100,13 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 // and a boolean to indicate whether the blob should be verified. In order to verify the blob,
 // the compressed blob is read and the digest is verified against the digest in the string.
 // The uncompressed blob is returned as a io.ReadCloser.
-// The fetched blob is cached in the repository. Even if caching fails, the blob is still returned.
-func (r *Repository) FetchBlobFrom(s string, verify bool, opts ...Option) (io.ReadCloser, error) {
+// The fetched blob is cached if specified in the repository. Even if caching fails, the blob is still returned.
+func (r *Repository) FetchBlobFrom(s string, verify, cache bool, opts ...Option) (io.ReadCloser, error) {
 	opt, err := makeOptions(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make options: %w", err)
 	}
-	l, errf := r.fetchBlobFrom(s, verify, opt.remoteOpts...)
+	l, errf := r.fetchBlobFrom(s, verify, cache, opt.remoteOpts...)
 	if l != nil {
 		uncompressed, err := l.Uncompressed()
 		if err != nil {
@@ -112,7 +117,7 @@ func (r *Repository) FetchBlobFrom(s string, verify bool, opts ...Option) (io.Re
 	return nil, errf
 }
 
-func (r *Repository) fetchBlobFrom(s string, verify bool, opts ...remote.Option) (v1.Layer, error) {
+func (r *Repository) fetchBlobFrom(s string, verify, cache bool, opts ...remote.Option) (v1.Layer, error) {
 	ref, err := name.NewDigest(s)
 	if err != nil {
 		return nil, fmt.Errorf("%s: blob s must be of the form <name@digest>", ref)
@@ -130,10 +135,12 @@ func (r *Repository) fetchBlobFrom(s string, verify bool, opts ...remote.Option)
 			return nil, fmt.Errorf("failed to verify layer")
 		}
 	}
-	// cache the fecched blob in the repository
-	err = r.pushBlob(layer)
-	if err != nil {
-		return layer, fmt.Errorf("failed to cache layer: %w", err)
+	if cache {
+		// cache the fetched blob in the repository
+		err = r.pushBlob(layer)
+		if err != nil {
+			return layer, fmt.Errorf("failed to cache layer: %w", err)
+		}
 	}
 	return layer, nil
 }
@@ -157,11 +164,11 @@ func (r *Repository) FetchBlob(digest string) (io.ReadCloser, error) {
 	return l.Uncompressed()
 }
 
-// PushBlob pushes a blob to the repository. It accepts an io.ReadCloser interface.
-func (r *Repository) PushBlob(blob io.ReadCloser) error {
-	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return blob, nil
-	})
+// PushBlob pushes a blob to the repository. It accepts a slice of bytes.
+// A media type can be specified to override the default media type.
+// Default media type is "application/vnd.oci.image.layer.v1.tar+gzip".
+func (r *Repository) PushBlob(blob []byte, mediaType string) error {
+	layer, err := computeBlob(blob, mediaType)
 	if err != nil {
 		return fmt.Errorf("failed to create layer: %w", err)
 	}
@@ -169,8 +176,14 @@ func (r *Repository) PushBlob(blob io.ReadCloser) error {
 }
 
 // PushStreamBlob pushes by streaming a blob to the repository. It accepts an io.ReadCloser interface.
-func (r *Repository) PushStreamBlob(blob io.ReadCloser, digest string) error {
-	layer := stream.NewLayer(blob)
+// A media type can be specified to override the default media type.
+// Default media type is "application/vnd.oci.image.layer.v1.tar+gzip".
+func (r *Repository) PushStreamBlob(blob io.ReadCloser, digest string, mediaType string) error {
+	t := types.MediaType(mediaType)
+	if t == "" {
+		t = types.OCILayer
+	}
+	layer := stream.NewLayer(blob, stream.WithMediaType(t))
 	return r.pushBlob(layer)
 }
 
@@ -182,7 +195,8 @@ func (r *Repository) pushBlob(layer v1.Layer) error {
 // FetchManifest fetches a manifest from the repository.
 // It returns the manifest as an oci.Manifest struct and the raw manifest as a byte slice.
 // The oci.Manifest struct can be used to retrieve the layers digests.
-func (r *Repository) FetchManifest(reference string) (*ocispec.Manifest, []byte, error) {
+// Optionally, the manifest annotations can be verified against the given slice of strings keys.
+func (r *Repository) FetchManifest(reference string, filters []string) (*ocispec.Manifest, []byte, error) {
 	ref, err := parseReference(reference, r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse reference: %w", err)
@@ -195,6 +209,20 @@ func (r *Repository) FetchManifest(reference string) (*ocispec.Manifest, []byte,
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get raw manifest: %w", err)
 	}
+	//check if the manifest annotations match the given filters
+	var annotations map[string]string
+	if len(filters) > 0 {
+		// get desciptor from manifest
+		desc, err := getDescriptor(raw)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get descriptor: %w", err)
+		}
+		annotations = filterAnnotations(desc.Annotations, filters)
+	}
+	if len(annotations) == 0 {
+		return nil, nil, fmt.Errorf("no matching annotations found")
+	}
+
 	desc, err := manifestToOCIDescriptor(m)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get manifest descriptor: %w", err)
@@ -203,14 +231,7 @@ func (r *Repository) FetchManifest(reference string) (*ocispec.Manifest, []byte,
 }
 
 func (r *Repository) fetchManifestDescriptor(s string) (*remote.Descriptor, error) {
-	// a manifest reference can be a tag or a digest
-	ref, err := name.ParseReference(s)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse reference: %w", err)
-	}
-	// fetch manifest
-	// Get does a digest verification
-	return remote.Get(ref, r.remoteOpts...)
+	return fetchManifestDescriptorFrom(s, r.remoteOpts...)
 }
 
 // FetchManifestFrom fetches a manifest from the given remote.
@@ -247,66 +268,25 @@ func fetchManifestDescriptorFrom(s string, opts ...remote.Option) (*remote.Descr
 	return remote.Get(ref, opts...)
 }
 
-// FetchImage fetches an OCI image from the repository. It returns the image as a v1.Image interface.
-// It accepts a string to indicate the reference to the image.
-func (r *Repository) FetchImage(reference string) (v1.Image, error) {
-	ref, err := parseReference(reference, r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse reference: %w", err)
-	}
-	m, err := r.fetchManifestDescriptor(ref.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch manifest: %w", err)
-	}
-	// fetch image
-	return m.Image()
-}
-
-// FetchImageFrom fetches an OCI image from the given remote.
-// It caches the fetched image in the repository.
-func (r *Repository) FetchImageFrom(s string) (v1.Image, error) {
-	// compute a reference to the image using the repository name and the manifest digest
-	var (
-		saveRef name.Reference
-		err     error
-	)
-	if strings.Contains(s, ":") {
-		refs := strings.Split(s, ":")
-		if len(refs) != 2 {
-			return nil, fmt.Errorf("failed to parse reference: %s", s)
-		}
-		saveRef, err = name.NewTag(fmt.Sprintf("%s:%s", r.Repository, refs[1]))
-	} else {
-		refs := strings.Split(s, "@")
-		if len(refs) != 2 {
-			return nil, fmt.Errorf("failed to parse reference: %s", s)
-		}
-		saveRef, err = name.NewDigest(fmt.Sprintf("%s@%s", r.Repository, refs[1]))
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse reference: %w", err)
-	}
-	m, err := r.fetchManifestDescriptor(s)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch manifest: %w", err)
-	}
-	// fetch image
-	img, err := m.Image()
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch image: %w", err)
-	}
-	// push image
-	if err := r.pushImage(img, saveRef); err != nil {
-		return img, fmt.Errorf("failed to push image: %w", err)
-	}
-	return img, nil
-}
-
-// PushImage pushes an OCI image to the repository. It accepts a v1.Image interface.
-func (r *Repository) PushImage(image v1.Image, reference string) error {
+// PushImage pushes a blob to the repository as an OCI image.
+// It accepts a media type and a byte slice as the blob.
+// Default media type is "application/vnd.oci.image.layer.v1.tar+gzip".
+// Annotations can be passed to the image manifest.
+func (r *Repository) PushImage(reference string, blob []byte, mediaType string, annotations map[string]string) error {
 	ref, err := parseReference(reference, r)
 	if err != nil {
 		return fmt.Errorf("failed to parse reference: %w", err)
+	}
+	image, err := computeImage(blob, mediaType)
+	if err != nil {
+		return fmt.Errorf("failed to compute image: %w", err)
+	}
+	var annotatedImage v1.Image
+	if len(annotations) > 0 {
+		annotatedImage = mutate.Annotations(image, annotations).(v1.Image)
+	}
+	if annotatedImage != nil {
+		return r.pushImage(annotatedImage, ref)
 	}
 	return r.pushImage(image, ref)
 }
@@ -419,4 +399,49 @@ func makeOptions(opts ...Option) (options, error) {
 		}
 	}
 	return opt, nil
+}
+
+// filterAnnotations filters the annotations of a map of annotations.
+// It returns a map of annotations that match the given entries.
+func filterAnnotations(annotations map[string]string, filters []string) map[string]string {
+	filtered := make(map[string]string)
+	for k, v := range annotations {
+		for _, match := range filters {
+			if strings.EqualFold(k, match) {
+				filtered[k] = v
+			}
+		}
+	}
+	return filtered
+}
+
+func computeImage(data []byte, mediaType string) (v1.Image, error) {
+	l, err := computeBlob(data, mediaType)
+	if err != nil {
+		return nil, err
+	}
+	return mutate.AppendLayers(empty.Image, l)
+}
+
+func computeBlob(data []byte, mediaType string) (v1.Layer, error) {
+	t := types.MediaType(mediaType)
+	if t == "" {
+		t = types.OCILayer
+	}
+	l, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(data)), nil
+	}, tarball.WithMediaType(t))
+
+	if err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
+func getDescriptor(manifest []byte) (*v1.Descriptor, error) {
+	desc := &v1.Descriptor{}
+	if err := json.Unmarshal(manifest, desc); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
+	}
+	return desc, nil
 }
