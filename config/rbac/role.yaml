@@ -8,12 +8,33 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - pods
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
   - secrets
   - serviceaccounts
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
 - apiGroups:
   - delivery.ocm.software
   resources:

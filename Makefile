@@ -3,7 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/open-component-model/ocm-controller:latest
+IMG ?= ghcr.io/open-component-model/ocm-controller
+# Registry server image URL to use all building/pushing image targets
+REG_IMG ?= ghcr.io/open-component-model/ocm-registry-server
+TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.1
 
@@ -78,11 +81,26 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build -t ${IMG}:${TAG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	docker push ${IMG}:${TAG} 
+
+.PHONY: registry-server
+registry-server: cd pkg/oci/registry
+	go build -o bin/registry-server main.go
+
+.PHONY: docker-registry-server
+docker-registry-server:
+	docker buildx build \
+	-t ${REG_IMG}:${TAG} \
+	-f registry-server.dockerfile \
+	.
+
+.PHONY: docker-registry-server-push
+docker-registry-server-push: ## Push docker image with the manager.
+	docker push ${REG_IMG}:${TAG} 
 
 ##@ Deployment
 
@@ -100,8 +118,19 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/default && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
+	&& $(KUSTOMIZE) edit add patch --path ./patches/init-container.yaml \
+	&& $(KUSTOMIZE) edit set image open-component-model/ocm-registry-server=$(REG_IMG):$(TAG)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+.PHONY: dev-deploy
+dev-deploy:  ## Deploy controller dev image in the configured Kubernetes cluster in ~/.kube/config
+	mkdir -p config/dev && cp -R config/default/* config/dev
+	cd config/dev && kustomize edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
+	&& kustomize edit add patch --path ./patches/init-container.yaml \
+	&& kustomize edit set image open-component-model/ocm-registry-server=$(REG_IMG):$(TAG)
+	kustomize build config/dev | kubectl apply -f -
+	rm -rf config/dev
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
