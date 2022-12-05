@@ -6,19 +6,22 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/Masterminds/semver"
+	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
@@ -53,7 +56,9 @@ func TestComponentVersionReconcile(t *testing.T) {
 		Spec: v1alpha1.ComponentVersionSpec{
 			Interval:  metav1.Duration{Duration: 10 * time.Minute},
 			Component: "github.com/skarlso/root",
-			Version:   "v0.0.1",
+			Version: v1alpha1.Version{
+				Semver: "v0.0.1",
+			},
 			Repository: v1alpha1.Repository{
 				URL: "https://github.com/Skarlso/test",
 				SecretRef: v1alpha1.SecretRef{
@@ -110,18 +115,94 @@ func TestComponentVersionReconcile(t *testing.T) {
 			},
 		},
 	}
-	_, err = cvr.reconcile(context.Background(), obj)
+	_, err = cvr.reconcile(context.Background(), obj, "0.1.0")
 	assert.NoError(t, err)
 	assert.Len(t, obj.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", obj.Status.ComponentDescriptor.References[0].Name)
 }
 
+func TestComponentVersionSemverCheck(t *testing.T) {
+	semverTests := []struct {
+		description       string
+		givenVersion      string
+		latestVersion     string
+		reconciledVersion string
+		expectedUpdate    bool
+		expectedErr       string
+	}{
+		{
+			description:       "current reconciled version satisfies given semver constraint",
+			givenVersion:      ">=0.0.2",
+			reconciledVersion: "0.0.3",
+			expectedUpdate:    false,
+			latestVersion:     "0.0.1",
+		},
+		{
+			description:       "given version requires component update",
+			givenVersion:      ">=0.0.2",
+			reconciledVersion: "0.0.1",
+			latestVersion:     "0.0.2",
+			expectedUpdate:    true,
+		},
+		{
+			description:       "latest available version does not satisfy given semver constraint",
+			givenVersion:      "=0.0.2",
+			reconciledVersion: "0.0.1",
+			latestVersion:     "0.0.1",
+			expectedUpdate:    false,
+		},
+	}
+	for i, tt := range semverTests {
+		t.Run(fmt.Sprintf("%d: %s", i, tt.description), func(t *testing.T) {
+			require := require.New(t)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			require.NoError(err)
+			err = corev1.AddToScheme(scheme)
+			require.NoError(err)
+
+			obj := &v1alpha1.ComponentVersion{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-name",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.ComponentVersionSpec{
+					Component: "github.com/skarlso/root",
+					Version: v1alpha1.Version{
+						Semver: tt.givenVersion,
+					},
+				},
+				Status: v1alpha1.ComponentVersionStatus{
+					ReconciledVersion: tt.reconciledVersion,
+				},
+			}
+
+			fakeClient := fake.NewClientBuilder()
+			client := fakeClient.WithObjects(&corev1.Secret{}, obj).WithScheme(scheme).Build()
+
+			cvr := ComponentVersionReconciler{
+				Scheme: scheme,
+				Client: client,
+				OCMClient: &mockFetcher{
+					t:             t,
+					latestVersion: tt.latestVersion,
+				},
+			}
+			update, _, err := cvr.checkVersion(context.Background(), obj)
+			require.NoError(err)
+			require.Equal(tt.expectedUpdate, update)
+		})
+	}
+}
+
 type mockFetcher struct {
 	getComponentErr error
 	verifyErr       error
+	getVersionErr   error
 	cv              map[string]ocm.ComponentVersionAccess
 	t               *testing.T
 	verified        bool
+	latestVersion   string
 }
 
 func (m *mockFetcher) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
@@ -131,6 +212,14 @@ func (m *mockFetcher) GetComponentVersion(ctx context.Context, obj *v1alpha1.Com
 
 func (m *mockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, error) {
 	return m.verified, m.verifyErr
+}
+
+func (m *mockFetcher) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
+	return m.latestVersion, m.getVersionErr
+}
+
+func (m *mockFetcher) ListComponentVersions(ocmCtx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]*semver.Version, error) {
+	return []*semver.Version{}, m.getVersionErr
 }
 
 type mockComponent struct {

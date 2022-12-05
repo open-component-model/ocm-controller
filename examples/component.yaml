@@ -5,8 +5,9 @@ metadata:
   namespace: default
 spec:
   interval: 1m0s
-  component: github.com/open-component-model/ocm-sock-shop
-  version: v0.3.0
+  name: github.com/open-component-model/ocm-sock-shop
+  version:
+    semver: ">=v1.1.1"
   repository:
     url: ghcr.io/phoban01
     secretRef:

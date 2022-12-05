@@ -10,13 +10,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/patch"
 	hash "github.com/mitchellh/hashstructure"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -94,10 +95,66 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}, fmt.Errorf("attempted to verify component, but the digest didn't match")
 	}
 
-	return r.reconcile(ctx, component)
+	// reconcile the version before calling reconcile func
+	update, version, err := r.checkVersion(ctx, component)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: component.GetRequeueAfter(),
+		}, fmt.Errorf("failed to check version: %w", err)
+	}
+
+	if !update {
+		log.V(4).Info("no new version which satisfies the semver constraint detected")
+		return ctrl.Result{
+			RequeueAfter: component.GetRequeueAfter(),
+		}, nil
+	}
+
+	return r.reconcile(ctx, component, version)
 }
 
-func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentVersion) (ctrl.Result, error) {
+func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
+	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
+
+	// get given semver constraint
+	constraint, err := semver.NewConstraint(obj.Spec.Version.Semver)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to parse given semver constraint: %w", err)
+	}
+
+	// get current reconciled version
+	reconciledVersion := "0.0.0"
+	if obj.Status.ReconciledVersion != "" {
+		reconciledVersion = obj.Status.ReconciledVersion
+	}
+	current, err := semver.NewVersion(reconciledVersion)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to parse reconciled version: %w", err)
+	}
+	log.V(4).Info("current reconciled version is", "reconciled", current.String())
+
+	// get latest available component version
+	latest, err := r.OCMClient.GetLatestComponentVersion(ctx, obj)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get latest component version: %w", err)
+	}
+	log.V(4).Info("got newest version from component", "version", latest)
+
+	latestSemver, err := semver.NewVersion(latest)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to parse latest version: %w", err)
+	}
+
+	// compare given constraint and latest available version
+	if !constraint.Check(latestSemver) {
+		log.Info("latest available reconciled version does not satisfy constraint, skipping...", "version", current, "constraint", constraint)
+		return false, "", nil
+	}
+
+	return true, latest, nil
+}
+
+func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	// get component version
@@ -105,7 +162,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	// this will allow us to return early if the dependencies are not ready, and set error
 	// conditions on the component version.
 	// We can the pass the needed dependencies to the function as Option
-	cv, err := r.OCMClient.GetComponentVersion(ctx, obj, obj.Spec.Component, obj.Spec.Version)
+	cv, err := r.OCMClient.GetComponentVersion(ctx, obj, obj.Spec.Component, version)
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -181,7 +238,6 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	}
 
 	// initialize the patch helper
-	//TODO@souleb: use the patch helper from Flux instead
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		return ctrl.Result{
@@ -190,6 +246,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	}
 
 	obj.Status.ComponentDescriptor = componentDescriptor
+	obj.Status.ReconciledVersion = version
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
 		return ctrl.Result{
