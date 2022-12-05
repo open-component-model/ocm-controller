@@ -104,7 +104,10 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !update {
-		return ctrl.Result{}, nil
+		log.V(4).Info("no new version which satisfies the semver constraint detected")
+		return ctrl.Result{
+			RequeueAfter: component.GetRequeueAfter(),
+		}, nil
 	}
 
 	return r.reconcile(ctx, component, version)
@@ -130,12 +133,6 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	}
 	log.V(4).Info("current reconciled version is", "reconciled", current.String())
 
-	// compare given version and current reconciled version
-	if constraint.Check(current) {
-		log.Info("current reconciled version satisfies constraint, skipping...", "version", current, "constraint", constraint)
-		return false, "", nil
-	}
-
 	// get latest available component version
 	latest, err := r.OCMClient.GetLatestComponentVersion(ctx, obj)
 	if err != nil {
@@ -145,7 +142,7 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 
 	latestSemver, err := semver.NewVersion(latest)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to parse reconciled version: %w", err)
+		return false, "", fmt.Errorf("failed to parse latest version: %w", err)
 	}
 
 	// compare given constraint and latest available version

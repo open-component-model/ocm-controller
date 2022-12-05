@@ -16,15 +16,12 @@ require (
 	github.com/mandelsoft/spiff v1.7.0-beta-3
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
 	github.com/mitchellh/hashstructure v1.1.0
-	github.com/onsi/gomega v1.20.2
+	github.com/onsi/gomega v1.24.1
 	github.com/open-component-model/ocm v0.0.1-0.20221027113832-3b98a1369cef
-<<<<<<< HEAD
-	github.com/open-component-model/ocm-controllers-sdk v0.0.4
-	github.com/opencontainers/go-digest v1.0.0
-	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
-=======
 	github.com/open-component-model/ocm-controllers-sdk v0.0.5
->>>>>>> 903b5d5 (Support component version with semver constraint)
+	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/image-spec v1.1.0-rc2
+	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	github.com/stretchr/testify v1.8.1
 	github.com/xeipuuv/gojsonschema v1.2.0
 	k8s.io/apimachinery v0.25.4
@@ -130,12 +127,6 @@ require (
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
 	github.com/moby/term v0.0.0-20221105221325-4eb28fa6025c // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-<<<<<<< HEAD
-=======
-	github.com/onsi/gomega v1.24.1 // indirect
-	github.com/opencontainers/go-digest v1.0.0 // indirect
->>>>>>> 903b5d5 (Support component version with semver constraint)
-	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

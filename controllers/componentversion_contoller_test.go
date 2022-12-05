@@ -20,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 
@@ -116,7 +115,7 @@ func TestComponentVersionReconcile(t *testing.T) {
 			},
 		},
 	}
-	_, err = cvr.reconcile(context.Background(), obj)
+	_, err = cvr.reconcile(context.Background(), obj, "0.1.0")
 	assert.NoError(t, err)
 	assert.Len(t, obj.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", obj.Status.ComponentDescriptor.References[0].Name)
@@ -136,6 +135,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			givenVersion:      ">=0.0.2",
 			reconciledVersion: "0.0.3",
 			expectedUpdate:    false,
+			latestVersion:     "0.0.1",
 		},
 		{
 			description:       "given version requires component update",
@@ -188,7 +188,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 					latestVersion: tt.latestVersion,
 				},
 			}
-			update, err := cvr.checkVersion(context.Background(), obj)
+			update, _, err := cvr.checkVersion(context.Background(), obj)
 			require.NoError(err)
 			require.Equal(tt.expectedUpdate, update)
 		})
