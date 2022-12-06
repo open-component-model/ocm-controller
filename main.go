@@ -7,11 +7,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
-	"github.com/open-component-model/ocm-controller/pkg/registry"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -44,13 +42,11 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var ociRegistryPort string
-	var ociRegistryServicceName string
+	var ociRegistryAddr string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&ociRegistryPort, "oci-registry-port", "5000", "The port the oci registry binds to.")
-	flag.StringVar(&ociRegistryServicceName, "oci-registry-service-name", "registry.ocm-system.svc.cluster.local", "Registry ervice")
+	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -88,7 +84,7 @@ func main() {
 	if err = (&controllers.SnapshotReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
-		RegistryServiceName: ociRegistryServicceName,
+		RegistryServiceName: ociRegistryAddr,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Snapshot")
 		os.Exit(1)
@@ -97,7 +93,7 @@ func main() {
 	if err = (&controllers.ResourceReconciler{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
-		OCIRegistryAddr: fmt.Sprintf("localhost:%s", ociRegistryPort),
+		OCIRegistryAddr: ociRegistryAddr,
 		OCMClient:       client,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
@@ -106,7 +102,7 @@ func main() {
 	if err = (&controllers.LocalizationReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
-		OCIRegistryAddr:   fmt.Sprintf("localhost:%s", ociRegistryPort),
+		OCIRegistryAddr:   ociRegistryAddr,
 		ReconcileInterval: time.Hour,
 		RetryInterval:     time.Minute,
 	}).SetupWithManager(mgr); err != nil {
@@ -116,7 +112,7 @@ func main() {
 	if err = (&controllers.ConfigurationReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
-		OCIRegistryAddr:   fmt.Sprintf("localhost:%s", ociRegistryPort),
+		OCIRegistryAddr:   ociRegistryAddr,
 		ReconcileInterval: time.Hour,
 		RetryInterval:     time.Minute,
 	}).SetupWithManager(mgr); err != nil {
@@ -135,20 +131,6 @@ func main() {
 	}
 
 	ctx := ctrl.SetupSignalHandler()
-
-	// start the registry server
-	go func() {
-		<-mgr.Elected()
-
-		setupLog.Info("starting oci registry server")
-
-		r := registry.New(ctx, ociRegistryPort, os.Getenv("POD_NAMESPACE"), os.Getenv("SERVICE_ACCOUNT"))
-
-		if err := r.ListenAndServe(); err != nil {
-			setupLog.Error(err, "failed to start oci registry server")
-			os.Exit(1)
-		}
-	}()
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {

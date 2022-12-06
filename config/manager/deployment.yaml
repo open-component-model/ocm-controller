@@ -24,11 +24,9 @@ spec:
       - command:
         - /manager
         args:
-        - --zap-log-level=4
         - --leader-elect
-        - --oci-registry-service-name=registry.ocm-system.svc.cluster.local
+        - --oci-registry-addr=registry.ocm-system.svc.cluster.local
         image: open-component-model/ocm-controller
-        imagePullPolicy: Always
         name: manager
         env:
         - name: POD_NAMESPACE
@@ -39,10 +37,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.serviceAccountName
-        ports:
-        - containerPort: 5000
-          name: registry
-          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

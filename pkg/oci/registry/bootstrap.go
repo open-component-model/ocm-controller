@@ -24,7 +24,7 @@ const (
 	// defaultRegistreyImage is the default registry image to deploy
 	defaultRegistreyImage = "registry:2"
 	// defaultAppName is the default name of the registry deployment
-	defaultAppName = "ocm-registry"
+	defaultAppName = "registry"
 	// defaultRegistryPort is the default port of the registry service
 	defaultRegistryPort = 5000
 )
