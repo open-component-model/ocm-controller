@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -347,11 +346,9 @@ func (r *LocalizationReconciler) indexBy(kind, field string) func(o client.Objec
 }
 
 func (r *LocalizationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	u, err := url.Parse(snapshot.Status.Image)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse URL: %w", err)
-	}
-	repo, err := oci.NewRepository(u.Host, oci.WithInsecure())
+	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
+	image = strings.TrimPrefix(image, "https://")
+	repo, err := oci.NewRepository(image, oci.WithInsecure())
 	if err != nil {
 		return nil, err
 	}

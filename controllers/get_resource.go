@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
+	"strings"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
@@ -23,11 +23,9 @@ import (
 )
 
 func GetResource(snapshot v1alpha1.Snapshot, result interface{}) error {
-	u, err := url.Parse(snapshot.Status.Image)
-	if err != nil {
-		return fmt.Errorf("failed to parse URL: %w", err)
-	}
-	repo, err := oci.NewRepository(u.Host, oci.WithInsecure())
+	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
+	image = strings.TrimPrefix(image, "https://")
+	repo, err := oci.NewRepository(image, oci.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("failed to get repository: %w", err)
 	}
