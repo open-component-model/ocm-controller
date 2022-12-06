@@ -167,24 +167,40 @@ func (r *Repository) FetchBlob(digest string) (io.ReadCloser, error) {
 // PushBlob pushes a blob to the repository. It accepts a slice of bytes.
 // A media type can be specified to override the default media type.
 // Default media type is "application/vnd.oci.image.layer.v1.tar+gzip".
-func (r *Repository) PushBlob(blob []byte, mediaType string) error {
+func (r *Repository) PushBlob(blob []byte, mediaType string) (*ocispec.Descriptor, error) {
 	layer, err := computeBlob(blob, mediaType)
 	if err != nil {
-		return fmt.Errorf("failed to create layer: %w", err)
+		return nil, fmt.Errorf("failed to create layer: %w", err)
 	}
-	return r.pushBlob(layer)
+	err = r.pushBlob(layer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to push layer: %w", err)
+	}
+	desc, err := layerToOCIDescriptor(layer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get layer descriptor: %w", err)
+	}
+	return desc, nil
 }
 
 // PushStreamBlob pushes by streaming a blob to the repository. It accepts an io.ReadCloser interface.
 // A media type can be specified to override the default media type.
 // Default media type is "application/vnd.oci.image.layer.v1.tar+gzip".
-func (r *Repository) PushStreamBlob(blob io.ReadCloser, digest string, mediaType string) error {
+func (r *Repository) PushStreamBlob(blob io.ReadCloser, mediaType string) (*ocispec.Descriptor, error) {
 	t := types.MediaType(mediaType)
 	if t == "" {
 		t = types.OCILayer
 	}
 	layer := stream.NewLayer(blob, stream.WithMediaType(t))
-	return r.pushBlob(layer)
+	err := r.pushBlob(layer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to push layer: %w", err)
+	}
+	desc, err := layerToOCIDescriptor(layer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get layer descriptor: %w", err)
+	}
+	return desc, nil
 }
 
 // pushBlob pushes a blob to the repository. It accepts a v1.Layer interface.
