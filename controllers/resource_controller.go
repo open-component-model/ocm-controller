@@ -10,9 +10,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"net/url"
+	"strings"
 
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
 	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
@@ -147,7 +146,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref:    snapshotName,
+			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
 			Digest: digest,
 		}
 		return nil
@@ -160,7 +159,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	obj.Status.LastAppliedResourceVersion = resource.Version
 
-	log.Info("sucessfully created snapshot", "name", snapshotName)
+	log.Info("successfully created snapshot", "name", snapshotName)
 
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
@@ -196,15 +195,7 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, compone
 		return "", fmt.Errorf("failed to fetch reader: %w", err)
 	}
 
-	proxyURL, err := url.Parse(fmt.Sprintf("http://localhost:%d", 5000))
-	if err != nil {
-		return "", fmt.Errorf("failed to parse oci registry url: %w", err)
-	}
-
-	// create a transport to the in-cluster oci-registry
-	tr := newCustomTransport(remote.DefaultTransport.(*http.Transport).Clone(), proxyURL)
-
-	repo, err := oci.NewRepository(snapshotName, oci.WithTransport(tr))
+	repo, err := oci.NewRepository(snapshotName, oci.WithInsecure())
 	if err != nil {
 		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
@@ -221,9 +212,8 @@ type customTransport struct {
 	http.RoundTripper
 }
 
-func newCustomTransport(upstream *http.Transport, proxyURL *url.URL) *customTransport {
+func newCustomTransport(upstream *http.Transport) *customTransport {
 	upstream.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	upstream.Proxy = http.ProxyURL(proxyURL)
 	upstream.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
 	}

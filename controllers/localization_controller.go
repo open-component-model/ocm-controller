@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/open-component-model/ocm-controller/pkg/oci"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,13 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	ociclient "github.com/fluxcd/pkg/oci/client"
-	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
-	gcrv1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -157,7 +152,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	// get config resource
 	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
 	config := configdata.ConfigData{}
-	if err := GetResource(ctx, r.OCIRegistryAddr, configResource, &config); err != nil {
+	if err := GetResource(*srcSnapshot, &config); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get component resource: %w", err)
 	}
@@ -233,8 +228,15 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	}
 
 	// create snapshot
-	snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
-	snapshotDigest, err := r.writeSnapshot(ctx, snapshotName, artifactPath.Name())
+	snapshotName := fmt.Sprintf(
+		"%s/%s/%s/%s/%s",
+		r.OCIRegistryAddr,
+		componentVersion.Spec.Component,
+		componentVersion.Status.ReconciledVersion,
+		obj.Spec.SnapshotTemplate.Name,
+		obj.Spec.SnapshotTemplate.Tag,
+	)
+	snapshotDigest, err := r.writeSnapshot(snapshotName, artifactPath.Name())
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
@@ -254,7 +256,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/snapshots/"),
+			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
 			Digest: snapshotDigest,
 		}
 		return nil
@@ -345,57 +347,36 @@ func (r *LocalizationReconciler) indexBy(kind, field string) func(o client.Objec
 }
 
 func (r *LocalizationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	digest, err := name.NewDigest(snapshot.GetBlob(), name.Insecure)
+	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
+	image = strings.TrimPrefix(image, "https://")
+	repo, err := oci.NewRepository(image, oci.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
 
-	remoteLayer, err := remote.Layer(digest)
+	reader, err := repo.FetchBlob(snapshot.Spec.Digest)
 	if err != nil {
 		return nil, err
 	}
 
-	layerData, err := remoteLayer.Uncompressed()
-	if err != nil {
-		return nil, err
-	}
-
-	return io.ReadAll(layerData)
+	return io.ReadAll(reader)
 }
 
-func (r *LocalizationReconciler) writeSnapshot(ctx context.Context, snapshotName, artifactPath string) (string, error) {
-	ref, err := name.ParseReference(snapshotName, name.Insecure)
+func (r *LocalizationReconciler) writeSnapshot(snapshotName, artifactPath string) (string, error) {
+	repo, err := oci.NewRepository(snapshotName, oci.WithInsecure())
 	if err != nil {
-		return "", fmt.Errorf("failed to create snapshot reference: %w", err)
+		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	ct := time.Now()
-	snapshotMeta := ociclient.Metadata{
-		Created: ct.Format(time.RFC3339),
-	}
-
-	// add metadata
-	snapshot, err := crane.Append(empty.Image, artifactPath)
+	file, err := os.Open(artifactPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to create snapshot image: %w", err)
+		return "", fmt.Errorf("failed to open created archive: %w", err)
 	}
-
-	snapshot = mutate.Annotations(snapshot, snapshotMeta.ToAnnotations()).(gcrv1.Image)
-
-	// write snapshot to registry
-	if err := remote.Write(ref, snapshot); err != nil {
-		return "", fmt.Errorf("failed to write snapshot: %w", err)
-	}
-
-	layers, err := snapshot.Layers()
+	defer file.Close()
+	digest, err := repo.PushStreamBlob(file, "")
 	if err != nil {
-		return "", fmt.Errorf("failed to get snapshot layers: %w", err)
+		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
 
-	digest, err := layers[0].Digest()
-	if err != nil {
-		return "", fmt.Errorf("failed to get snapshot digest: %w", err)
-	}
-
-	return digest.String(), nil
+	return digest.Digest.String(), nil
 }

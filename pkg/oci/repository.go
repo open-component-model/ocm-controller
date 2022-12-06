@@ -31,6 +31,7 @@ type Option func(o *options) error
 type options struct {
 	// remoteOpts are the options to use when fetching and pushing blobs.
 	remoteOpts []remote.Option
+	insecure   bool
 }
 
 // WithAuthFromSecret returns an option that configures the repository to use the provided keychain.
@@ -75,6 +76,14 @@ func WithContext(ctx context.Context) Option {
 	}
 }
 
+// WithInsecure sets up the registry to use HTTP with --insecure.
+func WithInsecure() Option {
+	return func(o *options) error {
+		o.insecure = true
+		return nil
+	}
+}
+
 // Repository is a wrapper around go-containerregistry's name.Repository.
 // It provides a few convenience methods for interacting with OCI registries.
 type Repository struct {
@@ -85,13 +94,17 @@ type Repository struct {
 // NewRepository returns a new Repository. It points to the given remote repository.
 // It accepts a list of options to configure the repository and the underlying remote client.
 func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
-	repo, err := name.NewRepository(repositoryName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse Repository name %q: %w", repositoryName, err)
-	}
 	opt, err := makeOptions(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make options: %w", err)
+	}
+	repoOpts := make([]name.Option, 0)
+	if opt.insecure {
+		repoOpts = append(repoOpts, name.Insecure)
+	}
+	repo, err := name.NewRepository(repositoryName, repoOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Repository name %q: %w", repositoryName, err)
 	}
 	return &Repository{repo, opt}, nil
 }

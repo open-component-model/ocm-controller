@@ -5,15 +5,13 @@
 package controllers
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
+	"strings"
 
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/oci"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartefact"
@@ -23,54 +21,22 @@ import (
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 )
 
-func GetResource(ctx context.Context, ociRegistryAddress string, resource *ocmapi.Resource, result interface{}) error {
-	access, err := GetImageReference(resource)
+func GetResource(snapshot v1alpha1.Snapshot, result interface{}) error {
+	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
+	image = strings.TrimPrefix(image, "https://")
+	repo, err := oci.NewRepository(image, oci.WithInsecure())
 	if err != nil {
-		return fmt.Errorf("failed to create digest: %w", err)
+		return fmt.Errorf("failed to get repository: %w", err)
 	}
-
-	digest, err := name.NewDigest(access, name.Insecure)
+	blob, err := repo.FetchBlob(snapshot.Spec.Digest)
 	if err != nil {
-		return fmt.Errorf("failed to create digest: %w", err)
+		return fmt.Errorf("failed to fetch blob: %w", err)
 	}
-
-	// proxy image requests via the in-cluster oci-registry
-	proxyURL, err := url.Parse(fmt.Sprintf("http://%s", ociRegistryAddress))
+	content, err := io.ReadAll(blob)
 	if err != nil {
-		return fmt.Errorf("failed to parse oci registry url: %w", err)
+		return fmt.Errorf("failed to read blob: %w", err)
 	}
-
-	// create transport to the in-cluster oci-registry
-	tr := newCustomTransport(remote.DefaultTransport.(*http.Transport).Clone(), proxyURL)
-
-	// set context values to be transmitted as headers on the registry requests
-	for k, v := range map[string]string{
-		"registry":   digest.Repository.Registry.String(),
-		"repository": digest.Repository.String(),
-		"digest":     digest.String(),
-		"image":      digest.Name(),
-		"tag":        resource.Version,
-	} {
-		ctx = context.WithValue(ctx, contextKey(k), v)
-	}
-
-	// fetch the layer
-	remoteLayer, err := remote.Layer(digest, remote.WithTransport(tr), remote.WithContext(ctx))
-	if err != nil {
-		return fmt.Errorf("failed to retrieve layer: %w", err)
-	}
-
-	data, err := remoteLayer.Uncompressed()
-	if err != nil {
-		return fmt.Errorf("failed to read layer: %w", err)
-	}
-
-	configBytes, err := io.ReadAll(data)
-	if err != nil {
-		return fmt.Errorf("failed to read layer: %w", err)
-	}
-
-	return ocmruntime.DefaultYAMLEncoding.Unmarshal(configBytes, result)
+	return ocmruntime.DefaultYAMLEncoding.Unmarshal(content, result)
 }
 
 func GetImageReference(resource *ocmapi.Resource) (string, error) {
