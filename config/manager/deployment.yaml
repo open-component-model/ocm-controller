@@ -24,9 +24,11 @@ spec:
       - command:
         - /manager
         args:
+        - --zap-log-level=4
         - --leader-elect
         - --oci-registry-service-name=registry.ocm-system.svc.cluster.local
         image: open-component-model/ocm-controller
+        imagePullPolicy: Always
         name: manager
         env:
         - name: POD_NAMESPACE

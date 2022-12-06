@@ -30,11 +30,11 @@ type Verifier interface {
 	VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, error)
 }
 
-// Fetcher gets information about an OCM component version based on a k8s component version.
+// Fetcher gets information about an OCM component Version based on a k8s component Version.
 type Fetcher interface {
 	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
-	ListComponentVersions(ctx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]*semver.Version, error)
+	ListComponentVersions(ctx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]Version, error)
 }
 
 // FetchVerifier can fetch and verify components.
@@ -70,10 +70,10 @@ func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.Componen
 		}
 	}
 
-	// get component version
+	// get component Version
 	cv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, name, version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get component version: %w", err)
+		return nil, fmt.Errorf("failed to get component Version: %w", err)
 	}
 
 	return cv, nil
@@ -175,13 +175,20 @@ func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.Co
 	}
 
 	sort.SliceStable(versions, func(i, j int) bool {
-		return versions[i].GreaterThan(versions[j])
+		return versions[i].semver.GreaterThan(versions[j].semver)
 	})
 
-	return versions[0].String(), nil
+	return versions[0].version, nil
 }
 
-func (c *Client) ListComponentVersions(ctx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]*semver.Version, error) {
+// Version has two values to be able to sort a list but still return the actual Version.
+// The Version might contain a `v`.
+type Version struct {
+	semver  *semver.Version
+	version string
+}
+
+func (c *Client) ListComponentVersions(ctx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]Version, error) {
 	// configure the repository access
 	repoSpec := genericocireg.NewRepositorySpec(ocireg.NewRepositorySpec(obj.Spec.Repository.URL), nil)
 	repo, err := session.LookupRepository(ctx, repoSpec)
@@ -189,7 +196,7 @@ func (c *Client) ListComponentVersions(ctx ocm.Context, session ocm.Session, obj
 		return nil, fmt.Errorf("repo error: %w", err)
 	}
 
-	// get the component version
+	// get the component Version
 	cv, err := session.LookupComponent(repo, obj.Spec.Component)
 	if err != nil {
 		return nil, fmt.Errorf("component error: %w", err)
@@ -199,13 +206,17 @@ func (c *Client) ListComponentVersions(ctx ocm.Context, session ocm.Session, obj
 	if err != nil {
 		return nil, fmt.Errorf("failed to list versions for component: %w", err)
 	}
-	var result []*semver.Version
+
+	var result []Version
 	for _, v := range versions {
 		parsed, err := semver.NewVersion(v)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse version '%s': %w", v, err)
+			return nil, fmt.Errorf("failed to parse Version '%s': %w", v, err)
 		}
-		result = append(result, parsed)
+		result = append(result, Version{
+			semver:  parsed,
+			version: v,
+		})
 	}
 	return result, nil
 }

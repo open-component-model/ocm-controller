@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm-controller/pkg/registry"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -25,7 +25,7 @@ import (
 
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/controllers"
-	"github.com/open-component-model/ocm-controller/pkg/registry"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -98,6 +98,7 @@ func main() {
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		OCIRegistryAddr: fmt.Sprintf("localhost:%s", ociRegistryPort),
+		OCMClient:       client,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
 		os.Exit(1)

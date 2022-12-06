@@ -11,24 +11,16 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
-	"time"
 
-	ociclient "github.com/fluxcd/pkg/oci/client"
-	"github.com/google/go-containerregistry/pkg/name"
-	gcrv1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
+	"github.com/open-component-model/ocm-controller/pkg/oci"
+	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -47,6 +39,7 @@ type ResourceReconciler struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	OCIRegistryAddr string
+	OCMClient       ocmclient.FetchVerifier
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
@@ -108,6 +101,9 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	}
 
 	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	if componentDescriptor == nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("component version with name '%s' is not yet available, retrying", componentVersion.Name)
+	}
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get component descriptor: %w", err)
@@ -118,8 +114,16 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	}
 
 	// push the resource snapshot to oci
-	snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
-	digest, err := r.copyResourceToSnapshot(ctx, snapshotName, resource)
+	snapshotName := fmt.Sprintf(
+		"%s/%s/%s/%s/%s",
+		r.OCIRegistryAddr,
+		componentVersion.Spec.Component,
+		componentVersion.Status.ReconciledVersion,
+		resource.Name,
+		resource.Version,
+	)
+	log.V(4).Info("creating snapshot with name", "snapshot-name", snapshotName)
+	digest, err := r.copyResourceToSnapshot(ctx, componentVersion, snapshotName, resource)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
@@ -143,7 +147,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/snapshots/"),
+			Ref:    snapshotName,
 			Digest: digest,
 		}
 		return nil
@@ -171,31 +175,28 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapshotName string, res *ocmapi.Resource) (string, error) {
-	accessSpec := localblob.AccessSpec{}
-	rawAccessSpec, err := res.Access.GetRaw()
+func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, snapshotName string, res *ocmapi.Resource) (string, error) {
+	cv, err := r.OCMClient.GetComponentVersion(ctx, componentVersion, componentVersion.Spec.Component, componentVersion.Status.ReconciledVersion)
 	if err != nil {
-		return "", fmt.Errorf("failed to GetRaw: %w", err)
+		return "", fmt.Errorf("failed to get component version: %w", err)
 	}
 
-	if err := ocmruntime.DefaultJSONEncoding.Unmarshal(rawAccessSpec, &accessSpec); err != nil {
-		return "", fmt.Errorf("failed to unmarshal acces spec: %w", err)
-	}
-
-	globalAccess, err := accessSpec.GlobalAccess.Evaluate(ocm.DefaultContext())
+	resource, err := cv.GetResource(ocmmetav1.NewIdentity(res.Name))
 	if err != nil {
-		return "", fmt.Errorf("failed to evaluate global access spec: %w", err)
+		return "", fmt.Errorf("failed to fetch resource: %w", err)
 	}
 
-	ref := globalAccess.(*ociblob.AccessSpec).Reference
-	sha := globalAccess.(*ociblob.AccessSpec).Digest.String()
-	digest, err := name.NewDigest(fmt.Sprintf("%s:%s@%s", ref, res.GetVersion(), sha), name.Insecure)
+	access, err := resource.AccessMethod()
 	if err != nil {
-		return "", fmt.Errorf("failed to create digest: %w", err)
+		return "", fmt.Errorf("failed to fetch access spec: %w", err)
 	}
 
-	// proxy image requests via the in-cluster oci-registry
-	proxyURL, err := url.Parse(fmt.Sprintf("http://localhost:%d", 5001))
+	reader, err := access.Reader()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch reader: %w", err)
+	}
+
+	proxyURL, err := url.Parse(fmt.Sprintf("http://localhost:%d", 5000))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse oci registry url: %w", err)
 	}
@@ -203,48 +204,17 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, snapsho
 	// create a transport to the in-cluster oci-registry
 	tr := newCustomTransport(remote.DefaultTransport.(*http.Transport).Clone(), proxyURL)
 
-	// set context values to be transmitted as headers on the registry requests
-	for k, v := range map[string]string{
-		"registry":   digest.Repository.Registry.String(),
-		"repository": digest.Repository.String(),
-		"digest":     digest.String(),
-		"image":      digest.Name(),
-		"tag":        res.Version,
-	} {
-		ctx = context.WithValue(ctx, contextKey(k), v)
-	}
-
-	// fetch the layer
-	layer, err := remote.Layer(digest, remote.WithTransport(tr), remote.WithContext(ctx))
+	repo, err := oci.NewRepository(snapshotName, oci.WithTransport(tr))
 	if err != nil {
-		return "", fmt.Errorf("failed to get component object: %w", err)
+		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	// create snapshot with single layer
-	snapshot, err := mutate.AppendLayers(empty.Image, layer)
+	digest, err := repo.PushStreamBlob(reader, "")
 	if err != nil {
-		return "", fmt.Errorf("failed to get append layer: %w", err)
+		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
 
-	snapshotRef, err := name.ParseReference(snapshotName, name.Insecure)
-	if err != nil {
-		return "", fmt.Errorf("failed to create snapshot reference: %w", err)
-	}
-
-	ct := time.Now()
-	snapshotMeta := ociclient.Metadata{
-		Created: ct.Format(time.RFC3339),
-	}
-
-	// add metadata
-	snapshot = mutate.Annotations(snapshot, snapshotMeta.ToAnnotations()).(gcrv1.Image)
-
-	// write snapshot to registry
-	if err := remote.Write(snapshotRef, snapshot); err != nil {
-		return "", fmt.Errorf("failed to write snapshot: %w", err)
-	}
-
-	return digest.DigestStr(), nil
+	return digest.Digest.String(), nil
 }
 
 type customTransport struct {
@@ -261,12 +231,5 @@ func newCustomTransport(upstream *http.Transport, proxyURL *url.URL) *customTran
 }
 
 func (ct *customTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	keys := []string{"digest", "registry", "repository", "tag", "image"}
-	for _, key := range keys {
-		value := req.Context().Value(contextKey(key))
-		if value != nil {
-			req.Header.Set("x-"+key, value.(string))
-		}
-	}
 	return ct.RoundTripper.RoundTrip(req)
 }

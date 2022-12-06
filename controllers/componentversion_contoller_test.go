@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver"
+	ococm "github.com/open-component-model/ocm-controller/pkg/ocm"
 	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
@@ -218,8 +218,8 @@ func (m *mockFetcher) GetLatestComponentVersion(ctx context.Context, obj *v1alph
 	return m.latestVersion, m.getVersionErr
 }
 
-func (m *mockFetcher) ListComponentVersions(ocmCtx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]*semver.Version, error) {
-	return []*semver.Version{}, m.getVersionErr
+func (m *mockFetcher) ListComponentVersions(ocmCtx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]ococm.Version, error) {
+	return []ococm.Version{}, m.getVersionErr
 }
 
 type mockComponent struct {

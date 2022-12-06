@@ -6,3 +6,12 @@ resources:
 - ../rbac
 - ../manager
 - namespace.yaml
+images:
+- name: open-component-model/ocm-controller
+  newName: ghcr.io/open-component-model/ocm-controller
+  newTag: latest
+- name: open-component-model/ocm-registry-server
+  newName: ghcr.io/open-component-model/ocm-registry-server
+  newTag: latest
+patches:
+- path: ./patches/init-container.yaml

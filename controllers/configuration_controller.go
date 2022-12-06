@@ -174,8 +174,12 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ReferencePath)
 	}
 
-	// TO DO@souleb: guard against nil return value
 	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
+	if configResource == nil {
+		return ctrl.Result{
+			RequeueAfter: obj.GetRequeueAfter(),
+		}, fmt.Errorf("couldn't find config resource for resource name '%s'", obj.Spec.ConfigRef.Resource.Name)
+	}
 	config := configdata.ConfigData{}
 	if err := GetResource(ctx, r.OCIRegistryAddr, configResource, &config); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
