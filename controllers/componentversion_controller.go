@@ -25,12 +25,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // ComponentVersionReconciler reconciles a ComponentVersion object

@@ -11,16 +11,18 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
-	csdk "github.com/open-component-model/ocm-controllers-sdk"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+
 	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	csdk "github.com/open-component-model/ocm-controllers-sdk"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 )

@@ -7,28 +7,27 @@ package controllers
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http"
 	"strings"
 
-	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/oci"
-	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/oci"
+	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 type contextKey string
@@ -206,20 +205,4 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, compone
 	}
 
 	return digest.Digest.String(), nil
-}
-
-type customTransport struct {
-	http.RoundTripper
-}
-
-func newCustomTransport(upstream *http.Transport) *customTransport {
-	upstream.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	upstream.TLSClientConfig = &tls.Config{
-		InsecureSkipVerify: true,
-	}
-	return &customTransport{upstream}
-}
-
-func (ct *customTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
-	return ct.RoundTripper.RoundTrip(req)
 }

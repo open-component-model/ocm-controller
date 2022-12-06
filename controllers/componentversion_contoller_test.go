@@ -10,9 +10,6 @@ import (
 	"testing"
 	"time"
 
-	ococm "github.com/open-component-model/ocm-controller/pkg/ocm"
-	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -20,10 +17,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	ocmctrl "github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
@@ -218,8 +218,8 @@ func (m *mockFetcher) GetLatestComponentVersion(ctx context.Context, obj *v1alph
 	return m.latestVersion, m.getVersionErr
 }
 
-func (m *mockFetcher) ListComponentVersions(ocmCtx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]ococm.Version, error) {
-	return []ococm.Version{}, m.getVersionErr
+func (m *mockFetcher) ListComponentVersions(ocmCtx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
+	return []ocmctrl.Version{}, m.getVersionErr
 }
 
 type mockComponent struct {

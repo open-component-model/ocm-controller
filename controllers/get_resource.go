@@ -8,10 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
+	"net/url"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/oci"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartefact"
@@ -19,12 +17,17 @@ import (
 	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/cpi"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
 
 func GetResource(snapshot v1alpha1.Snapshot, result interface{}) error {
-	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
-	image = strings.TrimPrefix(image, "https://")
-	repo, err := oci.NewRepository(image, oci.WithInsecure())
+	u, err := url.Parse(snapshot.Status.Image)
+	if err != nil {
+		return fmt.Errorf("failed to parse URL: %w", err)
+	}
+	repo, err := oci.NewRepository(u.Host, oci.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("failed to get repository: %w", err)
 	}

@@ -11,12 +11,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/open-component-model/ocm-controller/pkg/oci"
+	"github.com/mandelsoft/spiff/spiffing"
+	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/mandelsoft/vfs/pkg/vfs"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,23 +27,22 @@ import (
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/mandelsoft/spiff/spiffing"
-	"github.com/mandelsoft/vfs/pkg/osfs"
-	"github.com/mandelsoft/vfs/pkg/vfs"
-	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	"github.com/open-component-model/ocm/pkg/errors"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/open-component-model/ocm/pkg/spiff"
 	"github.com/open-component-model/ocm/pkg/utils"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/configdata"
+	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
 
 // ConfigurationReconciler reconciles a Configuration object
@@ -362,9 +364,11 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 }
 
 func (r *ConfigurationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
-	image = strings.TrimPrefix(image, "https://")
-	repo, err := oci.NewRepository(image, oci.WithInsecure())
+	u, err := url.Parse(snapshot.Status.Image)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+	repo, err := oci.NewRepository(u.Host, oci.WithInsecure())
 	if err != nil {
 		return nil, err
 	}

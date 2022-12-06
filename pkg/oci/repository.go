@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package oci
 
 import (
@@ -25,7 +29,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
-// Options is a functional option for Repository.
+// Option is a functional option for Repository.
 type Option func(o *options) error
 
 type options struct {
@@ -60,7 +64,7 @@ func WithBasicAuth(username, password string) Option {
 	}
 }
 
-// WithTransportreturns an option that configures the repository to use the provided http.RoundTripper.
+// WithTransport returns an option that configures the repository to use the provided http.RoundTripper.
 func WithTransport(transport http.RoundTripper) Option {
 	return func(o *options) error {
 		o.remoteOpts = append(o.remoteOpts, remote.WithTransport(transport))
@@ -84,7 +88,7 @@ func WithInsecure() Option {
 	}
 }
 
-// Repository is a wrapper around go-containerregistry's name.Repository.
+// Repository is a wrapper around go-container registry's name.Repository.
 // It provides a few convenience methods for interacting with OCI registries.
 type Repository struct {
 	name.Repository

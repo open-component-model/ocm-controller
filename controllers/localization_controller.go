@@ -10,12 +10,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/open-component-model/ocm-controller/pkg/oci"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/mandelsoft/vfs/pkg/osfs"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,21 +26,20 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/mandelsoft/vfs/pkg/osfs"
-
-	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	"github.com/open-component-model/ocm/pkg/utils"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/configdata"
+	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
 
 // LocalizationReconciler reconciles a Localization object
@@ -122,8 +123,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
 	}
 
-	// TODO: Change this to ComponentVersion
-	// read component descriptor
+	// read component version
 	cv := types.NamespacedName{
 		Name:      obj.Spec.ConfigRef.ComponentVersionRef.Name,
 		Namespace: obj.Spec.ConfigRef.ComponentVersionRef.Namespace,
@@ -347,9 +347,11 @@ func (r *LocalizationReconciler) indexBy(kind, field string) func(o client.Objec
 }
 
 func (r *LocalizationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
-	image = strings.TrimPrefix(image, "https://")
-	repo, err := oci.NewRepository(image, oci.WithInsecure())
+	u, err := url.Parse(snapshot.Status.Image)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+	repo, err := oci.NewRepository(u.Host, oci.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
