@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
@@ -110,6 +111,11 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		}
 		return ctrl.Result{RequeueAfter: r.RetryInterval},
 			fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
+		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
+		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
 	}
 
 	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
@@ -272,8 +278,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
-			Digest: snapshotDigest,
+			Ref: strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
 		}
 		return nil
 	})
@@ -281,6 +286,13 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
+	}
+
+	newSnapshotCR := snapshotCR.DeepCopy()
+	newSnapshotCR.Status.Digest = snapshotDigest
+	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshotCR); err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to patch snapshot CR: %w", err)
 	}
 
 	obj.Status.LatestSnapshotDigest = srcSnapshot.GetDigest()
@@ -370,7 +382,7 @@ func (r *ConfigurationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Sn
 		return nil, err
 	}
 
-	reader, err := repo.FetchBlob(snapshot.Spec.Digest)
+	reader, err := repo.FetchBlob(snapshot.Status.Digest)
 	if err != nil {
 		return nil, err
 	}

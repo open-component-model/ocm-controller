@@ -145,15 +145,20 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
-			Digest: digest,
+			Ref: strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
 		}
 		return nil
 	})
-
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
+	}
+
+	newSnapshotCR := snapshotCR.DeepCopy()
+	newSnapshotCR.Status.Digest = digest
+	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshotCR); err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to patch snapshot CR: %w", err)
 	}
 
 	obj.Status.LastAppliedResourceVersion = resource.Version

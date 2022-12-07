@@ -13,17 +13,22 @@ import (
 
 // SnapshotSpec defines the desired state of Snapshot
 type SnapshotSpec struct {
-	Ref    string `json:"ref"`
-	Digest string `json:"digest"`
+	Ref string `json:"ref"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot
 type SnapshotStatus struct {
 	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// +optional
 	Image string `json:"image,omitempty"`
 
 	// +optional
 	Layer string `json:"layer,omitempty"`
+
+	// +optional
+	Digest string `json:"digest,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -52,6 +57,22 @@ func (in Snapshot) GetBlob() string {
 	}
 
 	return strings.TrimPrefix(in.Status.Layer, "http://")
+}
+
+// GetConditions returns the status conditions of the object.
+func (in Snapshot) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the status conditions on the object.
+func (in *Snapshot) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
+}
+
+// GetStatusConditions returns a pointer to the Status.Conditions slice.
+// Deprecated: use GetConditions instead.
+func (in *Snapshot) GetStatusConditions() *[]metav1.Condition {
+	return &in.Status.Conditions
 }
 
 //+kubebuilder:object:root=true

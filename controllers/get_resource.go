@@ -22,14 +22,14 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
 
-func GetResource(snapshot v1alpha1.Snapshot, result interface{}) error {
+func GetResource(snapshot v1alpha1.Snapshot, result any) error {
 	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
 	image = strings.TrimPrefix(image, "https://")
 	repo, err := oci.NewRepository(image, oci.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("failed to get repository: %w", err)
 	}
-	blob, err := repo.FetchBlob(snapshot.Spec.Digest)
+	blob, err := repo.FetchBlob(snapshot.Status.Digest)
 	if err != nil {
 		return fmt.Errorf("failed to fetch blob: %w", err)
 	}

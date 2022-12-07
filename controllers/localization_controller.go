@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -101,6 +102,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Localization) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
 	// get source snapshot
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
@@ -109,6 +111,11 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		}
 		return ctrl.Result{RequeueAfter: r.RetryInterval},
 			fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
+		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
+		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
 	}
 
 	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
@@ -255,8 +262,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
-			Digest: snapshotDigest,
+			Ref: strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
 		}
 		return nil
 	})
@@ -264,6 +270,13 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
+	}
+
+	newSnapshotCR := snapshotCR.DeepCopy()
+	newSnapshotCR.Status.Digest = snapshotDigest
+	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshotCR); err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to patch snapshot CR: %w", err)
 	}
 
 	obj.Status.LatestSnapshotDigest = srcSnapshot.GetDigest()
@@ -353,7 +366,7 @@ func (r *LocalizationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Sna
 		return nil, err
 	}
 
-	reader, err := repo.FetchBlob(snapshot.Spec.Digest)
+	reader, err := repo.FetchBlob(snapshot.Status.Digest)
 	if err != nil {
 		return nil, err
 	}
