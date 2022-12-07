@@ -15,6 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/mandelsoft/vfs/pkg/osfs"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,27 +26,20 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	ociclient "github.com/fluxcd/pkg/oci/client"
-	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
-	gcrv1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/mandelsoft/vfs/pkg/osfs"
-
-	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	"github.com/open-component-model/ocm/pkg/utils"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/configdata"
+	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
 
 // LocalizationReconciler reconciles a Localization object
@@ -106,6 +102,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Localization) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
 	// get source snapshot
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
@@ -114,6 +111,11 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		}
 		return ctrl.Result{RequeueAfter: r.RetryInterval},
 			fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
+		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
+		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
 	}
 
 	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
@@ -127,8 +129,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
 	}
 
-	// TODO: Change this to ComponentVersion
-	// read component descriptor
+	// read component version
 	cv := types.NamespacedName{
 		Name:      obj.Spec.ConfigRef.ComponentVersionRef.Name,
 		Namespace: obj.Spec.ConfigRef.ComponentVersionRef.Namespace,
@@ -157,7 +158,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	// get config resource
 	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
 	config := configdata.ConfigData{}
-	if err := GetResource(ctx, r.OCIRegistryAddr, configResource, &config); err != nil {
+	if err := GetResource(*srcSnapshot, &config); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get component resource: %w", err)
 	}
@@ -233,8 +234,15 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	}
 
 	// create snapshot
-	snapshotName := fmt.Sprintf("%s/snapshots/%s:%s", r.OCIRegistryAddr, obj.Spec.SnapshotTemplate.Name, obj.Spec.SnapshotTemplate.Tag)
-	snapshotDigest, err := r.writeSnapshot(ctx, snapshotName, artifactPath.Name())
+	snapshotName := fmt.Sprintf(
+		"%s/%s/%s/%s/%s",
+		r.OCIRegistryAddr,
+		componentVersion.Spec.Component,
+		componentVersion.Status.ReconciledVersion,
+		obj.Spec.SnapshotTemplate.Name,
+		obj.Spec.SnapshotTemplate.Tag,
+	)
+	snapshotDigest, err := r.writeSnapshot(snapshotName, artifactPath.Name())
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
@@ -254,8 +262,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref:    strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/snapshots/"),
-			Digest: snapshotDigest,
+			Ref: strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
 		}
 		return nil
 	})
@@ -263,6 +270,13 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
+	}
+
+	newSnapshotCR := snapshotCR.DeepCopy()
+	newSnapshotCR.Status.Digest = snapshotDigest
+	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshotCR); err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to patch snapshot CR: %w", err)
 	}
 
 	obj.Status.LatestSnapshotDigest = srcSnapshot.GetDigest()
@@ -345,57 +359,36 @@ func (r *LocalizationReconciler) indexBy(kind, field string) func(o client.Objec
 }
 
 func (r *LocalizationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	digest, err := name.NewDigest(snapshot.GetBlob(), name.Insecure)
+	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
+	image = strings.TrimPrefix(image, "https://")
+	repo, err := oci.NewRepository(image, oci.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
 
-	remoteLayer, err := remote.Layer(digest)
+	reader, err := repo.FetchBlob(snapshot.Status.Digest)
 	if err != nil {
 		return nil, err
 	}
 
-	layerData, err := remoteLayer.Uncompressed()
-	if err != nil {
-		return nil, err
-	}
-
-	return io.ReadAll(layerData)
+	return io.ReadAll(reader)
 }
 
-func (r *LocalizationReconciler) writeSnapshot(ctx context.Context, snapshotName, artifactPath string) (string, error) {
-	ref, err := name.ParseReference(snapshotName, name.Insecure)
+func (r *LocalizationReconciler) writeSnapshot(snapshotName, artifactPath string) (string, error) {
+	repo, err := oci.NewRepository(snapshotName, oci.WithInsecure())
 	if err != nil {
-		return "", fmt.Errorf("failed to create snapshot reference: %w", err)
+		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	ct := time.Now()
-	snapshotMeta := ociclient.Metadata{
-		Created: ct.Format(time.RFC3339),
-	}
-
-	// add metadata
-	snapshot, err := crane.Append(empty.Image, artifactPath)
+	file, err := os.Open(artifactPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to create snapshot image: %w", err)
+		return "", fmt.Errorf("failed to open created archive: %w", err)
 	}
-
-	snapshot = mutate.Annotations(snapshot, snapshotMeta.ToAnnotations()).(gcrv1.Image)
-
-	// write snapshot to registry
-	if err := remote.Write(ref, snapshot); err != nil {
-		return "", fmt.Errorf("failed to write snapshot: %w", err)
-	}
-
-	layers, err := snapshot.Layers()
+	defer file.Close()
+	digest, err := repo.PushStreamBlob(file, "")
 	if err != nil {
-		return "", fmt.Errorf("failed to get snapshot layers: %w", err)
+		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
 
-	digest, err := layers[0].Digest()
-	if err != nil {
-		return "", fmt.Errorf("failed to get snapshot digest: %w", err)
-	}
-
-	return digest.String(), nil
+	return digest.Digest.String(), nil
 }

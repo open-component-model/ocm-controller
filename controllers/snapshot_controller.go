@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fluxcd/pkg/runtime/conditions"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/util/patch"
@@ -16,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	v1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 // SnapshotReconciler reconciles a Snapshot object
@@ -58,8 +59,9 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
-	obj.Status.Image = fmt.Sprintf("http://%s/snapshots/%s", r.RegistryServiceName, obj.Spec.Ref)
-	obj.Status.Layer = fmt.Sprintf("http://%s/snapshots/%s@%s", r.RegistryServiceName, obj.Spec.Ref, obj.Spec.Digest)
+	obj.Status.Image = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, obj.Spec.Ref)
+	obj.Status.Layer = fmt.Sprintf("http://%s/%s@%s", r.RegistryServiceName, obj.Spec.Ref, obj.Status.Digest)
+	conditions.MarkTrue(obj, v1alpha1.SnapshotReady, v1alpha1.SnapshotReadyReason, "Snapshot with name '%s' is ready", obj.Name)
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch resource: %w", err)

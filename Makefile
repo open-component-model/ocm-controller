@@ -85,7 +85,7 @@ docker-build: test ## Build docker image with the manager.
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}:${TAG} 
+	docker push ${IMG}:${TAG}
 
 .PHONY: registry-server
 registry-server: cd pkg/oci/registry
@@ -94,13 +94,13 @@ registry-server: cd pkg/oci/registry
 .PHONY: docker-registry-server
 docker-registry-server:
 	docker buildx build \
-	-t ${REG_IMG}:${TAG} \
+	-t ${REG_IMG}:${REG_TAG} \
 	-f registry-server.dockerfile \
 	.
 
 .PHONY: docker-registry-server-push
 docker-registry-server-push: ## Push docker image with the manager.
-	docker push ${REG_IMG}:${TAG} 
+	docker push ${REG_IMG}:${REG_TAG}
 
 ##@ Deployment
 
@@ -120,7 +120,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/default && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
 	&& $(KUSTOMIZE) edit add patch --path ./patches/init-container.yaml \
-	&& $(KUSTOMIZE) edit set image open-component-model/ocm-registry-server=$(REG_IMG):$(TAG)
+	&& $(KUSTOMIZE) edit set image open-component-model/ocm-registry-server=$(REG_IMG):$(REG_TAG)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: dev-deploy
@@ -128,7 +128,7 @@ dev-deploy:  ## Deploy controller dev image in the configured Kubernetes cluster
 	mkdir -p config/dev && cp -R config/default/* config/dev
 	cd config/dev && kustomize edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
 	&& kustomize edit add patch --path ./patches/init-container.yaml \
-	&& kustomize edit set image open-component-model/ocm-registry-server=$(REG_IMG):$(TAG)
+	&& kustomize edit set image open-component-model/ocm-registry-server=$(REG_IMG):$(REG_TAG)
 	kustomize build config/dev | kubectl apply -f -
 	rm -rf config/dev
 

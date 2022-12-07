@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package oci
 
 import (
@@ -25,12 +29,13 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
-// Options is a functional option for Repository.
+// Option is a functional option for Repository.
 type Option func(o *options) error
 
 type options struct {
 	// remoteOpts are the options to use when fetching and pushing blobs.
 	remoteOpts []remote.Option
+	insecure   bool
 }
 
 // WithAuthFromSecret returns an option that configures the repository to use the provided keychain.
@@ -59,7 +64,7 @@ func WithBasicAuth(username, password string) Option {
 	}
 }
 
-// WithTransportreturns an option that configures the repository to use the provided http.RoundTripper.
+// WithTransport returns an option that configures the repository to use the provided http.RoundTripper.
 func WithTransport(transport http.RoundTripper) Option {
 	return func(o *options) error {
 		o.remoteOpts = append(o.remoteOpts, remote.WithTransport(transport))
@@ -75,7 +80,15 @@ func WithContext(ctx context.Context) Option {
 	}
 }
 
-// Repository is a wrapper around go-containerregistry's name.Repository.
+// WithInsecure sets up the registry to use HTTP with --insecure.
+func WithInsecure() Option {
+	return func(o *options) error {
+		o.insecure = true
+		return nil
+	}
+}
+
+// Repository is a wrapper around go-container registry's name.Repository.
 // It provides a few convenience methods for interacting with OCI registries.
 type Repository struct {
 	name.Repository
@@ -85,13 +98,17 @@ type Repository struct {
 // NewRepository returns a new Repository. It points to the given remote repository.
 // It accepts a list of options to configure the repository and the underlying remote client.
 func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
-	repo, err := name.NewRepository(repositoryName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse Repository name %q: %w", repositoryName, err)
-	}
 	opt, err := makeOptions(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make options: %w", err)
+	}
+	repoOpts := make([]name.Option, 0)
+	if opt.insecure {
+		repoOpts = append(repoOpts, name.Insecure)
+	}
+	repo, err := name.NewRepository(repositoryName, repoOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Repository name %q: %w", repositoryName, err)
 	}
 	return &Repository{repo, opt}, nil
 }
