@@ -61,11 +61,13 @@ spec:
                   name:
                     type: string
                   referencePath:
-                    additionalProperties:
-                      type: string
                     description: 'ReferencePath is a list of references with identities
                       that include this resource. referencePath: - name: installer'
-                    type: object
+                    items:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    type: array
                 required:
                 - name
                 type: object

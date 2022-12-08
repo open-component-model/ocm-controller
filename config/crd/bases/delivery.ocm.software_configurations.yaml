@@ -53,7 +53,8 @@ spec:
                     type: object
                   resource:
                     description: 'ResourceRef define a resource. TODO: Change this
-                      to ocmmetav1.ResourceReference'
+                      to ocmmetav1.ResourceReference The ocmmetav1.ResourceReference
+                      can also contain version!'
                     properties:
                       extraIdentity:
                         additionalProperties:
@@ -62,11 +63,13 @@ spec:
                       name:
                         type: string
                       referencePath:
-                        additionalProperties:
-                          type: string
                         description: 'ReferencePath is a list of references with identities
                           that include this resource. referencePath: - name: installer'
-                        type: object
+                        items:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        type: array
                     required:
                     - name
                     type: object

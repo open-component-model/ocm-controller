@@ -210,7 +210,7 @@ func (m *mockFetcher) GetComponentVersion(ctx context.Context, obj *v1alpha1.Com
 	return m.cv[name], m.getComponentErr
 }
 
-func (m *mockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, error) {
+func (m *mockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
 	return m.verified, m.verifyErr
 }
 

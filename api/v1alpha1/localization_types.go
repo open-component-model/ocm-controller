@@ -50,7 +50,7 @@ type ResourceRef struct {
 	//      referencePath:
 	//        - name: installer
 	// +optional
-	ReferencePath map[string]string `json:"referencePath,omitempty"`
+	ReferencePath []map[string]string `json:"referencePath,omitempty"`
 }
 
 // LocalizationStatus defines the observed state of Localization

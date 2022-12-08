@@ -27,7 +27,7 @@ func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta
 	return componentDescriptor, nil
 }
 
-func GetComponentDescriptor(ctx context.Context, c client.Client, refPath map[string]string, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
+func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []map[string]string, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
 	// Return early if there was no name defined.
 	if len(refPath) == 0 {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
@@ -58,12 +58,13 @@ func GetComponentDescriptor(ctx context.Context, c client.Client, refPath map[st
 	return nil, nil
 }
 
-func referencePathContainsName(name string, refPath map[string]string) bool {
-	for k, v := range refPath {
-		if k == compdesc.SystemIdentityName && name == v {
-			return true
+func referencePathContainsName(name string, refPath []map[string]string) bool {
+	for _, ref := range refPath {
+		for k, v := range ref {
+			if k == compdesc.SystemIdentityName && name == v {
+				return true
+			}
 		}
 	}
-
 	return false
 }

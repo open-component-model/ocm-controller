@@ -571,9 +571,15 @@ func (in *ResourceRef) DeepCopyInto(out *ResourceRef) {
 	}
 	if in.ReferencePath != nil {
 		in, out := &in.ReferencePath, &out.ReferencePath
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		*out = make([]map[string]string, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = make(map[string]string, len(*in))
+				for key, val := range *in {
+					(*out)[key] = val
+				}
+			}
 		}
 	}
 }
