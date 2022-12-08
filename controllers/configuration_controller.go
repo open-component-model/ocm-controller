@@ -248,15 +248,13 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 	}
 
 	// create snapshot
-	snapshotName := fmt.Sprintf(
-		"%s/%s/%s/%s/%s",
+	repositoryName := fmt.Sprintf(
+		"%s/%s/%s",
 		r.OCIRegistryAddr,
-		componentVersion.Spec.Component,
-		componentVersion.Status.ReconciledVersion,
+		obj.Namespace,
 		obj.Spec.SnapshotTemplate.Name,
-		obj.Spec.SnapshotTemplate.Tag,
 	)
-	snapshotDigest, err := r.writeSnapshot(snapshotName, artifactPath.Name())
+	snapshotDigest, err := r.writeSnapshot(repositoryName, artifactPath.Name())
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
@@ -278,7 +276,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref: strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
+			Ref: strings.TrimPrefix(repositoryName, r.OCIRegistryAddr+"/"),
 		}
 		return nil
 	})
@@ -290,6 +288,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 
 	newSnapshotCR := snapshotCR.DeepCopy()
 	newSnapshotCR.Status.Digest = snapshotDigest
+	newSnapshotCR.Status.Tag = obj.ResourceVersion
 	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshotCR); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to patch snapshot CR: %w", err)
@@ -375,7 +374,7 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 }
 
 func (r *ConfigurationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
+	image := strings.TrimPrefix(snapshot.Status.RepositoryURL, "http://")
 	image = strings.TrimPrefix(image, "https://")
 	repo, err := oci.NewRepository(image, oci.WithInsecure())
 	if err != nil {
@@ -390,8 +389,8 @@ func (r *ConfigurationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Sn
 	return io.ReadAll(reader)
 }
 
-func (r *ConfigurationReconciler) writeSnapshot(snapshotName, artifactPath string) (string, error) {
-	repo, err := oci.NewRepository(snapshotName, oci.WithInsecure())
+func (r *ConfigurationReconciler) writeSnapshot(repositoryName, artifactPath string) (string, error) {
+	repo, err := oci.NewRepository(repositoryName, oci.WithInsecure())
 	if err != nil {
 		return "", fmt.Errorf("failed create new repository: %w", err)
 	}

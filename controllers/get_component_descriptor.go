@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -26,16 +27,16 @@ func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta
 	return componentDescriptor, nil
 }
 
-func GetComponentDescriptor(ctx context.Context, c client.Client, refPath v1alpha1.ReferencePath, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
+func GetComponentDescriptor(ctx context.Context, c client.Client, refPath map[string]string, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
 	// Return early if there was no name defined.
-	if refPath.Name == "" {
+	if len(refPath) == 0 {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
 	}
 
 	// Handle the nested loop. If we get to this part, we check if the reference that we found
 	// is the one we were looking for.
-	// TODO: What about extra identity?
-	if obj.Name == refPath.Name {
+	//TODO: What about extra identity?
+	if referencePathContainsName(obj.Name, refPath) {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
 	}
 
@@ -55,4 +56,14 @@ func GetComponentDescriptor(ctx context.Context, c client.Client, refPath v1alph
 	}
 
 	return nil, nil
+}
+
+func referencePathContainsName(name string, refPath map[string]string) bool {
+	for k, v := range refPath {
+		if k == compdesc.SystemIdentityName && name == v {
+			return true
+		}
+	}
+
+	return false
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -112,16 +113,14 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	}
 
 	// push the resource snapshot to oci
-	snapshotName := fmt.Sprintf(
-		"%s/%s/%s/%s/%s",
+	repositoryName := fmt.Sprintf(
+		"%s/%s/%s",
 		r.OCIRegistryAddr,
-		componentVersion.Spec.Component,
-		componentVersion.Status.ReconciledVersion,
-		resource.Name,
-		resource.Version,
+		obj.Namespace,
+		obj.Spec.SnapshotTemplate.Name,
 	)
-	log.V(4).Info("creating snapshot with name", "snapshot-name", snapshotName)
-	digest, err := r.copyResourceToSnapshot(ctx, componentVersion, snapshotName, resource)
+	log.V(4).Info("creating snapshot with name", "snapshot-name", repositoryName)
+	digest, err := r.copyResourceToSnapshot(ctx, componentVersion, repositoryName, obj.ResourceVersion, resource, obj.Spec.Resource.ReferencePath)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
@@ -145,7 +144,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref: strings.TrimPrefix(snapshotName, r.OCIRegistryAddr+"/"),
+			Ref: strings.TrimPrefix(repositoryName, r.OCIRegistryAddr+"/"),
 		}
 		return nil
 	})
@@ -156,6 +155,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	newSnapshotCR := snapshotCR.DeepCopy()
 	newSnapshotCR.Status.Digest = digest
+	newSnapshotCR.Status.Tag = obj.ResourceVersion
 	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshotCR); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to patch snapshot CR: %w", err)
@@ -163,7 +163,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	obj.Status.LastAppliedResourceVersion = resource.Version
 
-	log.Info("successfully created snapshot", "name", snapshotName)
+	log.Info("successfully created snapshot", "name", repositoryName)
 
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
@@ -178,16 +178,22 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, snapshotName string, res *ocmapi.Resource) (string, error) {
+func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, repositoryName, tag string, res *ocmapi.Resource, referencePath map[string]string) (string, error) {
+	//log := log.FromContext(ctx)
 	cv, err := r.OCMClient.GetComponentVersion(ctx, componentVersion, componentVersion.Spec.Component, componentVersion.Status.ReconciledVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component version: %w", err)
 	}
-
-	resource, err := cv.GetResource(ocmmetav1.NewIdentity(res.Name))
+	// Because these things are referencing others and don't have resources themselves.
+	// But OCM supports reference path.
+	resource, _, err := utils.ResolveResourceReference(cv, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(res.Name), []ocmmetav1.Identity{referencePath}), cv.Repository())
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch resource: %w", err)
+		return "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
 	}
+	//resource, err := cv.GetResource(ocmmetav1.NewIdentity(res.Name))
+	//if err != nil {
+	//	return "", fmt.Errorf("failed to fetch resource: %w", err)
+	//}
 
 	access, err := resource.AccessMethod()
 	if err != nil {
@@ -199,15 +205,16 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, compone
 		return "", fmt.Errorf("failed to fetch reader: %w", err)
 	}
 
-	repo, err := oci.NewRepository(snapshotName, oci.WithInsecure())
+	repo, err := oci.NewRepository(repositoryName, oci.WithInsecure())
 	if err != nil {
 		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	digest, err := repo.PushStreamBlob(reader, "")
+	// TODO: add extra identity
+	digest, err := repo.PushStreamingImage(tag, reader, "", nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
+		return "", fmt.Errorf("failed to push image: %w", err)
 	}
 
-	return digest.Digest.String(), nil
+	return digest, nil
 }

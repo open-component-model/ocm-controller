@@ -36,11 +36,9 @@ type ConfigReference struct {
 	Resource ResourceRef `json:"resource"`
 }
 
-type ReferencePath struct {
-	// +required
-	Name string `json:"name"`
-}
-
+// ResourceRef define a resource.
+// TODO: Change this to ocmmetav1.ResourceReference
+// The ocmmetav1.ResourceReference can also contain version!
 type ResourceRef struct {
 	// +required
 	Name string `json:"name"`
@@ -48,10 +46,11 @@ type ResourceRef struct {
 	// +optional
 	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
 
-	//TODO@souleb: add a description
+	// ReferencePath is a list of references with identities that include this resource.
+	//      referencePath:
+	//        - name: installer
 	// +optional
-	// TODO: This should be a list of names, for now to keep it simple, we restrict it to a single item.
-	ReferencePath ReferencePath `json:"referencePath,omitempty"`
+	ReferencePath map[string]string `json:"referencePath,omitempty"`
 }
 
 // LocalizationStatus defines the observed state of Localization

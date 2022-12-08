@@ -113,9 +113,11 @@ spec:
                 type: array
               digest:
                 type: string
-              image:
-                type: string
               layer:
+                type: string
+              repositoryURL:
+                type: string
+              tag:
                 type: string
             type: object
         type: object

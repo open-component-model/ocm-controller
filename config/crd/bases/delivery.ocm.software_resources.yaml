@@ -61,14 +61,10 @@ spec:
                   name:
                     type: string
                   referencePath:
-                    description: 'TODO@souleb: add a description TODO: This should
-                      be a list of names, for now to keep it simple, we restrict it
-                      to a single item.'
-                    properties:
-                      name:
-                        type: string
-                    required:
-                    - name
+                    additionalProperties:
+                      type: string
+                    description: 'ReferencePath is a list of references with identities
+                      that include this resource. referencePath: - name: installer'
                     type: object
                 required:
                 - name

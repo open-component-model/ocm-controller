@@ -80,8 +80,8 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 			Spec: v1alpha1.LocalizationSpec{
 				ConfigRef: v1alpha1.ConfigReference{
 					Resource: v1alpha1.ResourceRef{
-						ReferencePath: v1alpha1.ReferencePath{
-							Name: "nested-twice-second",
+						ReferencePath: map[string]string{
+							"name": "nested-twice-second",
 						},
 					},
 				},

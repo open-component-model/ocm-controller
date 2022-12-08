@@ -59,7 +59,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
-	obj.Status.Image = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, obj.Spec.Ref)
+	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, obj.Spec.Ref)
 	obj.Status.Layer = fmt.Sprintf("http://%s/%s@%s", r.RegistryServiceName, obj.Spec.Ref, obj.Status.Digest)
 	conditions.MarkTrue(obj, v1alpha1.SnapshotReady, v1alpha1.SnapshotReadyReason, "Snapshot with name '%s' is ready", obj.Name)
 
