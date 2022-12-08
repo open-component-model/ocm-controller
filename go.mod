@@ -5,18 +5,22 @@ go 1.19
 // Something requires the naming package. :( Which was an experimental package and has been removed.
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.0
 
+replace github.com/spf13/cobra => github.com/mandelsoft/cobra v1.5.1-0.20221030110806-c236cde1e2bd
+
+replace github.com/spf13/pflag => github.com/mandelsoft/pflag v0.0.0-20221103113840-a15b5f7fa89e
+
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
 	github.com/fluxcd/pkg/apis/meta v0.18.0
 	github.com/fluxcd/pkg/runtime v0.24.0
 	github.com/google/go-containerregistry v0.12.0
-	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20221110205806-3e4f4908e8bc
+	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20221207205823-37bf5df38e6f
 	github.com/mandelsoft/spiff v1.7.0-beta-3
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/onsi/gomega v1.24.1
-	github.com/open-component-model/ocm v0.0.1-0.20221027113832-3b98a1369cef
+	github.com/open-component-model/ocm v0.0.1-0.20221208112028-a9d7e1bcb50a
 	github.com/open-component-model/ocm-controllers-sdk v0.0.5
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc2
@@ -100,10 +104,10 @@ require (
 	github.com/klauspost/compress v1.15.11 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
-	github.com/mandelsoft/logging v0.0.0-20221012190501-e17f7961076e // indirect
+	github.com/mandelsoft/logging v0.0.0-20221114215048-ab754b164dd6 // indirect
 	github.com/marstr/guid v1.1.0 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/locker v1.0.1 // indirect
@@ -123,7 +127,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/tools v0.1.12 // indirect
+	golang.org/x/tools v0.2.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20220920201722-2b89144ce006 // indirect
 	google.golang.org/grpc v1.49.0 // indirect

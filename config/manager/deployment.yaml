@@ -24,6 +24,7 @@ spec:
       - command:
         - /manager
         args:
+        - --zap-log-level=4
         - --leader-elect
         - --oci-registry-addr=registry.ocm-system.svc.cluster.local:5000
         image: open-component-model/ocm-controller

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -187,13 +188,23 @@ func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, compone
 	// But OCM supports reference path.
 	// TODO: This is not working at the moment. Uwe is working on fixing it.
 	//resource, _, err := utils.ResolveResourceReference(cv, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(res.Name), []ocmmetav1.Identity{referencePath}), cv.Repository())
+	var identities []ocmmetav1.Identity
+	for _, ref := range referencePath {
+		identities = append(identities, ref)
+	}
+
+	resource, _, err := utils.ResolveResourceReference(cv, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(res.Name), identities), cv.Repository())
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
+	}
+	//resource, err := cv.GetResource(ocmmetav1.NewIdentity(res.Name))
 	//if err != nil {
 	//	return "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
 	//}
-	resource, err := cv.GetResource(ocmmetav1.NewIdentity(res.Name))
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch resource: %w", err)
-	}
+	//resource, err := cv.GetResource(ocmmetav1.NewIdentity(res.Name))
+	//if err != nil {
+	//	return "", fmt.Errorf("failed to fetch resource: %w", err)
+	//}
 
 	access, err := resource.AccessMethod()
 	if err != nil {
