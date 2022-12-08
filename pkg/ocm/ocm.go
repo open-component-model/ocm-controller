@@ -29,7 +29,7 @@ import (
 
 // Verifier takes a Component and runs OCM verification on it.
 type Verifier interface {
-	VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, error)
+	VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
 }
 
 // Fetcher gets information about an OCM component Version based on a k8s component Version.
@@ -81,7 +81,7 @@ func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.Componen
 	return cv, nil
 }
 
-func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, error) {
+func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
 	session := ocm.NewSession(nil)
 	defer session.Close()
 
@@ -99,7 +99,7 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 
 	resolver := ocm.NewCompoundResolver(repo)
 
-	cv, err := session.LookupComponentVersion(repo, obj.Spec.Component, obj.Spec.Version.Semver)
+	cv, err := session.LookupComponentVersion(repo, obj.Spec.Component, version)
 	if err != nil {
 		return false, fmt.Errorf("component error: %w", err)
 	}

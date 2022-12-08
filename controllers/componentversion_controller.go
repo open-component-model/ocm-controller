@@ -81,20 +81,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// for debugging and events for monitoring
 	log.V(4).Info("found component", "component", component)
 
-	log.Info("running verification of component")
-	ok, err := r.OCMClient.VerifyComponent(ctx, component)
-	if err != nil {
-		return ctrl.Result{
-			RequeueAfter: component.GetRequeueAfter(),
-		}, fmt.Errorf("failed to verify component: %w", err)
-	}
-
-	if !ok {
-		return ctrl.Result{
-			RequeueAfter: component.GetRequeueAfter(),
-		}, fmt.Errorf("attempted to verify component, but the digest didn't match")
-	}
-
 	// reconcile the version before calling reconcile func
 	update, version, err := r.checkVersion(ctx, component)
 	if err != nil {
@@ -108,6 +94,20 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{
 			RequeueAfter: component.GetRequeueAfter(),
 		}, nil
+	}
+
+	log.Info("running verification of component")
+	ok, err := r.OCMClient.VerifyComponent(ctx, component, version)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: component.GetRequeueAfter(),
+		}, fmt.Errorf("failed to verify component: %w", err)
+	}
+
+	if !ok {
+		return ctrl.Result{
+			RequeueAfter: component.GetRequeueAfter(),
+		}, fmt.Errorf("attempted to verify component, but the digest didn't match")
 	}
 
 	return r.reconcile(ctx, component, version)
@@ -146,8 +146,9 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	}
 
 	// compare given constraint and latest available version
-	if !constraint.Check(latestSemver) {
-		log.Info("latest available reconciled version does not satisfy constraint, skipping...", "version", current, "constraint", constraint)
+	valid, errs := constraint.Validate(latestSemver)
+	if !valid || len(errs) > 0 {
+		log.Info("version constraint check failed with the following problems", "errors", errs, "version", current)
 		return false, "", nil
 	}
 

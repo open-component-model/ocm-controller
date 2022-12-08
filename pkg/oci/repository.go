@@ -324,7 +324,37 @@ func (r *Repository) PushImage(reference string, blob []byte, mediaType string, 
 	return r.pushImage(image, ref)
 }
 
-// pushImage pushes an OCI image to the repository. It accepts a v1.Image interface.
+// PushStreamingImage pushes a reader to the repository as a streaming OCI image.
+// It accepts a media type and a byte slice as the blob.
+// Default media type is "application/vnd.oci.image.layer.v1.tar+gzip".
+// Annotations can be passed to the image manifest.
+func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, mediaType string, annotations map[string]string) (string, error) {
+	ref, err := parseReference(reference, r)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse reference: %w", err)
+	}
+	image, err := computeStreamImage(reader, mediaType)
+	if err != nil {
+		return "", fmt.Errorf("failed to compute image: %w", err)
+	}
+	if len(annotations) > 0 {
+		image = mutate.Annotations(image, annotations).(v1.Image)
+	}
+	if err := r.pushImage(image, ref); err != nil {
+		return "", fmt.Errorf("failed to push image: %w", err)
+	}
+	layers, err := image.Layers()
+	if err != nil {
+		return "", fmt.Errorf("failed to get layers: %w", err)
+	}
+	digest, err := layers[0].Digest()
+	if err != nil {
+		return "", fmt.Errorf("failed to calculate digest for image: %w", err)
+	}
+	return digest.String(), nil
+}
+
+// pushImage pushes an OCI image to the repository. It accepts a v1.RepositoryURL interface.
 func (r *Repository) pushImage(image v1.Image, reference name.Reference) error {
 	return remote.Write(reference, image, r.remoteOpts...)
 }
@@ -468,6 +498,23 @@ func computeBlob(data []byte, mediaType string) (v1.Layer, error) {
 	if err != nil {
 		return nil, err
 	}
+	return l, nil
+}
+
+func computeStreamImage(reader io.ReadCloser, mediaType string) (v1.Image, error) {
+	l, err := computeStreamBlob(reader, mediaType)
+	if err != nil {
+		return nil, err
+	}
+	return mutate.AppendLayers(empty.Image, l)
+}
+
+func computeStreamBlob(reader io.ReadCloser, mediaType string) (v1.Layer, error) {
+	t := types.MediaType(mediaType)
+	if t == "" {
+		t = types.OCILayer
+	}
+	l := stream.NewLayer(reader, stream.WithMediaType(t))
 	return l, nil
 }
 

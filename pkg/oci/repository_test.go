@@ -5,6 +5,7 @@
 package oci
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"testing"
@@ -104,6 +105,58 @@ func TestRepository_Image(t *testing.T) {
 			digest := layers[0].Digest
 			layer, err := repo.FetchBlob(digest.String())
 			g.Expect(err).NotTo(HaveOccurred())
+			b, err := io.ReadAll(layer)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(b).To(Equal(tc.expected))
+		})
+	}
+}
+
+func TestRepository_StreamImage(t *testing.T) {
+	addr := strings.TrimPrefix(testServer.URL, "http://")
+	testCases := []struct {
+		name     string
+		blob     []byte
+		expected []byte
+	}{
+		{
+			name:     "image",
+			blob:     []byte("image"),
+			expected: []byte("image"),
+		},
+		{
+			name:     "empty image",
+			blob:     []byte(""),
+			expected: []byte(""),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := NewWithT(t)
+			// create a repository client
+			repoName := generateRandomName("testimage")
+			repo, err := NewRepository(addr + "/" + repoName)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// push image to the registry
+			blob := tc.blob
+			reader := io.NopCloser(bytes.NewBuffer(blob))
+			layerDigest, err := repo.PushStreamingImage("latest", reader, string(types.OCILayer), map[string]string{
+				"org.opencontainers.artifact.created": time.Now().UTC().Format(time.RFC3339),
+			})
+			g.Expect(err).NotTo(HaveOccurred())
+
+			// fetch the image layer from the registry
+			fetchedManifest, _, err := repo.FetchManifest("latest", []string{string("org.opencontainers.artifact.created")})
+			g.Expect(err).NotTo(HaveOccurred())
+			layers := fetchedManifest.Layers
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(len(layers)).To(Equal(1))
+			digest := layers[0].Digest
+			layer, err := repo.FetchBlob(digest.String())
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(digest.String()).To(Equal(layerDigest))
 			b, err := io.ReadAll(layer)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(b).To(Equal(tc.expected))

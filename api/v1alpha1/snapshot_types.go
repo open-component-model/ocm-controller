@@ -22,13 +22,16 @@ type SnapshotStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// +optional
-	Image string `json:"image,omitempty"`
+	RepositoryURL string `json:"repositoryURL,omitempty"`
 
 	// +optional
 	Layer string `json:"layer,omitempty"`
 
 	// +optional
 	Digest string `json:"digest,omitempty"`
+
+	// +optional
+	Tag string `json:"tag,omitempty"`
 }
 
 //+kubebuilder:object:root=true

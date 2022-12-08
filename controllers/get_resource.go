@@ -23,7 +23,7 @@ import (
 )
 
 func GetResource(snapshot v1alpha1.Snapshot, result any) error {
-	image := strings.TrimPrefix(snapshot.Status.Image, "http://")
+	image := strings.TrimPrefix(snapshot.Status.RepositoryURL, "http://")
 	image = strings.TrimPrefix(image, "https://")
 	repo, err := oci.NewRepository(image, oci.WithInsecure())
 	if err != nil {
