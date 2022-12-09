@@ -15,7 +15,7 @@ spec:
     resource:
       name: config
       referencePath:
-        name: carts
+        - name: carts
   snapshotTemplate:
     name: carts-manifests-configured
     tag: latest

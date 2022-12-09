@@ -49,9 +49,16 @@ type ComponentVersionSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// Every Component Version has a name.
+	// Name and version are the identifier for a Component Version and therefor for the artifact set described by it.
+	// A component name SHOULD reference a location where the component’s resources (typically source code, and/or documentation) are hosted.
+	// It MUST be a DNS compliant name with lowercase characters and MUST contain a name after the domain.
+	// Examples:
+	// - github.com/pathToYourRepo
 	// +required
 	Component string `json:"component"`
 
+	// Component versions refer to specific snapshots of a component. A common scenario being the release of a component.
 	// +required
 	Version Version `json:"version"`
 
