@@ -970,10 +970,10 @@ github.com/onsi/gomega v1.10.3/go.mod h1:V9xEwhxec5O8UDM77eCW8vLymOMltsqPVYWrpDs
 github.com/onsi/gomega v1.15.0/go.mod h1:cIuvLEne0aoVhAgh/O6ac0Op8WWw9H6eYCriF+tEHG0=
 github.com/onsi/gomega v1.24.1 h1:KORJXNNTzJXzu4ScJWssJfJMnJ+2QJqhoQSRwNlze9E=
 github.com/onsi/gomega v1.24.1/go.mod h1:3AOiACssS3/MajrniINInwbfOOtfZvplPzuRSmvt1jM=
-github.com/open-component-model/ocm v0.0.1-0.20221208112028-a9d7e1bcb50a h1:2qlBxNUviWM3XV6gq4vgRQsucm8Rd4SmAlS/dKkuM7I=
-github.com/open-component-model/ocm v0.0.1-0.20221208112028-a9d7e1bcb50a/go.mod h1:CsOZCzpoe3YKG0VDhCc7fOcmGpqy0ygg0bN46+QW5jc=
-github.com/open-component-model/ocm-controllers-sdk v0.0.5 h1:QtYBgVcJtoue8HZX06yFi55JbMs9n72XEzI8LyMLE9U=
-github.com/open-component-model/ocm-controllers-sdk v0.0.5/go.mod h1:awIkQjquLsfzyd/G4WY7cMSdlaukB+PNS2LoZ1ts9Hs=
+github.com/open-component-model/ocm v0.0.1-0.20221209065118-a9f3ac5ef659 h1:IvX7ZBLEfh//HtPWBtQUfKASvm8SnhXJiks6dOSbIaw=
+github.com/open-component-model/ocm v0.0.1-0.20221209065118-a9f3ac5ef659/go.mod h1:CsOZCzpoe3YKG0VDhCc7fOcmGpqy0ygg0bN46+QW5jc=
+github.com/open-component-model/ocm-controllers-sdk v0.0.6 h1:EriZ9IhYfVyPfvvglLRSUlBuxXt9aQIlfl2vgMhz2Ww=
+github.com/open-component-model/ocm-controllers-sdk v0.0.6/go.mod h1:npwcEnReNGiZ8DAJ5WEpcmenGWqHhMUHbN0040oS/CM=
 github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v0.0.0-20180430190053-c9281466c8b2/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v1.0.0-rc1/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=

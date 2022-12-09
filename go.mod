@@ -20,8 +20,8 @@ require (
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/onsi/gomega v1.24.1
-	github.com/open-component-model/ocm v0.0.1-0.20221208112028-a9d7e1bcb50a
-	github.com/open-component-model/ocm-controllers-sdk v0.0.5
+	github.com/open-component-model/ocm v0.0.1-0.20221209065118-a9f3ac5ef659
+	github.com/open-component-model/ocm-controllers-sdk v0.0.6
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc2
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5

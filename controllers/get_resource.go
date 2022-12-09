@@ -57,7 +57,7 @@ func GetImageReference(resource *ocmapi.Resource) (string, error) {
 		return fmt.Sprintf("%s:%s@%s", ref, resource.GetVersion(), sha), nil
 	case "ociblob":
 		return accessSpec.(*ociblob.AccessSpec).Reference, nil
-	case "ociArtefact":
+	case "ociArtifact":
 		return accessSpec.(*ociartifact.AccessSpec).ImageReference, nil
 	}
 
