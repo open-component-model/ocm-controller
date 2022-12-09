@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -178,21 +179,20 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 }
 
 func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, repositoryName, tag string, res *ocmapi.Resource, referencePath []map[string]string) (string, error) {
-	//log := log.FromContext(ctx)
 	cv, err := r.OCMClient.GetComponentVersion(ctx, componentVersion, componentVersion.Spec.Component, componentVersion.Status.ReconciledVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component version: %w", err)
 	}
-	// Because these things are referencing others and don't have resources themselves.
-	// But OCM supports reference path.
-	// TODO: This is not working at the moment. Uwe is working on fixing it.
-	//resource, _, err := utils.ResolveResourceReference(cv, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(res.Name), []ocmmetav1.Identity{referencePath}), cv.Repository())
-	//if err != nil {
-	//	return "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
-	//}
-	resource, err := cv.GetResource(ocmmetav1.NewIdentity(res.Name))
+	defer cv.Close()
+
+	var identities []ocmmetav1.Identity
+	for _, ref := range referencePath {
+		identities = append(identities, ref)
+	}
+
+	resource, _, err := utils.ResolveResourceReference(cv, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(res.Name), identities), cv.Repository())
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch resource: %w", err)
+		return "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
 	}
 
 	access, err := resource.AccessMethod()

@@ -12,7 +12,7 @@ import (
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartefact"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartifact"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
 	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/cpi"
@@ -57,8 +57,8 @@ func GetImageReference(resource *ocmapi.Resource) (string, error) {
 		return fmt.Sprintf("%s:%s@%s", ref, resource.GetVersion(), sha), nil
 	case "ociblob":
 		return accessSpec.(*ociblob.AccessSpec).Reference, nil
-	case "ociArtefact":
-		return accessSpec.(*ociartefact.AccessSpec).ImageReference, nil
+	case "ociArtifact":
+		return accessSpec.(*ociartifact.AccessSpec).ImageReference, nil
 	}
 
 	return "", errors.New("could not get access information")
@@ -77,7 +77,7 @@ func GetResourceAccess(resource *ocmapi.Resource) (cpi.AccessSpec, error) {
 	case "ociblob":
 		accessSpec = &ociblob.AccessSpec{}
 	case "ociArtefact":
-		accessSpec = &ociartefact.AccessSpec{}
+		accessSpec = &ociartifact.AccessSpec{}
 	}
 
 	if err := ocmruntime.DefaultJSONEncoding.Unmarshal(rawAccessSpec, accessSpec); err != nil {

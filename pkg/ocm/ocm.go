@@ -16,10 +16,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
+	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
@@ -36,7 +35,7 @@ type Verifier interface {
 type Fetcher interface {
 	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
-	ListComponentVersions(ctx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]Version, error)
+	ListComponentVersions(ctx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 }
 
 // FetchVerifier can fetch and verify components.
@@ -50,6 +49,8 @@ type Client struct {
 	client client.Client
 }
 
+var _ FetchVerifier = &Client{}
+
 // NewClient creates a new fetcher Client using the provided k8s client.
 func NewClient(client client.Client) *Client {
 	return &Client{
@@ -57,52 +58,60 @@ func NewClient(client client.Client) *Client {
 	}
 }
 
+// GetComponentVersion returns a component version. It's the caller's responsibility to clean it up and close the component version once done with it.
 func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
 	log := log.FromContext(ctx)
-	session := ocm.NewSession(nil)
-	defer session.Close()
 
-	ocmCtx := ocm.ForContext(ctx)
+	octx := ocm.ForContext(ctx)
 	// configure registry credentials
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
+	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
 		log.V(4).Error(err, "failed to find credentials")
 		// ignore not found errors for now
 		if !apierrors.IsNotFound(err) {
 			return nil, fmt.Errorf("failed to configure credentials for component: %w", err)
 		}
 	}
-
-	// get component Version
-	cv, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Repository.URL, name, version)
+	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Repository.URL, nil))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get component Version: %w", err)
+		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+	}
+	defer repo.Close()
+
+	cv, err := repo.LookupComponentVersion(name, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to look up component version: %w", err)
 	}
 
 	return cv, nil
 }
 
 func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
-	session := ocm.NewSession(nil)
-	defer session.Close()
+	log := log.FromContext(ctx)
 
-	ocmCtx := ocm.ForContext(ctx)
-
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
-		return false, err
+	octx := ocm.ForContext(ctx)
+	// configure registry credentials
+	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
+		log.V(4).Error(err, "failed to find credentials")
+		// ignore not found errors for now
+		if !apierrors.IsNotFound(err) {
+			return false, fmt.Errorf("failed to configure credentials for component: %w", err)
+		}
 	}
 
-	repoSpec := genericocireg.NewRepositorySpec(ocireg.NewRepositorySpec(obj.Spec.Repository.URL), nil)
-	repo, err := session.LookupRepository(ocmCtx, repoSpec)
+	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Repository.URL, nil))
 	if err != nil {
-		return false, fmt.Errorf("repo error: %w", err)
+		return false, fmt.Errorf("failed to get repository for spec: %w", err)
 	}
+	defer repo.Close()
+
+	cv, err := repo.LookupComponentVersion(obj.Spec.Component, version)
+	if err != nil {
+		return false, fmt.Errorf("failed to look up component version: %w", err)
+	}
+	defer cv.Close()
 
 	resolver := ocm.NewCompoundResolver(repo)
 
-	cv, err := session.LookupComponentVersion(repo, obj.Spec.Component, version)
-	if err != nil {
-		return false, fmt.Errorf("component error: %w", err)
-	}
 	for _, signature := range obj.Spec.Verify {
 		cert, err := c.getPublicKey(ctx, obj.Namespace, signature.PublicKey.SecretRef.Name, signature.Name)
 		if err != nil {
@@ -116,7 +125,7 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 			signing.PublicKey(signature.Name, cert),
 		)
 
-		if err := opts.Complete(signingattr.Get(ocmCtx)); err != nil {
+		if err := opts.Complete(signingattr.Get(octx)); err != nil {
 			return false, fmt.Errorf("verify error: %w", err)
 		}
 
@@ -164,10 +173,8 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 
 func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
 	ocmCtx := ocm.ForContext(ctx)
-	session := ocm.NewSession(nil)
-	defer session.Close()
 
-	versions, err := c.ListComponentVersions(ocmCtx, session, obj)
+	versions, err := c.ListComponentVersions(ocmCtx, obj)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component versions: %w", err)
 	}
@@ -190,19 +197,19 @@ type Version struct {
 	version string
 }
 
-func (c *Client) ListComponentVersions(ctx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]Version, error) {
-	// configure the repository access
-	repoSpec := genericocireg.NewRepositorySpec(ocireg.NewRepositorySpec(obj.Spec.Repository.URL), nil)
-	repo, err := session.LookupRepository(ctx, repoSpec)
+func (c *Client) ListComponentVersions(octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error) {
+	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Repository.URL, nil))
 	if err != nil {
-		return nil, fmt.Errorf("repo error: %w", err)
+		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
 	}
+	defer repo.Close()
 
 	// get the component Version
-	cv, err := session.LookupComponent(repo, obj.Spec.Component)
+	cv, err := repo.LookupComponent(obj.Spec.Component)
 	if err != nil {
 		return nil, fmt.Errorf("component error: %w", err)
 	}
+	defer cv.Close()
 
 	versions, err := cv.ListVersions()
 	if err != nil {

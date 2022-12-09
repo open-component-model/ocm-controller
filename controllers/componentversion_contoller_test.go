@@ -218,7 +218,7 @@ func (m *mockFetcher) GetLatestComponentVersion(ctx context.Context, obj *v1alph
 	return m.latestVersion, m.getVersionErr
 }
 
-func (m *mockFetcher) ListComponentVersions(ocmCtx ocm.Context, session ocm.Session, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
+func (m *mockFetcher) ListComponentVersions(ocmCtx ocm.Context, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
 	return []ocmctrl.Version{}, m.getVersionErr
 }
 
@@ -230,4 +230,8 @@ type mockComponent struct {
 
 func (m *mockComponent) GetDescriptor() *ocmdesc.ComponentDescriptor {
 	return m.descriptor
+}
+
+func (m *mockComponent) Close() error {
+	return nil
 }

@@ -89,7 +89,6 @@ spec:
                           version:
                             description: Version is the optional specification version
                               of the attribute value
-                            pattern: ^v[0-9]+$
                             type: string
                         required:
                         - name
@@ -166,7 +165,6 @@ spec:
                           version:
                             description: Version is the optional specification version
                               of the attribute value
-                            pattern: ^v[0-9]+$
                             type: string
                         required:
                         - name
@@ -213,7 +211,6 @@ spec:
                                 version:
                                   description: Version is the optional specification
                                     version of the attribute value
-                                  pattern: ^v[0-9]+$
                                   type: string
                               required:
                               - name
@@ -277,7 +274,6 @@ spec:
                           version:
                             description: Version is the optional specification version
                               of the attribute value
-                            pattern: ^v[0-9]+$
                             type: string
                         required:
                         - name
