@@ -108,6 +108,8 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 	if err != nil {
 		return false, fmt.Errorf("failed to look up component version: %w", err)
 	}
+	defer cv.Close()
+
 	resolver := ocm.NewCompoundResolver(repo)
 
 	for _, signature := range obj.Spec.Verify {
@@ -207,6 +209,7 @@ func (c *Client) ListComponentVersions(octx ocm.Context, obj *v1alpha1.Component
 	if err != nil {
 		return nil, fmt.Errorf("component error: %w", err)
 	}
+	defer cv.Close()
 
 	versions, err := cv.ListVersions()
 	if err != nil {

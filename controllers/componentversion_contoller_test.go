@@ -231,3 +231,7 @@ type mockComponent struct {
 func (m *mockComponent) GetDescriptor() *ocmdesc.ComponentDescriptor {
 	return m.descriptor
 }
+
+func (m *mockComponent) Close() error {
+	return nil
+}
