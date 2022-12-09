@@ -262,6 +262,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 }
 
 // parseReferences takes a list of references to embedded components and constructs a dependency tree out of them.
+// It recursively calls itself, constructing a tree of referenced components. For each referenced component a ComponentDescriptor custom resource will be created.
 func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, parent *v1alpha1.ComponentVersion, references ocmdesc.References) ([]v1alpha1.Reference, error) {
 	result := make([]v1alpha1.Reference, 0)
 	for _, ref := range references {
@@ -354,13 +355,13 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(ctx context.Conte
 // constructComponentName constructs a unique name from a component name and version.
 func (r *ComponentVersionReconciler) constructComponentName(name, version string, identity v1.Identity) (string, error) {
 	namingScheme := struct {
-		componentName string
-		version       string
-		identity      v1.Identity
+		ComponentName string
+		Version       string
+		Identity      v1.Identity
 	}{
-		componentName: name,
-		version:       version,
-		identity:      identity,
+		ComponentName: name,
+		Version:       version,
+		Identity:      identity,
 	}
 	h, err := hash.Hash(namingScheme, nil)
 	if err != nil {
