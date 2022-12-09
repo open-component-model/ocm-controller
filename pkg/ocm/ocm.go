@@ -8,9 +8,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 
 	"github.com/Masterminds/semver"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,6 +20,8 @@ import (
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 
@@ -33,12 +37,15 @@ type Verifier interface {
 
 // Fetcher gets information about an OCM component Version based on a k8s component Version.
 type Fetcher interface {
+	GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource *ocmapi.Resource, referencePath []map[string]string) (io.ReadCloser, error)
 	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
 	ListComponentVersions(ctx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 }
 
 // FetchVerifier can fetch and verify components.
+//
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . FetchVerifier
 type FetchVerifier interface {
 	Verifier
 	Fetcher
@@ -56,6 +63,39 @@ func NewClient(client client.Client) *Client {
 	return &Client{
 		client: client,
 	}
+}
+
+// GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
+func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource *ocmapi.Resource, referencePath []map[string]string) (io.ReadCloser, error) {
+	// Before we do this, look for a related Snapshot.
+	// Extract all of this into the OCM client?
+	cva, err := c.GetComponentVersion(ctx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get component version: %w", err)
+	}
+	defer cva.Close()
+
+	var identities []ocmmetav1.Identity
+	for _, ref := range referencePath {
+		identities = append(identities, ref)
+	}
+
+	res, _, err := utils.ResolveResourceReference(cva, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities), cva.Repository())
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve reference path to resource: %w", err)
+	}
+
+	access, err := res.AccessMethod()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch access spec: %w", err)
+	}
+
+	reader, err := access.Reader()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch reader: %w", err)
+	}
+
+	return reader, nil
 }
 
 // GetComponentVersion returns a component version. It's the caller's responsibility to clean it up and close the component version once done with it.

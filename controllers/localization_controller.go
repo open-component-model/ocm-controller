@@ -18,6 +18,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/mandelsoft/vfs/pkg/vfs"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
+	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/open-component-model/ocm/pkg/utils"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -48,6 +50,7 @@ type LocalizationReconciler struct {
 	Scheme            *runtime.Scheme
 	ReconcileInterval time.Duration
 	RetryInterval     time.Duration
+	OCIClient         oci.Client
 	OCIRegistryAddr   string
 }
 
@@ -104,9 +107,13 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Localization) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	// get source snapshot
+
+	// TODO: If a resource source is defined, don't bother with the snapshot.
+	// TODO: I have to think about this, because it's watching a snapshot resource.
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
+			log.Info("snapshot not found")
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 		return ctrl.Result{RequeueAfter: r.RetryInterval},
@@ -117,7 +124,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
 	}
-
+	log.Info("getting snapshot data from snapshot", "snapshot", srcSnapshot)
 	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
@@ -157,12 +164,30 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 
 	// get config resource
 	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
+	log.Info("config resource obtained", "config", configResource, "resource", obj.Spec.ConfigRef.Resource.Name)
 	config := configdata.ConfigData{}
-	if err := GetResource(*srcSnapshot, &config); err != nil {
+	reader, err := r.OCIClient.FetchAndCacheResource(ctx, oci.ResourceOptions{
+		ComponentVersion: componentVersion,
+		Resource:         configResource,
+		ReferencePath:    obj.Spec.ConfigRef.Resource.ReferencePath,
+		Owner:            obj,
+	})
+	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component resource: %w", err)
+			fmt.Errorf("failed to get resource: %w", err)
+	}
+	defer reader.Close()
+
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to read blob: %w", err)
+	}
+	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to unmarshal content: %w", err)
 	}
 
+	log.Info("preparing localization substitutions")
 	var localizations localize.Substitutions
 	for _, l := range config.Localization {
 		lr := componentDescriptor.GetResource(l.Resource.Name)
@@ -206,14 +231,14 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	if err != nil {
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("fs error: %w", err)
 	}
-	// defer vfs.Cleanup(virtualFS)
+	defer vfs.Cleanup(virtualFS)
 
 	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(srcSnapshotData)); err != nil {
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("extract tar error: %w", err)
 	}
 
 	if err := localize.Substitute(localizations, virtualFS); err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("extract tar error: %w", err)
+		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("localization substitution failed: %w", err)
 	}
 
 	fi, err := virtualFS.Stat("/")
@@ -302,6 +327,8 @@ func (r *LocalizationReconciler) requestsForRevisionChangeOf(indexKey string) fu
 			return nil
 		}
 
+		// Get the Owner and if the Owner is the Localization object that I'm interested in,
+		// that's my Snapshot.
 		ctx := context.Background()
 		var list v1alpha1.LocalizationList
 		if err := r.List(ctx, &list, client.MatchingFields{
@@ -336,12 +363,12 @@ func (r *LocalizationReconciler) indexBy(kind, field string) func(o client.Objec
 
 		switch field {
 		case "SourceRef":
-			if l.Spec.SourceRef.Kind == kind {
+			if l.Spec.Source.SourceRef.Kind == kind {
 				namespace := l.GetNamespace()
-				if l.Spec.SourceRef.Namespace != "" {
-					namespace = l.Spec.SourceRef.Namespace
+				if l.Spec.Source.SourceRef.Namespace != "" {
+					namespace = l.Spec.Source.SourceRef.Namespace
 				}
-				return []string{fmt.Sprintf("%s/%s", namespace, l.Spec.SourceRef.Name)}
+				return []string{fmt.Sprintf("%s/%s", namespace, l.Spec.Source.SourceRef.Name)}
 			}
 		case "ConfigRef":
 			namespace := l.GetNamespace()

@@ -51,6 +51,7 @@ type ConfigurationReconciler struct {
 	Scheme            *runtime.Scheme
 	ReconcileInterval time.Duration
 	RetryInterval     time.Duration
+	OCIClient         oci.Client
 	OCIRegistryAddr   string
 }
 
@@ -181,10 +182,27 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			RequeueAfter: obj.GetRequeueAfter(),
 		}, fmt.Errorf("couldn't find config resource for resource name '%s'", obj.Spec.ConfigRef.Resource.Name)
 	}
+
 	config := configdata.ConfigData{}
-	if err := GetResource(*srcSnapshot, &config); err != nil {
+	reader, err := r.OCIClient.FetchAndCacheResource(ctx, oci.ResourceOptions{
+		ComponentVersion: componentVersion,
+		Resource:         configResource,
+		ReferencePath:    obj.Spec.ConfigRef.Resource.ReferencePath,
+		Owner:            obj,
+	})
+	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component resource: %w", err)
+			fmt.Errorf("failed to get resource: %w", err)
+	}
+	defer reader.Close()
+
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to read blob: %w", err)
+	}
+	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to unmarshal content: %w", err)
 	}
 
 	var rules localize.Substitutions

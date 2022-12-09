@@ -13,13 +13,22 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+type Source struct {
+	// +optional
+	SourceRef *meta.NamespacedObjectKindReference `json:"sourceRef,omitempty"`
+	// +optional
+	ResourceRef *ResourceRef `json:"resourceRef,omitempty"`
+}
+
 // LocalizationSpec defines the desired state of Localization
 type LocalizationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// TODO: This could be a Resource now that we can Fetch resources.
+	// TODO: Add verification that either one of these needs to be defined.
 	// +required
-	SourceRef meta.NamespacedObjectKindReference `json:"sourceRef"`
+	Source Source `json:"source"`
 
 	// +required
 	ConfigRef ConfigReference `json:"configRef"`
@@ -42,6 +51,8 @@ type ConfigReference struct {
 type ResourceRef struct {
 	// +required
 	Name string `json:"name"`
+	// +optional
+	Version string `json:"version,omitempty"`
 
 	// +optional
 	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
@@ -82,8 +93,8 @@ type Localization struct {
 
 func (in Localization) GetSourceSnapshotKey() types.NamespacedName {
 	return types.NamespacedName{
-		Namespace: in.Spec.SourceRef.Namespace,
-		Name:      in.Spec.SourceRef.Name,
+		Namespace: in.Spec.Source.SourceRef.Namespace,
+		Name:      in.Spec.Source.SourceRef.Name,
 	}
 }
 
