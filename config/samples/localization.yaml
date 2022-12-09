@@ -10,7 +10,7 @@ spec:
     namespace: default
   configRef:
     componentVersionRef:
-      name: github.com/phoban01/podinfo
+      name: github.com/open-component-model/podinfo
       namespace: default
     resource:
       name: config

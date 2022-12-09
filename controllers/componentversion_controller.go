@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
@@ -264,29 +265,59 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, parent *v1alpha1.ComponentVersion, references ocmdesc.References) ([]v1alpha1.Reference, error) {
 	result := make([]v1alpha1.Reference, 0)
 	for _, ref := range references {
-		reference, err := r.parseReferencesLoopBody(ctx, parent, ref)
+		reference, err := r.constructComponentDescriptorsForReference(ctx, parent, ref)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse reference: %w", err)
+			return nil, fmt.Errorf("failed to construct component descriptor: %w", err)
 		}
 		result = append(result, *reference)
 	}
 	return result, nil
 }
 
-func (r *ComponentVersionReconciler) parseReferencesLoopBody(ctx context.Context, parent *v1alpha1.ComponentVersion, ref ocmdesc.ComponentReference) (*v1alpha1.Reference, error) {
-	log := log.FromContext(ctx)
+func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(ctx context.Context, parent *v1alpha1.ComponentVersion, ref ocmdesc.ComponentReference) (*v1alpha1.Reference, error) {
 	// get component version
 	rcv, err := r.OCMClient.GetComponentVersion(ctx, parent, ref.ComponentName, ref.Version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get component version: %w", err)
 	}
 	defer rcv.Close()
+
+	descriptor, err := r.createComponentDescriptor(ctx, rcv, parent, ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create component descriptor: %w", err)
+	}
+
+	reference := v1alpha1.Reference{
+		Name:    ref.Name,
+		Version: ref.Version,
+		ComponentDescriptorRef: meta.NamespacedObjectReference{
+			Name:      descriptor.Name,
+			Namespace: descriptor.Namespace,
+		},
+		ExtraIdentity: ref.ExtraIdentity,
+	}
+
+	if len(rcv.GetDescriptor().References) > 0 {
+		// recursively call parseReference on the embedded references in the new descriptor.
+		out, err := r.parseReferences(ctx, parent, rcv.GetDescriptor().References)
+		if err != nil {
+			return nil, err
+		}
+		reference.References = out
+	}
+
+	return &reference, nil
+}
+
+func (r *ComponentVersionReconciler) createComponentDescriptor(ctx context.Context, rcv ocm.ComponentVersionAccess, parent *v1alpha1.ComponentVersion, ref ocmdesc.ComponentReference) (*v1alpha1.ComponentDescriptor, error) {
 	// convert ComponentDescriptor to v3alpha1
 	dv := &compdesc.DescriptorVersion{}
 	cd, err := dv.ConvertFrom(rcv.GetDescriptor())
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert component descriptor: %w", err)
 	}
+
+	log := log.FromContext(ctx)
 	// setup the component descriptor kubernetes resource
 	componentName, err := r.constructComponentName(ref.ComponentName, ref.Version, ref.GetMeta().ExtraIdentity)
 	if err != nil {
@@ -317,25 +348,7 @@ func (r *ComponentVersionReconciler) parseReferencesLoopBody(ctx context.Context
 	}
 	log.V(4).Info(fmt.Sprintf("%s(ed) descriptor", op), "descriptor", klog.KObj(descriptor))
 
-	reference := v1alpha1.Reference{
-		Name:    ref.Name,
-		Version: ref.Version,
-		ComponentDescriptorRef: meta.NamespacedObjectReference{
-			Name:      descriptor.Name,
-			Namespace: descriptor.Namespace,
-		},
-		ExtraIdentity: ref.ExtraIdentity,
-	}
-
-	if len(rcv.GetDescriptor().References) > 0 {
-		out, err := r.parseReferences(ctx, parent, rcv.GetDescriptor().References)
-		if err != nil {
-			return nil, err
-		}
-		reference.References = out
-	}
-
-	return &reference, nil
+	return descriptor, nil
 }
 
 // constructComponentName constructs a unique name from a component name and version.
