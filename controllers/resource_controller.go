@@ -88,32 +88,18 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
-	if componentDescriptor == nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("component version with name '%s' is not yet available, retrying", componentVersion.Name)
-	}
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component descriptor: %w", err)
-	}
-	resource := componentDescriptor.GetResource(obj.Spec.Resource.Name)
-	if resource == nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-	}
-
 	// PushResource and set the Resource as owner of the created snapshot.
 	if err := r.OCIClient.PushResource(ctx, oci.ResourceOptions{
 		ComponentVersion: componentVersion,
-		Resource:         resource,
+		Resource:         obj.Spec.Resource,
 		SnapshotName:     obj.Spec.SnapshotTemplate.Name,
 		Owner:            obj,
-		ReferencePath:    obj.Spec.Resource.ReferencePath,
 	}); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to push resource: %w", err)
 	}
 
-	log.Info("successfully pushed resource", "resource", resource)
-	obj.Status.LastAppliedResourceVersion = resource.Version
+	log.Info("successfully pushed resource", "resource", obj.Spec.Resource.Name)
+	obj.Status.LastAppliedResourceVersion = obj.Spec.Resource.Version
 
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 

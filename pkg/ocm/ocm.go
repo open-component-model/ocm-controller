@@ -21,7 +21,6 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 
@@ -37,7 +36,7 @@ type Verifier interface {
 
 // Fetcher gets information about an OCM component Version based on a k8s component Version.
 type Fetcher interface {
-	GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource *ocmapi.Resource, referencePath []map[string]string) (io.ReadCloser, error)
+	GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error)
 	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
 	ListComponentVersions(ctx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
@@ -66,7 +65,7 @@ func NewClient(client client.Client) *Client {
 }
 
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
-func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource *ocmapi.Resource, referencePath []map[string]string) (io.ReadCloser, error) {
+func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {
 	// Before we do this, look for a related Snapshot.
 	// Extract all of this into the OCM client?
 	cva, err := c.GetComponentVersion(ctx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
@@ -76,7 +75,7 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 	defer cva.Close()
 
 	var identities []ocmmetav1.Identity
-	for _, ref := range referencePath {
+	for _, ref := range resource.ReferencePath {
 		identities = append(identities, ref)
 	}
 

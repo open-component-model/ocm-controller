@@ -296,7 +296,7 @@ func (in *ConfigurationList) DeepCopyObject() runtime.Object {
 func (in *ConfigurationSpec) DeepCopyInto(out *ConfigurationSpec) {
 	*out = *in
 	out.Interval = in.Interval
-	out.SourceRef = in.SourceRef
+	in.Source.DeepCopyInto(&out.Source)
 	in.ConfigRef.DeepCopyInto(&out.ConfigRef)
 	in.SnapshotTemplate.DeepCopyInto(&out.SnapshotTemplate)
 	if in.Values != nil {

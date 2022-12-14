@@ -17,7 +17,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,9 +51,8 @@ func WithInsecure() Option {
 // ResourceOptions contains all parameters necessary to fetch / push resources.
 type ResourceOptions struct {
 	ComponentVersion *v1alpha1.ComponentVersion
-	Resource         *ocmapi.Resource
+	Resource         v1alpha1.ResourceRef
 	Owner            metav1.Object
-	ReferencePath    []map[string]string
 	SnapshotName     string
 }
 
@@ -111,14 +109,14 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 
 // PushResource takes a resource, reference path and identity information and caches a resource in the internal OCI registry.
 func (c *OCIClient) PushResource(ctx context.Context, opts ResourceOptions) error {
-	reader, err := c.ocmClient.GetResource(ctx, opts.ComponentVersion, opts.Resource, opts.ReferencePath)
+	reader, err := c.ocmClient.GetResource(ctx, opts.ComponentVersion, opts.Resource)
 	if err != nil {
 		return fmt.Errorf("failed to get resource: %w", err)
 	}
 	defer reader.Close()
 
 	if _, err := c.cacheResource(ctx, opts.ComponentVersion, opts.Resource, opts.Owner, opts.SnapshotName, reader); err != nil {
-		return fmt.Errorf("failed to cache resource '%s': %w", opts.Resource.GetName(), err)
+		return fmt.Errorf("failed to cache resource '%s': %w", opts.Resource.Name, err)
 	}
 
 	return nil
@@ -128,7 +126,7 @@ func (c *OCIClient) PushResource(ctx context.Context, opts ResourceOptions) erro
 func (c *OCIClient) FetchAndCacheResource(ctx context.Context, opts ResourceOptions) (io.ReadCloser, error) {
 	snapshotName := opts.SnapshotName
 	if snapshotName == "" {
-		snapshotName = generateSnapshotNameForResource(opts.Resource, *opts.ComponentVersion)
+		snapshotName = generateSnapshotNameForResource(*opts.ComponentVersion, opts.Resource)
 	}
 	snapshot := &v1alpha1.Snapshot{}
 	if err := c.kubeClient.Get(ctx, types2.NamespacedName{
@@ -136,7 +134,7 @@ func (c *OCIClient) FetchAndCacheResource(ctx context.Context, opts ResourceOpti
 		Namespace: opts.ComponentVersion.Namespace,
 	}, snapshot); err != nil {
 		if apierrors.IsNotFound(err) {
-			return c.fetchAndCacheResource(ctx, opts.ComponentVersion, opts.Resource, opts.Owner, opts.ReferencePath, opts.SnapshotName)
+			return c.fetchAndCacheResource(ctx, opts.ComponentVersion, opts.Resource, opts.Owner, opts.SnapshotName)
 		}
 		return nil, fmt.Errorf("failed to fetch is snapshot exists: %w", err)
 	}
@@ -158,7 +156,7 @@ func (c *OCIClient) FetchAndCacheResource(ctx context.Context, opts ResourceOpti
 }
 
 // TODO: Only use this if a name is not provided.
-func generateSnapshotNameForResource(resource *ocmapi.Resource, cv v1alpha1.ComponentVersion) string {
+func generateSnapshotNameForResource(cv v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) string {
 	// TODO: This potentially is larger than 64.
 	// This is deliberately not component name.
 	normalize := func(s string) string {
@@ -166,11 +164,11 @@ func generateSnapshotNameForResource(resource *ocmapi.Resource, cv v1alpha1.Comp
 		s = strings.ReplaceAll(s, "/", "-")
 		return s
 	}
-	return fmt.Sprintf("%s-%s-%s-%s", cv.Name, normalize(cv.Status.ReconciledVersion), resource.GetName(), normalize(resource.GetVersion()))
+	return fmt.Sprintf("%s-%s-%s-%s", cv.Name, normalize(cv.Status.ReconciledVersion), resource.Name, normalize(resource.Version))
 }
 
 // cacheResource caches the resource in a snapshot and an OCI layer.
-func (c *OCIClient) cacheResource(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, resource *ocmapi.Resource, owner metav1.Object, snapshotName string, reader io.ReadCloser) (*v1alpha1.Snapshot, error) {
+func (c *OCIClient) cacheResource(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef, owner metav1.Object, snapshotName string, reader io.ReadCloser) (*v1alpha1.Snapshot, error) {
 	repositoryName := c.constructRepositoryName(*componentVersion, resource)
 	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
@@ -183,7 +181,7 @@ func (c *OCIClient) cacheResource(ctx context.Context, componentVersion *v1alpha
 		return nil, fmt.Errorf("failed to push image: %w", err)
 	}
 	if snapshotName == "" {
-		snapshotName = generateSnapshotNameForResource(resource, *componentVersion)
+		snapshotName = generateSnapshotNameForResource(*componentVersion, resource)
 	}
 	// create/update the snapshot custom resource
 	snapshotCR := &v1alpha1.Snapshot{
@@ -219,8 +217,8 @@ func (c *OCIClient) cacheResource(ctx context.Context, componentVersion *v1alpha
 }
 
 // fetchAndCacheResource takes a resource, creates a snapshot for it and pushes it into an OCI layer.
-func (c *OCIClient) fetchAndCacheResource(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, resource *ocmapi.Resource, owner metav1.Object, referencePath []map[string]string, snapshotName string) (io.ReadCloser, error) {
-	reader, err := c.ocmClient.GetResource(ctx, componentVersion, resource, referencePath)
+func (c *OCIClient) fetchAndCacheResource(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef, owner metav1.Object, snapshotName string) (io.ReadCloser, error) {
+	reader, err := c.ocmClient.GetResource(ctx, componentVersion, resource)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch reader: %w", err)
 	}
@@ -243,7 +241,7 @@ func (c *OCIClient) fetchAndCacheResource(ctx context.Context, componentVersion 
 	return blob, nil
 }
 
-func (c *OCIClient) constructRepositoryName(componentVersion v1alpha1.ComponentVersion, resource *ocmapi.Resource) string {
+func (c *OCIClient) constructRepositoryName(componentVersion v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) string {
 	return fmt.Sprintf(
 		"%s/%s/%s",
 		c.ociAddress,

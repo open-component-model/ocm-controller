@@ -106,29 +106,10 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Localization) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
-	// get source snapshot
-
-	// TODO: If a resource source is defined, don't bother with the snapshot.
-	// TODO: I have to think about this, because it's watching a snapshot resource.
-	srcSnapshot := &v1alpha1.Snapshot{}
-	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("snapshot not found")
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-		}
-		return ctrl.Result{RequeueAfter: r.RetryInterval},
-			fmt.Errorf("failed to get component object: %w", err)
-	}
-
-	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
-		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
-	}
-	log.Info("getting snapshot data from snapshot", "snapshot", srcSnapshot)
-	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
-	}
+	var (
+		resourceData []byte
+		err          error
+	)
 
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(obj, r.Client)
@@ -152,24 +133,23 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 			fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.ConfigRef.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get component descriptor from version")
-	}
-	if componentDescriptor == nil {
-		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ReferencePath)
+	if obj.Spec.Source.SourceRef != nil {
+		if resourceData, err = r.fetchResourceDataFromSnapshot(ctx, obj); err != nil {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
+		}
+	} else if obj.Spec.Source.ResourceRef != nil {
+		if resourceData, err = r.fetchResourceDataFromResource(ctx, obj, componentVersion); err != nil {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
+		}
 	}
 
 	// get config resource
-	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
-	log.Info("config resource obtained", "config", configResource, "resource", obj.Spec.ConfigRef.Resource.Name)
 	config := configdata.ConfigData{}
 	reader, err := r.OCIClient.FetchAndCacheResource(ctx, oci.ResourceOptions{
 		ComponentVersion: componentVersion,
-		Resource:         configResource,
-		ReferencePath:    obj.Spec.ConfigRef.Resource.ReferencePath,
+		Resource:         *obj.Spec.ConfigRef.Resource.ResourceRef,
 		Owner:            obj,
 	})
 	if err != nil {
@@ -189,6 +169,16 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 
 	log.Info("preparing localization substitutions")
 	var localizations localize.Substitutions
+
+	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get component descriptor from version")
+	}
+	if componentDescriptor == nil {
+		return ctrl.Result{
+			RequeueAfter: obj.GetRequeueAfter(),
+		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath)
+	}
 	for _, l := range config.Localization {
 		lr := componentDescriptor.GetResource(l.Resource.Name)
 		if lr == nil {
@@ -233,7 +223,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	}
 	defer vfs.Cleanup(virtualFS)
 
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(srcSnapshotData)); err != nil {
+	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("extract tar error: %w", err)
 	}
 
@@ -303,8 +293,8 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 			fmt.Errorf("failed to patch snapshot CR: %w", err)
 	}
 
-	obj.Status.LatestSnapshotDigest = srcSnapshot.GetDigest()
-	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", configResource.Name, configResource.Version)
+	obj.Status.LatestSnapshotDigest = snapshotDigest
+	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
@@ -417,4 +407,47 @@ func (r *LocalizationReconciler) writeSnapshot(repositoryName, artifactPath stri
 	}
 
 	return digest.Digest.String(), nil
+}
+
+func (r *LocalizationReconciler) fetchResourceDataFromSnapshot(ctx context.Context, obj *deliveryv1alpha1.Localization) ([]byte, error) {
+	log := log.FromContext(ctx)
+	srcSnapshot := &v1alpha1.Snapshot{}
+	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("snapshot not found")
+			return nil, nil
+		}
+		return nil,
+			fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
+		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
+		return nil, nil
+	}
+	log.Info("getting snapshot data from snapshot", "snapshot", srcSnapshot)
+	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	return srcSnapshotData, nil
+}
+
+func (r *LocalizationReconciler) fetchResourceDataFromResource(ctx context.Context, obj *deliveryv1alpha1.Localization, version *deliveryv1alpha1.ComponentVersion) ([]byte, error) {
+	resource, err := r.OCIClient.FetchAndCacheResource(ctx, oci.ResourceOptions{
+		ComponentVersion: version,
+		Resource:         *obj.Spec.Source.ResourceRef,
+		Owner:            obj,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
+	}
+	defer resource.Close()
+	content, err := io.ReadAll(resource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read resource data: %w", err)
+	}
+
+	return content, nil
 }

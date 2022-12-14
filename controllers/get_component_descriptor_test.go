@@ -79,17 +79,19 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 		loc := &v1alpha1.Localization{
 			Spec: v1alpha1.LocalizationSpec{
 				ConfigRef: v1alpha1.ConfigReference{
-					Resource: v1alpha1.ResourceRef{
-						ReferencePath: []map[string]string{
-							{
-								"name": "nested-twice-second",
+					Resource: v1alpha1.Source{
+						ResourceRef: &v1alpha1.ResourceRef{
+							ReferencePath: []map[string]string{
+								{
+									"name": "nested-twice-second",
+								},
 							},
 						},
 					},
 				},
 			},
 		}
-		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.Resource.ReferencePath, obj.Status.ComponentDescriptor)
+		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.Resource.ResourceRef.ReferencePath, obj.Status.ComponentDescriptor)
 		assert.NoError(t, err)
 		assert.Equal(t, componentName, comp.Name)
 	})
@@ -97,10 +99,14 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 	t.Run("without reference path", func(t *testing.T) {
 		loc := &v1alpha1.Localization{
 			Spec: v1alpha1.LocalizationSpec{
-				ConfigRef: v1alpha1.ConfigReference{},
+				ConfigRef: v1alpha1.ConfigReference{
+					Resource: v1alpha1.Source{
+						ResourceRef: &v1alpha1.ResourceRef{},
+					},
+				},
 			},
 		}
-		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.Resource.ReferencePath, obj.Status.ComponentDescriptor)
+		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.Resource.ResourceRef.ReferencePath, obj.Status.ComponentDescriptor)
 		assert.NoError(t, err)
 		assert.Equal(t, notNestedName, comp.Name)
 	})

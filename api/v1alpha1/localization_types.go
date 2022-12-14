@@ -13,6 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// Source defines a possible incoming format for sources that this object needs for further configuration/localization
+// steps.
+// +kubebuilder:validation:MinProperties=1
 type Source struct {
 	// +optional
 	SourceRef *meta.NamespacedObjectKindReference `json:"sourceRef,omitempty"`
@@ -25,8 +28,6 @@ type LocalizationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	// TODO: This could be a Resource now that we can Fetch resources.
-	// TODO: Add verification that either one of these needs to be defined.
 	// +required
 	Source Source `json:"source"`
 
@@ -42,7 +43,7 @@ type ConfigReference struct {
 	ComponentVersionRef meta.NamespacedObjectReference `json:"componentVersionRef"`
 
 	// +required
-	Resource ResourceRef `json:"resource"`
+	Resource Source `json:"resource"`
 }
 
 // ResourceRef define a resource.
@@ -91,6 +92,7 @@ type Localization struct {
 	Status LocalizationStatus `json:"status,omitempty"`
 }
 
+// GetSourceSnapshotKey is a convenient wrapper to get the NamespacedName for a snapshot reference on the object.
 func (in Localization) GetSourceSnapshotKey() types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: in.Spec.Source.SourceRef.Namespace,

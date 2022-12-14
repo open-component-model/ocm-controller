@@ -16,7 +16,6 @@ import (
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	. "github.com/onsi/gomega"
-	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -131,29 +130,25 @@ func TestOCIClient_FetchAndCacheResource(t *testing.T) {
 		blob         []byte
 		expected     []byte
 		snapshotName string
-		resource     *ocmapi.Resource
+		resource     v1alpha1.ResourceRef
 		objects      []client.Object
 	}{
 		{
 			name:     "image",
 			blob:     []byte("image"),
 			expected: []byte("image"),
-			resource: &ocmapi.Resource{
-				ElementMeta: ocmapi.ElementMeta{
-					Name:    "test-resource-1",
-					Version: "v0.0.1",
-				},
+			resource: v1alpha1.ResourceRef{
+				Name:    "test-resource-1",
+				Version: "v0.0.1",
 			},
 		},
 		{
 			name:     "empty image",
 			blob:     []byte(""),
 			expected: []byte(""),
-			resource: &ocmapi.Resource{
-				ElementMeta: ocmapi.ElementMeta{
-					Name:    "test-resource-2",
-					Version: "v0.0.1",
-				},
+			resource: v1alpha1.ResourceRef{
+				Name:    "test-resource-2",
+				Version: "v0.0.1",
 			},
 		},
 		{
@@ -161,11 +156,9 @@ func TestOCIClient_FetchAndCacheResource(t *testing.T) {
 			blob:         []byte("image"),
 			expected:     []byte("image"),
 			snapshotName: "test-snapshot",
-			resource: &ocmapi.Resource{
-				ElementMeta: ocmapi.ElementMeta{
-					Name:    "test-resource-3",
-					Version: "v0.0.1",
-				},
+			resource: v1alpha1.ResourceRef{
+				Name:    "test-resource-3",
+				Version: "v0.0.1",
 			},
 			objects: []client.Object{
 				&v1alpha1.Snapshot{
@@ -295,11 +288,9 @@ func TestOCIClient_PushResource(t *testing.T) {
 			}
 			err := c.PushResource(context.Background(), ResourceOptions{
 				ComponentVersion: obj,
-				Resource: &ocmapi.Resource{
-					ElementMeta: ocmapi.ElementMeta{
-						Name:    "test-resource",
-						Version: "v0.0.1",
-					},
+				Resource: v1alpha1.ResourceRef{
+					Name:    "test-resource",
+					Version: "v0.0.1",
 				},
 				SnapshotName: tc.snapshotName,
 				Owner:        obj,

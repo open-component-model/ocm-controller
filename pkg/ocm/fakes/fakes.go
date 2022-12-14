@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	ocmctrl "github.com/open-component-model/ocm-controller/pkg/ocm"
@@ -27,7 +26,7 @@ type MockFetcher struct {
 	FetchedResource           io.ReadCloser
 }
 
-func (m *MockFetcher) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource *ocmapi.Resource, referencePath []map[string]string) (io.ReadCloser, error) {
+func (m *MockFetcher) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {
 	return m.FetchedResource, nil
 }
 

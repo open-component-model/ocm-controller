@@ -102,28 +102,6 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Configuration) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithName("configuration-controller")
-	// get source snapshot
-	srcSnapshot := &v1alpha1.Snapshot{}
-	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("snapshot not found")
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-		}
-		return ctrl.Result{RequeueAfter: r.RetryInterval},
-			fmt.Errorf("failed to get component object: %w", err)
-	}
-
-	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
-		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
-	}
-
-	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
-	}
-
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
@@ -166,28 +144,34 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.ConfigRef.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	var resourceData []byte
+
+	if obj.Spec.Source.SourceRef != nil {
+		if resourceData, err = r.fetchResourceDataFromSnapshot(ctx, obj); err != nil {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
+		}
+	} else if obj.Spec.Source.ResourceRef != nil {
+		if resourceData, err = r.fetchResourceDataFromResource(ctx, obj, componentVersion); err != nil {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
+		}
+	}
+
+	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get component descriptor from version")
 	}
 	if componentDescriptor == nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ReferencePath)
-	}
-
-	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
-	if configResource == nil {
-		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("couldn't find config resource for resource name '%s'", obj.Spec.ConfigRef.Resource.Name)
+		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath)
 	}
 
 	config := configdata.ConfigData{}
 	reader, err := r.OCIClient.FetchAndCacheResource(ctx, oci.ResourceOptions{
 		ComponentVersion: componentVersion,
-		Resource:         configResource,
-		ReferencePath:    obj.Spec.ConfigRef.Resource.ReferencePath,
+		Resource:         *obj.Spec.ConfigRef.Resource.ResourceRef,
 		Owner:            obj,
 	})
 	if err != nil {
@@ -236,7 +220,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 	}
 	defer vfs.Cleanup(virtualFS)
 
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(srcSnapshotData)); err != nil {
+	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("extract tar error: %w", err)
 	}
 
@@ -312,8 +296,8 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			fmt.Errorf("failed to patch snapshot CR: %w", err)
 	}
 
-	obj.Status.LatestSnapshotDigest = srcSnapshot.GetDigest()
-	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", configResource.Name, configResource.Version)
+	obj.Status.LatestSnapshotDigest = snapshotDigest
+	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
@@ -370,12 +354,12 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 
 		switch field {
 		case "SourceRef":
-			if l.Spec.SourceRef.Kind == kind {
+			if l.Spec.Source.SourceRef.Kind == kind {
 				namespace := l.GetNamespace()
-				if l.Spec.SourceRef.Namespace != "" {
-					namespace = l.Spec.SourceRef.Namespace
+				if l.Spec.Source.SourceRef.Namespace != "" {
+					namespace = l.Spec.Source.SourceRef.Namespace
 				}
-				return []string{fmt.Sprintf("%s/%s", namespace, l.Spec.SourceRef.Name)}
+				return []string{fmt.Sprintf("%s/%s", namespace, l.Spec.Source.SourceRef.Name)}
 			}
 		case "ConfigRef":
 			namespace := l.GetNamespace()
@@ -478,4 +462,47 @@ func (r *ConfigurationReconciler) configurator(subst []localize.Substitution, de
 	}
 
 	return result.Adjustments, nil
+}
+
+func (r *ConfigurationReconciler) fetchResourceDataFromSnapshot(ctx context.Context, obj *deliveryv1alpha1.Configuration) ([]byte, error) {
+	log := log.FromContext(ctx)
+	srcSnapshot := &v1alpha1.Snapshot{}
+	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("snapshot not found")
+			return nil, nil
+		}
+		return nil,
+			fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
+		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
+		return nil, nil
+	}
+	log.Info("getting snapshot data from snapshot", "snapshot", srcSnapshot)
+	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	return srcSnapshotData, nil
+}
+
+func (r *ConfigurationReconciler) fetchResourceDataFromResource(ctx context.Context, obj *deliveryv1alpha1.Configuration, version *deliveryv1alpha1.ComponentVersion) ([]byte, error) {
+	resource, err := r.OCIClient.FetchAndCacheResource(ctx, oci.ResourceOptions{
+		ComponentVersion: version,
+		Resource:         *obj.Spec.Source.ResourceRef,
+		Owner:            obj,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
+	}
+	defer resource.Close()
+	content, err := io.ReadAll(resource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read resource data: %w", err)
+	}
+
+	return content, nil
 }

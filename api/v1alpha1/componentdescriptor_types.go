@@ -32,6 +32,7 @@ type ComponentDescriptor struct {
 	Status ComponentDescriptorStatus `json:"status,omitempty"`
 }
 
+// GetResource return a given resource in a component descriptor if it exists.
 func (in ComponentDescriptor) GetResource(name string) *v3alpha1.Resource {
 	for _, r := range in.Spec.Resources {
 		if r.Name != name {

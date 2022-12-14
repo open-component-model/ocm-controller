@@ -46,6 +46,7 @@ type Snapshot struct {
 	Status SnapshotStatus `json:"status,omitempty"`
 }
 
+// GetDigest returns the stored digest.
 func (in Snapshot) GetDigest() string {
 	if in.Status.Layer == "" || !strings.Contains(in.Status.Layer, "@") {
 		return ""
@@ -54,6 +55,7 @@ func (in Snapshot) GetDigest() string {
 	return strings.Split(in.Status.Layer, "@")[1]
 }
 
+// GetBlob returns the blob constructed from layer option.
 func (in Snapshot) GetBlob() string {
 	if in.Status.Layer == "" || !strings.Contains(in.Status.Layer, "@") {
 		return ""
