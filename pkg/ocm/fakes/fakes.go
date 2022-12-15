@@ -24,6 +24,7 @@ type MockFetcher struct {
 	Verified                  bool
 	LatestVersion             string
 	FetchedResource           io.ReadCloser
+	Digest                    string
 }
 
 func (m *MockFetcher) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {

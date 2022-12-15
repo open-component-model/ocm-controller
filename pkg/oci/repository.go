@@ -6,6 +6,7 @@ package oci
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -19,16 +20,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	types2 "k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/cluster-api/util/patch"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // Option is a functional option for Repository.
@@ -56,29 +50,15 @@ type ResourceOptions struct {
 	SnapshotName     string
 }
 
-// Client defines OCI functionality.
-//
-//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Client
-type Client interface {
-	PushResource(ctx context.Context, opts ResourceOptions) error
-	FetchAndCacheResource(ctx context.Context, opts ResourceOptions) (io.ReadCloser, error)
-}
-
-// OCIClient abstracts the use of oci methods.
-type OCIClient struct {
-	ocmClient  ocmclient.FetchVerifier
-	kubeClient client.Client
-	ociAddress string
-	scheme     *runtime.Scheme
+// Client implements the caching layer and the OCI layer.
+type Client struct {
+	OCIRepositoryAddr string
 }
 
 // NewClient creates a new OCI Client.
-func NewClient(ocmClient ocmclient.FetchVerifier, kubeClient client.Client, ociAddress string, scheme *runtime.Scheme) *OCIClient {
-	return &OCIClient{
-		ocmClient:  ocmClient,
-		kubeClient: kubeClient,
-		ociAddress: ociAddress,
-		scheme:     scheme,
+func NewClient(ociAddress string) *Client {
+	return &Client{
+		OCIRepositoryAddr: ociAddress,
 	}
 }
 
@@ -107,158 +87,96 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 	return &Repository{repo, opt}, nil
 }
 
-// PushResource takes a resource, reference path and identity information and caches a resource in the internal OCI registry.
-func (c *OCIClient) PushResource(ctx context.Context, opts ResourceOptions) error {
-	reader, err := c.ocmClient.GetResource(ctx, opts.ComponentVersion, opts.Resource)
+// PushData takes a blob of data and caches it using OCI as a background.
+func (c *Client) PushData(ctx context.Context, data io.ReadCloser, identity v1alpha1.Identity, tag string) (string, error) {
+	repositoryName, err := c.constructRepositoryName(identity)
 	if err != nil {
-		return fmt.Errorf("failed to get resource: %w", err)
+		return "", err
 	}
-	defer reader.Close()
-
-	if _, err := c.cacheResource(ctx, opts.ComponentVersion, opts.Resource, opts.Owner, opts.SnapshotName, reader); err != nil {
-		return fmt.Errorf("failed to cache resource '%s': %w", opts.Resource.Name, err)
+	repo, err := NewRepository(repositoryName, WithInsecure())
+	if err != nil {
+		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	return nil
+	digest, err := repo.PushStreamingImage(tag, data, "", nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to push image: %w", err)
+	}
+
+	return digest, nil
 }
 
-// FetchAndCacheResource fetches and then caches a resource. It will only fetch a resource if it doesn't already have a snapshot.
-func (c *OCIClient) FetchAndCacheResource(ctx context.Context, opts ResourceOptions) (io.ReadCloser, error) {
-	snapshotName := opts.SnapshotName
-	if snapshotName == "" {
-		snapshotName = generateSnapshotNameForResource(*opts.ComponentVersion, opts.Resource)
-	}
-	snapshot := &v1alpha1.Snapshot{}
-	if err := c.kubeClient.Get(ctx, types2.NamespacedName{
-		Name:      snapshotName,
-		Namespace: opts.ComponentVersion.Namespace,
-	}, snapshot); err != nil {
-		if apierrors.IsNotFound(err) {
-			return c.fetchAndCacheResource(ctx, opts.ComponentVersion, opts.Resource, opts.Owner, opts.SnapshotName)
-		}
-		return nil, fmt.Errorf("failed to fetch is snapshot exists: %w", err)
+// FetchDataByIdentity fetches an existing resource. Errors if there is no resource available. It's advised to call IsCached
+// before fetching. Returns the digest of the resource alongside the data for further processing.
+func (c *Client) FetchDataByIdentity(ctx context.Context, identity v1alpha1.Identity, tag string) (io.ReadCloser, error) {
+	repositoryName, err := c.constructRepositoryName(identity)
+	if err != nil {
+		return nil, err
 	}
 
-	// TODO: Add snapshot status check.
-	image := strings.TrimPrefix(snapshot.Status.RepositoryURL, "http://")
-	image = strings.TrimPrefix(image, "https://")
-	repo, err := NewRepository(image, WithInsecure())
+	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository: %w", err)
 	}
 
-	blob, err := repo.FetchBlob(snapshot.Status.Digest)
+	manifest, _, err := repo.FetchManifest(tag, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch blob: %w", err)
+		return nil, fmt.Errorf("failed to fetch manifest to obtain layers: %w", err)
+	}
+	layers := manifest.Layers
+	if len(layers) == 0 {
+		return nil, fmt.Errorf("layers for repository is empty")
 	}
 
-	return blob, nil
-}
+	digest := layers[0].Digest
 
-// TODO: Only use this if a name is not provided.
-func generateSnapshotNameForResource(cv v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) string {
-	// TODO: This potentially is larger than 64.
-	// This is deliberately not component name.
-	normalize := func(s string) string {
-		s = strings.ReplaceAll(s, ".", "-")
-		s = strings.ReplaceAll(s, "/", "-")
-		return s
+	reader, err := repo.FetchBlob(digest.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch reader for digest of the 0th layer: %w", err)
 	}
-	return fmt.Sprintf("%s-%s-%s-%s", cv.Name, normalize(cv.Status.ReconciledVersion), resource.Name, normalize(resource.Version))
+
+	return reader, nil
 }
 
-// cacheResource caches the resource in a snapshot and an OCI layer.
-func (c *OCIClient) cacheResource(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef, owner metav1.Object, snapshotName string, reader io.ReadCloser) (*v1alpha1.Snapshot, error) {
-	repositoryName := c.constructRepositoryName(*componentVersion, resource)
+func (c *Client) FetchDataByDigest(ctx context.Context, identity v1alpha1.Identity, digest string) (io.ReadCloser, error) {
+	repositoryName, err := c.constructRepositoryName(identity)
+	if err != nil {
+		return nil, err
+	}
+
 	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
-		return nil, fmt.Errorf("failed create new repository: %w", err)
+		return nil, fmt.Errorf("failed to get repository: %w", err)
 	}
 
-	// TODO: add extra identity
-	digest, err := repo.PushStreamingImage(resource.Version, reader, "", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to push image: %w", err)
-	}
-	if snapshotName == "" {
-		snapshotName = generateSnapshotNameForResource(*componentVersion, resource)
-	}
-	// create/update the snapshot custom resource
-	snapshotCR := &v1alpha1.Snapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: componentVersion.GetNamespace(),
-			Name:      snapshotName,
-		},
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, c.kubeClient, snapshotCR, func() error {
-		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
-			if err := controllerutil.SetOwnerReference(owner, snapshotCR, c.scheme); err != nil {
-				return fmt.Errorf("failed to set owner to snapshot object: %w", err)
-			}
-		}
-		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref: strings.TrimPrefix(repositoryName, c.ociAddress+"/"),
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create or update component descriptor: %w", err)
-	}
-
-	newSnapshotCR := snapshotCR.DeepCopy()
-	newSnapshotCR.Status.Digest = digest
-	newSnapshotCR.Status.Tag = resource.Version
-	if err := patchObject(ctx, c.kubeClient, snapshotCR, newSnapshotCR); err != nil {
-		return nil, fmt.Errorf("failed to patch snapshot CR: %w", err)
-	}
-
-	return newSnapshotCR, nil
+	return repo.FetchBlob(digest)
 }
 
-// fetchAndCacheResource takes a resource, creates a snapshot for it and pushes it into an OCI layer.
-func (c *OCIClient) fetchAndCacheResource(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef, owner metav1.Object, snapshotName string) (io.ReadCloser, error) {
-	reader, err := c.ocmClient.GetResource(ctx, componentVersion, resource)
+func (c *Client) IsCached(ctx context.Context, identity v1alpha1.Identity, tag string) (bool, error) {
+	repositoryName, err := c.constructRepositoryName(identity)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch reader: %w", err)
-	}
-	defer reader.Close()
-
-	snapshot, err := c.cacheResource(ctx, componentVersion, resource, owner, snapshotName, reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to cache resource: %w", err)
+		return false, err
 	}
 
-	repo, err := NewRepository(c.constructRepositoryName(*componentVersion, resource), WithInsecure())
+	reference, err := name.ParseReference(fmt.Sprintf("%s/%s", repositoryName, tag))
 	if err != nil {
-		return nil, fmt.Errorf("failed create new repository: %w", err)
+		return false, fmt.Errorf("failed to parse repository and tag name: %w", err)
 	}
 
-	blob, err := repo.FetchBlob(snapshot.Status.Digest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch blob: %w", err)
+	if _, err := remote.Head(reference); err != nil {
+		return false, nil
 	}
-	return blob, nil
+	return true, nil
 }
 
-func (c *OCIClient) constructRepositoryName(componentVersion v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) string {
-	return fmt.Sprintf(
-		"%s/%s/%s",
-		c.ociAddress,
-		componentVersion.Name,
-		resource.Name,
-	)
-}
-
-func patchObject(ctx context.Context, client client.Client, oldObject, newObject client.Object) error {
-	patchHelper, err := patch.NewHelper(oldObject, client)
+func (c *Client) constructRepositoryName(identity v1alpha1.Identity) (string, error) {
+	repositoryName, err := identity.Hash()
 	if err != nil {
-		return fmt.Errorf("failed to create patch helper: %w", err)
+		return "", fmt.Errorf("failed to create hash for identity: %w", err)
 	}
-	if err := patchHelper.Patch(ctx, newObject); err != nil {
-		return fmt.Errorf("failed to patch object: %w", err)
-	}
-	return nil
+	repositoryName = fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, repositoryName)
+
+	return repositoryName, nil
 }
 
 // fetchBlob fetches a blob from the repository.
@@ -313,6 +231,7 @@ func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, 
 	if err != nil {
 		return "", fmt.Errorf("failed to parse reference: %w", err)
 	}
+	fmt.Println("REEEEFF: ", ref)
 	image, err := computeStreamImage(reader, mediaType)
 	if err != nil {
 		return "", fmt.Errorf("failed to compute image: %w", err)
@@ -337,6 +256,82 @@ func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, 
 // pushImage pushes an OCI image to the repository. It accepts a v1.RepositoryURL interface.
 func (r *Repository) pushImage(image v1.Image, reference name.Reference) error {
 	return remote.Write(reference, image, r.remoteOpts...)
+}
+
+// FetchManifest fetches a manifest from the repository.
+// It returns the manifest as an oci.Manifest struct and the raw manifest as a byte slice.
+// The oci.Manifest struct can be used to retrieve the layers digests.
+// Optionally, the manifest annotations can be verified against the given slice of strings keys.
+func (r *Repository) FetchManifest(reference string, filters []string) (*ocispec.Manifest, []byte, error) {
+	ref, err := parseReference(reference, r)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse reference: %w", err)
+	}
+	m, err := r.fetchManifestDescriptor(ref.String())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch manifest: %w", err)
+	}
+	raw, err := m.RawManifest()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get raw manifest: %w", err)
+	}
+	//check if the manifest annotations match the given filters
+	var annotations map[string]string
+	if len(filters) > 0 {
+		// get desciptor from manifest
+		desc, err := getDescriptor(raw)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get descriptor: %w", err)
+		}
+		annotations = filterAnnotations(desc.Annotations, filters)
+		if len(annotations) == 0 {
+			return nil, nil, fmt.Errorf("no matching annotations found")
+		}
+	}
+
+	desc, err := manifestToOCIDescriptor(m)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get manifest descriptor: %w", err)
+	}
+	return desc, raw, nil
+}
+
+func (r *Repository) fetchManifestDescriptor(s string) (*remote.Descriptor, error) {
+	return fetchManifestDescriptorFrom(s, r.remoteOpts...)
+}
+
+// manifestToOCIDescriptor converts a manifest to an OCI Manifest struct.
+// It contains the layers descriptors.
+func manifestToOCIDescriptor(m *remote.Descriptor) (*ocispec.Manifest, error) {
+	ociManifest := &ocispec.Manifest{}
+	ociManifest.MediaType = string(m.MediaType)
+	image, err := m.Image()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image: %w", err)
+	}
+	layers, err := image.Layers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get layers: %w", err)
+	}
+	for _, layer := range layers {
+		ociLayer, err := layerToOCIDescriptor(layer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get layer: %w", err)
+		}
+		ociManifest.Layers = append(ociManifest.Layers, *ociLayer)
+	}
+	return ociManifest, nil
+}
+
+func fetchManifestDescriptorFrom(s string, opts ...remote.Option) (*remote.Descriptor, error) {
+	// a manifest reference can be a tag or a digest
+	ref, err := name.ParseReference(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse reference: %w", err)
+	}
+	// fetch manifest
+	// Get performs a digest verification
+	return remote.Get(ref, opts...)
 }
 
 func parseReference(reference string, r *Repository) (name.Reference, error) {
@@ -415,4 +410,12 @@ func computeStreamBlob(reader io.ReadCloser, mediaType string) (v1.Layer, error)
 	}
 	l := stream.NewLayer(reader, stream.WithMediaType(t))
 	return l, nil
+}
+
+func getDescriptor(manifest []byte) (*v1.Descriptor, error) {
+	desc := &v1.Descriptor{}
+	if err := json.Unmarshal(manifest, desc); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
+	}
+	return desc, nil
 }

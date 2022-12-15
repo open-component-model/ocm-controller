@@ -27,6 +27,7 @@ import (
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 )
 
 // Verifier takes a Component and runs OCM verification on it.
@@ -43,8 +44,6 @@ type Fetcher interface {
 }
 
 // FetchVerifier can fetch and verify components.
-//
-//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . FetchVerifier
 type FetchVerifier interface {
 	Verifier
 	Fetcher
@@ -53,6 +52,7 @@ type FetchVerifier interface {
 // Client implements the OCM fetcher interface.
 type Client struct {
 	client client.Client
+	cache  cache.Cache
 }
 
 var _ FetchVerifier = &Client{}
@@ -66,8 +66,24 @@ func NewClient(client client.Client) *Client {
 
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
 func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {
-	// Before we do this, look for a related Snapshot.
-	// Extract all of this into the OCM client?
+	identity := v1alpha1.Identity{
+		cache.ComponentNameKey:    cv.Spec.Component,
+		cache.ComponentVersionKey: cv.Status.ReconciledVersion,
+		cache.ResourceNameKey:     resource.Name,
+		cache.ResourceVersionKey:  resource.Version,
+	}
+	// Add extra identity.
+	for k, v := range resource.ExtraIdentity {
+		identity[k] = v
+	}
+	cached, err := c.cache.IsCached(ctx, identity, resource.Version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check cache: %w", err)
+	}
+	if cached {
+		return c.cache.FetchDataByIdentity(ctx, identity, resource.Version)
+	}
+
 	cva, err := c.GetComponentVersion(ctx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get component version: %w", err)
@@ -93,8 +109,15 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch reader: %w", err)
 	}
+	defer reader.Close()
 
-	return reader, nil
+	digest, err := c.cache.PushData(ctx, reader, identity, resource.Version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cache blob: %w", err)
+	}
+
+	// re-fetch the resource to have a streamed reader available
+	return c.cache.FetchDataByDigest(ctx, identity, digest)
 }
 
 // GetComponentVersion returns a component version. It's the caller's responsibility to clean it up and close the component version once done with it.

@@ -73,7 +73,7 @@ func main() {
 	}
 
 	ocmClient := ocm.NewClient(mgr.GetClient())
-	ociClient := oci.NewClient(ocmClient, mgr.GetClient(), ociRegistryAddr, scheme)
+	cache := oci.NewClient(ociRegistryAddr)
 
 	if err = (&controllers.ComponentVersionReconciler{
 		Client:    mgr.GetClient(),
@@ -96,7 +96,8 @@ func main() {
 	if err = (&controllers.ResourceReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
-		OCIClient: ociClient,
+		OCMClient: ocmClient,
+		Cache:     cache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
 		os.Exit(1)
@@ -106,8 +107,8 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		ReconcileInterval: time.Hour,
 		RetryInterval:     time.Minute,
-		OCIClient:         ociClient,
-		OCIRegistryAddr:   ociRegistryAddr,
+		OCMClient:         ocmClient,
+		Cache:             cache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Localization")
 		os.Exit(1)
@@ -117,8 +118,8 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		ReconcileInterval: time.Hour,
 		RetryInterval:     time.Minute,
-		OCIClient:         ociClient,
-		OCIRegistryAddr:   ociRegistryAddr,
+		OCMClient:         ocmClient,
+		Cache:             cache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
 		os.Exit(1)

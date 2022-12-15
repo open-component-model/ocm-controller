@@ -10,24 +10,28 @@ import (
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/oci"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // ResourceReconciler reconciles a Resource object
 type ResourceReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
-	OCIClient oci.Client
+	OCMClient ocm.FetchVerifier
+	Cache     cache.Cache
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
@@ -88,14 +92,58 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	// PushResource and set the Resource as owner of the created snapshot.
-	if err := r.OCIClient.PushResource(ctx, oci.ResourceOptions{
-		ComponentVersion: componentVersion,
-		Resource:         obj.Spec.Resource,
-		SnapshotName:     obj.Spec.SnapshotTemplate.Name,
-		Owner:            obj,
-	}); err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to push resource: %w", err)
+	// TODO: Think about this flow some more. Are these the correct abstraction in the right layer? So the resource
+	// controller be aware of the cache implementation? But then why would OCM layer have a push? Where would it push
+	// to?
+	reader, err := r.OCMClient.GetResource(ctx, componentVersion, obj.Spec.Resource)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to get resource: %w", err)
+	}
+	defer reader.Close()
+
+	identity := v1alpha1.Identity{
+		cache.ComponentNameKey:    componentVersion.Spec.Component,
+		cache.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		cache.ResourceNameKey:     obj.Spec.Resource.Name,
+		cache.ResourceVersionKey:  obj.Spec.Resource.Version,
+	}
+	for k, v := range obj.Spec.Resource.ExtraIdentity {
+		identity[k] = v
+	}
+	digest, err := r.Cache.PushData(ctx, reader, identity, obj.Spec.Resource.Version)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to push resource to cache: %w", err)
+	}
+
+	// How would I use this snapshot from the Localizer?
+	snapshotCR := &v1alpha1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.Spec.SnapshotTemplate.Name,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
+		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
+			if err := controllerutil.SetOwnerReference(obj, snapshotCR, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set owner to snapshot object: %w", err)
+			}
+		}
+		snapshotCR.Spec = v1alpha1.SnapshotSpec{
+			Identity: identity,
+		}
+		return nil
+	})
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to create or update component descriptor: %w", err)
+	}
+
+	newSnapshot := snapshotCR.DeepCopy()
+	newSnapshot.Status.Digest = digest
+	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshot); err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to patch snapshot: %w", err)
 	}
 
 	log.Info("successfully pushed resource", "resource", obj.Spec.Resource.Name)

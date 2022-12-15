@@ -40,8 +40,9 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
-	"github.com/open-component-model/ocm-controller/pkg/oci"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // LocalizationReconciler reconciles a Localization object
@@ -50,8 +51,8 @@ type LocalizationReconciler struct {
 	Scheme            *runtime.Scheme
 	ReconcileInterval time.Duration
 	RetryInterval     time.Duration
-	OCIClient         oci.Client
-	OCIRegistryAddr   string
+	OCMClient         ocm.FetchVerifier
+	Cache             cache.Cache
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=localizations,verbs=get;list;watch;create;update;patch;delete
@@ -147,11 +148,12 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 
 	// get config resource
 	config := configdata.ConfigData{}
-	reader, err := r.OCIClient.FetchAndCacheResource(ctx, oci.ResourceOptions{
-		ComponentVersion: componentVersion,
-		Resource:         *obj.Spec.ConfigRef.Resource.ResourceRef,
-		Owner:            obj,
-	})
+	resourceRef := obj.Spec.ConfigRef.Resource.ResourceRef
+	if resourceRef == nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("resource ref is empty for config ref")
+	}
+	reader, err := r.OCMClient.GetResource(ctx, componentVersion, *resourceRef)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to get resource: %w", err)
@@ -248,19 +250,19 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("build tar error: %w", err)
 	}
 
-	// create snapshot
-	repositoryName := fmt.Sprintf(
-		"%s/%s/%s",
-		r.OCIRegistryAddr,
-		obj.Namespace,
-		obj.Spec.SnapshotTemplate.Name,
-	)
-	snapshotDigest, err := r.writeSnapshot(repositoryName, artifactPath.Name())
+	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
+	// find it later on.
+	identity := v1alpha1.Identity{
+		cache.ComponentNameKey:    componentVersion.Spec.Component,
+		cache.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		cache.ResourceNameKey:     resourceRef.Name,
+		cache.ResourceVersionKey:  resourceRef.Version,
+	}
+	snapshotDigest, err := r.writeToCache(ctx, identity, artifactPath.Name(), obj.ResourceVersion)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	// create/update the snapshot custom resource
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
@@ -275,7 +277,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref: strings.TrimPrefix(repositoryName, r.OCIRegistryAddr+"/"),
+			Identity: identity,
 		}
 		return nil
 	})
@@ -313,7 +315,7 @@ func (r *LocalizationReconciler) requestsForRevisionChangeOf(indexKey string) fu
 			panic(fmt.Sprintf("expected snapshot but got: %T", obj))
 		}
 
-		if snap.GetDigest() == "" {
+		if snap.Status.Digest == "" {
 			return nil
 		}
 
@@ -329,7 +331,7 @@ func (r *LocalizationReconciler) requestsForRevisionChangeOf(indexKey string) fu
 
 		var reqs []reconcile.Request
 		for _, d := range list.Items {
-			if snap.GetDigest() == d.Status.LatestSnapshotDigest {
+			if snap.Status.Digest == d.Status.LatestSnapshotDigest {
 				continue
 			}
 			reqs = append(reqs, reconcile.Request{
@@ -374,39 +376,28 @@ func (r *LocalizationReconciler) indexBy(kind, field string) func(o client.Objec
 	}
 }
 
-func (r *LocalizationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	image := strings.TrimPrefix(snapshot.Status.RepositoryURL, "http://")
-	image = strings.TrimPrefix(image, "https://")
-	repo, err := oci.NewRepository(image, oci.WithInsecure())
+func (r *LocalizationReconciler) getSnapshotBytes(ctx context.Context, snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
+	reader, err := r.Cache.FetchDataByDigest(ctx, snapshot.Spec.Identity, snapshot.Status.Digest)
 	if err != nil {
-		return nil, err
-	}
-
-	reader, err := repo.FetchBlob(snapshot.Status.Digest)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
 
 	return io.ReadAll(reader)
 }
 
-func (r *LocalizationReconciler) writeSnapshot(repositoryName, artifactPath string) (string, error) {
-	repo, err := oci.NewRepository(repositoryName, oci.WithInsecure())
-	if err != nil {
-		return "", fmt.Errorf("failed create new repository: %w", err)
-	}
-
+func (r *LocalizationReconciler) writeToCache(ctx context.Context, identity deliveryv1alpha1.Identity, artifactPath string, version string) (string, error) {
 	file, err := os.Open(artifactPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open created archive: %w", err)
 	}
 	defer file.Close()
-	digest, err := repo.PushStreamBlob(file, "")
+
+	digest, err := r.Cache.PushData(ctx, file, identity, version)
 	if err != nil {
 		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
 
-	return digest.Digest.String(), nil
+	return digest, nil
 }
 
 func (r *LocalizationReconciler) fetchResourceDataFromSnapshot(ctx context.Context, obj *deliveryv1alpha1.Localization) ([]byte, error) {
@@ -426,7 +417,7 @@ func (r *LocalizationReconciler) fetchResourceDataFromSnapshot(ctx context.Conte
 		return nil, nil
 	}
 	log.Info("getting snapshot data from snapshot", "snapshot", srcSnapshot)
-	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
+	srcSnapshotData, err := r.getSnapshotBytes(ctx, srcSnapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -435,15 +426,12 @@ func (r *LocalizationReconciler) fetchResourceDataFromSnapshot(ctx context.Conte
 }
 
 func (r *LocalizationReconciler) fetchResourceDataFromResource(ctx context.Context, obj *deliveryv1alpha1.Localization, version *deliveryv1alpha1.ComponentVersion) ([]byte, error) {
-	resource, err := r.OCIClient.FetchAndCacheResource(ctx, oci.ResourceOptions{
-		ComponentVersion: version,
-		Resource:         *obj.Spec.Source.ResourceRef,
-		Owner:            obj,
-	})
+	resource, err := r.OCMClient.GetResource(ctx, version, *obj.Spec.Source.ResourceRef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
 	}
 	defer resource.Close()
+
 	content, err := io.ReadAll(resource)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read resource data: %w", err)

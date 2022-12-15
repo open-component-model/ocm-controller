@@ -35,10 +35,14 @@ spec:
           spec:
             description: SnapshotSpec defines the desired state of Snapshot
             properties:
-              ref:
-                type: string
+              identity:
+                additionalProperties:
+                  type: string
+                description: Identity defines a cache entry. It is used to generate
+                  a hash that is then used by the caching layer to identify an entry.
+                type: object
             required:
-            - ref
+            - identity
             type: object
           status:
             description: SnapshotStatus defines the observed state of Snapshot
@@ -112,12 +116,11 @@ spec:
                   type: object
                 type: array
               digest:
-                type: string
-              layer:
-                type: string
-              repositoryURL:
+                description: Digest is calculated by the caching layer.
                 type: string
               tag:
+                description: Tag defines the explicit tag that was used to create
+                  the related snapshot and cache entry.
                 type: string
             type: object
         type: object

@@ -17,8 +17,8 @@ require (
 	github.com/google/go-containerregistry v0.12.0
 	github.com/mandelsoft/spiff v1.7.0-beta-3
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
-	github.com/maxbrunsfeld/counterfeiter/v6 v6.2.2
 	github.com/mitchellh/hashstructure v1.1.0
+	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.24.1
 	github.com/open-component-model/ocm v0.0.1-0.20221209065118-a9f3ac5ef659
 	github.com/open-component-model/ocm-controllers-sdk v0.0.6

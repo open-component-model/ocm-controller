@@ -1,21 +1,23 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Localization
 metadata:
-  name: podinfo
+  name: carts
 spec:
-  interval: 10m
-  sourceRef:
-    kind: Snapshot
-    name: podinfo-manifests
-    namespace: default
+  interval: 1m0s
+  source:
+    sourceRef:
+      kind: Snapshot
+      name: carts-manifests
+      namespace: default
   configRef:
     componentVersionRef:
-      name: github.com/open-component-model/podinfo
+      name: nested-component
       namespace: default
     resource:
-      name: config
-      referencePath:
-        - name: bla
+      resourceRef:
+        name: config
+        referencePath:
+          - name: carts
   snapshotTemplate:
-    name: podinfo-manifests-localized
+    name: carts-manifests-localized
     tag: latest

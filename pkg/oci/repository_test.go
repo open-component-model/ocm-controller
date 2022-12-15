@@ -7,7 +7,6 @@ package oci
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -19,12 +18,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	types2 "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 )
 
 func TestRepository_Blob(t *testing.T) {
@@ -118,20 +115,19 @@ func TestRepository_StreamImage(t *testing.T) {
 	}
 }
 
-func TestOCIClient_FetchAndCacheResource(t *testing.T) {
+func TestClient_FetchPush(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	assert.NoError(t, err)
-	fakeClient := fake.NewClientBuilder()
 
 	addr := strings.TrimPrefix(testServer.URL, "http://")
 	testCases := []struct {
-		name         string
-		blob         []byte
-		expected     []byte
-		snapshotName string
-		resource     v1alpha1.ResourceRef
-		objects      []client.Object
+		name     string
+		blob     []byte
+		expected []byte
+		resource v1alpha1.ResourceRef
+		objects  []client.Object
+		push     bool
 	}{
 		{
 			name:     "image",
@@ -141,6 +137,7 @@ func TestOCIClient_FetchAndCacheResource(t *testing.T) {
 				Name:    "test-resource-1",
 				Version: "v0.0.1",
 			},
+			push: true,
 		},
 		{
 			name:     "empty image",
@@ -150,127 +147,23 @@ func TestOCIClient_FetchAndCacheResource(t *testing.T) {
 				Name:    "test-resource-2",
 				Version: "v0.0.1",
 			},
+			push: true,
 		},
 		{
-			name:         "snapshot exists",
-			blob:         []byte("image"),
-			expected:     []byte("image"),
-			snapshotName: "test-snapshot",
-			resource: v1alpha1.ResourceRef{
-				Name:    "test-resource-3",
-				Version: "v0.0.1",
-			},
-			objects: []client.Object{
-				&v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "default",
-						Name:      "test-snapshot",
-					},
-					Spec: v1alpha1.SnapshotSpec{
-						Ref: "ref",
-					},
-					Status: v1alpha1.SnapshotStatus{
-						RepositoryURL: fmt.Sprintf(
-							"%s/%s/%s",
-							addr,
-							"test-name",
-							"test-resource-3",
-						),
-						Digest: "sha256:3f45b176c3fa4efa56f1aac522afd99737915e813442dcba1618d99d1a5c4cd8",
-						Tag:    "v0.0.1",
-					},
-				},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			client := fakeClient.WithObjects(tc.objects...).WithScheme(scheme).Build()
-			fakeOcm := &fakes.MockFetcher{
-				FetchedResource: io.NopCloser(bytes.NewBuffer(tc.blob)),
-			}
-			g := NewWithT(t)
-			c := NewClient(fakeOcm, client, addr, scheme)
-			obj := &v1alpha1.ComponentVersion{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-name",
-					Namespace: "default",
-				},
-				Spec: v1alpha1.ComponentVersionSpec{
-					Component: "github.com/skarlso/root",
-					Version: v1alpha1.Version{
-						Semver: "v0.0.1",
-					},
-				},
-				Status: v1alpha1.ComponentVersionStatus{
-					ReconciledVersion: "v0.0.1",
-				},
-			}
-			// Create the Object that the cache can retrieve.
-			if len(tc.objects) > 0 {
-				err := c.PushResource(context.Background(), ResourceOptions{
-					ComponentVersion: obj,
-					Resource:         tc.resource,
-					SnapshotName:     tc.snapshotName,
-					Owner:            obj,
-				})
-				g.Expect(err).NotTo(HaveOccurred())
-			}
-			blob, err := c.FetchAndCacheResource(context.Background(), ResourceOptions{
-				ComponentVersion: obj,
-				Resource:         tc.resource,
-				SnapshotName:     tc.snapshotName,
-				Owner:            obj,
-			})
-			g.Expect(err).NotTo(HaveOccurred())
-			content, err := io.ReadAll(blob)
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(content).To(Equal(tc.expected))
-
-		})
-	}
-}
-
-func TestOCIClient_PushResource(t *testing.T) {
-	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
-	fakeClient := fake.NewClientBuilder()
-	client := fakeClient.WithScheme(scheme).Build()
-
-	addr := strings.TrimPrefix(testServer.URL, "http://")
-	testCases := []struct {
-		name         string
-		blob         []byte
-		expected     []byte
-		snapshotName string
-	}{
-		{
-			name:     "image",
-			blob:     []byte("image"),
-			expected: []byte("image"),
-		},
-		{
-			name:     "empty image",
+			name:     "data doesn't exist",
 			blob:     []byte(""),
 			expected: []byte(""),
-		},
-		{
-			name:         "should use snapshot name",
-			blob:         []byte("with-snapshot"),
-			expected:     []byte("with-snapshot"),
-			snapshotName: "test-snapshot",
+			resource: v1alpha1.ResourceRef{
+				Name:    "test-resource-2",
+				Version: "v0.0.1",
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			fakeOcm := &fakes.MockFetcher{
-				FetchedResource: io.NopCloser(bytes.NewBuffer(tc.blob)),
-			}
 			g := NewWithT(t)
-			c := NewClient(fakeOcm, client, addr, scheme)
+			c := NewClient(addr)
 			obj := &v1alpha1.ComponentVersion{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-name",
@@ -286,37 +179,25 @@ func TestOCIClient_PushResource(t *testing.T) {
 					ReconciledVersion: "v0.0.1",
 				},
 			}
-			err := c.PushResource(context.Background(), ResourceOptions{
-				ComponentVersion: obj,
-				Resource: v1alpha1.ResourceRef{
-					Name:    "test-resource",
-					Version: "v0.0.1",
-				},
-				SnapshotName: tc.snapshotName,
-				Owner:        obj,
-			})
-			g.Expect(err).NotTo(HaveOccurred())
-
-			snapshot := &v1alpha1.Snapshot{}
-			snapshotName := tc.snapshotName
-			if snapshotName == "" {
-				snapshotName = "test-name-v0-0-1-test-resource-v0-0-1"
+			identity := v1alpha1.Identity{
+				cache.ComponentVersionKey: obj.Status.ReconciledVersion,
+				cache.ComponentNameKey:    obj.Spec.Component,
+				cache.ResourceNameKey:     tc.resource.Name,
+				cache.ResourceVersionKey:  tc.resource.Version,
 			}
-			err = client.Get(context.Background(), types2.NamespacedName{Name: snapshotName, Namespace: "default"}, snapshot)
-			g.Expect(err).NotTo(HaveOccurred())
-			repositoryName := fmt.Sprintf(
-				"%s/%s/%s",
-				c.ociAddress,
-				"test-name",
-				"test-resource",
-			)
-			repo, err := NewRepository(repositoryName, WithInsecure())
-			g.Expect(err).NotTo(HaveOccurred())
-			layer, err := repo.FetchBlob(snapshot.Status.Digest)
-			g.Expect(err).NotTo(HaveOccurred())
-			b, err := io.ReadAll(layer)
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(b).To(Equal(tc.expected))
+			if tc.push {
+				_, err := c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), identity, tc.resource.Version)
+				g.Expect(err).NotTo(HaveOccurred())
+				blob, err := c.FetchDataByIdentity(context.Background(), identity, tc.resource.Version)
+				g.Expect(err).NotTo(HaveOccurred())
+				content, err := io.ReadAll(blob)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(content).To(Equal(tc.expected))
+			} else {
+				exists, err := c.IsCached(context.Background(), identity, tc.resource.Version)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(exists).To(BeFalse())
+			}
 		})
 	}
 }
