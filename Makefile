@@ -7,6 +7,7 @@ IMG ?= ghcr.io/open-component-model/ocm-controller
 # Registry server image URL to use all building/pushing image targets
 REG_IMG ?= ghcr.io/open-component-model/ocm-registry-server
 TAG ?= latest
+REG_TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.1
 
@@ -69,6 +70,9 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
+e2e:
+	./hack/ci/e2e.sh
+
 ##@ Build
 
 .PHONY: build
@@ -80,7 +84,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
+docker-build: ## Build docker image with the manager.
 	docker build -t ${IMG}:${TAG} .
 
 .PHONY: docker-push
