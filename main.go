@@ -72,8 +72,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	ocmClient := ocm.NewClient(mgr.GetClient())
 	cache := oci.NewClient(ociRegistryAddr)
+	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
 
 	if err = (&controllers.ComponentVersionReconciler{
 		Client:    mgr.GetClient(),

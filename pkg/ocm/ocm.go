@@ -58,9 +58,10 @@ type Client struct {
 var _ FetchVerifier = &Client{}
 
 // NewClient creates a new fetcher Client using the provided k8s client.
-func NewClient(client client.Client) *Client {
+func NewClient(client client.Client, cache cache.Cache) *Client {
 	return &Client{
 		client: client,
+		cache:  cache,
 	}
 }
 
