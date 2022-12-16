@@ -19,6 +19,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // SnapshotReconciler reconciles a Snapshot object
@@ -60,6 +61,11 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	conditions.MarkTrue(obj, v1alpha1.SnapshotReady, v1alpha1.SnapshotReadyReason, "Snapshot with name '%s' is ready", obj.Name)
+	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to construct name: %w", err)
+	}
+	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s@%s", r.RegistryServiceName, name, obj.Status.Digest)
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch resource: %w", err)

@@ -40,6 +40,7 @@ spec:
                   type: string
                 description: Identity defines a cache entry. It is used to generate
                   a hash that is then used by the caching layer to identify an entry.
+                maxProperties: 20
                 type: object
             required:
             - identity
@@ -117,6 +118,10 @@ spec:
                 type: array
               digest:
                 description: Digest is calculated by the caching layer.
+                type: string
+              repositoryURL:
+                description: RepositoryURL has the concrete URL pointing to the local
+                  registry including the service name.
                 type: string
               tag:
                 description: Tag defines the explicit tag that was used to create

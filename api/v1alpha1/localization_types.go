@@ -94,6 +94,9 @@ type Localization struct {
 
 // GetSourceSnapshotKey is a convenient wrapper to get the NamespacedName for a snapshot reference on the object.
 func (in Localization) GetSourceSnapshotKey() types.NamespacedName {
+	if in.Spec.Source.SourceRef == nil {
+		return types.NamespacedName{}
+	}
 	return types.NamespacedName{
 		Namespace: in.Spec.Source.SourceRef.Namespace,
 		Name:      in.Spec.Source.SourceRef.Name,

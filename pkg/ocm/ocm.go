@@ -68,21 +68,25 @@ func NewClient(client client.Client, cache cache.Cache) *Client {
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
 func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {
 	identity := v1alpha1.Identity{
-		cache.ComponentNameKey:    cv.Spec.Component,
-		cache.ComponentVersionKey: cv.Status.ReconciledVersion,
-		cache.ResourceNameKey:     resource.Name,
-		cache.ResourceVersionKey:  resource.Version,
+		v1alpha1.ComponentNameKey:    cv.Spec.Component,
+		v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
+		v1alpha1.ResourceNameKey:     resource.Name,
+		v1alpha1.ResourceVersionKey:  resource.Version,
 	}
 	// Add extra identity.
 	for k, v := range resource.ExtraIdentity {
 		identity[k] = v
 	}
-	cached, err := c.cache.IsCached(ctx, identity, resource.Version)
+	name, err := ConstructRepositoryName(identity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct name: %w", err)
+	}
+	cached, err := c.cache.IsCached(ctx, name, resource.Version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check cache: %w", err)
 	}
 	if cached {
-		return c.cache.FetchDataByIdentity(ctx, identity, resource.Version)
+		return c.cache.FetchDataByIdentity(ctx, name, resource.Version)
 	}
 
 	cva, err := c.GetComponentVersion(ctx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
@@ -112,13 +116,13 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 	}
 	defer reader.Close()
 
-	digest, err := c.cache.PushData(ctx, reader, identity, resource.Version)
+	digest, err := c.cache.PushData(ctx, reader, name, resource.Version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to cache blob: %w", err)
 	}
 
 	// re-fetch the resource to have a streamed reader available
-	return c.cache.FetchDataByDigest(ctx, identity, digest)
+	return c.cache.FetchDataByDigest(ctx, name, digest)
 }
 
 // GetComponentVersion returns a component version. It's the caller's responsibility to clean it up and close the component version once done with it.
@@ -291,4 +295,13 @@ func (c *Client) ListComponentVersions(octx ocm.Context, obj *v1alpha1.Component
 		})
 	}
 	return result, nil
+}
+
+// ConstructRepositoryName hashes the name and passes it back.
+func ConstructRepositoryName(identity v1alpha1.Identity) (string, error) {
+	repositoryName, err := identity.Hash()
+	if err != nil {
+		return "", fmt.Errorf("failed to create hash for identity: %w", err)
+	}
+	return repositoryName, nil
 }

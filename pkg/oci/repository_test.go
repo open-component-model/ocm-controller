@@ -21,7 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/cache"
 )
 
 func TestRepository_Blob(t *testing.T) {
@@ -101,13 +100,13 @@ func TestRepository_StreamImage(t *testing.T) {
 			// push image to the registry
 			blob := tc.blob
 			reader := io.NopCloser(bytes.NewBuffer(blob))
-			layerDigest, err := repo.PushStreamingImage("latest", reader, string(types.OCILayer), map[string]string{
+			manifest, err := repo.PushStreamingImage("latest", reader, string(types.OCILayer), map[string]string{
 				"org.opencontainers.artifact.created": time.Now().UTC().Format(time.RFC3339),
 			})
 			g.Expect(err).NotTo(HaveOccurred())
-			layer, err := repo.FetchBlob(layerDigest)
+			digest := manifest.Layers[0].Digest.String()
+			layer, err := repo.FetchBlob(digest)
 			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(layerDigest).To(Equal(layerDigest))
 			b, err := io.ReadAll(layer)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(b).To(Equal(tc.expected))
@@ -180,21 +179,23 @@ func TestClient_FetchPush(t *testing.T) {
 				},
 			}
 			identity := v1alpha1.Identity{
-				cache.ComponentVersionKey: obj.Status.ReconciledVersion,
-				cache.ComponentNameKey:    obj.Spec.Component,
-				cache.ResourceNameKey:     tc.resource.Name,
-				cache.ResourceVersionKey:  tc.resource.Version,
+				v1alpha1.ComponentVersionKey: obj.Status.ReconciledVersion,
+				v1alpha1.ComponentNameKey:    obj.Spec.Component,
+				v1alpha1.ResourceNameKey:     tc.resource.Name,
+				v1alpha1.ResourceVersionKey:  tc.resource.Version,
 			}
+			name, err := identity.Hash()
+			g.Expect(err).NotTo(HaveOccurred())
 			if tc.push {
-				_, err := c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), identity, tc.resource.Version)
+				_, err := c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
-				blob, err := c.FetchDataByIdentity(context.Background(), identity, tc.resource.Version)
+				blob, err := c.FetchDataByIdentity(context.Background(), name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
 				content, err := io.ReadAll(blob)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(content).To(Equal(tc.expected))
 			} else {
-				exists, err := c.IsCached(context.Background(), identity, tc.resource.Version)
+				exists, err := c.IsCached(context.Background(), name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(exists).To(BeFalse())
 			}

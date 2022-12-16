@@ -11,7 +11,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/google/go-containerregistry/pkg/name"
+	ociname "github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -65,7 +65,7 @@ func NewClient(ociAddress string) *Client {
 // Repository is a wrapper around go-container registry's name.Repository.
 // It provides a few convenience methods for interacting with OCI registries.
 type Repository struct {
-	name.Repository
+	ociname.Repository
 	options
 }
 
@@ -76,11 +76,11 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to make options: %w", err)
 	}
-	repoOpts := make([]name.Option, 0)
+	repoOpts := make([]ociname.Option, 0)
 	if opt.insecure {
-		repoOpts = append(repoOpts, name.Insecure)
+		repoOpts = append(repoOpts, ociname.Insecure)
 	}
-	repo, err := name.NewRepository(repositoryName, repoOpts...)
+	repo, err := ociname.NewRepository(repositoryName, repoOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Repository name %q: %w", repositoryName, err)
 	}
@@ -88,32 +88,30 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 }
 
 // PushData takes a blob of data and caches it using OCI as a background.
-func (c *Client) PushData(ctx context.Context, data io.ReadCloser, identity v1alpha1.Identity, tag string) (string, error) {
-	repositoryName, err := c.constructRepositoryName(identity)
-	if err != nil {
-		return "", err
-	}
+func (c *Client) PushData(ctx context.Context, data io.ReadCloser, name, tag string) (string, error) {
+	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
 		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	digest, err := repo.PushStreamingImage(tag, data, "", nil)
+	manifest, err := repo.PushStreamingImage(tag, data, "", nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to push image: %w", err)
 	}
 
-	return digest, nil
+	layers := manifest.Layers
+	if len(layers) == 0 {
+		return "", fmt.Errorf("no layers returned by manifest: %w", err)
+	}
+
+	return layers[0].Digest.String(), nil
 }
 
 // FetchDataByIdentity fetches an existing resource. Errors if there is no resource available. It's advised to call IsCached
 // before fetching. Returns the digest of the resource alongside the data for further processing.
-func (c *Client) FetchDataByIdentity(ctx context.Context, identity v1alpha1.Identity, tag string) (io.ReadCloser, error) {
-	repositoryName, err := c.constructRepositoryName(identity)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, error) {
+	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository: %w", err)
@@ -138,11 +136,8 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, identity v1alpha1.Iden
 	return reader, nil
 }
 
-func (c *Client) FetchDataByDigest(ctx context.Context, identity v1alpha1.Identity, digest string) (io.ReadCloser, error) {
-	repositoryName, err := c.constructRepositoryName(identity)
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error) {
+	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 
 	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
@@ -152,13 +147,9 @@ func (c *Client) FetchDataByDigest(ctx context.Context, identity v1alpha1.Identi
 	return repo.FetchBlob(digest)
 }
 
-func (c *Client) IsCached(ctx context.Context, identity v1alpha1.Identity, tag string) (bool, error) {
-	repositoryName, err := c.constructRepositoryName(identity)
-	if err != nil {
-		return false, err
-	}
-
-	reference, err := name.ParseReference(fmt.Sprintf("%s/%s", repositoryName, tag))
+func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
+	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
+	reference, err := ociname.ParseReference(fmt.Sprintf("%s/%s", repositoryName, tag))
 	if err != nil {
 		return false, fmt.Errorf("failed to parse repository and tag name: %w", err)
 	}
@@ -169,19 +160,9 @@ func (c *Client) IsCached(ctx context.Context, identity v1alpha1.Identity, tag s
 	return true, nil
 }
 
-func (c *Client) constructRepositoryName(identity v1alpha1.Identity) (string, error) {
-	repositoryName, err := identity.Hash()
-	if err != nil {
-		return "", fmt.Errorf("failed to create hash for identity: %w", err)
-	}
-	repositoryName = fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, repositoryName)
-
-	return repositoryName, nil
-}
-
 // fetchBlob fetches a blob from the repository.
 func (r *Repository) fetchBlob(digest string) (v1.Layer, error) {
-	ref, err := name.NewDigest(fmt.Sprintf("%s@%s", r.Repository, digest))
+	ref, err := ociname.NewDigest(fmt.Sprintf("%s@%s", r.Repository, digest))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse digest %q: %w", digest, err)
 	}
@@ -226,35 +207,26 @@ func (r *Repository) pushBlob(layer v1.Layer) error {
 // It accepts a media type and a byte slice as the blob.
 // Default media type is "application/vnd.oci.image.layer.v1.tar+gzip".
 // Annotations can be passed to the image manifest.
-func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, mediaType string, annotations map[string]string) (string, error) {
+func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, mediaType string, annotations map[string]string) (*v1.Manifest, error) {
 	ref, err := parseReference(reference, r)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse reference: %w", err)
+		return nil, fmt.Errorf("failed to parse reference: %w", err)
 	}
-	fmt.Println("REEEEFF: ", ref)
 	image, err := computeStreamImage(reader, mediaType)
 	if err != nil {
-		return "", fmt.Errorf("failed to compute image: %w", err)
+		return nil, fmt.Errorf("failed to compute image: %w", err)
 	}
 	if len(annotations) > 0 {
 		image = mutate.Annotations(image, annotations).(v1.Image)
 	}
 	if err := r.pushImage(image, ref); err != nil {
-		return "", fmt.Errorf("failed to push image: %w", err)
+		return nil, fmt.Errorf("failed to push image: %w", err)
 	}
-	layers, err := image.Layers()
-	if err != nil {
-		return "", fmt.Errorf("failed to get layers: %w", err)
-	}
-	digest, err := layers[0].Digest()
-	if err != nil {
-		return "", fmt.Errorf("failed to calculate digest for image: %w", err)
-	}
-	return digest.String(), nil
+	return image.Manifest()
 }
 
 // pushImage pushes an OCI image to the repository. It accepts a v1.RepositoryURL interface.
-func (r *Repository) pushImage(image v1.Image, reference name.Reference) error {
+func (r *Repository) pushImage(image v1.Image, reference ociname.Reference) error {
 	return remote.Write(reference, image, r.remoteOpts...)
 }
 
@@ -325,7 +297,7 @@ func manifestToOCIDescriptor(m *remote.Descriptor) (*ocispec.Manifest, error) {
 
 func fetchManifestDescriptorFrom(s string, opts ...remote.Option) (*remote.Descriptor, error) {
 	// a manifest reference can be a tag or a digest
-	ref, err := name.ParseReference(s)
+	ref, err := ociname.ParseReference(s)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse reference: %w", err)
 	}
@@ -334,7 +306,7 @@ func fetchManifestDescriptorFrom(s string, opts ...remote.Option) (*remote.Descr
 	return remote.Get(ref, opts...)
 }
 
-func parseReference(reference string, r *Repository) (name.Reference, error) {
+func parseReference(reference string, r *Repository) (ociname.Reference, error) {
 	if reference == "" {
 		return nil, fmt.Errorf("reference must be specified")
 	}
@@ -343,7 +315,7 @@ func parseReference(reference string, r *Repository) (name.Reference, error) {
 	} else {
 		reference = fmt.Sprintf("%s:%s", r.Repository, reference)
 	}
-	ref, err := name.ParseReference(reference)
+	ref, err := ociname.ParseReference(reference)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse reference: %w", err)
 	}

@@ -92,9 +92,6 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	// TODO: Think about this flow some more. Are these the correct abstraction in the right layer? So the resource
-	// controller be aware of the cache implementation? But then why would OCM layer have a push? Where would it push
-	// to?
 	reader, err := r.OCMClient.GetResource(ctx, componentVersion, obj.Spec.Resource)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to get resource: %w", err)
@@ -102,15 +99,19 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	defer reader.Close()
 
 	identity := v1alpha1.Identity{
-		cache.ComponentNameKey:    componentVersion.Spec.Component,
-		cache.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
-		cache.ResourceNameKey:     obj.Spec.Resource.Name,
-		cache.ResourceVersionKey:  obj.Spec.Resource.Version,
+		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
+		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		v1alpha1.ResourceNameKey:     obj.Spec.Resource.Name,
+		v1alpha1.ResourceVersionKey:  obj.Spec.Resource.Version,
 	}
 	for k, v := range obj.Spec.Resource.ExtraIdentity {
 		identity[k] = v
 	}
-	digest, err := r.Cache.PushData(ctx, reader, identity, obj.Spec.Resource.Version)
+	name, err := ocm.ConstructRepositoryName(identity)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to construct name: %w", err)
+	}
+	digest, err := r.Cache.PushData(ctx, reader, name, obj.Spec.Resource.Version)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to push resource to cache: %w", err)
 	}

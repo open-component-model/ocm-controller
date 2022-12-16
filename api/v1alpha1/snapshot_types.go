@@ -12,8 +12,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	ComponentNameKey    = "component-name"
+	ComponentVersionKey = "component-version"
+	ResourceNameKey     = "resource-name"
+	ResourceVersionKey  = "resource-version"
+)
+
 // Identity defines a cache entry. It is used to generate a hash that is then used by the
 // caching layer to identify an entry.
+// +kubebuilder:validation:MaxProperties=20
 type Identity map[string]string
 
 func (i *Identity) Hash() (string, error) {
@@ -42,6 +50,10 @@ type SnapshotStatus struct {
 	// Tag defines the explicit tag that was used to create the related snapshot and cache entry.
 	// +optional
 	Tag string `json:"tag,omitempty"`
+
+	// RepositoryURL has the concrete URL pointing to the local registry including the service name.
+	// +optional
+	RepositoryURL string `json:"repositoryURL,omitempty"`
 }
 
 //+kubebuilder:object:root=true

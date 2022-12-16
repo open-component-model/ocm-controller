@@ -253,10 +253,10 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
 	// find it later on.
 	identity := v1alpha1.Identity{
-		cache.ComponentNameKey:    componentVersion.Spec.Component,
-		cache.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
-		cache.ResourceNameKey:     resourceRef.Name,
-		cache.ResourceVersionKey:  resourceRef.Version,
+		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
+		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		v1alpha1.ResourceNameKey:     resourceRef.Name,
+		v1alpha1.ResourceVersionKey:  resourceRef.Version,
 	}
 	snapshotDigest, err := r.writeToCache(ctx, identity, artifactPath.Name(), obj.ResourceVersion)
 	if err != nil {
@@ -377,7 +377,11 @@ func (r *LocalizationReconciler) indexBy(kind, field string) func(o client.Objec
 }
 
 func (r *LocalizationReconciler) getSnapshotBytes(ctx context.Context, snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	reader, err := r.Cache.FetchDataByDigest(ctx, snapshot.Spec.Identity, snapshot.Status.Digest)
+	name, err := ocm.ConstructRepositoryName(snapshot.Spec.Identity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct name: %w", err)
+	}
+	reader, err := r.Cache.FetchDataByDigest(ctx, name, snapshot.Status.Digest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
@@ -391,8 +395,11 @@ func (r *LocalizationReconciler) writeToCache(ctx context.Context, identity deli
 		return "", fmt.Errorf("failed to open created archive: %w", err)
 	}
 	defer file.Close()
-
-	digest, err := r.Cache.PushData(ctx, file, identity, version)
+	name, err := ocm.ConstructRepositoryName(identity)
+	if err != nil {
+		return "", fmt.Errorf("failed to construct name: %w", err)
+	}
+	digest, err := r.Cache.PushData(ctx, file, name, version)
 	if err != nil {
 		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
