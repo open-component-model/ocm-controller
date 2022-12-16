@@ -10,7 +10,12 @@ The `ocm-controller` manages multiple Custom Resources and therefore contains se
 
 ![ocm controller reconcilers](./docs/diagrams/ocm-controller-reconcilers.png)
 
-The `ocm-controller` is responsible for the core work necessary to utilise resources from an `OCM` component in a Kubernetes cluster. This includes resolving `ComponentDescriptor` metadata for a particular component version, performing authentication to OCM repositories, retrieving artifacts from OCM repositories, making individual resources from the OCM component available within the cluster, performing localization and configuration. 
+The `ocm-controller` is responsible for the core work necessary to utilise resources from an `OCM` component in a Kubernetes cluster. This includes:
+- Resolving [`ComponentDescriptor`](https://github.com/open-component-model/ocm-spec/blob/main/doc/glossary.md#component-descriptor) metadata for a particular [component version](https://github.com/open-component-model/ocm-spec/blob/main/doc/glossary.md#component-version)
+- Performing authentication with [OCM repositories](https://github.com/open-component-model/ocm-spec/blob/main/doc/glossary.md#component-repository)
+- Retrieving [artifacts](https://github.com/open-component-model/ocm-spec/blob/main/doc/glossary.md#artifact) from OCM repositories
+- Making individual resources from the OCM component available within the cluster
+- Performing localization and configuration
 
 Snapshots are used to pass blobs between controllers and snapshots are stored in the internal registry managed by the `ocm-controller`.
 
