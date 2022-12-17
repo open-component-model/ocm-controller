@@ -98,11 +98,15 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	}
 	defer reader.Close()
 
+	version := "latest"
+	if obj.Spec.Resource.Version != "" {
+		version = obj.Spec.Resource.Version
+	}
 	identity := v1alpha1.Identity{
 		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
 		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
 		v1alpha1.ResourceNameKey:     obj.Spec.Resource.Name,
-		v1alpha1.ResourceVersionKey:  obj.Spec.Resource.Version,
+		v1alpha1.ResourceVersionKey:  version,
 	}
 	for k, v := range obj.Spec.Resource.ExtraIdentity {
 		identity[k] = v
@@ -111,7 +115,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to construct name: %w", err)
 	}
-	digest, err := r.Cache.PushData(ctx, reader, name, obj.Spec.Resource.Version)
+	digest, err := r.Cache.PushData(ctx, reader, name, version)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to push resource to cache: %w", err)
 	}
