@@ -46,6 +46,9 @@ type ConfigurationStatus struct {
 }
 
 func (in Configuration) GetSourceSnapshotKey() types.NamespacedName {
+	if in.Spec.Source.SourceRef == nil {
+		return types.NamespacedName{}
+	}
 	return types.NamespacedName{
 		Namespace: in.Spec.Source.SourceRef.Namespace,
 		Name:      in.Spec.Source.SourceRef.Name,
