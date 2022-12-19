@@ -23,7 +23,7 @@ import (
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	ocmctrl "github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
@@ -106,10 +106,10 @@ func TestComponentVersionReconcile(t *testing.T) {
 	cvr := ComponentVersionReconciler{
 		Scheme: scheme,
 		Client: client,
-		OCMClient: &mockFetcher{
-			verified: true,
-			t:        t,
-			cv: map[string]ocm.ComponentVersionAccess{
+		OCMClient: &fakes.MockFetcher{
+			Verified: true,
+			T:        t,
+			ComponentVersionAccessMap: map[string]ocm.ComponentVersionAccess{
 				"github.com/skarlso/embedded": embedded,
 				"github.com/skarlso/root":     root,
 			},
@@ -183,9 +183,9 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			cvr := ComponentVersionReconciler{
 				Scheme: scheme,
 				Client: client,
-				OCMClient: &mockFetcher{
-					t:             t,
-					latestVersion: tt.latestVersion,
+				OCMClient: &fakes.MockFetcher{
+					T:             t,
+					LatestVersion: tt.latestVersion,
 				},
 			}
 			update, _, err := cvr.checkVersion(context.Background(), obj)
@@ -193,33 +193,6 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			require.Equal(tt.expectedUpdate, update)
 		})
 	}
-}
-
-type mockFetcher struct {
-	getComponentErr error
-	verifyErr       error
-	getVersionErr   error
-	cv              map[string]ocm.ComponentVersionAccess
-	t               *testing.T
-	verified        bool
-	latestVersion   string
-}
-
-func (m *mockFetcher) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
-	m.t.Logf("called GetComponentVersion with name %s and version %s", name, version)
-	return m.cv[name], m.getComponentErr
-}
-
-func (m *mockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
-	return m.verified, m.verifyErr
-}
-
-func (m *mockFetcher) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
-	return m.latestVersion, m.getVersionErr
-}
-
-func (m *mockFetcher) ListComponentVersions(ocmCtx ocm.Context, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
-	return []ocmctrl.Version{}, m.getVersionErr
 }
 
 type mockComponent struct {

@@ -41,8 +41,9 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
-	"github.com/open-component-model/ocm-controller/pkg/oci"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // ConfigurationReconciler reconciles a Configuration object
@@ -51,7 +52,8 @@ type ConfigurationReconciler struct {
 	Scheme            *runtime.Scheme
 	ReconcileInterval time.Duration
 	RetryInterval     time.Duration
-	OCIRegistryAddr   string
+	Cache             cache.Cache
+	OCMClient         ocm.FetchVerifier
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations,verbs=get;list;watch;create;update;patch;delete
@@ -101,28 +103,6 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Configuration) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithName("configuration-controller")
-	// get source snapshot
-	srcSnapshot := &v1alpha1.Snapshot{}
-	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("snapshot not found")
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-		}
-		return ctrl.Result{RequeueAfter: r.RetryInterval},
-			fmt.Errorf("failed to get component object: %w", err)
-	}
-
-	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
-		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
-	}
-
-	srcSnapshotData, err := r.getSnapshotBytes(srcSnapshot)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
-	}
-
 	// Initialize the patch helper.
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
@@ -165,26 +145,50 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.ConfigRef.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	var resourceData []byte
+
+	if obj.Spec.Source.SourceRef != nil {
+		if resourceData, err = r.fetchResourceDataFromSnapshot(ctx, obj); err != nil {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
+		}
+	} else if obj.Spec.Source.ResourceRef != nil {
+		if resourceData, err = r.fetchResourceDataFromResource(ctx, obj, componentVersion); err != nil {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
+		}
+	}
+
+	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get component descriptor from version")
 	}
 	if componentDescriptor == nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ReferencePath)
+		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath)
 	}
 
-	configResource := componentDescriptor.GetResource(obj.Spec.ConfigRef.Resource.Name)
-	if configResource == nil {
-		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("couldn't find config resource for resource name '%s'", obj.Spec.ConfigRef.Resource.Name)
-	}
 	config := configdata.ConfigData{}
-	if err := GetResource(*srcSnapshot, &config); err != nil {
+	resourceRef := obj.Spec.ConfigRef.Resource.ResourceRef
+	if resourceRef == nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component resource: %w", err)
+			fmt.Errorf("resource ref is empty for config ref")
+	}
+	reader, err := r.OCMClient.GetResource(ctx, componentVersion, *resourceRef)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to get resource: %w", err)
+	}
+	defer reader.Close()
+
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to read blob: %w", err)
+	}
+	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to unmarshal content: %w", err)
 	}
 
 	var rules localize.Substitutions
@@ -218,7 +222,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 	}
 	defer vfs.Cleanup(virtualFS)
 
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(srcSnapshotData)); err != nil {
+	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("extract tar error: %w", err)
 	}
 
@@ -247,14 +251,15 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("build tar error: %w", err)
 	}
 
-	// create snapshot
-	repositoryName := fmt.Sprintf(
-		"%s/%s/%s",
-		r.OCIRegistryAddr,
-		obj.Namespace,
-		obj.Spec.SnapshotTemplate.Name,
-	)
-	snapshotDigest, err := r.writeSnapshot(repositoryName, artifactPath.Name())
+	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
+	// find it later on.
+	identity := v1alpha1.Identity{
+		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
+		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		v1alpha1.ResourceNameKey:     resourceRef.Name,
+		v1alpha1.ResourceVersionKey:  resourceRef.Version,
+	}
+	snapshotDigest, err := r.writeToCache(ctx, identity, artifactPath.Name(), obj.ResourceVersion)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
@@ -262,6 +267,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 	//TODO@soule: start by checking config generation change
 	// then after computing snapshot, check if snapshot changed based on config.LastSnapshotDigest
 	// create/update the snapshot custom resource
+
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
@@ -276,7 +282,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref: strings.TrimPrefix(repositoryName, r.OCIRegistryAddr+"/"),
+			Identity: identity,
 		}
 		return nil
 	})
@@ -294,8 +300,8 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			fmt.Errorf("failed to patch snapshot CR: %w", err)
 	}
 
-	obj.Status.LatestSnapshotDigest = srcSnapshot.GetDigest()
-	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", configResource.Name, configResource.Version)
+	obj.Status.LatestSnapshotDigest = snapshotDigest
+	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
@@ -314,7 +320,7 @@ func (r *ConfigurationReconciler) requestsForRevisionChangeOf(indexKey string) f
 			panic(fmt.Sprintf("expected snapshot but got: %T", obj))
 		}
 
-		if snap.GetDigest() == "" {
+		if snap.Status.Digest == "" {
 			return nil
 		}
 
@@ -328,7 +334,7 @@ func (r *ConfigurationReconciler) requestsForRevisionChangeOf(indexKey string) f
 
 		var reqs []reconcile.Request
 		for _, d := range list.Items {
-			if snap.GetDigest() == d.Status.LatestSnapshotDigest {
+			if snap.Status.Digest == d.Status.LatestSnapshotDigest {
 				continue
 			}
 			reqs = append(reqs, reconcile.Request{
@@ -352,12 +358,12 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 
 		switch field {
 		case "SourceRef":
-			if l.Spec.SourceRef.Kind == kind {
+			if l.Spec.Source.SourceRef.Kind == kind {
 				namespace := l.GetNamespace()
-				if l.Spec.SourceRef.Namespace != "" {
-					namespace = l.Spec.SourceRef.Namespace
+				if l.Spec.Source.SourceRef.Namespace != "" {
+					namespace = l.Spec.Source.SourceRef.Namespace
 				}
-				return []string{fmt.Sprintf("%s/%s", namespace, l.Spec.SourceRef.Name)}
+				return []string{fmt.Sprintf("%s/%s", namespace, l.Spec.Source.SourceRef.Name)}
 			}
 		case "ConfigRef":
 			namespace := l.GetNamespace()
@@ -373,39 +379,35 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 	}
 }
 
-func (r *ConfigurationReconciler) getSnapshotBytes(snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	image := strings.TrimPrefix(snapshot.Status.RepositoryURL, "http://")
-	image = strings.TrimPrefix(image, "https://")
-	repo, err := oci.NewRepository(image, oci.WithInsecure())
+func (r *ConfigurationReconciler) getSnapshotBytes(ctx context.Context, snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
+	name, err := ocm.ConstructRepositoryName(snapshot.Spec.Identity)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct name: %w", err)
 	}
-
-	reader, err := repo.FetchBlob(snapshot.Status.Digest)
+	reader, err := r.Cache.FetchDataByDigest(ctx, name, snapshot.Status.Digest)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
 
 	return io.ReadAll(reader)
 }
 
-func (r *ConfigurationReconciler) writeSnapshot(repositoryName, artifactPath string) (string, error) {
-	repo, err := oci.NewRepository(repositoryName, oci.WithInsecure())
-	if err != nil {
-		return "", fmt.Errorf("failed create new repository: %w", err)
-	}
-
+func (r *ConfigurationReconciler) writeToCache(ctx context.Context, identity deliveryv1alpha1.Identity, artifactPath string, version string) (string, error) {
 	file, err := os.Open(artifactPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open created archive: %w", err)
 	}
 	defer file.Close()
-	digest, err := repo.PushStreamBlob(file, "")
+	name, err := ocm.ConstructRepositoryName(identity)
+	if err != nil {
+		return "", fmt.Errorf("failed to construct name: %w", err)
+	}
+	digest, err := r.Cache.PushData(ctx, file, name, version)
 	if err != nil {
 		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
 
-	return digest.Digest.String(), nil
+	return digest, nil
 }
 
 func (r *ConfigurationReconciler) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
@@ -460,4 +462,44 @@ func (r *ConfigurationReconciler) configurator(subst []localize.Substitution, de
 	}
 
 	return result.Adjustments, nil
+}
+
+func (r *ConfigurationReconciler) fetchResourceDataFromSnapshot(ctx context.Context, obj *deliveryv1alpha1.Configuration) ([]byte, error) {
+	log := log.FromContext(ctx)
+	srcSnapshot := &v1alpha1.Snapshot{}
+	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("snapshot not found")
+			return nil, nil
+		}
+		return nil,
+			fmt.Errorf("failed to get component object: %w", err)
+	}
+
+	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
+		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
+		return nil, nil
+	}
+	log.Info("getting snapshot data from snapshot", "snapshot", srcSnapshot)
+	srcSnapshotData, err := r.getSnapshotBytes(ctx, srcSnapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	return srcSnapshotData, nil
+}
+
+func (r *ConfigurationReconciler) fetchResourceDataFromResource(ctx context.Context, obj *deliveryv1alpha1.Configuration, version *deliveryv1alpha1.ComponentVersion) ([]byte, error) {
+	resource, err := r.OCMClient.GetResource(ctx, version, *obj.Spec.Source.ResourceRef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
+	}
+	defer resource.Close()
+
+	content, err := io.ReadAll(resource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read resource data: %w", err)
+	}
+
+	return content, nil
 }

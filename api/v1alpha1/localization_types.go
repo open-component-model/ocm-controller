@@ -13,13 +13,23 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// Source defines a possible incoming format for sources that this object needs for further configuration/localization
+// steps.
+// +kubebuilder:validation:MinProperties=1
+type Source struct {
+	// +optional
+	SourceRef *meta.NamespacedObjectKindReference `json:"sourceRef,omitempty"`
+	// +optional
+	ResourceRef *ResourceRef `json:"resourceRef,omitempty"`
+}
+
 // LocalizationSpec defines the desired state of Localization
 type LocalizationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
 	// +required
-	SourceRef meta.NamespacedObjectKindReference `json:"sourceRef"`
+	Source Source `json:"source"`
 
 	// +required
 	ConfigRef ConfigReference `json:"configRef"`
@@ -33,7 +43,7 @@ type ConfigReference struct {
 	ComponentVersionRef meta.NamespacedObjectReference `json:"componentVersionRef"`
 
 	// +required
-	Resource ResourceRef `json:"resource"`
+	Resource Source `json:"resource"`
 }
 
 // ResourceRef define a resource.
@@ -42,6 +52,8 @@ type ConfigReference struct {
 type ResourceRef struct {
 	// +required
 	Name string `json:"name"`
+	// +optional
+	Version string `json:"version,omitempty"`
 
 	// +optional
 	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
@@ -80,10 +92,14 @@ type Localization struct {
 	Status LocalizationStatus `json:"status,omitempty"`
 }
 
+// GetSourceSnapshotKey is a convenient wrapper to get the NamespacedName for a snapshot reference on the object.
 func (in Localization) GetSourceSnapshotKey() types.NamespacedName {
+	if in.Spec.Source.SourceRef == nil {
+		return types.NamespacedName{}
+	}
 	return types.NamespacedName{
-		Namespace: in.Spec.SourceRef.Namespace,
-		Name:      in.Spec.SourceRef.Name,
+		Namespace: in.Spec.Source.SourceRef.Namespace,
+		Name:      in.Spec.Source.SourceRef.Name,
 	}
 }
 

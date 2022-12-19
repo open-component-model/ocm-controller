@@ -8,7 +8,6 @@ package v1alpha1
 import (
 	"time"
 
-	"github.com/fluxcd/pkg/apis/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -18,10 +17,8 @@ type ConfigurationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	//TODO@souleb: rename to SnapshotRef
 	// +required
-	//kubebuilder:default:={snapshot: default}
-	SourceRef meta.NamespacedObjectKindReference `json:"sourceRef"`
+	Source Source `json:"source"`
 
 	// +required
 	ConfigRef ConfigReference `json:"configRef"`
@@ -49,9 +46,12 @@ type ConfigurationStatus struct {
 }
 
 func (in Configuration) GetSourceSnapshotKey() types.NamespacedName {
+	if in.Spec.Source.SourceRef == nil {
+		return types.NamespacedName{}
+	}
 	return types.NamespacedName{
-		Namespace: in.Spec.SourceRef.Namespace,
-		Name:      in.Spec.SourceRef.Name,
+		Namespace: in.Spec.Source.SourceRef.Namespace,
+		Name:      in.Spec.Source.SourceRef.Name,
 	}
 }
 

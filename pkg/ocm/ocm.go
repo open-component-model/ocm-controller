@@ -8,9 +8,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 
 	"github.com/Masterminds/semver"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,12 +20,14 @@ import (
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 )
 
 // Verifier takes a Component and runs OCM verification on it.
@@ -33,6 +37,7 @@ type Verifier interface {
 
 // Fetcher gets information about an OCM component Version based on a k8s component Version.
 type Fetcher interface {
+	GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error)
 	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
 	ListComponentVersions(ctx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
@@ -47,15 +52,81 @@ type FetchVerifier interface {
 // Client implements the OCM fetcher interface.
 type Client struct {
 	client client.Client
+	cache  cache.Cache
 }
 
 var _ FetchVerifier = &Client{}
 
 // NewClient creates a new fetcher Client using the provided k8s client.
-func NewClient(client client.Client) *Client {
+func NewClient(client client.Client, cache cache.Cache) *Client {
 	return &Client{
 		client: client,
+		cache:  cache,
 	}
+}
+
+// GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
+func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {
+	version := "latest"
+	if resource.Version != "" {
+		version = resource.Version
+	}
+	identity := v1alpha1.Identity{
+		v1alpha1.ComponentNameKey:    cv.Spec.Component,
+		v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
+		v1alpha1.ResourceNameKey:     resource.Name,
+		v1alpha1.ResourceVersionKey:  version,
+	}
+	// Add extra identity.
+	for k, v := range resource.ExtraIdentity {
+		identity[k] = v
+	}
+	name, err := ConstructRepositoryName(identity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct name: %w", err)
+	}
+	cached, err := c.cache.IsCached(ctx, name, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check cache: %w", err)
+	}
+	if cached {
+		return c.cache.FetchDataByIdentity(ctx, name, version)
+	}
+
+	cva, err := c.GetComponentVersion(ctx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get component version: %w", err)
+	}
+	defer cva.Close()
+
+	var identities []ocmmetav1.Identity
+	for _, ref := range resource.ReferencePath {
+		identities = append(identities, ref)
+	}
+
+	res, _, err := utils.ResolveResourceReference(cva, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities), cva.Repository())
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve reference path to resource: %w", err)
+	}
+
+	access, err := res.AccessMethod()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch access spec: %w", err)
+	}
+
+	reader, err := access.Reader()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch reader: %w", err)
+	}
+	defer reader.Close()
+
+	digest, err := c.cache.PushData(ctx, reader, name, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cache blob: %w", err)
+	}
+
+	// re-fetch the resource to have a streamed reader available
+	return c.cache.FetchDataByDigest(ctx, name, digest)
 }
 
 // GetComponentVersion returns a component version. It's the caller's responsibility to clean it up and close the component version once done with it.
@@ -228,4 +299,13 @@ func (c *Client) ListComponentVersions(octx ocm.Context, obj *v1alpha1.Component
 		})
 	}
 	return result, nil
+}
+
+// ConstructRepositoryName hashes the name and passes it back.
+func ConstructRepositoryName(identity v1alpha1.Identity) (string, error) {
+	repositoryName, err := identity.Hash()
+	if err != nil {
+		return "", fmt.Errorf("failed to create hash for identity: %w", err)
+	}
+	return repositoryName, nil
 }

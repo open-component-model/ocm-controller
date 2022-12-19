@@ -23,6 +23,7 @@ import (
 
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/controllers"
+	"github.com/open-component-model/ocm-controller/pkg/oci"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	//+kubebuilder:scaffold:imports
 )
@@ -71,11 +72,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := ocm.NewClient(mgr.GetClient())
+	cache := oci.NewClient(ociRegistryAddr)
+	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
+
 	if err = (&controllers.ComponentVersionReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
-		OCMClient: client,
+		OCMClient: ocmClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentVersion")
 		os.Exit(1)
@@ -91,10 +94,10 @@ func main() {
 	}
 
 	if err = (&controllers.ResourceReconciler{
-		Client:          mgr.GetClient(),
-		Scheme:          mgr.GetScheme(),
-		OCIRegistryAddr: ociRegistryAddr,
-		OCMClient:       client,
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		OCMClient: ocmClient,
+		Cache:     cache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
 		os.Exit(1)
@@ -102,9 +105,10 @@ func main() {
 	if err = (&controllers.LocalizationReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
-		OCIRegistryAddr:   ociRegistryAddr,
 		ReconcileInterval: time.Hour,
 		RetryInterval:     time.Minute,
+		OCMClient:         ocmClient,
+		Cache:             cache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Localization")
 		os.Exit(1)
@@ -112,9 +116,10 @@ func main() {
 	if err = (&controllers.ConfigurationReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
-		OCIRegistryAddr:   ociRegistryAddr,
 		ReconcileInterval: time.Hour,
 		RetryInterval:     time.Minute,
+		OCMClient:         ocmClient,
+		Cache:             cache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
 		os.Exit(1)

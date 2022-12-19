@@ -8,9 +8,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,22 +21,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
-
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/oci"
-	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
-
-type contextKey string
 
 // ResourceReconciler reconciles a Resource object
 type ResourceReconciler struct {
 	client.Client
-	Scheme          *runtime.Scheme
-	OCIRegistryAddr string
-	OCMClient       ocmclient.FetchVerifier
+	Scheme    *runtime.Scheme
+	OCMClient ocm.FetchVerifier
+	Cache     cache.Cache
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
@@ -99,37 +92,35 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
-	if componentDescriptor == nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("component version with name '%s' is not yet available, retrying", componentVersion.Name)
-	}
+	reader, err := r.OCMClient.GetResource(ctx, componentVersion, obj.Spec.Resource)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component descriptor: %w", err)
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to get resource: %w", err)
 	}
-	resource := componentDescriptor.GetResource(obj.Spec.Resource.Name)
-	if resource == nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-	}
+	defer reader.Close()
 
-	// push the resource snapshot to oci
-	repositoryName := fmt.Sprintf(
-		"%s/%s/%s",
-		r.OCIRegistryAddr,
-		obj.Namespace,
-		obj.Spec.SnapshotTemplate.Name,
-	)
-	log.V(4).Info("creating snapshot with name", "snapshot-name", repositoryName)
-	digest, err := r.copyResourceToSnapshot(ctx, componentVersion, repositoryName, obj.ResourceVersion, resource, obj.Spec.Resource.ReferencePath)
+	version := "latest"
+	if obj.Spec.Resource.Version != "" {
+		version = obj.Spec.Resource.Version
+	}
+	identity := v1alpha1.Identity{
+		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
+		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		v1alpha1.ResourceNameKey:     obj.Spec.Resource.Name,
+		v1alpha1.ResourceVersionKey:  version,
+	}
+	for k, v := range obj.Spec.Resource.ExtraIdentity {
+		identity[k] = v
+	}
+	name, err := ocm.ConstructRepositoryName(identity)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to construct name: %w", err)
+	}
+	digest, err := r.Cache.PushData(ctx, reader, name, version)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to push resource to cache: %w", err)
 	}
 
-	//TODO@souleb: Create the cr before attempting to push to registry and set a condition accordingly
-	// This also means that we need to check for the existence of the cr before attempting to push to the registry
-	// and if a cr exists, we need to check if the digest matches the one in the cr
-
-	// create/update the snapshot custom resource
+	// How would I use this snapshot from the Localizer?
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
@@ -144,7 +135,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Ref: strings.TrimPrefix(repositoryName, r.OCIRegistryAddr+"/"),
+			Identity: identity,
 		}
 		return nil
 	})
@@ -153,17 +144,15 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
 	}
 
-	newSnapshotCR := snapshotCR.DeepCopy()
-	newSnapshotCR.Status.Digest = digest
-	newSnapshotCR.Status.Tag = obj.ResourceVersion
-	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshotCR); err != nil {
+	newSnapshot := snapshotCR.DeepCopy()
+	newSnapshot.Status.Digest = digest
+	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshot); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to patch snapshot CR: %w", err)
+			fmt.Errorf("failed to patch snapshot: %w", err)
 	}
 
-	obj.Status.LastAppliedResourceVersion = resource.Version
-
-	log.Info("successfully created snapshot", "name", repositoryName)
+	log.Info("successfully pushed resource", "resource", obj.Spec.Resource.Name)
+	obj.Status.LastAppliedResourceVersion = obj.Spec.Resource.Version
 
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
@@ -176,45 +165,4 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	log.Info("successfully reconciled resource", "name", obj.GetName())
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-}
-
-func (r *ResourceReconciler) copyResourceToSnapshot(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, repositoryName, tag string, res *ocmapi.Resource, referencePath []map[string]string) (string, error) {
-	cv, err := r.OCMClient.GetComponentVersion(ctx, componentVersion, componentVersion.Spec.Component, componentVersion.Status.ReconciledVersion)
-	if err != nil {
-		return "", fmt.Errorf("failed to get component version: %w", err)
-	}
-	defer cv.Close()
-
-	var identities []ocmmetav1.Identity
-	for _, ref := range referencePath {
-		identities = append(identities, ref)
-	}
-
-	resource, _, err := utils.ResolveResourceReference(cv, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(res.Name), identities), cv.Repository())
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
-	}
-
-	access, err := resource.AccessMethod()
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch access spec: %w", err)
-	}
-
-	reader, err := access.Reader()
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch reader: %w", err)
-	}
-
-	repo, err := oci.NewRepository(repositoryName, oci.WithInsecure())
-	if err != nil {
-		return "", fmt.Errorf("failed create new repository: %w", err)
-	}
-
-	// TODO: add extra identity
-	digest, err := repo.PushStreamingImage(tag, reader, "", nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to push image: %w", err)
-	}
-
-	return digest, nil
 }

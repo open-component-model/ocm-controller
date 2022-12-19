@@ -7,8 +7,6 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"io"
-	"strings"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
@@ -17,29 +15,10 @@ import (
 	ocmapi "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/cpi"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
-
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
 
-func GetResource(snapshot v1alpha1.Snapshot, result any) error {
-	image := strings.TrimPrefix(snapshot.Status.RepositoryURL, "http://")
-	image = strings.TrimPrefix(image, "https://")
-	repo, err := oci.NewRepository(image, oci.WithInsecure())
-	if err != nil {
-		return fmt.Errorf("failed to get repository: %w", err)
-	}
-	blob, err := repo.FetchBlob(snapshot.Status.Digest)
-	if err != nil {
-		return fmt.Errorf("failed to fetch blob: %w", err)
-	}
-	content, err := io.ReadAll(blob)
-	if err != nil {
-		return fmt.Errorf("failed to read blob: %w", err)
-	}
-	return ocmruntime.DefaultYAMLEncoding.Unmarshal(content, result)
-}
-
+// TODO: Replace this with something that can handle other access Types.
+// Alternatively, extend it.
 func GetImageReference(resource *ocmapi.Resource) (string, error) {
 	accessSpec, err := GetResourceAccess(resource)
 	if err != nil {

@@ -6,14 +6,36 @@
 package v1alpha1
 
 import (
-	"strings"
+	"fmt"
 
+	"github.com/mitchellh/hashstructure/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	ComponentNameKey    = "component-name"
+	ComponentVersionKey = "component-version"
+	ResourceNameKey     = "resource-name"
+	ResourceVersionKey  = "resource-version"
+)
+
+// Identity defines a cache entry. It is used to generate a hash that is then used by the
+// caching layer to identify an entry.
+// +kubebuilder:validation:MaxProperties=20
+type Identity map[string]string
+
+func (i *Identity) Hash() (string, error) {
+	hash, err := hashstructure.Hash(i, hashstructure.FormatV2, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash identity: %w", err)
+	}
+
+	return fmt.Sprintf("sha-%d", hash), nil
+}
+
 // SnapshotSpec defines the desired state of Snapshot
 type SnapshotSpec struct {
-	Ref string `json:"ref"`
+	Identity Identity `json:"identity"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot
@@ -21,17 +43,17 @@ type SnapshotStatus struct {
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
-	// +optional
-	RepositoryURL string `json:"repositoryURL,omitempty"`
-
-	// +optional
-	Layer string `json:"layer,omitempty"`
-
+	// Digest is calculated by the caching layer.
 	// +optional
 	Digest string `json:"digest,omitempty"`
 
+	// Tag defines the explicit tag that was used to create the related snapshot and cache entry.
 	// +optional
 	Tag string `json:"tag,omitempty"`
+
+	// RepositoryURL has the concrete URL pointing to the local registry including the service name.
+	// +optional
+	RepositoryURL string `json:"repositoryURL,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -44,22 +66,6 @@ type Snapshot struct {
 
 	Spec   SnapshotSpec   `json:"spec,omitempty"`
 	Status SnapshotStatus `json:"status,omitempty"`
-}
-
-func (in Snapshot) GetDigest() string {
-	if in.Status.Layer == "" || !strings.Contains(in.Status.Layer, "@") {
-		return ""
-	}
-
-	return strings.Split(in.Status.Layer, "@")[1]
-}
-
-func (in Snapshot) GetBlob() string {
-	if in.Status.Layer == "" || !strings.Contains(in.Status.Layer, "@") {
-		return ""
-	}
-
-	return strings.TrimPrefix(in.Status.Layer, "http://")
 }
 
 // GetConditions returns the status conditions of the object.
