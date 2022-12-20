@@ -146,6 +146,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	newSnapshot := snapshotCR.DeepCopy()
 	newSnapshot.Status.Digest = digest
+	newSnapshot.Status.Tag = version
 	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshot); err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to patch snapshot: %w", err)
