@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	_ "github.com/open-component-model/ocm/pkg/contexts/datacontext/config"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
@@ -103,17 +102,14 @@ func TestComponentVersionReconcile(t *testing.T) {
 			},
 		},
 	}
+	fakeOcm := &fakes.MockFetcher{}
+	fakeOcm.VerifyComponentReturns(true, nil)
+	fakeOcm.GetComponentVersionReturnsForName(embedded.descriptor.ComponentSpec.Name, embedded, nil)
+	fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
 	cvr := ComponentVersionReconciler{
-		Scheme: scheme,
-		Client: client,
-		OCMClient: &fakes.MockFetcher{
-			Verified: true,
-			T:        t,
-			ComponentVersionAccessMap: map[string]ocm.ComponentVersionAccess{
-				"github.com/skarlso/embedded": embedded,
-				"github.com/skarlso/root":     root,
-			},
-		},
+		Scheme:    scheme,
+		Client:    client,
+		OCMClient: fakeOcm,
 	}
 	_, err = cvr.reconcile(context.Background(), obj, "0.1.0")
 	assert.NoError(t, err)
@@ -180,13 +176,12 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			fakeClient := fake.NewClientBuilder()
 			client := fakeClient.WithObjects(&corev1.Secret{}, obj).WithScheme(scheme).Build()
 
+			fakeOcm := &fakes.MockFetcher{}
+			fakeOcm.GetLatestComponentVersionReturns(tt.latestVersion, nil)
 			cvr := ComponentVersionReconciler{
-				Scheme: scheme,
-				Client: client,
-				OCMClient: &fakes.MockFetcher{
-					T:             t,
-					LatestVersion: tt.latestVersion,
-				},
+				Scheme:    scheme,
+				Client:    client,
+				OCMClient: fakeOcm,
 			}
 			update, _, err := cvr.checkVersion(context.Background(), obj)
 			require.NoError(err)
