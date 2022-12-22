@@ -14,7 +14,9 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -103,15 +105,23 @@ var (
 )
 
 type CreateComponentVersionOption struct {
-	componentOverride *v1alpha1.ComponentVersion
+	componentOverride []byte
 }
 
 type CreateComponentVersionOptionFunc func(opts *CreateComponentVersionOption)
 
-func WithComponentVersionOverrides(cv *v1alpha1.ComponentVersion) CreateComponentVersionOptionFunc {
+func WithComponentVersionOverrides(patch []byte) CreateComponentVersionOptionFunc {
 	return func(opts *CreateComponentVersionOption) {
-		opts.componentOverride = cv
+		opts.componentOverride = patch
 	}
+}
+
+func (t *testEnv) CreatePatchObject(obj any) ([]byte, error) {
+	patch, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	return patch, nil
 }
 
 func (t *testEnv) CreateComponentVersion(opts ...CreateComponentVersionOptionFunc) (*v1alpha1.ComponentVersion, error) {
@@ -124,7 +134,31 @@ func (t *testEnv) CreateComponentVersion(opts ...CreateComponentVersionOptionFun
 		return component, nil
 	}
 
-	return mergeObjects(component, defaultOpts.componentOverride)
+	originalObjJS, err := runtime.Encode(unstructured.UnstructuredJSONScheme, component)
+	if err != nil {
+		return nil, err
+	}
+
+	//original, err := runtime.DefaultUnstructuredConverter.ToUnstructured(component)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to create unstructured for default component: %w", err)
+	//}
+	//
+	patch, err := strategicpatch.CreateTwoWayMergePatch(originalObjJS, defaultOpts.componentOverride, component)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create two way merge: %w", err)
+	}
+	//
+	merged, err := strategicpatch.StrategicMergePatch(originalObjJS, patch, component)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply patch: %w", err)
+	}
+	//
+	if err := json.Unmarshal(merged, component); err != nil {
+		return nil, fmt.Errorf("failed to create unstructured: %w", err)
+	}
+
+	return component, nil
 }
 
 type CreateResourceOption struct {

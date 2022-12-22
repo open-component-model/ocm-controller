@@ -23,7 +23,7 @@ import (
 
 func TestComponentVersionReconcile(t *testing.T) {
 	var secretName = "test-secret"
-	cv, err := env.CreateComponentVersion(WithComponentVersionOverrides(&v1alpha1.ComponentVersion{
+	patch, err := env.CreatePatchObject(&v1alpha1.ComponentVersion{
 		Spec: v1alpha1.ComponentVersionSpec{
 			Repository: v1alpha1.Repository{
 				SecretRef: v1alpha1.SecretRef{
@@ -31,7 +31,9 @@ func TestComponentVersionReconcile(t *testing.T) {
 				},
 			},
 		},
-	}))
+	})
+	require.NoError(t, err)
+	cv, err := env.CreateComponentVersion(WithComponentVersionOverrides(patch))
 	require.NoError(t, err)
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -122,16 +124,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 	for i, tt := range semverTests {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.description), func(t *testing.T) {
 			require := require.New(t)
-			obj, err := env.CreateComponentVersion(WithComponentVersionOverrides(&v1alpha1.ComponentVersion{
-				Spec: v1alpha1.ComponentVersionSpec{
-					Version: v1alpha1.Version{
-						Semver: tt.givenVersion,
-					},
-				},
-				Status: v1alpha1.ComponentVersionStatus{
-					ReconciledVersion: tt.reconciledVersion,
-				},
-			}))
+			obj, err := env.CreateComponentVersion()
 			require.NoError(err)
 			fakeClient := env.FakeKubeClient(WithObjets(obj))
 			fakeOcm := &fakes.MockFetcher{}
