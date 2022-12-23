@@ -17,23 +17,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
 	var secretName = "test-secret"
-	patch, err := env.CreatePatchObject(&v1alpha1.ComponentVersion{
-		Spec: v1alpha1.ComponentVersionSpec{
-			Repository: v1alpha1.Repository{
-				SecretRef: v1alpha1.SecretRef{
-					Name: secretName,
-				},
-			},
-		},
-	})
-	require.NoError(t, err)
-	cv, err := env.CreateComponentVersion(WithComponentVersionOverrides(patch))
+	cv, err := env.CreateComponentVersion(WithComponentVersionPatch([]byte(`spec:
+  repository:
+    secretRef:
+      name: test-overwrite
+`)))
 	require.NoError(t, err)
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -123,9 +116,12 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 	}
 	for i, tt := range semverTests {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.description), func(t *testing.T) {
-			require := require.New(t)
-			obj, err := env.CreateComponentVersion()
-			require.NoError(err)
+			obj, err := env.CreateComponentVersion(WithComponentVersionPatch([]byte(fmt.Sprintf(`spec:
+  version:
+    semver: %q
+status:
+  reconciledVersion: %q`, tt.givenVersion, tt.reconciledVersion))))
+			require.NoError(t, err)
 			fakeClient := env.FakeKubeClient(WithObjets(obj))
 			fakeOcm := &fakes.MockFetcher{}
 			fakeOcm.GetLatestComponentVersionReturns(tt.latestVersion, nil)
@@ -135,8 +131,8 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 				OCMClient: fakeOcm,
 			}
 			update, _, err := cvr.checkVersion(context.Background(), obj)
-			require.NoError(err)
-			require.Equal(tt.expectedUpdate, update)
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedUpdate, update)
 		})
 	}
 }

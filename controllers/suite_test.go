@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -110,18 +111,10 @@ type CreateComponentVersionOption struct {
 
 type CreateComponentVersionOptionFunc func(opts *CreateComponentVersionOption)
 
-func WithComponentVersionOverrides(patch []byte) CreateComponentVersionOptionFunc {
+func WithComponentVersionPatch(patch []byte) CreateComponentVersionOptionFunc {
 	return func(opts *CreateComponentVersionOption) {
 		opts.componentOverride = patch
 	}
-}
-
-func (t *testEnv) CreatePatchObject(obj any) ([]byte, error) {
-	patch, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	return patch, nil
 }
 
 func (t *testEnv) CreateComponentVersion(opts ...CreateComponentVersionOptionFunc) (*v1alpha1.ComponentVersion, error) {
@@ -134,40 +127,16 @@ func (t *testEnv) CreateComponentVersion(opts ...CreateComponentVersionOptionFun
 		return component, nil
 	}
 
-	originalObjJS, err := runtime.Encode(unstructured.UnstructuredJSONScheme, component)
-	if err != nil {
-		return nil, err
-	}
-
-	//original, err := runtime.DefaultUnstructuredConverter.ToUnstructured(component)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to create unstructured for default component: %w", err)
-	//}
-	//
-	patch, err := strategicpatch.CreateTwoWayMergePatch(originalObjJS, defaultOpts.componentOverride, component)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create two way merge: %w", err)
-	}
-	//
-	merged, err := strategicpatch.StrategicMergePatch(originalObjJS, patch, component)
-	if err != nil {
-		return nil, fmt.Errorf("failed to apply patch: %w", err)
-	}
-	//
-	if err := json.Unmarshal(merged, component); err != nil {
-		return nil, fmt.Errorf("failed to create unstructured: %w", err)
-	}
-
-	return component, nil
+	return mergeObjects(component, defaultOpts.componentOverride)
 }
 
 type CreateResourceOption struct {
-	resourceOverride *v1alpha1.Resource
+	resourceOverride []byte
 }
 
 type CreateResourceOptionFunc func(opts *CreateResourceOption)
 
-func WithCreateResourceOverrides(r *v1alpha1.Resource) CreateResourceOptionFunc {
+func WithCreateResourcePatch(r []byte) CreateResourceOptionFunc {
 	return func(opts *CreateResourceOption) {
 		opts.resourceOverride = r
 	}
@@ -186,71 +155,31 @@ func (t *testEnv) CreateResource(opts ...CreateResourceOptionFunc) (*v1alpha1.Re
 	return mergeObjects(resource, defaultOpts.resourceOverride)
 }
 
-func mergeObjects[T runtime.Object](defaultObj, override T) (T, error) {
+func mergeObjects[T runtime.Object](defaultObj T, override []byte) (T, error) {
 	var result T
-	// merge the override with the default component
-	b, err := json.Marshal(override)
-	if err != nil {
-		return result, fmt.Errorf("failed to encode override to JSON: %w", err)
-	}
-	m := make(map[string]any)
-	if err := json.Unmarshal(b, &m); err != nil {
-		return result, fmt.Errorf("failed to decode component: %w", err)
-	}
-	// the map is cleaned of empty values, it's ready to be merged with component
-	removeEmptyFields(m)
 
-	b, err = json.Marshal(m)
+	originalObjJS, err := runtime.Encode(unstructured.UnstructuredJSONScheme, defaultObj)
 	if err != nil {
-		return result, fmt.Errorf("failed to marshal map: %w", err)
+		return result, err
 	}
 
-	if err := json.Unmarshal(b, &defaultObj); err != nil {
-		return result, fmt.Errorf("failed to override component: %w", err)
+	patchBytes, err := yaml.ToJSON(override)
+	if err != nil {
+		return result, fmt.Errorf("unable to parse: %w", err)
+	}
+	patch, err := strategicpatch.CreateTwoWayMergePatch(originalObjJS, patchBytes, defaultObj)
+	if err != nil {
+		return result, fmt.Errorf("failed to create two way merge: %w", err)
+	}
+	merged, err := strategicpatch.StrategicMergePatch(originalObjJS, patch, defaultObj)
+	if err != nil {
+		return result, fmt.Errorf("failed to apply patch: %w", err)
+	}
+	if err := json.Unmarshal(merged, defaultObj); err != nil {
+		return result, fmt.Errorf("failed to create unstructured: %w", err)
 	}
 
 	return defaultObj, nil
-}
-
-func removeEmptyFields(m map[string]any) {
-	// do this as long as there are items that have been deleted.
-	for k, v := range m {
-		if v == nil {
-			delete(m, k)
-		}
-		switch vv := v.(type) {
-		case map[string]any:
-			if len(vv) == 0 {
-				delete(m, k)
-			} else {
-				removeEmptyFields(vv)
-			}
-		case string:
-			if vv == "" || v == "0s" {
-				delete(m, k)
-			}
-		case int:
-			if vv == 0 {
-				delete(m, k)
-			}
-		case any:
-			if vv == nil {
-				delete(m, k)
-			}
-		}
-	}
-
-	// cleanup
-	for k, v := range m {
-		if vv, ok := v.(map[string]any); ok {
-			if len(vv) == 0 {
-				delete(m, k)
-			}
-		}
-		if v == nil {
-			delete(m, k)
-		}
-	}
 }
 
 var env *testEnv
