@@ -18,12 +18,10 @@ import (
 func TestResourceReconciler(t *testing.T) {
 	t.Log("setting up component version")
 
-	cv, err := env.CreateComponentVersion()
-	require.NoError(t, err)
+	cv := DefaultComponent.DeepCopy()
 
 	t.Log("setting up resource object")
-	resource, err := env.CreateResource()
-	require.NoError(t, err)
+	resource := DefaultResource.DeepCopy()
 
 	client := env.FakeKubeClient(WithObjets(cv, resource))
 	t.Log("priming fake cache")
@@ -42,7 +40,7 @@ func TestResourceReconciler(t *testing.T) {
 	}
 
 	t.Log("calling reconcile on resource controller")
-	_, err = rr.reconcile(context.Background(), resource)
+	_, err := rr.reconcile(context.Background(), resource)
 	require.NoError(t, err)
 
 	t.Log("verifying generated snapshot")

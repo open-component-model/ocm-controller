@@ -6,18 +6,13 @@
 package controllers
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -104,83 +99,6 @@ var (
 		},
 	}
 )
-
-type CreateComponentVersionOption struct {
-	componentOverride []byte
-}
-
-type CreateComponentVersionOptionFunc func(opts *CreateComponentVersionOption)
-
-func WithComponentVersionPatch(patch []byte) CreateComponentVersionOptionFunc {
-	return func(opts *CreateComponentVersionOption) {
-		opts.componentOverride = patch
-	}
-}
-
-func (t *testEnv) CreateComponentVersion(opts ...CreateComponentVersionOptionFunc) (*v1alpha1.ComponentVersion, error) {
-	component := DefaultComponent
-	defaultOpts := &CreateComponentVersionOption{}
-	for _, opt := range opts {
-		opt(defaultOpts)
-	}
-	if defaultOpts.componentOverride == nil {
-		return component, nil
-	}
-
-	return mergeObjects(component, defaultOpts.componentOverride)
-}
-
-type CreateResourceOption struct {
-	resourceOverride []byte
-}
-
-type CreateResourceOptionFunc func(opts *CreateResourceOption)
-
-func WithCreateResourcePatch(r []byte) CreateResourceOptionFunc {
-	return func(opts *CreateResourceOption) {
-		opts.resourceOverride = r
-	}
-}
-
-func (t *testEnv) CreateResource(opts ...CreateResourceOptionFunc) (*v1alpha1.Resource, error) {
-	resource := DefaultResource
-	defaultOpts := &CreateResourceOption{}
-	for _, opt := range opts {
-		opt(defaultOpts)
-	}
-	if defaultOpts.resourceOverride == nil {
-		return resource, nil
-	}
-
-	return mergeObjects(resource, defaultOpts.resourceOverride)
-}
-
-func mergeObjects[T runtime.Object](defaultObj T, override []byte) (T, error) {
-	var result T
-
-	originalObjJS, err := runtime.Encode(unstructured.UnstructuredJSONScheme, defaultObj)
-	if err != nil {
-		return result, err
-	}
-
-	patchBytes, err := yaml.ToJSON(override)
-	if err != nil {
-		return result, fmt.Errorf("unable to parse: %w", err)
-	}
-	patch, err := strategicpatch.CreateTwoWayMergePatch(originalObjJS, patchBytes, defaultObj)
-	if err != nil {
-		return result, fmt.Errorf("failed to create two way merge: %w", err)
-	}
-	merged, err := strategicpatch.StrategicMergePatch(originalObjJS, patch, defaultObj)
-	if err != nil {
-		return result, fmt.Errorf("failed to apply patch: %w", err)
-	}
-	if err := json.Unmarshal(merged, defaultObj); err != nil {
-		return result, fmt.Errorf("failed to create unstructured: %w", err)
-	}
-
-	return defaultObj, nil
-}
 
 var env *testEnv
 

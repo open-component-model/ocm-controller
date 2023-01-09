@@ -9,25 +9,21 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
 	var secretName = "test-secret"
-	cv, err := env.CreateComponentVersion(WithComponentVersionPatch([]byte(`spec:
-  repository:
-    secretRef:
-      name: test-overwrite
-`)))
-	require.NoError(t, err)
+	cv := DefaultComponent.DeepCopy()
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
@@ -77,7 +73,7 @@ func TestComponentVersionReconcile(t *testing.T) {
 		Client:    client,
 		OCMClient: fakeOcm,
 	}
-	_, err = cvr.reconcile(context.Background(), cv, "0.0.1")
+	_, err := cvr.reconcile(context.Background(), cv, "0.0.1")
 	assert.NoError(t, err)
 	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
@@ -116,12 +112,9 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 	}
 	for i, tt := range semverTests {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.description), func(t *testing.T) {
-			obj, err := env.CreateComponentVersion(WithComponentVersionPatch([]byte(fmt.Sprintf(`spec:
-  version:
-    semver: %q
-status:
-  reconciledVersion: %q`, tt.givenVersion, tt.reconciledVersion))))
-			require.NoError(t, err)
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Version.Semver = tt.givenVersion
+			obj.Status.ReconciledVersion = tt.reconciledVersion
 			fakeClient := env.FakeKubeClient(WithObjets(obj))
 			fakeOcm := &fakes.MockFetcher{}
 			fakeOcm.GetLatestComponentVersionReturns(tt.latestVersion, nil)
