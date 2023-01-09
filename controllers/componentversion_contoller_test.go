@@ -8,76 +8,38 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
-	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
-	err = corev1.AddToScheme(scheme)
-	assert.NoError(t, err)
-	fakeClient := fake.NewClientBuilder()
-
-	var (
-		componentName = "test-name"
-		secretName    = "test-secret"
-		namespace     = "default"
-	)
+	var secretName = "test-secret"
+	cv := DefaultComponent.DeepCopy()
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
-			Namespace: namespace,
+			Namespace: cv.Namespace,
 		},
 		Data: map[string][]byte{
 			"creds": []byte("whatever"),
 		},
 	}
-	obj := &v1alpha1.ComponentVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      componentName,
-			Namespace: namespace,
-		},
-		Spec: v1alpha1.ComponentVersionSpec{
-			Interval:  metav1.Duration{Duration: 10 * time.Minute},
-			Component: "github.com/skarlso/root",
-			Version: v1alpha1.Version{
-				Semver: "v0.0.1",
-			},
-			Repository: v1alpha1.Repository{
-				URL: "https://github.com/Skarlso/test",
-				SecretRef: v1alpha1.SecretRef{
-					Name: secretName,
-				},
-			},
-			Verify: []v1alpha1.Signature{},
-			References: v1alpha1.ReferencesConfig{
-				Expand: true,
-			},
-		},
-		Status: v1alpha1.ComponentVersionStatus{},
-	}
-	client := fakeClient.WithObjects(secret, obj).WithScheme(scheme).Build()
+	client := env.FakeKubeClient(WithObjets(secret, cv))
 	root := &mockComponent{
 		t: t,
 		descriptor: &ocmdesc.ComponentDescriptor{
 			ComponentSpec: ocmdesc.ComponentSpec{
 				ObjectMeta: v1.ObjectMeta{
-					Name:    "github.com/skarlso/root",
+					Name:    cv.Spec.Component,
 					Version: "v0.0.1",
 				},
 				References: ocmdesc.References{
@@ -107,14 +69,14 @@ func TestComponentVersionReconcile(t *testing.T) {
 	fakeOcm.GetComponentVersionReturnsForName(embedded.descriptor.ComponentSpec.Name, embedded, nil)
 	fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
 	cvr := ComponentVersionReconciler{
-		Scheme:    scheme,
+		Scheme:    env.scheme,
 		Client:    client,
 		OCMClient: fakeOcm,
 	}
-	_, err = cvr.reconcile(context.Background(), obj, "0.1.0")
+	_, err := cvr.reconcile(context.Background(), cv, "0.0.1")
 	assert.NoError(t, err)
-	assert.Len(t, obj.Status.ComponentDescriptor.References, 1)
-	assert.Equal(t, "test-ref-1", obj.Status.ComponentDescriptor.References[0].Name)
+	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
+	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
 }
 
 func TestComponentVersionSemverCheck(t *testing.T) {
@@ -150,42 +112,20 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 	}
 	for i, tt := range semverTests {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.description), func(t *testing.T) {
-			require := require.New(t)
-			scheme := runtime.NewScheme()
-			err := v1alpha1.AddToScheme(scheme)
-			require.NoError(err)
-			err = corev1.AddToScheme(scheme)
-			require.NoError(err)
-
-			obj := &v1alpha1.ComponentVersion{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-name",
-					Namespace: "default",
-				},
-				Spec: v1alpha1.ComponentVersionSpec{
-					Component: "github.com/skarlso/root",
-					Version: v1alpha1.Version{
-						Semver: tt.givenVersion,
-					},
-				},
-				Status: v1alpha1.ComponentVersionStatus{
-					ReconciledVersion: tt.reconciledVersion,
-				},
-			}
-
-			fakeClient := fake.NewClientBuilder()
-			client := fakeClient.WithObjects(&corev1.Secret{}, obj).WithScheme(scheme).Build()
-
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Version.Semver = tt.givenVersion
+			obj.Status.ReconciledVersion = tt.reconciledVersion
+			fakeClient := env.FakeKubeClient(WithObjets(obj))
 			fakeOcm := &fakes.MockFetcher{}
 			fakeOcm.GetLatestComponentVersionReturns(tt.latestVersion, nil)
 			cvr := ComponentVersionReconciler{
-				Scheme:    scheme,
-				Client:    client,
+				Scheme:    env.scheme,
+				Client:    fakeClient,
 				OCMClient: fakeOcm,
 			}
 			update, _, err := cvr.checkVersion(context.Background(), obj)
-			require.NoError(err)
-			require.Equal(tt.expectedUpdate, update)
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedUpdate, update)
 		})
 	}
 }
