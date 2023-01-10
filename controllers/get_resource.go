@@ -34,7 +34,7 @@ func GetImageReference(resource *ocmapi.Resource) (string, error) {
 		ref := gs.(*ociblob.AccessSpec).Reference
 		sha := gs.(*ociblob.AccessSpec).Digest.String()
 		return fmt.Sprintf("%s:%s@%s", ref, resource.GetVersion(), sha), nil
-	case "ociblob":
+	case "ociBlob":
 		return accessSpec.(*ociblob.AccessSpec).Reference, nil
 	case "ociArtifact":
 		return accessSpec.(*ociartifact.AccessSpec).ImageReference, nil
@@ -53,7 +53,7 @@ func GetResourceAccess(resource *ocmapi.Resource) (cpi.AccessSpec, error) {
 	switch resource.Access.Type {
 	case "localBlob":
 		accessSpec = &localblob.AccessSpec{}
-	case "ociblob":
+	case "ociBlob":
 		accessSpec = &ociblob.AccessSpec{}
 	case "ociArtefact":
 		accessSpec = &ociartifact.AccessSpec{}

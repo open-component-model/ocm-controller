@@ -2,6 +2,7 @@ package fakes
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
@@ -10,13 +11,19 @@ import (
 	ocmctrl "github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
+// getResourceReturnValues defines the return values of the GetResource function.
+type getResourceReturnValues struct {
+	reader io.ReadCloser
+	err    error
+}
+
 // MockFetcher mocks OCM client. Sadly, no generated code can be used, because none of them understand
 // not importing type aliased names that OCM uses. Meaning, external types request internally aliased
 // resources and the mock does not compile.
 // I.e.: counterfeiter: https://github.com/maxbrunsfeld/counterfeiter/issues/174
 type MockFetcher struct {
-	getResourceReader                   io.ReadCloser
-	getResourceErr                      error
+	getResourceCallCount                int
+	getResourceReturns                  map[int]getResourceReturnValues
 	getResourceCalledWith               [][]any
 	getComponentVersionMap              map[string]ocm.ComponentVersionAccess
 	getComponentVersionErr              error
@@ -33,13 +40,33 @@ type MockFetcher struct {
 }
 
 func (m *MockFetcher) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {
+	if _, ok := m.getResourceReturns[m.getResourceCallCount]; !ok {
+		return nil, fmt.Errorf("unexpected number of calls; not enough return values have been configured; call count %d", m.getResourceCallCount)
+	}
 	m.getResourceCalledWith = append(m.getResourceCalledWith, []any{cv, resource})
-	return m.getResourceReader, m.getResourceErr
+	result := m.getResourceReturns[m.getResourceCallCount]
+	m.getResourceCallCount++
+	return result.reader, result.err
 }
 
 func (m *MockFetcher) GetResourceReturns(reader io.ReadCloser, err error) {
-	m.getResourceReader = reader
-	m.getResourceErr = err
+	if m.getResourceReturns == nil {
+		m.getResourceReturns = make(map[int]getResourceReturnValues)
+	}
+	m.getResourceReturns[0] = getResourceReturnValues{
+		reader: reader,
+		err:    err,
+	}
+}
+
+func (m *MockFetcher) GetResourceReturnsOnCall(n int, reader io.ReadCloser, err error) {
+	if m.getResourceReturns == nil {
+		m.getResourceReturns = make(map[int]getResourceReturnValues, 0)
+	}
+	m.getResourceReturns[n] = getResourceReturnValues{
+		reader: reader,
+		err:    err,
+	}
 }
 
 func (m *MockFetcher) GetResourceCallingArgumentsOnCall(i int) []any {

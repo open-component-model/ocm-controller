@@ -169,7 +169,8 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath)
 	}
 
-	config := configdata.ConfigData{}
+	config := &configdata.ConfigData{}
+	// TODO: allow for snapshots to be sources here. The chain could be working on an already modified source.
 	resourceRef := obj.Spec.ConfigRef.Resource.ResourceRef
 	if resourceRef == nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},

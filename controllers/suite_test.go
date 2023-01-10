@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -84,8 +87,8 @@ var (
 				Namespace: "default",
 			},
 			Resource: v1alpha1.ResourceRef{
-				Name:    "test-resource",
-				Version: "v0.0.1",
+				Name:    "introspect-image",
+				Version: "1.0.0",
 				ReferencePath: []map[string]string{
 					{
 						"name": "test",
@@ -95,6 +98,75 @@ var (
 			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
 				Name: "snapshot-test-name",
 				Tag:  "v0.0.1",
+			},
+		},
+	}
+	DefaultComponentDescriptor = &v1alpha1.ComponentDescriptor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      DefaultComponent.Name + "-descriptor",
+			Namespace: DefaultComponent.Namespace,
+		},
+		Spec: v1alpha1.ComponentDescriptorSpec{
+			ComponentVersionSpec: v3alpha1.ComponentVersionSpec{
+				Resources: []v3alpha1.Resource{
+					{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "introspect-image",
+							Version: "1.0.0",
+						},
+						Type:     "ociImage",
+						Relation: "local",
+						Access: &ocmruntime.UnstructuredTypedObject{
+							Object: map[string]interface{}{
+								"globalAccess": map[string]interface{}{
+									"digest":    "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+									"mediaType": "application/vnd.docker.distribution.manifest.v2+tar+gzip",
+									"ref":       "ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
+									"size":      29047129,
+									"type":      "ociBlob",
+								},
+								"localReference": "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+								"mediaType":      "application/vnd.docker.distribution.manifest.v2+tar+gzip",
+								"type":           "localBlob",
+							},
+						},
+						Digest: &ocmmetav1.DigestSpec{
+							HashAlgorithm:          "sha256",
+							NormalisationAlgorithm: "ociArtifactDigest/v1",
+							Value:                  "6a1c7637a528ab5957ab60edf73b5298a0a03de02a96be0313ee89b22544840c",
+						},
+					},
+				},
+			},
+			Version: "v0.0.1",
+		},
+		Status: v1alpha1.ComponentDescriptorStatus{},
+	}
+
+	DefaultLocalization = &v1alpha1.Localization{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Localization",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-localization",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.LocalizationSpec{
+			Interval: metav1.Duration{},
+			ConfigRef: v1alpha1.ConfigReference{
+				ComponentVersionRef: meta.NamespacedObjectReference{
+					Name:      DefaultComponent.Name,
+					Namespace: DefaultComponent.Namespace,
+				},
+				Resource: v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name: DefaultResource.Name,
+					},
+				},
+			},
+			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
+				Name: "test-localization-modified",
+				Tag:  "v0.0.2",
 			},
 		},
 	}
