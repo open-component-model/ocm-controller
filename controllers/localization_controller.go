@@ -134,6 +134,11 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 			fmt.Errorf("failed to get component object: %w", err)
 	}
 
+	if obj.Spec.Source.SourceRef == nil && obj.Spec.Source.ResourceRef == nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("either sourceRef or resourceRef should be defined, but both are empty")
+	}
+
 	if obj.Spec.Source.SourceRef != nil {
 		if resourceData, err = r.fetchResourceDataFromSnapshot(ctx, obj); err != nil {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
