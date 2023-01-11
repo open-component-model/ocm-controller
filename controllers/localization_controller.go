@@ -202,7 +202,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		ref, err := name.ParseReference(access)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-				fmt.Errorf("failed to get resource access: %w", err)
+				fmt.Errorf("failed to parse access reference: %w", err)
 		}
 
 		if l.Repository != "" {

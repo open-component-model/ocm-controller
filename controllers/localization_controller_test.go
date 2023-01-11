@@ -34,12 +34,13 @@ localization:
 `)
 
 type testCase struct {
-	name             string
-	mock             func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher)
-	componentVersion func() *v1alpha1.ComponentVersion
-	snapshot         func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot
-	source           func(snapshot *v1alpha1.Snapshot) v1alpha1.Source
-	expectError      string
+	name                string
+	mock                func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher)
+	componentVersion    func() *v1alpha1.ComponentVersion
+	componentDescriptor func() *v1alpha1.ComponentDescriptor
+	snapshot            func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot
+	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.Source
+	expectError         string
 }
 
 func TestLocalizationReconciler(t *testing.T) {
@@ -57,6 +58,9 @@ func TestLocalizationReconciler(t *testing.T) {
 					},
 				}
 				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
 				return v1alpha1.Source{
@@ -107,6 +111,9 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
 				return nil
@@ -142,6 +149,9 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
 				return nil
@@ -170,6 +180,9 @@ func TestLocalizationReconciler(t *testing.T) {
 					},
 				}
 				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
 				return v1alpha1.Source{
@@ -218,6 +231,9 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
 				return nil
@@ -235,12 +251,292 @@ func TestLocalizationReconciler(t *testing.T) {
 				fakeOcm.GetResourceReturns(nil, errors.New("boo"))
 			},
 		},
+		{
+			name:        "get resource fails during config data fetch",
+			expectError: "failed to get resource: boo",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				// do nothing
+				return nil
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
+				// do nothing
+				return v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name:    "some-resource",
+						Version: "1.0.0",
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				require.NoError(t, err)
+				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
+				fakeOcm.GetResourceReturnsOnCall(1, nil, errors.New("boo"))
+			},
+		},
+		{
+			name:        "GetImageReference fails",
+			expectError: "failed to get image access: failed to unmarshal access spec: json: Unmarshal(nil)",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				cd.Spec.Resources[0].Access.Object["type"] = "unknown"
+				return cd
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				// do nothing
+				return nil
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
+				// do nothing
+				return v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name:    "some-resource",
+						Version: "1.0.0",
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				require.NoError(t, err)
+				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configData)), nil)
+			},
+		},
+		{
+			name:        "ParseReference fails",
+			expectError: "failed to parse access reference: could not parse reference: invalid:@:1.0.0@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				cd.Spec.Resources[0].Access.Object["globalAccess"].(map[string]any)["ref"] = "invalid:@"
+				return cd
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				// do nothing
+				return nil
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
+				// do nothing
+				return v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name:    "some-resource",
+						Version: "1.0.0",
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				require.NoError(t, err)
+				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configData)), nil)
+			},
+		},
+		{
+			name:        "the returned content is not a tar file",
+			expectError: "extract tar error: unexpected EOF",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				// do nothing
+				return nil
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
+				// do nothing
+				return v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name:    "some-resource",
+						Version: "1.0.0",
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				fakeOcm.GetResourceReturnsOnCall(0, io.NopCloser(bytes.NewBuffer([]byte("I am not a tar file"))), nil)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configData)), nil)
+			},
+		},
+		{
+			name:        "localization fails because the file does not exist",
+			expectError: "no such file or directory",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				// do nothing
+				return nil
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
+				// do nothing
+				return v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name:    "some-resource",
+						Version: "1.0.0",
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				require.NoError(t, err)
+				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
+				testConfigData := []byte(`kind: ConfigData
+metadata:
+  name: test-config-data
+  namespace: default
+localization:
+- file: idonotexist
+  image: spec.template.spec.containers[0].image
+  resource:
+    name: introspect-image
+`)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(testConfigData)), nil)
+			},
+		},
+		{
+			name:        "it fails to marshal the config data",
+			expectError: "failed to unmarshal content",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				// do nothing
+				return nil
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
+				// do nothing
+				return v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name:    "some-resource",
+						Version: "1.0.0",
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				require.NoError(t, err)
+				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
+				testConfigData := []byte(`iaminvalidyaml`)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(testConfigData)), nil)
+			},
+		},
+		{
+			name:        "it fails to push data to the cache",
+			expectError: "failed to push blob to local registry: boo",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				// do nothing
+				return nil
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
+				// do nothing
+				return v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name:    "some-resource",
+						Version: "1.0.0",
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				require.NoError(t, err)
+				fakeCache.PushDataReturns("", errors.New("boo"))
+				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configData)), nil)
+			},
+		},
 	}
 	for i, tt := range testCases {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			cv := tt.componentVersion()
 			resource := DefaultResource.DeepCopy()
-			cd := DefaultComponentDescriptor.DeepCopy()
+			cd := tt.componentDescriptor()
 			snapshot := tt.snapshot(cv, resource)
 			source := tt.source(snapshot)
 			localization := DefaultLocalization.DeepCopy()
@@ -263,7 +559,7 @@ func TestLocalizationReconciler(t *testing.T) {
 
 			_, err := lr.reconcile(context.Background(), localization)
 			if tt.expectError != "" {
-				require.EqualError(t, err, tt.expectError)
+				require.ErrorContains(t, err, tt.expectError)
 			} else {
 				require.NoError(t, err)
 				t.Log("check if target snapshot has been created and cache was called")
