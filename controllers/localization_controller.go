@@ -147,7 +147,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	} else if obj.Spec.Source.ResourceRef != nil {
 		if resourceData, err = r.fetchResourceDataFromResource(ctx, obj, componentVersion); err != nil {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
+				fmt.Errorf("failed to fetch resource data from resource ref: %w", err)
 		}
 	}
 
