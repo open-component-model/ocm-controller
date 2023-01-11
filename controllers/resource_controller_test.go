@@ -52,7 +52,7 @@ func TestResourceReconciler(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "digest", snapshot.Status.Digest)
-	assert.Equal(t, "v0.0.1", snapshot.Status.Tag)
+	assert.Equal(t, "1.0.0", snapshot.Status.Tag)
 
 	t.Log("verifying updated resource object status")
 	err = client.Get(context.Background(), types.NamespacedName{
@@ -61,7 +61,7 @@ func TestResourceReconciler(t *testing.T) {
 	}, resource)
 
 	require.NoError(t, err)
-	assert.Equal(t, "v0.0.1", resource.Status.LastAppliedResourceVersion)
+	assert.Equal(t, "1.0.0", resource.Status.LastAppliedResourceVersion)
 
 	t.Log("verifying calling parameters for cache")
 	args := cache.PushDataCallingArgumentsOnCall(0)
@@ -71,5 +71,5 @@ func TestResourceReconciler(t *testing.T) {
 	hash, err := snapshot.Spec.Identity.Hash()
 	require.NoError(t, err)
 	assert.Equal(t, hash, args[1])
-	assert.Equal(t, "v0.0.1", args[2])
+	assert.Equal(t, "1.0.0", args[2])
 }

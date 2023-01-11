@@ -134,6 +134,11 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 			fmt.Errorf("failed to get component object: %w", err)
 	}
 
+	if obj.Spec.Source.SourceRef == nil && obj.Spec.Source.ResourceRef == nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("either sourceRef or resourceRef should be defined, but both are empty")
+	}
+
 	if obj.Spec.Source.SourceRef != nil {
 		if resourceData, err = r.fetchResourceDataFromSnapshot(ctx, obj); err != nil {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
@@ -142,12 +147,13 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 	} else if obj.Spec.Source.ResourceRef != nil {
 		if resourceData, err = r.fetchResourceDataFromResource(ctx, obj, componentVersion); err != nil {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
+				fmt.Errorf("failed to fetch resource data from resource ref: %w", err)
 		}
 	}
 
 	// get config resource
-	config := configdata.ConfigData{}
+	config := &configdata.ConfigData{}
+	// TODO: allow for snapshots to be sources here. The chain could be working on an already modified source.
 	resourceRef := obj.Spec.ConfigRef.Resource.ResourceRef
 	if resourceRef == nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
@@ -190,13 +196,13 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		access, err := GetImageReference(lr)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-				fmt.Errorf("failed to get resource access: %w", err)
+				fmt.Errorf("failed to get image access: %w", err)
 		}
 
 		ref, err := name.ParseReference(access)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-				fmt.Errorf("failed to get resource access: %w", err)
+				fmt.Errorf("failed to parse access reference: %w", err)
 		}
 
 		if l.Repository != "" {
