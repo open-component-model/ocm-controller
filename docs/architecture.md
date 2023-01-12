@@ -1,6 +1,6 @@
 ## Architecture
 
-This document explains the architecture of the OCM Kubernetes Controller Set (ORCA). The purpose of the KCS is to enable the automated deployment of components using Kubernetes and Flux.
+This document explains the architecture of the OCM Kubernetes Controller Set (KCS). The purpose of the KCS is to enable the automated deployment of components using Kubernetes and Flux.
 
 The following functions are provided as part of the KCS:
 
@@ -28,13 +28,55 @@ The `ocm-controller` is responsible for the core work necessary to utilise resou
 
 Snapshots are used to pass resources between controllers and are stored in an in-cluster registry that is managed by the `ocm-controller`.
 
-The `ocm-controller` is responsible for creating the docker registry deployment which is used to store snapshots.
+The `ocm-controller` is also responsible for managing the docker registry deployment which is used to store snapshots.
 
 The `ocm-controller` consists of 4 sub-controllers:
+- [Component Version Controller](#component-version-controller)
+- [Resource Controller](#resource-controller)
+- [Snapshot Controller](#snapshot-controller)
+- [Localization Controller](#localization-controller)
+- [Configuration Controller](#configuration-controller)
 
-#### ComponentVersion Controller
+#### Component Version Controller
 
-The ComponentVersion controller reconciles component versions from an OCI repository by fetching the component descriptor and any referenced component descriptors. The component version controller will also verify signatures for all the public keys provided.
+The Component Version controller reconciles component versions from an OCI repository by fetching the component descriptor and any referenced component descriptors. The component version controller will also verify signatures for all the public keys provided. The Component Version controller does not fetch any resources other than component descriptors. It is used by downstream controllers to access component descriptors and to attest the validity of component signatures.
+
+```mermaid
+sequenceDiagram
+    User->>Kubernetes API: submit ComponentVersion CR
+    Kubernetes API-->>Component Version Controller: Component Versionn Created Event
+    Component Version Controller->>OCM Repository: Find latest component matching semver 
+    Component Version Controller->>OCM Repository: Validate signatures
+    Component Version Controller->>OCM Repository: Download Component Descriptor
+    Component Version Controller->>Kubernetes API: Submit Component Descriptor CR
+    Component Version Controller->>Kubernetes API: Update Component Version status
+```
+
+The custom resource for the component version controller looks as follows:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ComponentVersion
+metadata:
+  name: component-x
+  namespace: default
+spec:
+  interval: 10m0s
+  component: github.com/open-component-model/component-x
+  version:
+    semver: >=v1.0.0
+  repository:
+    url: ghcr.io/jane-doe
+    secretRef:
+      name: ghcr-creds
+  verify:
+    - name: dev-signature
+      publicKey:
+        secretRef:
+          name: signing-key
+  references:
+    expand: true
+```
 
 #### Resource Controller
 
@@ -46,7 +88,7 @@ The Snapshot controller reconciles Snapshot Custom Resources. Currently the func
 
 #### Localization Controller
 
-The localization controller applies localization rules to a snapshot. Because localization is such a common operation it is included along with the configuraton controller in the ocm-controller itself. The localized resource is written to a snapshot.
+The localization controller applies localization rules to a snapshot. Because localization is such a common operation it is included along with the configuraton controller in the ocm-controller itself. The localized resource is written to a snapshot. 
 
 #### Configuration Controller
 
