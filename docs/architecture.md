@@ -39,7 +39,7 @@ The `ocm-controller` consists of 4 sub-controllers:
 
 #### Component Version Controller
 
-The Component Version controller reconciles component versions from an OCI repository by fetching the component descriptor and any referenced component descriptors. The component version controller will also verify signatures for all the public keys provided. The Component Version controller does not fetch any resources other than component descriptors. It is used by downstream controllers to access component descriptors and to attest the validity of component signatures.
+The Component Version controller reconciles component versions from an OCI repository by fetching the component descriptor and any referenced component descriptors. The component version controller will also verify signatures for all the public keys provided. The Component Version controller does not fetch any resources other than component descriptors. It is used by downstream controllers to access component descriptors and to attest the validity of component signatures. Downstream controllers can lookup a component descriptor via the status field of the component version resource. 
 
 ```mermaid
 sequenceDiagram
@@ -80,15 +80,58 @@ spec:
 
 #### Resource Controller
 
-The resource controller extracts resources from a component so that they may be used within the cluster. The resource is written to a snapshot which enables it to be cached and used by downstream processes. Resources can be selected using the `name` and `extraIdentity` fields.
+The resource controller extracts resources from a component so that they may be used within the cluster. The resource is written to a snapshot which enables it to be cached and used by downstream processes. Resources can be selected using the `name` and `extraIdentity` fields. The resource controller requests resources using the in-cluster registry client. This means that if a resource has previously been requested then the cached version will be returned. If the resource is not found in the cache then it will be fetched from the OCM registry and written to the cache. Once the resource has been resolved and is stored in the internal registry a Snapshot CR is created 
+
+```mermaid
+sequenceDiagram
+    User->>Kubernetes API: submit Resource CR
+    Kubernetes API-->>Resource Controller: Resource Created Event
+    Resource Controller->>Internal Registry: Fetch resource from cache or upstream
+    Resource Controller->>Kubernetes API: Create Snapshot CR
+    Resource Controller->>Kubernetes API: Update Resource status
+```
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Resource
+metadata:
+  name: manifests
+spec:
+  interval: 10m0s
+  componentVersionRef:
+    name: component-x
+    namespace: default
+  resource:
+    name: manifests
+    referencePath:
+      - name: nested-component
+  snapshotTemplate:
+    name: component-x-manifests
+```
 
 #### Snapshot Controller
 
-The Snapshot controller reconciles Snapshot Custom Resources. Currently the functionality here is limited to updating the status. In the future we plan to expand the scope of this controller to include verification of snapshots.
+The Snapshot controller reconciles Snapshot Custom Resources. Currently the functionality here is limited to updating the status thereby validating that the snapshotted resource exists. In the future we plan to expand the scope of this controller to include verification of snapshots.
 
 #### Localization Controller
 
-The localization controller applies localization rules to a snapshot. Because localization is such a common operation it is included along with the configuraton controller in the ocm-controller itself. The localized resource is written to a snapshot. 
+The localization controller applies localization rules to a snapshot. Because localization is deemed a common operation it is included along with the configuraton controller in the ocm-controller itself. Localizations can consume an OCM resource directly or a snapshot resource from the in-cluster registry. The configuration details for the localization operation are supplied via another OCM resource which should be a yaml file in the following format:
+
+```yaml
+apiVersion: config.ocm.software/v1alpha1
+kind: ConfigData
+metadata:
+  name: ocm-config
+  labels:
+    env: test
+localization:
+- resource:
+    name: image
+  file: deploy.yaml
+  image: spec.template.spec.containers[0].image
+```
+
+Localization parameters are specified under the `localization` stanza. The Localization controller will apply the localization rules that apply to the resource specified in the `source` field. 
 
 #### Configuration Controller
 
