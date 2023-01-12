@@ -77,7 +77,7 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 
 	t.Run("with reference path", func(t *testing.T) {
 		loc := &v1alpha1.Localization{
-			Spec: v1alpha1.LocalizationSpec{
+			Spec: v1alpha1.MutationSpec{
 				ConfigRef: v1alpha1.ConfigReference{
 					Resource: v1alpha1.Source{
 						ResourceRef: &v1alpha1.ResourceRef{
@@ -98,7 +98,7 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 
 	t.Run("without reference path", func(t *testing.T) {
 		loc := &v1alpha1.Localization{
-			Spec: v1alpha1.LocalizationSpec{
+			Spec: v1alpha1.MutationSpec{
 				ConfigRef: v1alpha1.ConfigReference{
 					Resource: v1alpha1.Source{
 						ResourceRef: &v1alpha1.ResourceRef{},

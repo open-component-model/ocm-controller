@@ -33,7 +33,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: LocalizationSpec defines the desired state of Localization
+            description: MutationSpec defines a common spec between Localization and
+              Configuration.
             properties:
               configRef:
                 properties:
@@ -189,6 +190,10 @@ spec:
                     - name
                     type: object
                 type: object
+              values:
+                additionalProperties:
+                  type: string
+                type: object
             required:
             - configRef
             - interval
@@ -196,7 +201,8 @@ spec:
             - source
             type: object
           status:
-            description: LocalizationStatus defines the observed state of Localization
+            description: MutationStatus defines a common status for Localizations
+              and Configurations.
             properties:
               conditions:
                 items:

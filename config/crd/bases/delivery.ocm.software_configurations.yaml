@@ -33,7 +33,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: ConfigurationSpec defines the desired state of Configuration
+            description: MutationSpec defines a common spec between Localization and
+              Configuration.
             properties:
               configRef:
                 properties:
@@ -200,7 +201,8 @@ spec:
             - source
             type: object
           status:
-            description: ConfigurationStatus defines the observed state of Configuration
+            description: MutationStatus defines a common status for Localizations
+              and Configurations.
             properties:
               conditions:
                 items:

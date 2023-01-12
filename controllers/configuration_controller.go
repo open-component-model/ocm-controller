@@ -6,43 +6,25 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/mandelsoft/spiff/spiffing"
-	"github.com/mandelsoft/vfs/pkg/osfs"
-	"github.com/mandelsoft/vfs/pkg/vfs"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
-	"github.com/open-component-model/ocm/pkg/errors"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
-	"github.com/open-component-model/ocm/pkg/spiff"
-	"github.com/open-component-model/ocm/pkg/utils"
-
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
-	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
@@ -94,7 +76,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to get configuration object: %w", err)
+		return ctrl.Result{RequeueAfter: obj.Spec.GetRequeueAfter()}, fmt.Errorf("failed to get configuration object: %w", err)
 	}
 
 	log.Info("reconciling configuration")
@@ -109,215 +91,28 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
 	}
 
-	cv := types.NamespacedName{
-		Name:      obj.Spec.ConfigRef.ComponentVersionRef.Name,
-		Namespace: obj.Spec.ConfigRef.ComponentVersionRef.Namespace,
+	mutationLooper := MutationReconcileLooper{
+		Scheme:    r.Scheme,
+		OCMClient: r.OCMClient,
+		Client:    r.Client,
+		Cache:     r.Cache,
 	}
 
-	//TODO@souleb: index component descriptor by component version
-	// https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/client#FieldIndexer
-	// this will allow us to avoid fetching the component version to get the component descriptor
-	// Example:
-	// if err := mgr.GetCache().IndexField(context.TODO(), &deliveryv1alpha1.ComponentDescriptor{}, componentVersionKey, func(rawObj client.Object) []string {
-	// 	cd := rawObj.(*deliveryv1alpha1.ComponentDescriptor)
-	// 	owner := metav1.GetControllerOf(cd)
-	// 	if owner == nil {
-	// 		return nil
-	// 	}
-	// 	if owner.APIVersion != deliveryv1alpha1.GroupVersion.String() || owner.Kind != "ComponentVersion" {
-	// 		return nil
-	// 	}
-	// 	return []string{owner.Name}
-	// }); err != nil {	return fmt.Errorf("failed setting index fields: %w", err) }
-	//}
-	// we can then use the following to get the component descriptor
-	// var cd v1alpha1.ComponentDescriptorList
-	// if err := r.List(ctx, &cd, client.InNamespace(obj.Spec.ConfigRef.ComponentVersionRef.Namespace), client.MatchingFields{descriptorOwnerKey: obj.Spec.ConfigRef.ComponentVersionRef.Name}); err != nil {
-	// 	return ctrl.Result{RequeueAfter: r.RetryInterval}, err
-	// }
-	componentVersion := &v1alpha1.ComponentVersion{}
-	if err := r.Get(ctx, cv, componentVersion); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-		}
-
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component object: %w", err)
-	}
-
-	var resourceData []byte
-
-	if obj.Spec.Source.SourceRef == nil && obj.Spec.Source.ResourceRef == nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("either sourceRef or resourceRef should be defined, but both are empty")
-	}
-
-	if obj.Spec.Source.SourceRef != nil {
-		if resourceData, err = r.fetchResourceDataFromSnapshot(ctx, obj); err != nil {
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
-		}
-	} else if obj.Spec.Source.ResourceRef != nil {
-		if resourceData, err = r.fetchResourceDataFromResource(ctx, obj, componentVersion); err != nil {
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-				fmt.Errorf("failed to fetch resource data from resource ref: %w", err)
-		}
-	}
-
-	componentDescriptor, err := GetComponentDescriptor(ctx, r.Client, obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	digest, err := mutationLooper.ReconcileMutationObject(ctx, obj.Spec, obj)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get component descriptor from version")
+		return ctrl.Result{RequeueAfter: obj.Spec.GetRequeueAfter()}, err
 	}
-	if componentDescriptor == nil {
-		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.ConfigRef.Resource.ResourceRef.ReferencePath)
-	}
-
-	config := &configdata.ConfigData{}
-	// TODO: allow for snapshots to be sources here. The chain could be working on an already modified source.
-	resourceRef := obj.Spec.ConfigRef.Resource.ResourceRef
-	if resourceRef == nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("resource ref is empty for config ref")
-	}
-
-	reader, err := r.OCMClient.GetResource(ctx, componentVersion, *resourceRef)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get resource: %w", err)
-	}
-	defer reader.Close()
-
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to read blob: %w", err)
-	}
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to unmarshal content: %w", err)
-	}
-
-	var rules localize.Substitutions
-	for i, l := range config.Configuration.Rules {
-		rules.Add(fmt.Sprintf("subst-%d", i), l.File, l.Path, l.Value)
-	}
-
-	defaults, err := json.Marshal(config.Configuration.Defaults)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("configurator error: %w", err)
-	}
-
-	values, err := json.Marshal(obj.Spec.Values)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("configurator error: %w", err)
-	}
-
-	schema, err := json.Marshal(config.Configuration.Schema)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("configurator error: %w", err)
-	}
-
-	configSubstitions, err := r.configurator(rules, defaults, values, schema)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("configurator error: %w", err)
-	}
-
-	virtualFS, err := osfs.NewTempFileSystem()
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("fs error: %w", err)
-	}
-	defer vfs.Cleanup(virtualFS)
-
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("extract tar error: %w", err)
-	}
-
-	if err := localize.Substitute(configSubstitions, virtualFS); err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("extract tar error: %w", err)
-	}
-
-	fi, err := virtualFS.Stat("/")
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("fs error: %w", err)
-	}
-
-	sourceDir := filepath.Join(os.TempDir(), fi.Name())
-
-	artifactPath, err := os.CreateTemp("", "snapshot-artifact-*.tgz")
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("fs error: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			os.Remove(artifactPath.Name())
-		}
-	}()
-
-	if err := BuildTar(artifactPath.Name(), sourceDir); err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, fmt.Errorf("build tar error: %w", err)
-	}
-
-	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
-	// find it later on.
-	identity := v1alpha1.Identity{
-		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
-		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
-		v1alpha1.ResourceNameKey:     resourceRef.Name,
-		v1alpha1.ResourceVersionKey:  resourceRef.Version,
-	}
-	snapshotDigest, err := r.writeToCache(ctx, identity, artifactPath.Name(), obj.ResourceVersion)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
-	}
-
-	//TODO@soule: start by checking config generation change
-	// then after computing snapshot, check if snapshot changed based on config.LastSnapshotDigest
-	// create/update the snapshot custom resource
-
-	snapshotCR := &v1alpha1.Snapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.Spec.SnapshotTemplate.Name,
-		},
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
-		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
-			if err := controllerutil.SetOwnerReference(obj, snapshotCR, r.Scheme); err != nil {
-				return fmt.Errorf("failed to set owner reference: %w", err)
-			}
-		}
-		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Identity: identity,
-		}
-		return nil
-	})
-
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to create or update component descriptor: %w", err)
-	}
-
-	newSnapshotCR := snapshotCR.DeepCopy()
-	newSnapshotCR.Status.Digest = snapshotDigest
-	newSnapshotCR.Status.Tag = obj.ResourceVersion
-	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshotCR); err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to patch snapshot CR: %w", err)
-	}
-
-	obj.Status.LatestSnapshotDigest = snapshotDigest
+	obj.Status.LatestSnapshotDigest = digest
 	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
 		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
+			RequeueAfter: obj.Spec.GetRequeueAfter(),
 		}, fmt.Errorf("failed to patch resource and set snaphost value: %w", err)
 	}
 
-	return ctrl.Result{RequeueAfter: r.ReconcileInterval}, nil
+	return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
 }
 
 func (r *ConfigurationReconciler) requestsForRevisionChangeOf(indexKey string) func(obj client.Object) []reconcile.Request {
@@ -384,129 +179,4 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 
 		return nil
 	}
-}
-
-func (r *ConfigurationReconciler) getSnapshotBytes(ctx context.Context, snapshot *deliveryv1alpha1.Snapshot) ([]byte, error) {
-	name, err := ocm.ConstructRepositoryName(snapshot.Spec.Identity)
-	if err != nil {
-		return nil, fmt.Errorf("failed to construct name: %w", err)
-	}
-	reader, err := r.Cache.FetchDataByDigest(ctx, name, snapshot.Status.Digest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data: %w", err)
-	}
-
-	return io.ReadAll(reader)
-}
-
-func (r *ConfigurationReconciler) writeToCache(ctx context.Context, identity deliveryv1alpha1.Identity, artifactPath string, version string) (string, error) {
-	file, err := os.Open(artifactPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open created archive: %w", err)
-	}
-	defer file.Close()
-	name, err := ocm.ConstructRepositoryName(identity)
-	if err != nil {
-		return "", fmt.Errorf("failed to construct name: %w", err)
-	}
-	digest, err := r.Cache.PushData(ctx, file, name, version)
-	if err != nil {
-		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
-	}
-
-	return digest, nil
-}
-
-func (r *ConfigurationReconciler) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
-	// configure defaults
-	templ := make(map[string]any)
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
-		return nil, errors.Wrapf(err, "cannot unmarshal template")
-	}
-
-	// configure values overrides... must be a better way
-	var valuesMap map[string]any
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(values, &valuesMap); err != nil {
-		return nil, errors.Wrapf(err, "cannot unmarshal template")
-	}
-
-	for k, v := range valuesMap {
-		if _, ok := templ[k]; ok {
-			templ[k] = v
-		}
-	}
-
-	// configure adjustments
-	list := []any{}
-	for _, e := range subst {
-		list = append(list, e)
-	}
-
-	templ["adjustments"] = list
-
-	templateBytes, err := ocmruntime.DefaultJSONEncoding.Marshal(templ)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot marshal template")
-	}
-
-	if len(schema) > 0 {
-		if err := spiff.ValidateByScheme(values, schema); err != nil {
-			return nil, errors.Wrapf(err, "validation failed")
-		}
-	}
-
-	config, err := spiff.CascadeWith(spiff.TemplateData("adjustments", templateBytes), spiff.Mode(spiffing.MODE_PRIVATE))
-	if err != nil {
-		return nil, errors.Wrapf(err, "error processing template")
-	}
-
-	var result struct {
-		Adjustments localize.Substitutions `json:"adjustments,omitempty"`
-	}
-
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(config, &result); err != nil {
-		return nil, errors.Wrapf(err, "error processing template")
-	}
-
-	return result.Adjustments, nil
-}
-
-func (r *ConfigurationReconciler) fetchResourceDataFromSnapshot(ctx context.Context, obj *deliveryv1alpha1.Configuration) ([]byte, error) {
-	log := log.FromContext(ctx)
-	srcSnapshot := &v1alpha1.Snapshot{}
-	if err := r.Get(ctx, obj.GetSourceSnapshotKey(), srcSnapshot); err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("snapshot not found")
-			return nil, nil
-		}
-		return nil,
-			fmt.Errorf("failed to get component object: %w", err)
-	}
-
-	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
-		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
-		return nil, nil
-	}
-	log.Info("getting snapshot data from snapshot", "snapshot", srcSnapshot)
-	srcSnapshotData, err := r.getSnapshotBytes(ctx, srcSnapshot)
-	if err != nil {
-		return nil, err
-	}
-
-	return srcSnapshotData, nil
-}
-
-func (r *ConfigurationReconciler) fetchResourceDataFromResource(ctx context.Context, obj *deliveryv1alpha1.Configuration, version *deliveryv1alpha1.ComponentVersion) ([]byte, error) {
-	resource, err := r.OCMClient.GetResource(ctx, version, *obj.Spec.Source.ResourceRef)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
-	}
-	defer resource.Close()
-
-	content, err := io.ReadAll(resource)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read resource data: %w", err)
-	}
-
-	return content, nil
 }
