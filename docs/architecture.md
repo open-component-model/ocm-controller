@@ -360,6 +360,17 @@ sequenceDiagram
 
 The Replication Controller handles the replication of components between OCI repositories. It consists of a single reconciler which manages subscriptions to a source OCI repository. A semver constraint is used to specify a target component version. Component versions satisfying the semver constraint will be copied to the destination OCI repository. The replication controller will verify signatures before performing replication.
 
+
+```mermaid
+sequenceDiagram
+    User->>Kubernetes API: submit Component Subscription CR
+    Kubernetes API-->>Replication Controller: Component Subscription Created Event
+    Replication Controller->>Replication Controller: Determine new component is available in source repository based on semver
+    Replication Controller->>Sourcce OCM Repository: Verify signatures 
+    Source OCM Repository->>Destination OCM Repository: Transfer component by value
+    Replication Controller->>Kubernetes API: Update Component Subscription status
+```
+
 ### Remote Controller
 
 The **remote controller** is used to deploy components to machines external to the Kubernetes cluster itself. It does this by connecting to the remote machine via ssh. SFTP is used to transfer resources from the component to the remote. Scripts can be specified as part of the `MachineManager` custom resource. These scripts enable the user to the various actions required to manage the installation of resources transferred to the remote machine via the remote controller.
