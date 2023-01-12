@@ -206,7 +206,155 @@ configuration:
 
 ### Unpacker Controller
 
-The **Unpacker** controller is a meta-controller that is designed to enable execution of transformation pipelines for a set of component resources. The Unpacker controller allows for the selection of resources using OCM fields. Transformation is achieved via the PipelineTemplate resource which is a Golang template consisting of a number of "steps". Each step is a Kubernetes resource which will be created when the pipeline is rendered and applied. Variables are injected into the template which provide the component name and resource name.
+The **Unpacker** controller is a meta-controller that is designed to enable execution of transformation pipelines for a set of component resources. The Unpacker controller allows for the selection of resources using OCM fields. Transformation is achieved via the `PipelineTemplate` resource which is a Golang template consisting of a number of "steps". Each step is a Kubernetes resource which will be created when the pipeline is rendered and applied. Variables are injected into the template which provide the component name and resource name.
+
+Resources are selected from a particular component version using the `spec.resourceSelector` field:
+
+```yaml
+  resourceSelector:
+    skipRoot: true
+    followReferences: true
+    matchSelector:
+    - field: "type"
+      values:
+      - kustomize.ocm.fluxcd.io
+```
+
+For each selected resource an instance of the pipeline template is generated. The pipeline template is a golang template containing Kubernetes resource manifests. The manifests generated for each resource are server-side applied and an inventory is written to the status field of the Unpacker resource.
+
+A sample pipeline template looks as follows:
+
+```yaml
+apiVersion: config.ocm.software/v1alpha1
+kind: PipelineTemplate
+metadata:
+  name: podify-pipeline-template
+steps:
+- name: resource
+  template:
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: Resource
+    metadata:
+      name: {{ .Parameters.Name }}
+      namespace: {{ .Component.Namespace }}
+    spec:
+      interval: 1m0s
+      componentVersionRef:
+        name: {{ .Component.Name }}
+        namespace: {{ .Component.Namespace }}
+      resource:
+        name: {{ .Resource }}
+        {{ with .Component.Reference  }}
+        referencePath:
+          name: {{ . }}
+        {{ end }}
+      snapshotTemplate:
+        name: {{ .Parameters.Name }}
+        tag: latest
+- name: localize
+  template:
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: Localization
+    metadata:
+      name: {{ .Parameters.Name }}
+      namespace: {{ .Component.Namespace }}
+    spec:
+      interval: 1m0s
+      sourceRef:
+        kind: Snapshot
+        name: {{ .Parameters.Name }}
+        namespace: {{ .Component.Namespace }}
+      configRef:
+        componentVersionRef:
+          name: {{ .Component.Name }}
+          namespace: {{ .Component.Namespace }}
+        resource:
+          name: config
+          {{ with .Component.Reference  }}
+          referencePath:
+            name: {{ . }}
+          {{ end }}
+      snapshotTemplate:
+        name: {{ .Parameters.Name }}-localized
+        tag: latest
+- name: config
+  template:
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: Configuration
+    metadata:
+      name: {{ .Parameters.Name }}
+      namespace: {{ .Component.Namespace }}
+    spec:
+      interval: 1m0s
+      sourceRef:
+        kind: Snapshot
+        name: {{ .Parameters.Name }}-localized
+        namespace: {{ .Component.Namespace }}
+      configRef:
+        componentVersionRef:
+          name: {{ .Component.Name }}
+          namespace: {{ .Component.Namespace }}
+        resource:
+          name: config
+          {{ with .Component.Reference  }}
+          referencePath:
+            name: {{ . }}
+          {{ end }}
+      values: {{ .Values | toYaml | nindent 8 }}
+      snapshotTemplate:
+        name: {{ .Parameters.Name }}-configured
+        tag: latest
+- name: flux-source
+  template:
+    apiVersion: source.toolkit.fluxcd.io/v1beta2
+    kind: OCIRepository
+    metadata:
+      name: {{ .Parameters.Name }}
+      namespace: {{ .Component.Namespace }}
+    spec:
+      interval: 1m0s
+      url: oci://{{ .Registry }}/snapshots/{{ .Parameters.Name }}-configured
+      insecure: true
+      ref:
+        tag: latest
+- name: flux-kustomization
+  template:
+    apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+    kind: Kustomization
+    metadata:
+      name: {{ .Parameters.Name }}
+      namespace: {{ .Component.Namespace }}
+    spec:
+      interval: 1m0s
+      prune: true
+      targetNamespace: default
+      sourceRef:
+        kind: OCIRepository
+        name: {{ .Parameters.Name }}
+      path: ./
+```
+
+Any kind of Kubernetes resource can be used within this template.
+
+Values can also be passed into the template at execution time using the `.spec.values` field:
+
+```yaml
+  values:
+    frontend: # reference name
+      manifests: # resource name
+        message: "Welcome to podify"
+        color: "red"
+```
+
+```mermaid
+sequenceDiagram
+    User->>Kubernetes API: submit Unpacker CR
+    Kubernetes API-->>Unpacker Controller: Unpacker Created Event
+    Unpacker Controller->>Unpacker Controller: Compute matching resources based on resource selector
+    Unpacker Controller->>Unpacker Controller: Fetch each resource and compile manifests using pipeline template
+    Unpacker Controller->>Kubernetes API: Server side apply resources
+    Unpacker Controller->>Kubernetes API: Update Unpacker status
+```
 
 ### Replication controller
 
