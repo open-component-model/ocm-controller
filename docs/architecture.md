@@ -138,7 +138,7 @@ Localization parameters are specified under the `localization` stanza. The Local
 ```mermaid
 sequenceDiagram
     User->>Kubernetes API: submit Localization CR
-    Kubernetes API-->>Resource Controller: Localization Created Event
+    Kubernetes API-->>Localization Controller: Localization Created Event
     Localization Controller->>Internal Registry: Fetch resource from cache or upstream
     Localization Controller->>Internal Registry: Fetch configuration resource from cache or upstream
     Localization Controller->>Localization Controller: Apply matching localization rules
