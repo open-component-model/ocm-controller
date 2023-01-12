@@ -360,20 +360,92 @@ sequenceDiagram
 
 The Replication Controller handles the replication of components between OCI repositories. It consists of a single reconciler which manages subscriptions to a source OCI repository. A semver constraint is used to specify a target component version. Component versions satisfying the semver constraint will be copied to the destination OCI repository. The replication controller will verify signatures before performing replication.
 
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ComponentSubscription
+metadata:
+  name: componentsubscription-sample
+  namespace: ocm-system
+spec:
+  source:
+    secretRef:
+      name: source-access-secret
+    url: oci://source
+  destination:
+    secretRef:
+      name: destination-access-secret
+    url: oci://destination
+  component: "https://github.com/weavework/sock-shop"
+  interval: 10m0s
+  semver: "~v0.1.0"
+  verify:
+    - signature:
+        name: signature-name
+        key:
+          name: verify-key-name
+status:
+  latestVersion: "v0.1.1"
+  replicatedVersion: "v0.1.0"
+```
 
 ```mermaid
 sequenceDiagram
     User->>Kubernetes API: submit Component Subscription CR
     Kubernetes API-->>Replication Controller: Component Subscription Created Event
     Replication Controller->>Replication Controller: Determine new component is available in source repository based on semver
-    Replication Controller->>Sourcce OCM Repository: Verify signatures 
+    Replication Controller->>Source OCM Repository: Verify signatures 
     Source OCM Repository->>Destination OCM Repository: Transfer component by value
     Replication Controller->>Kubernetes API: Update Component Subscription status
 ```
 
 ### Remote Controller
 
-The **remote controller** is used to deploy components to machines external to the Kubernetes cluster itself. It does this by connecting to the remote machine via ssh. SFTP is used to transfer resources from the component to the remote. Scripts can be specified as part of the `MachineManager` custom resource. These scripts enable the user to the various actions required to manage the installation of resources transferred to the remote machine via the remote controller.
+The **remote controller** is used to deploy components to machines external to the Kubernetes cluster itself. It does this by connecting to the remote machine via ssh. SFTP is used to transfer resources from the component to the remote. Tasks can be specified as part of the `MachineManager` custom resource. These tasks enable the user to the various actions required to manage the installation of resources transferred to the remote machine via the remote controller.
+
+Execution rules and dependencies allow for the execution of tasks in a specific order or based on certain conditions.
+
+```yaml
+apiVersion: remote.ocm.software/v1alpha1
+kind: MachineManager
+metadata:
+  name: vm-0
+  namespace: default
+spec:
+  interval: 10m0s
+  componentVersionRef:
+    name: nested-component
+    namespace: default
+  ssh:
+    host: remote-instance.acme.org
+    port: 22
+    user: root
+    privateKey:
+      path: idrsa
+      secretRef:
+        name: my-private-key
+        namespace: default
+  tasks:
+  - name: install
+    executionRules:
+      hasInitialised: false
+      matchComponentVersion: ">=2.0"
+    transferResource
+    - resourceRef:
+        name: webpage
+      targetPath: /tmp/web
+    timeout: 1m0s
+    script: |
+        mv /tmp/web/index.html /var/www/production/index.html
+```
+
+```mermaid
+sequenceDiagram
+    User->>Kubernetes API: submit Machine Manager CR
+    Kubernetes API-->>Remote Controller: Machine Manager Created Event
+    Remote Controller->>Remote Controller: Iterate over tasks, creating if MachineManagerTask CRs if execution rules are satisfied
+    Remote Controller->>Remote Machine: Transfer resources and execute script
+    Remote Controller->>Kubernetes API: Update Machine Manager status
+```
 
 ## In-cluster Docker Registry
 
