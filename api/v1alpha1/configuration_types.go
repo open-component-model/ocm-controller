@@ -6,60 +6,8 @@
 package v1alpha1
 
 import (
-	"time"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
-
-// ConfigurationSpec defines the desired state of Configuration
-type ConfigurationSpec struct {
-	// +required
-	Interval metav1.Duration `json:"interval"`
-
-	// +required
-	Source Source `json:"source"`
-
-	// +required
-	ConfigRef ConfigReference `json:"configRef"`
-
-	// +required
-	SnapshotTemplate SnapshotTemplateSpec `json:"snapshotTemplate"`
-
-	// +optional
-	Values map[string]string `json:"values,omitempty"`
-}
-
-// ConfigurationStatus defines the observed state of Configuration
-type ConfigurationStatus struct {
-	// ObservedGeneration is the last reconciled generation.
-	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-
-	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
-	// +optional
-	LatestSnapshotDigest string `json:"latestSnapshotDigest,omitempty"`
-
-	LatestConfigVersion string `json:"latestConfigVersion,omitempty"`
-}
-
-func (in Configuration) GetSourceSnapshotKey() types.NamespacedName {
-	if in.Spec.Source.SourceRef == nil {
-		return types.NamespacedName{}
-	}
-	return types.NamespacedName{
-		Namespace: in.Spec.Source.SourceRef.Namespace,
-		Name:      in.Spec.Source.SourceRef.Name,
-	}
-}
-
-// GetRequeueAfter returns the duration after which the Localization must be
-// reconciled again.
-func (in Configuration) GetRequeueAfter() time.Duration {
-	return in.Spec.Interval.Duration
-}
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
@@ -69,8 +17,8 @@ type Configuration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ConfigurationSpec   `json:"spec,omitempty"`
-	Status ConfigurationStatus `json:"status,omitempty"`
+	Spec   MutationSpec   `json:"spec,omitempty"`
+	Status MutationStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

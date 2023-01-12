@@ -152,7 +152,7 @@ var (
 			Name:      "test-localization",
 			Namespace: "default",
 		},
-		Spec: v1alpha1.LocalizationSpec{
+		Spec: v1alpha1.MutationSpec{
 			Interval: metav1.Duration{},
 			ConfigRef: v1alpha1.ConfigReference{
 				ComponentVersionRef: meta.NamespacedObjectReference{
@@ -179,7 +179,7 @@ var (
 			Name:      "test-configuration",
 			Namespace: "default",
 		},
-		Spec: v1alpha1.ConfigurationSpec{
+		Spec: v1alpha1.MutationSpec{
 			Interval: metav1.Duration{},
 			ConfigRef: v1alpha1.ConfigReference{
 				ComponentVersionRef: meta.NamespacedObjectReference{
