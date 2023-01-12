@@ -141,7 +141,7 @@ sequenceDiagram
     Kubernetes API-->>Resource Controller: Localization Created Event
     Localization Controller->>Internal Registry: Fetch resource from cache or upstream
     Localization Controller->>Internal Registry: Fetch configuration resource from cache or upstream
-    Localization Controller->>Localization Controlle: Apply matching localization rules
+    Localization Controller->>Localization Controller: Apply matching localization rules
     Localization Controller->>Internal Registry: Push localized resource to internal registry
     Localization Controller->>Kubernetes API: Create Snapshot CR
     Localization Controller->>Kubernetes API: Update Localization status
