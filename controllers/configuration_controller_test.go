@@ -22,18 +22,32 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 )
 
-var localizationConfigData = []byte(`kind: ConfigData
+var configurationConfigData = []byte(`kind: ConfigData
 metadata:
   name: test-config-data
   namespace: default
-localization:
-- file: deploy.yaml
-  image: spec.template.spec.containers[0].image
-  resource:
-    name: introspect-image
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+  rules:
+  - value: (( message ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
 `)
 
-type testCase struct {
+type configurationTestCase struct {
 	name                string
 	mock                func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher)
 	componentVersion    func() *v1alpha1.ComponentVersion
@@ -43,8 +57,8 @@ type testCase struct {
 	expectError         string
 }
 
-func TestLocalizationReconciler(t *testing.T) {
-	testCases := []testCase{
+func TestConfigurationReconciler(t *testing.T) {
+	testCases := []configurationTestCase{
 		{
 			name: "with snapshot as a source",
 			componentVersion: func() *v1alpha1.ComponentVersion {
@@ -91,10 +105,10 @@ func TestLocalizationReconciler(t *testing.T) {
 				return sourceSnapshot
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
-				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
 			},
 		},
 		{
@@ -128,10 +142,10 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
-				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
 			},
 		},
 		{
@@ -161,7 +175,7 @@ func TestLocalizationReconciler(t *testing.T) {
 				return v1alpha1.Source{}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturns(content, nil)
 			},
@@ -283,95 +297,15 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, nil, errors.New("boo"))
 			},
 		},
 		{
-			name:        "GetImageReference fails",
-			expectError: "failed to get image access: failed to unmarshal access spec: json: Unmarshal(nil)",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ComponentDescriptor = v1alpha1.Reference{
-					Name:    "test-component",
-					Version: "v0.0.1",
-					ComponentDescriptorRef: meta.NamespacedObjectReference{
-						Name:      cv.Name + "-descriptor",
-						Namespace: cv.Namespace,
-					},
-				}
-				return cv
-			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				cd := DefaultComponentDescriptor.DeepCopy()
-				cd.Spec.Resources[0].Access.Object["type"] = "unknown"
-				return cd
-			},
-			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				// do nothing
-				return nil
-			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
-					},
-				}
-			},
-			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
-				require.NoError(t, err)
-				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
-				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-			},
-		},
-		{
-			name:        "ParseReference fails",
-			expectError: "failed to parse access reference: could not parse reference: invalid:@:1.0.0@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ComponentDescriptor = v1alpha1.Reference{
-					Name:    "test-component",
-					Version: "v0.0.1",
-					ComponentDescriptorRef: meta.NamespacedObjectReference{
-						Name:      cv.Name + "-descriptor",
-						Namespace: cv.Namespace,
-					},
-				}
-				return cv
-			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				cd := DefaultComponentDescriptor.DeepCopy()
-				cd.Spec.Resources[0].Access.Object["globalAccess"].(map[string]any)["ref"] = "invalid:@"
-				return cd
-			},
-			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				// do nothing
-				return nil
-			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
-					},
-				}
-			},
-			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
-				require.NoError(t, err)
-				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
-				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-			},
-		},
-		{
-			name:        "the returned content is not a tar file",
-			expectError: "extract tar error: unexpected EOF",
+			name:        "error while running configurator",
+			expectError: "configurator error: error processing template: processing template adjustments: unresolved nodes:\n\t(( nope ))\tin template adjustments\tadjustments.[0].value\t(adjustments.name:subst-0.value)\t*'nope' not found",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -401,12 +335,38 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				fakeOcm.GetResourceReturnsOnCall(0, io.NopCloser(bytes.NewBuffer([]byte("I am not a tar file"))), nil)
-				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
+				require.NoError(t, err)
+				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
+				testConfigData := []byte(`kind: ConfigData
+metadata:
+  name: test-config-data
+  namespace: default
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+  rules:
+  - value: (( nope ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
+`)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(testConfigData)), nil)
 			},
 		},
 		{
-			name:        "localization fails because the file does not exist",
+			name:        "configuration fails because the file does not exist",
 			expectError: "no such file or directory",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
@@ -437,18 +397,32 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				testConfigData := []byte(`kind: ConfigData
 metadata:
   name: test-config-data
   namespace: default
-localization:
-- file: idonotexist
-  image: spec.template.spec.containers[0].image
-  resource:
-    name: introspect-image
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+  rules:
+  - value: (( message ))
+    file: nope.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
 `)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(testConfigData)), nil)
 			},
@@ -524,11 +498,11 @@ localization:
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
 				fakeCache.PushDataReturns("", errors.New("boo"))
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
-				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
 			},
 		},
 	}
@@ -539,9 +513,9 @@ localization:
 			cd := tt.componentDescriptor()
 			snapshot := tt.snapshot(cv, resource)
 			source := tt.source(snapshot)
-			localization := DefaultLocalization.DeepCopy()
-			localization.Spec.Source = source
-			objs := []client.Object{cv, resource, cd, localization}
+			configuration := DefaultConfiguration.DeepCopy()
+			configuration.Spec.Source = source
+			objs := []client.Object{cv, resource, cd, configuration}
 			if snapshot != nil {
 				objs = append(objs, snapshot)
 			}
@@ -550,14 +524,14 @@ localization:
 			fakeOcm := &fakes.MockFetcher{}
 			tt.mock(cache, fakeOcm)
 
-			lr := LocalizationReconciler{
+			cr := ConfigurationReconciler{
 				Client:    client,
 				Scheme:    env.scheme,
 				OCMClient: fakeOcm,
 				Cache:     cache,
 			}
 
-			_, err := lr.reconcile(context.Background(), localization)
+			_, err := cr.reconcile(context.Background(), configuration)
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
 			} else {
@@ -565,8 +539,8 @@ localization:
 				t.Log("check if target snapshot has been created and cache was called")
 				snapshotOutput := &v1alpha1.Snapshot{}
 				err = client.Get(context.Background(), types.NamespacedName{
-					Namespace: localization.Namespace,
-					Name:      localization.Spec.SnapshotTemplate.Name,
+					Namespace: configuration.Namespace,
+					Name:      configuration.Spec.SnapshotTemplate.Name,
 				}, snapshotOutput)
 				require.NoError(t, err)
 				args := cache.PushDataCallingArgumentsOnCall(0)
@@ -574,14 +548,14 @@ localization:
 				assert.Equal(t, "sha-6558931820223250200", name)
 				assert.Equal(t, "999", version)
 
-				t.Log("extracting the passed in data and checking if the localization worked")
+				t.Log("extracting the passed in data and checking if the configuration worked")
 				dataContent, err := Untar(io.NopCloser(bytes.NewBuffer([]byte(data.(string)))))
 				require.NoError(t, err)
 				assert.Contains(
 					t,
 					string(dataContent),
-					"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
-					"the image should have been altered during localization",
+					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
+					"the configuration data should have been applied",
 				)
 			}
 		})

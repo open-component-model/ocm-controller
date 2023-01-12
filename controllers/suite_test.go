@@ -171,6 +171,37 @@ var (
 			},
 		},
 	}
+	DefaultConfiguration = &v1alpha1.Configuration{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Localization",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-configuration",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ConfigurationSpec{
+			Interval: metav1.Duration{},
+			ConfigRef: v1alpha1.ConfigReference{
+				ComponentVersionRef: meta.NamespacedObjectReference{
+					Name:      DefaultComponent.Name,
+					Namespace: DefaultComponent.Namespace,
+				},
+				Resource: v1alpha1.Source{
+					ResourceRef: &v1alpha1.ResourceRef{
+						Name: DefaultResource.Name,
+					},
+				},
+			},
+			Values: map[string]string{
+				"message": "this is a new message",
+				"color":   "bittersweet",
+			},
+			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
+				Name: "test-configuration-modified",
+				Tag:  "v0.0.2",
+			},
+		},
+	}
 )
 
 var env *testEnv
