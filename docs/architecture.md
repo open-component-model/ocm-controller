@@ -174,7 +174,35 @@ spec:
 
 #### Configuration Controller
 
-The configuration controller is used to configure a snapshot, similar to localization the configured resources is written to a snapshot.
+The configuration controller is used to configure resources for a particular environment and similar to localization the configured resource is written to a snapshot. Because configuration is deemed a common operation it is included along with the configuraton controller in the ocm-controller itself. The behaviour is as described for the localization controller but instead of retrieving confiugration from the `localization` stanza of the `ConfigData` file, the controller retrieves configuration information from the `configuration` stanza:
+
+```yaml
+apiVersion: config.ocm.software/v1alpha1
+kind: ConfigData
+metadata:
+  name: ocm-config
+  labels:
+    env: test
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+  rules:
+  - value: (( message ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
+```
 
 ### Unpacker Controller
 
