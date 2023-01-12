@@ -91,6 +91,8 @@ sequenceDiagram
     Resource Controller->>Kubernetes API: Update Resource status
 ```
 
+The custom resource for the Resource controller is as follows:
+
 ```yaml
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Resource
@@ -132,6 +134,43 @@ localization:
 ```
 
 Localization parameters are specified under the `localization` stanza. The Localization controller will apply the localization rules that apply to the resource specified in the `source` field. 
+
+```mermaid
+sequenceDiagram
+    User->>Kubernetes API: submit Localization CR
+    Kubernetes API-->>Resource Controller: Localization Created Event
+    Localization Controller->>Internal Registry: Fetch resource from cache or upstream
+    Localization Controller->>Internal Registry: Fetch configuration resource from cache or upstream
+    Localization Controller->>Localization Controlle: Apply matching localization rules
+    Localization Controller->>Internal Registry: Push localized resource to internal registry
+    Localization Controller->>Kubernetes API: Create Snapshot CR
+    Localization Controller->>Kubernetes API: Update Localization status
+```
+
+The custom resource for the Localization controllers is as follows:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Localization
+metadata:
+  name: manifests
+spec:
+  interval: 1m0s
+  source:
+    sourceRef:
+      kind: Snapshot
+      name: manifests
+      namespace: default
+  configRef:
+    componentVersionRef:
+      name: component-x
+      namespace: default
+    resource:
+      resourceRef:
+        name: config
+  snapshotTemplate:
+    name: manifests-localized
+```
 
 #### Configuration Controller
 
