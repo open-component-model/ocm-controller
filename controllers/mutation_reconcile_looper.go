@@ -47,8 +47,8 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	)
 
 	cv := types.NamespacedName{
-		Name:      spec.ConfigRef.ComponentVersionRef.Name,
-		Namespace: spec.ConfigRef.ComponentVersionRef.Namespace,
+		Name:      spec.ComponentVersionRef.Name,
+		Namespace: spec.ComponentVersionRef.Namespace,
 	}
 
 	componentVersion := &v1alpha1.ComponentVersion{}

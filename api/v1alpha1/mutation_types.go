@@ -14,6 +14,9 @@ type MutationSpec struct {
 	Interval metav1.Duration `json:"interval"`
 
 	// +required
+	ComponentVersionRef meta.NamespacedObjectReference `json:"componentVersionRef"`
+
+	// +required
 	Source Source `json:"source"`
 
 	// +required
@@ -42,9 +45,6 @@ type MutationStatus struct {
 }
 
 type ConfigReference struct {
-	// +required
-	ComponentVersionRef meta.NamespacedObjectReference `json:"componentVersionRef"`
-
 	// +required
 	Resource Source `json:"resource"`
 }

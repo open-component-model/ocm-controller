@@ -169,10 +169,10 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 			}
 		case "ConfigRef":
 			namespace := l.GetNamespace()
-			if l.Spec.ConfigRef.ComponentVersionRef.Namespace != "" {
-				namespace = l.Spec.ConfigRef.ComponentVersionRef.Namespace
+			if l.Spec.ComponentVersionRef.Namespace != "" {
+				namespace = l.Spec.ComponentVersionRef.Namespace
 			}
-			return []string{fmt.Sprintf("%s/%s", namespace, strings.ReplaceAll(l.Spec.ConfigRef.ComponentVersionRef.Name, "/", "-"))}
+			return []string{fmt.Sprintf("%s/%s", namespace, strings.ReplaceAll(l.Spec.ComponentVersionRef.Name, "/", "-"))}
 		default:
 			return nil
 		}

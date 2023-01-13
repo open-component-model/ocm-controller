@@ -4,15 +4,15 @@ metadata:
   name: carts
 spec:
   interval: 1m0s
+  componentVersionRef:
+    name: nested-component
+    namespace: default
   source:
     sourceRef:
       kind: Snapshot
       name: carts-manifests-localized
       namespace: default
   configRef:
-    componentVersionRef:
-      name: nested-component
-      namespace: default
     resource:
       resourceRef:
         name: config
