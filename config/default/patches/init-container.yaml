@@ -12,5 +12,5 @@ spec:
     spec:
       initContainers:
         - name: init-registry
-          image: open-component-model/ocm-registry-server
+          image: open-component-model/ocm-registry
           imagePullPolicy: IfNotPresent
