@@ -5,7 +5,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/open-component-model/ocm-controller
 # Registry server image URL to use all building/pushing image targets
-REG_IMG ?= ghcr.io/open-component-model/ocm-registry-server
+REG_IMG ?= ghcr.io/open-component-model/ocm-registry
 TAG ?= latest
 REG_TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -103,7 +103,7 @@ docker-registry-server:
 	.
 
 .PHONY: docker-registry-server-push
-docker-registry-server-push: ## Push docker image with the manager.
+docker-registry-server-push: docker-registry-server ## Push docker image with the manager.
 	docker push ${REG_IMG}:${REG_TAG}
 
 ##@ Deployment
