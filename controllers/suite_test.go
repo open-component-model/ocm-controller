@@ -154,11 +154,11 @@ var (
 		},
 		Spec: v1alpha1.MutationSpec{
 			Interval: metav1.Duration{},
+			ComponentVersionRef: meta.NamespacedObjectReference{
+				Name:      DefaultComponent.Name,
+				Namespace: DefaultComponent.Namespace,
+			},
 			ConfigRef: v1alpha1.ConfigReference{
-				ComponentVersionRef: meta.NamespacedObjectReference{
-					Name:      DefaultComponent.Name,
-					Namespace: DefaultComponent.Namespace,
-				},
 				Resource: v1alpha1.Source{
 					ResourceRef: &v1alpha1.ResourceRef{
 						Name: DefaultResource.Name,
@@ -181,11 +181,11 @@ var (
 		},
 		Spec: v1alpha1.MutationSpec{
 			Interval: metav1.Duration{},
+			ComponentVersionRef: meta.NamespacedObjectReference{
+				Name:      DefaultComponent.Name,
+				Namespace: DefaultComponent.Namespace,
+			},
 			ConfigRef: v1alpha1.ConfigReference{
-				ComponentVersionRef: meta.NamespacedObjectReference{
-					Name:      DefaultComponent.Name,
-					Namespace: DefaultComponent.Namespace,
-				},
 				Resource: v1alpha1.Source{
 					ResourceRef: &v1alpha1.ResourceRef{
 						Name: DefaultResource.Name,

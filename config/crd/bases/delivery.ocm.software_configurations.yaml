@@ -36,22 +36,22 @@ spec:
             description: MutationSpec defines a common spec between Localization and
               Configuration.
             properties:
+              componentVersionRef:
+                description: NamespacedObjectReference contains enough information
+                  to locate the referenced Kubernetes resource object in any namespace.
+                properties:
+                  name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
+                    type: string
+                required:
+                - name
+                type: object
               configRef:
                 properties:
-                  componentVersionRef:
-                    description: NamespacedObjectReference contains enough information
-                      to locate the referenced Kubernetes resource object in any namespace.
-                    properties:
-                      name:
-                        description: Name of the referent.
-                        type: string
-                      namespace:
-                        description: Namespace of the referent, when not specified
-                          it acts as LocalObjectReference.
-                        type: string
-                    required:
-                    - name
-                    type: object
                   resource:
                     description: Source defines a possible incoming format for sources
                       that this object needs for further configuration/localization
@@ -108,7 +108,6 @@ spec:
                         type: object
                     type: object
                 required:
-                - componentVersionRef
                 - resource
                 type: object
               interval:
@@ -195,6 +194,7 @@ spec:
                   type: string
                 type: object
             required:
+            - componentVersionRef
             - configRef
             - interval
             - snapshotTemplate
