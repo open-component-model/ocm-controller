@@ -92,7 +92,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
 	}
 
-	reader, err := r.OCMClient.GetResource(ctx, componentVersion, obj.Spec.Resource)
+	reader, digest, err := r.OCMClient.GetResource(ctx, componentVersion, obj.Spec.Resource)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to get resource: %w", err)
 	}
@@ -110,14 +110,6 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	}
 	for k, v := range obj.Spec.Resource.ExtraIdentity {
 		identity[k] = v
-	}
-	name, err := ocm.ConstructRepositoryName(identity)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to construct name: %w", err)
-	}
-	digest, err := r.Cache.PushData(ctx, reader, name, version)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to push resource to cache: %w", err)
 	}
 
 	// How would I use this snapshot from the Localizer?

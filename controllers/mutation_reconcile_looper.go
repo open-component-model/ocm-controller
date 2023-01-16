@@ -30,6 +30,7 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm-controller/pkg/untar"
 )
 
 type MutationReconcileLooper struct {
@@ -37,6 +38,7 @@ type MutationReconcileLooper struct {
 	OCMClient ocm.FetchVerifier
 	Client    client.Client
 	Cache     cache.Cache
+	Untarer   untar.Untarer
 }
 
 func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, spec v1alpha1.MutationSpec, obj client.Object) (string, error) {
@@ -78,6 +80,10 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		}
 	}
 
+	if len(resourceData) == 0 {
+		return "", fmt.Errorf("resource data cannot be empty")
+	}
+
 	// get config resource
 	config := &configdata.ConfigData{}
 	// TODO: allow for snapshots to be sources here. The chain could be working on an already modified source.
@@ -86,17 +92,18 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		return "",
 			fmt.Errorf("resource ref is empty for config ref")
 	}
-	reader, err := m.OCMClient.GetResource(ctx, componentVersion, *resourceRef)
+	reader, _, err := m.OCMClient.GetResource(ctx, componentVersion, *resourceRef)
 	if err != nil {
 		return "",
 			fmt.Errorf("failed to get resource: %w", err)
 	}
 	defer reader.Close()
 
-	content, err := io.ReadAll(reader)
+	content, err := m.Untarer.Untar(reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to read blob: %w", err)
 	}
+
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
 		return "",
 			fmt.Errorf("failed to unmarshal content: %w", err)
@@ -227,7 +234,7 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := m.Client.Get(ctx, spec.GetSourceSnapshotKey(), srcSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("snapshot not found")
+			log.Info("snapshot not found", "snapshot", spec.GetSourceSnapshotKey())
 			return nil, nil
 		}
 		return nil,
@@ -248,7 +255,7 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 }
 
 func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Context, spec *v1alpha1.MutationSpec, version *v1alpha1.ComponentVersion) ([]byte, error) {
-	resource, err := m.OCMClient.GetResource(ctx, version, *spec.Source.ResourceRef)
+	resource, _, err := m.OCMClient.GetResource(ctx, version, *spec.Source.ResourceRef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
 	}

@@ -38,7 +38,7 @@ type Verifier interface {
 
 // Fetcher gets information about an OCM component Version based on a k8s component Version.
 type Fetcher interface {
-	GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error)
+	GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error)
 	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
 	ListComponentVersions(ctx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
@@ -67,7 +67,7 @@ func NewClient(client client.Client, cache cache.Cache) *Client {
 }
 
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
-func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {
+func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error) {
 	version := "latest"
 	if resource.Version != "" {
 		version = resource.Version
@@ -84,11 +84,11 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 	}
 	name, err := ConstructRepositoryName(identity)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct name: %w", err)
+		return nil, "", fmt.Errorf("failed to construct name: %w", err)
 	}
 	cached, err := c.cache.IsCached(ctx, name, version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check cache: %w", err)
+		return nil, "", fmt.Errorf("failed to check cache: %w", err)
 	}
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
@@ -96,7 +96,7 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 
 	cva, err := c.GetComponentVersion(ctx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get component version: %w", err)
+		return nil, "", fmt.Errorf("failed to get component version: %w", err)
 	}
 	defer cva.Close()
 
@@ -107,27 +107,31 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 
 	res, _, err := utils.ResolveResourceReference(cva, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities), cva.Repository())
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve reference path to resource: %w", err)
+		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
 	}
 
 	access, err := res.AccessMethod()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch access spec: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch access spec: %w", err)
 	}
 
 	reader, err := access.Reader()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch reader: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch reader: %w", err)
 	}
 	defer reader.Close()
 
 	digest, err := c.cache.PushData(ctx, reader, name, version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to cache blob: %w", err)
+		return nil, "", fmt.Errorf("failed to cache blob: %w", err)
 	}
 
 	// re-fetch the resource to have a streamed reader available
-	return c.cache.FetchDataByDigest(ctx, name, digest)
+	dataReader, err := c.cache.FetchDataByDigest(ctx, name, digest)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch resource: %w", err)
+	}
+	return dataReader, digest, nil
 }
 
 // GetComponentVersion returns a component version. It's the caller's responsibility to clean it up and close the component version once done with it.

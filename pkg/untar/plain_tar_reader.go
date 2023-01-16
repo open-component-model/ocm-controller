@@ -1,26 +1,20 @@
-package controllers
+package untar
 
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
 )
 
-// Untar takes a reader and extracts the content into memory.
-// This function should only be used in tests for extracting simple content.
-func Untar(in io.ReadCloser) ([]byte, error) {
+// PlainUntarer will attempt a plain untar operation and not gzipped.
+type PlainUntarer struct{}
+
+func (p *PlainUntarer) Untar(in io.ReadCloser) ([]byte, error) {
 	var result []byte
 	buffer := bytes.NewBuffer(result)
-	zr, err := gzip.NewReader(in)
-	if err != nil {
-		return nil, fmt.Errorf("requires gzip-compressed body: %v", err)
-	}
-	defer zr.Close()
-
-	tr := tar.NewReader(zr)
+	tr := tar.NewReader(in)
 
 	for {
 		header, err := tr.Next()

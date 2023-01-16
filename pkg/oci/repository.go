@@ -110,30 +110,30 @@ func (c *Client) PushData(ctx context.Context, data io.ReadCloser, name, tag str
 
 // FetchDataByIdentity fetches an existing resource. Errors if there is no resource available. It's advised to call IsCached
 // before fetching. Returns the digest of the resource alongside the data for further processing.
-func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, error) {
+func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repository: %w", err)
+		return nil, "", fmt.Errorf("failed to get repository: %w", err)
 	}
 
 	manifest, _, err := repo.FetchManifest(tag, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch manifest to obtain layers: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch manifest to obtain layers: %w", err)
 	}
 	layers := manifest.Layers
 	if len(layers) == 0 {
-		return nil, fmt.Errorf("layers for repository is empty")
+		return nil, "", fmt.Errorf("layers for repository is empty")
 	}
 
 	digest := layers[0].Digest
 
 	reader, err := repo.FetchBlob(digest.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch reader for digest of the 0th layer: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch reader for digest of the 0th layer: %w", err)
 	}
 
-	return reader, nil
+	return reader, digest.String(), nil
 }
 
 func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error) {
