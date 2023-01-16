@@ -198,7 +198,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	// - can control creation or update based on a given logic, for drift detection for example.
 
 	// create or update the component descriptor kubernetes resource
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, descriptor, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, descriptor, func() error {
 		if descriptor.ObjectMeta.CreationTimestamp.IsZero() {
 			if err := controllerutil.SetOwnerReference(obj, descriptor, r.Scheme); err != nil {
 				return fmt.Errorf("failed to set owner reference: %w", err)
@@ -226,18 +226,13 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 		},
 	}
 
-	log.V(4).Info("successfully completed mutation", "operation", op)
-
-	// if references.expand is false then return here
-	if !obj.Spec.References.Expand {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
-	}
-
-	componentDescriptor.References, err = r.parseReferences(ctx, obj, cv.GetDescriptor().References)
-	if err != nil {
-		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("failed to get references: %w", err)
+	if obj.Spec.References.Expand {
+		componentDescriptor.References, err = r.parseReferences(ctx, obj, cv.GetDescriptor().References)
+		if err != nil {
+			return ctrl.Result{
+				RequeueAfter: obj.GetRequeueAfter(),
+			}, fmt.Errorf("failed to get references: %w", err)
+		}
 	}
 
 	// initialize the patch helper
