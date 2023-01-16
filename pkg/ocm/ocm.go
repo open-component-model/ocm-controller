@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -160,6 +161,7 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 	log := log.FromContext(ctx)
 
 	octx := ocm.ForContext(ctx)
+
 	// configure registry credentials
 	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
 		log.V(4).Error(err, "failed to find credentials")
@@ -190,11 +192,13 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 		}
 
 		opts := signing.NewOptions(
-			signing.VerifySignature(signature.Name),
 			signing.Resolver(resolver),
-			signing.VerifyDigests(),
 			signing.PublicKey(signature.Name, cert),
+			signing.VerifyDigests(),
+			signing.VerifySignature(signature.Name),
 		)
+
+		opts.NormalizationAlgo = compdesc.JsonNormalisationV2
 
 		if err := opts.Complete(signingattr.Get(octx)); err != nil {
 			return false, fmt.Errorf("verify error: %w", err)
@@ -202,22 +206,26 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 
 		dig, err := signing.Apply(nil, nil, cv, opts)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("verify error: %w", err)
 		}
 
 		var value string
-		for _, os := range cv.GetDescriptor().Signatures {
-			if os.Name == signature.Name {
-				value = os.Digest.Value
+		for _, s := range cv.GetDescriptor().Signatures {
+			if s.Name == signature.Name {
+				value = s.Digest.Value
 				break
 			}
 		}
+
 		if value == "" {
 			return false, fmt.Errorf("signature with name '%s' not found in the list of provided ocm signatures", signature.Name)
 		}
+
 		if dig.Value != value {
 			return false, fmt.Errorf("%s signature did not match key value", signature.Name)
 		}
+
+		log.Info("component verified", "signature", signature.Name)
 	}
 
 	return true, nil
@@ -243,9 +251,20 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 }
 
 func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
-	ocmCtx := ocm.ForContext(ctx)
+	log := log.FromContext(ctx)
 
-	versions, err := c.ListComponentVersions(ocmCtx, obj)
+	octx := ocm.ForContext(ctx)
+
+	// configure registry credentials
+	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
+		log.V(4).Error(err, "failed to find credentials")
+		// ignore not found errors for now
+		if !apierrors.IsNotFound(err) {
+			return "", fmt.Errorf("failed to configure credentials for component: %w", err)
+		}
+	}
+
+	versions, err := c.ListComponentVersions(octx, obj)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component versions: %w", err)
 	}
