@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -190,11 +191,13 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 		}
 
 		opts := signing.NewOptions(
-			signing.VerifySignature(signature.Name),
 			signing.Resolver(resolver),
-			signing.VerifyDigests(),
 			signing.PublicKey(signature.Name, cert),
+			signing.VerifyDigests(),
+			signing.VerifySignature(signature.Name),
 		)
+
+		opts.NormalizationAlgo = compdesc.JsonNormalisationV2
 
 		if err := opts.Complete(signingattr.Get(octx)); err != nil {
 			return false, fmt.Errorf("verify error: %w", err)
@@ -202,22 +205,26 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 
 		dig, err := signing.Apply(nil, nil, cv, opts)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("verify error: %w", err)
 		}
 
 		var value string
-		for _, os := range cv.GetDescriptor().Signatures {
-			if os.Name == signature.Name {
-				value = os.Digest.Value
+		for _, s := range cv.GetDescriptor().Signatures {
+			if s.Name == signature.Name {
+				value = s.Digest.Value
 				break
 			}
 		}
+
 		if value == "" {
 			return false, fmt.Errorf("signature with name '%s' not found in the list of provided ocm signatures", signature.Name)
 		}
+
 		if dig.Value != value {
 			return false, fmt.Errorf("%s signature did not match key value", signature.Name)
 		}
+
+		log.Info("component verified", "signature", signature.Name)
 	}
 
 	return true, nil
