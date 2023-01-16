@@ -153,6 +153,7 @@ func (t *testEnv) AddComponentVersionToRepository(component Component, resources
 			signing.PrivateKey(component.Sign.Name, component.Sign.Key),
 			signing.Update(), signing.VerifyDigests(),
 		)
+		opts.NormalizationAlgo = compdesc.JsonNormalisationV2
 		if err := opts.Complete(signingattr.Get(octx)); err != nil {
 			return fmt.Errorf("failed to complete signing: %w", err)
 		}
