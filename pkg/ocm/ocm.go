@@ -161,6 +161,7 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 	log := log.FromContext(ctx)
 
 	octx := ocm.ForContext(ctx)
+
 	// configure registry credentials
 	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
 		log.V(4).Error(err, "failed to find credentials")
@@ -250,9 +251,20 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 }
 
 func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
-	ocmCtx := ocm.ForContext(ctx)
+	log := log.FromContext(ctx)
 
-	versions, err := c.ListComponentVersions(ocmCtx, obj)
+	octx := ocm.ForContext(ctx)
+
+	// configure registry credentials
+	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
+		log.V(4).Error(err, "failed to find credentials")
+		// ignore not found errors for now
+		if !apierrors.IsNotFound(err) {
+			return "", fmt.Errorf("failed to configure credentials for component: %w", err)
+		}
+	}
+
+	versions, err := c.ListComponentVersions(octx, obj)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component versions: %w", err)
 	}
