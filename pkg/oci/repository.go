@@ -149,7 +149,7 @@ func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io
 
 func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
-	reference, err := ociname.ParseReference(fmt.Sprintf("%s/%s", repositoryName, tag))
+	reference, err := ociname.ParseReference(fmt.Sprintf("%s:%s", repositoryName, tag))
 	if err != nil {
 		return false, fmt.Errorf("failed to parse repository and tag name: %w", err)
 	}

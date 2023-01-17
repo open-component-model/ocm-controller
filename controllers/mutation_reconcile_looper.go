@@ -99,10 +99,14 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	}
 	defer reader.Close()
 
-	content, err := m.Untarer.Untar(reader)
+	//untarer := untar.PlainUntarer{}
+	//content, err := untarer.Untar(reader)
+	content, err := Ungzip(reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to read blob: %w", err)
 	}
+
+	//log.Info("read content from blob", "content", string(content))
 
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
 		return "",
@@ -123,12 +127,12 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	if spec.Values != nil {
 		rules, err = m.createSubstitutionRulesForConfigurationValues(spec, *config)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to create configuration values for config '%s': %w", config.Name, err)
 		}
 	} else {
 		rules, err = m.createSubstitutionRulesForLocalization(*componentDescriptor, *config)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to create localization values for config '%s': %w", config.Name, err)
 		}
 	}
 
@@ -138,7 +142,13 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	}
 	defer vfs.Cleanup(virtualFS)
 
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
+	extractResourceData, err := Ungzip(bytes.NewBuffer(resourceData))
+	if err != nil {
+		// the data is not compressed
+		extractResourceData = resourceData
+		//return "", fmt.Errorf("failed to ungzip resource data: %w", err)
+	}
+	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(extractResourceData)); err != nil {
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
 
@@ -235,7 +245,7 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 	if err := m.Client.Get(ctx, spec.GetSourceSnapshotKey(), srcSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("snapshot not found", "snapshot", spec.GetSourceSnapshotKey())
-			return nil, nil
+			return nil, err
 		}
 		return nil,
 			fmt.Errorf("failed to get component object: %w", err)
@@ -332,17 +342,17 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 
 	defaults, err := json.Marshal(config.Configuration.Defaults)
 	if err != nil {
-		return nil, fmt.Errorf("configurator error: %w", err)
+		return nil, fmt.Errorf("failed to marshal configuration defaults: %w", err)
 	}
 
 	values, err := json.Marshal(spec.Values)
 	if err != nil {
-		return nil, fmt.Errorf("configurator error: %w", err)
+		return nil, fmt.Errorf("failed to marshal spec values: %w", err)
 	}
 
 	schema, err := json.Marshal(config.Configuration.Schema)
 	if err != nil {
-		return nil, fmt.Errorf("configurator error: %w", err)
+		return nil, fmt.Errorf("failed to marshal configuration schema: %w", err)
 	}
 
 	configSubstitions, err := m.configurator(rules, defaults, values, schema)
@@ -352,7 +362,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 	return configSubstitions, nil
 }
 
-func (r *MutationReconcileLooper) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
+func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
 	// configure defaults
 	templ := make(map[string]any)
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
@@ -362,7 +372,7 @@ func (r *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 	// configure values overrides... must be a better way
 	var valuesMap map[string]any
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(values, &valuesMap); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal template: %w", err)
+		return nil, fmt.Errorf("cannot unmarshal values: %w", err)
 	}
 
 	for k, v := range valuesMap {
@@ -392,7 +402,7 @@ func (r *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 
 	config, err := spiff.CascadeWith(spiff.TemplateData("adjustments", templateBytes), spiff.Mode(spiffing.MODE_PRIVATE))
 	if err != nil {
-		return nil, fmt.Errorf("error processing template: %w", err)
+		return nil, fmt.Errorf("error while doing cascade with: %w", err)
 	}
 
 	var result struct {
@@ -400,7 +410,7 @@ func (r *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 	}
 
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(config, &result); err != nil {
-		return nil, fmt.Errorf("error processing template: %w", err)
+		return nil, fmt.Errorf("error unmarshaling result: %w", err)
 	}
 
 	return result.Adjustments, nil

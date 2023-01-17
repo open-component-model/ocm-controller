@@ -11,7 +11,7 @@ import (
 // PlainUntarer will attempt a plain untar operation and not gzipped.
 type PlainUntarer struct{}
 
-func (p *PlainUntarer) Untar(in io.ReadCloser) ([]byte, error) {
+func (*PlainUntarer) Untar(in io.Reader) ([]byte, error) {
 	var result []byte
 	buffer := bytes.NewBuffer(result)
 	tr := tar.NewReader(in)

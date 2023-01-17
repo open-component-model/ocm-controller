@@ -13,7 +13,7 @@ import (
 // The reader is created and the untar uses TeeReader to not close the original
 // reader so the next method can read it again.
 type Untarer interface {
-	Untar(in io.ReadCloser) ([]byte, error)
+	Untar(in io.Reader) ([]byte, error)
 }
 
 type Method struct {
@@ -35,15 +35,18 @@ func NewFallbackUntar(log logr.Logger, methods ...Method) *FallbackUntar {
 	}
 }
 
-func (f *FallbackUntar) Untar(in io.ReadCloser) ([]byte, error) {
-	defer in.Close()
+// Untar expects a small content so for brevity it will copy all information from the reader into memory
+// instead of using a reusable reader with TeeReader.
+func (f *FallbackUntar) Untar(in io.Reader) ([]byte, error) {
+	readerContent, err := io.ReadAll(in)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read content from reader: %w", err)
+	}
 	for _, method := range f.methods {
 		f.logger.Info("trying untar method", "method", method.Name)
-		buf := &bytes.Buffer{}
-		tee := io.TeeReader(in, buf)
-		content, err := method.Method.Untar(io.NopCloser(tee))
+		content, err := method.Method.Untar(bytes.NewBuffer(readerContent))
 		if err != nil {
-			f.logger.Error(err, "method failed, trying next: ")
+			//f.logger.Error(err, "method failed, trying next: ")
 			continue
 		}
 		return content, nil

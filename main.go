@@ -105,6 +105,9 @@ func main() {
 	}
 
 	fallbackUntar := untar.NewFallbackUntar(mgr.GetLogger(), untar.Method{
+		Name:   "plain-gzip",
+		Method: &untar.PlainGzipDecompress{},
+	}, untar.Method{
 		Name:   "gzip",
 		Method: &untar.GzipFallbackUntarer{},
 	}, untar.Method{

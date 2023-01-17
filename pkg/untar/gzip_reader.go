@@ -12,7 +12,7 @@ import (
 // GzipFallbackUntarer tries to unpack an archive using tar gzip.
 type GzipFallbackUntarer struct{}
 
-func (g *GzipFallbackUntarer) Untar(in io.ReadCloser) ([]byte, error) {
+func (g *GzipFallbackUntarer) Untar(in io.Reader) ([]byte, error) {
 	var result []byte
 	buffer := bytes.NewBuffer(result)
 	zr, err := gzip.NewReader(in)
@@ -29,7 +29,7 @@ func (g *GzipFallbackUntarer) Untar(in io.ReadCloser) ([]byte, error) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, fmt.Errorf("invalid header in tar: %w", err)
+			return nil, fmt.Errorf("invalid header in gzip tar: %w", err)
 		}
 
 		switch header.Typeflag {

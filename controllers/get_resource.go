@@ -55,7 +55,7 @@ func GetResourceAccess(resource *ocmapi.Resource) (cpi.AccessSpec, error) {
 		accessSpec = &localblob.AccessSpec{}
 	case "ociBlob":
 		accessSpec = &ociblob.AccessSpec{}
-	case "ociArtefact":
+	case "ociArtifact":
 		accessSpec = &ociartifact.AccessSpec{}
 	}
 
