@@ -25,7 +25,6 @@ import (
 	"github.com/open-component-model/ocm-controller/controllers"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
-	"github.com/open-component-model/ocm-controller/pkg/untar"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -104,19 +103,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	fallbackUntar := untar.NewFallbackUntar(mgr.GetLogger(), untar.Method{
-		Name:   "plain-gzip",
-		Method: &untar.PlainGzipDecompress{},
-	}, untar.Method{
-		Name:   "gzip",
-		Method: &untar.GzipFallbackUntarer{},
-	}, untar.Method{
-		Name:   "tar",
-		Method: &untar.PlainUntarer{},
-	}, untar.Method{
-		Name:   "plain",
-		Method: &untar.PlainReader{},
-	})
 	if err = (&controllers.LocalizationReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
@@ -124,7 +110,6 @@ func main() {
 		RetryInterval:     time.Minute,
 		OCMClient:         ocmClient,
 		Cache:             cache,
-		Untarer:           fallbackUntar,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Localization")
 		os.Exit(1)
@@ -136,7 +121,6 @@ func main() {
 		RetryInterval:     time.Minute,
 		OCMClient:         ocmClient,
 		Cache:             cache,
-		Untarer:           fallbackUntar,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
 		os.Exit(1)

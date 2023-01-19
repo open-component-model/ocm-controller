@@ -31,7 +31,6 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/component"
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
-	"github.com/open-component-model/ocm-controller/pkg/untar"
 )
 
 type MutationReconcileLooper struct {
@@ -39,7 +38,6 @@ type MutationReconcileLooper struct {
 	OCMClient ocm.FetchVerifier
 	Client    client.Client
 	Cache     cache.Cache
-	Untarer   untar.Untarer
 }
 
 func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, spec v1alpha1.MutationSpec, obj client.Object) (string, error) {
@@ -100,14 +98,10 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	}
 	defer reader.Close()
 
-	//untarer := untar.PlainUntarer{}
-	//content, err := untarer.Untar(reader)
 	content, err := Ungzip(reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to read blob: %w", err)
 	}
-
-	//log.Info("read content from blob", "content", string(content))
 
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
 		return "",
@@ -145,9 +139,8 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 
 	extractResourceData, err := Ungzip(bytes.NewBuffer(resourceData))
 	if err != nil {
-		// the data is not compressed
+		// the data is in tar format, so let the below extract it as is
 		extractResourceData = resourceData
-		//return "", fmt.Errorf("failed to ungzip resource data: %w", err)
 	}
 	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(extractResourceData)); err != nil {
 		return "", fmt.Errorf("extract tar error: %w", err)
@@ -182,7 +175,6 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
 	// find it later on.
 	identity := v1alpha1.Identity{
-		// TODO: This is incorrect. This is the top level component name instead of the resource's component name
 		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
 		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
 		v1alpha1.ResourceNameKey:     resourceRef.Name,

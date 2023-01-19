@@ -26,7 +26,6 @@ import (
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
-	"github.com/open-component-model/ocm-controller/pkg/untar"
 )
 
 // ConfigurationReconciler reconciles a Configuration object
@@ -37,7 +36,6 @@ type ConfigurationReconciler struct {
 	RetryInterval     time.Duration
 	Cache             cache.Cache
 	OCMClient         ocm.FetchVerifier
-	Untarer           untar.Untarer
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations,verbs=get;list;watch;create;update;patch;delete
@@ -98,7 +96,6 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		OCMClient: r.OCMClient,
 		Client:    r.Client,
 		Cache:     r.Cache,
-		Untarer:   r.Untarer,
 	}
 
 	digest, err := mutationLooper.ReconcileMutationObject(ctx, obj.Spec, obj)

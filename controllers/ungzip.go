@@ -9,7 +9,7 @@ import (
 func Ungzip(in io.Reader) ([]byte, error) {
 	zw, err := gzip.NewReader(in)
 	if err != nil {
-		return nil, fmt.Errorf("shit happened: %w", err)
+		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 	}
 
 	content, err := io.ReadAll(zw)

@@ -108,7 +108,7 @@ func TestConfigurationReconciler(t *testing.T) {
 				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
-				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
 			},
 		},
 		{
@@ -177,7 +177,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
-				fakeOcm.GetResourceReturns(content, nil)
+				fakeOcm.GetResourceReturns(content, "", nil)
 			},
 		},
 		{
@@ -262,7 +262,7 @@ func TestConfigurationReconciler(t *testing.T) {
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				fakeOcm.GetResourceReturns(nil, errors.New("boo"))
+				fakeOcm.GetResourceReturns(nil, "digest", errors.New("boo"))
 			},
 		},
 		{

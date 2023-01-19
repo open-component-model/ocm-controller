@@ -27,7 +27,6 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
-	"github.com/open-component-model/ocm-controller/pkg/untar"
 )
 
 // LocalizationReconciler reconciles a Localization object
@@ -38,7 +37,6 @@ type LocalizationReconciler struct {
 	RetryInterval     time.Duration
 	OCMClient         ocm.FetchVerifier
 	Cache             cache.Cache
-	Untarer           untar.Untarer
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=localizations,verbs=get;list;watch;create;update;patch;delete
@@ -99,7 +97,6 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		OCMClient: r.OCMClient,
 		Client:    r.Client,
 		Cache:     r.Cache,
-		Untarer:   r.Untarer,
 	}
 
 	digest, err := mutationLooper.ReconcileMutationObject(ctx, obj.Spec, obj)

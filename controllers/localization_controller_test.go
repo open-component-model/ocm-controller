@@ -94,7 +94,7 @@ func TestLocalizationReconciler(t *testing.T) {
 				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
-				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(localizationConfigData)), "digest", nil)
 			},
 		},
 		{
@@ -163,7 +163,7 @@ func TestLocalizationReconciler(t *testing.T) {
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
 				require.NoError(t, err)
-				fakeOcm.GetResourceReturns(content, nil)
+				fakeOcm.GetResourceReturns(content, "digest", nil)
 			},
 		},
 		{
@@ -248,7 +248,7 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				fakeOcm.GetResourceReturns(nil, errors.New("boo"))
+				fakeOcm.GetResourceReturns(nil, "", errors.New("boo"))
 			},
 		},
 		{

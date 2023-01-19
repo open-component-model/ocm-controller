@@ -30,7 +30,7 @@ func TestResourceReconciler(t *testing.T) {
 
 	t.Log("priming fake ocm client")
 	ocmClient := &fakes.MockFetcher{}
-	ocmClient.GetResourceReturns(io.NopCloser(bytes.NewBuffer([]byte("content"))), nil)
+	ocmClient.GetResourceReturns(io.NopCloser(bytes.NewBuffer([]byte("content"))), "digest", nil)
 
 	rr := ResourceReconciler{
 		Scheme:    env.scheme,
