@@ -98,7 +98,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	}
 	defer reader.Close()
 
-	content, err := Ungzip(reader)
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		return "", fmt.Errorf("failed to read blob: %w", err)
 	}
@@ -137,12 +137,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	}
 	defer vfs.Cleanup(virtualFS)
 
-	extractResourceData, err := Ungzip(bytes.NewBuffer(resourceData))
-	if err != nil {
-		// the data is in tar format, so let the below extract it as is
-		extractResourceData = resourceData
-	}
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(extractResourceData)); err != nil {
+	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
 

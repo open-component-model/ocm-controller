@@ -571,15 +571,14 @@ localization:
 				require.NoError(t, err)
 				args := cache.PushDataCallingArgumentsOnCall(0)
 				data, name, version := args[0], args[1], args[2]
-				assert.Equal(t, "sha-6558931820223250200", name)
+				assert.Equal(t, "sha-1009814895297045910", name)
 				assert.Equal(t, "999", version)
 
 				t.Log("extracting the passed in data and checking if the localization worked")
-				dataContent, err := Untar(io.NopCloser(bytes.NewBuffer([]byte(data.(string)))))
 				require.NoError(t, err)
 				assert.Contains(
 					t,
-					string(dataContent),
+					data.(string),
 					"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
 					"the image should have been altered during localization",
 				)

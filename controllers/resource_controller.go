@@ -112,6 +112,11 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 			fmt.Errorf("failed to get component descriptor for resource: %w", err)
 	}
 
+	if componentDescriptor == nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.Resource.ReferencePath)
+	}
+
 	identity := v1alpha1.Identity{
 		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
 		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
