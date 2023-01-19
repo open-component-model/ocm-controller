@@ -29,6 +29,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/component"
 )
 
 // Verifier takes a Component and runs OCM verification on it.
@@ -72,9 +73,15 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 	if resource.Version != "" {
 		version = resource.Version
 	}
+
+	cd, err := component.GetComponentDescriptor(ctx, c.client, resource.ReferencePath, cv.Status.ComponentDescriptor)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to find component descriptor for reference: %w", err)
+	}
+
 	identity := v1alpha1.Identity{
-		v1alpha1.ComponentNameKey:    cv.Spec.Component,
-		v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
+		v1alpha1.ComponentNameKey:    cd.Name,
+		v1alpha1.ComponentVersionKey: cd.Spec.Version,
 		v1alpha1.ResourceNameKey:     resource.Name,
 		v1alpha1.ResourceVersionKey:  version,
 	}

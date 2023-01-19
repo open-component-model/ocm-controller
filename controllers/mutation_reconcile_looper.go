@@ -28,6 +28,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/component"
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/untar"
@@ -115,7 +116,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 
 	log.Info("preparing localization substitutions")
 
-	componentDescriptor, err := GetComponentDescriptor(ctx, m.Client, spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	componentDescriptor, err := component.GetComponentDescriptor(ctx, m.Client, spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component descriptor from version")
 	}
@@ -173,13 +174,19 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		return "", fmt.Errorf("build tar error: %w", err)
 	}
 
+	version := resourceRef.Version
+	if version == "" {
+		version = "latest"
+	}
+
 	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
 	// find it later on.
 	identity := v1alpha1.Identity{
-		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
-		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		// TODO: This is incorrect. This is the top level component name instead of the resource's component name
+		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
+		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
 		v1alpha1.ResourceNameKey:     resourceRef.Name,
-		v1alpha1.ResourceVersionKey:  resourceRef.Version,
+		v1alpha1.ResourceVersionKey:  version,
 	}
 	snapshotDigest, err := m.writeToCache(ctx, identity, artifactPath.Name(), obj.GetResourceVersion())
 	if err != nil {

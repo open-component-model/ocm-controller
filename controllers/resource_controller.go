@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/component"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
@@ -102,9 +103,18 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	if obj.Spec.Resource.Version != "" {
 		version = obj.Spec.Resource.Version
 	}
+
+	// This is important because THIS is the actual component for our resource. If we used ComponentVersion in the
+	// below identity, that would be the top-level component instead of the component that this resource belongs to.
+	componentDescriptor, err := component.GetComponentDescriptor(ctx, r.Client, obj.Spec.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
+			fmt.Errorf("failed to get component descriptor for resource: %w", err)
+	}
+
 	identity := v1alpha1.Identity{
-		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
-		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
+		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
 		v1alpha1.ResourceNameKey:     obj.Spec.Resource.Name,
 		v1alpha1.ResourceVersionKey:  version,
 	}
@@ -133,7 +143,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	})
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to create or update component descriptor: %w", err)
+			fmt.Errorf("failed to create or update snapshot: %w", err)
 	}
 
 	newSnapshot := snapshotCR.DeepCopy()
