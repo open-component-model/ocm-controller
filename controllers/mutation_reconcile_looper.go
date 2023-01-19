@@ -9,15 +9,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
-	"github.com/open-component-model/ocm/pkg/spiff"
-	"github.com/open-component-model/ocm/pkg/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,6 +23,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
+	"github.com/open-component-model/ocm/pkg/spiff"
+	"github.com/open-component-model/ocm/pkg/utils"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -98,7 +100,14 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	}
 	defer reader.Close()
 
-	content, err := io.ReadAll(reader)
+	// This content might be Tarred up by OCM.
+	uncompressed, _, err := compression.AutoDecompress(reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
+
+	content, err := io.ReadAll(uncompressed)
 	if err != nil {
 		return "", fmt.Errorf("failed to read blob: %w", err)
 	}
@@ -137,6 +146,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	}
 	defer vfs.Cleanup(virtualFS)
 
+	//log.Info("resource data", "data", string(resourceData))
 	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
@@ -265,7 +275,13 @@ func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Cont
 	}
 	defer resource.Close()
 
-	content, err := io.ReadAll(resource)
+	uncompressed, _, err := compression.AutoDecompress(resource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
+
+	content, err := io.ReadAll(uncompressed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read resource data: %w", err)
 	}
@@ -282,8 +298,13 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
+	uncompressed, _, err := compression.AutoDecompress(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
 
-	return io.ReadAll(reader)
+	return io.ReadAll(uncompressed)
 }
 
 func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(componentDescriptor v1alpha1.ComponentDescriptor, config configdata.ConfigData) (localize.Substitutions, error) {

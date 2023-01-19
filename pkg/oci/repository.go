@@ -135,10 +135,6 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.
 
 	// decompresses the data coming from the cache. Because a streaming layer doesn't support decompression
 	// and a static layer returns the data AS IS, we have to decompress it ourselves.
-	//decompressingReader, err := gzip.NewReader(reader)
-	//if err != nil {
-	//	return nil, "", fmt.Errorf("failed to create gzip reader: %w", err)
-	//}
 	return reader, digest.String(), nil
 }
 
@@ -155,13 +151,8 @@ func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io
 		return nil, fmt.Errorf("failed to fetch blob: %w", err)
 	}
 
-	//// decompresses the data coming from the cache. Because a streaming layer doesn't support decompression
-	//// and a static layer returns the data AS IS, we have to decompress it ourselves.
-	//decompressingReader, err := gzip.NewReader(reader)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to create gzip reader: %w", err)
-	//}
-
+	// decompresses the data coming from the cache. Because a streaming layer doesn't support decompression
+	// and a static layer returns the data AS IS, we have to decompress it ourselves.
 	return reader, nil
 }
 
@@ -398,7 +389,7 @@ func computeStreamBlob(reader io.ReadCloser, mediaType string) (v1.Layer, error)
 	if t == "" {
 		t = types.OCILayer
 	}
-	l := stream.NewLayer(reader, stream.WithMediaType(t), stream.WithCompressionLevel(0))
+	l := stream.NewLayer(reader, stream.WithMediaType(t))
 	return l, nil
 }
 

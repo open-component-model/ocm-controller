@@ -549,7 +549,6 @@ configuration:
 				assert.Equal(t, "999", version)
 
 				t.Log("extracting the passed in data and checking if the configuration worked")
-				//dataContent, err := Untar(io.NopCloser(bytes.NewBuffer([]byte(data.(string)))))
 				require.NoError(t, err)
 				assert.Contains(
 					t,

@@ -86,7 +86,7 @@ func TestClient_GetResource(t *testing.T) {
 	content, err := io.ReadAll(reader)
 	require.NoError(t, err)
 	assert.Equal(t, data, string(content))
-	assert.Equal(t, "sha256:204f5f9b858659651cee6e5b28a83273b45e1c667ca1c5b984521f76c0d39dfe", digest)
+	assert.Equal(t, "sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", digest)
 }
 
 func TestClient_GetComponentVersion(t *testing.T) {
