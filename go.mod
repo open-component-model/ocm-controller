@@ -11,6 +11,7 @@ replace github.com/spf13/pflag => github.com/mandelsoft/pflag v0.0.0-20221103113
 
 require (
 	github.com/Masterminds/semver v1.5.0
+	github.com/containers/image/v5 v5.21.1
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
 	github.com/fluxcd/pkg/apis/meta v0.18.0
 	github.com/fluxcd/pkg/runtime v0.24.0
@@ -60,7 +61,6 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/containerd/containerd v1.6.12 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.12.1 // indirect
-	github.com/containers/image/v5 v5.21.1 // indirect
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
 	github.com/containers/ocicrypt v1.1.5 // indirect
 	github.com/containers/storage v1.42.0 // indirect

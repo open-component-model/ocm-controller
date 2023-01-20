@@ -16,6 +16,7 @@ type FakeCache struct {
 	pushDataErr                   error
 	pushDataCalledWith            [][]any
 	fetchDataByIdentityReader     io.ReadCloser
+	fetchDataByIdentityDigest     string
 	fetchDataByIdentityErr        error
 	fetchDataByIdentityCalledWith [][]any
 	fetchDataByDigestReader       io.ReadCloser
@@ -55,9 +56,9 @@ func (f *FakeCache) PushDataCallingArgumentsOnCall(i int) []any {
 	return f.pushDataCalledWith[i]
 }
 
-func (f *FakeCache) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, error) {
+func (f *FakeCache) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, error) {
 	f.fetchDataByIdentityCalledWith = append(f.fetchDataByIdentityCalledWith, []any{name, tag})
-	return f.fetchDataByIdentityReader, f.fetchDataByIdentityErr
+	return f.fetchDataByIdentityReader, f.fetchDataByIdentityDigest, f.fetchDataByIdentityErr
 }
 
 func (f *FakeCache) FetchDataByIdentityReturns(reader io.ReadCloser, err error) {

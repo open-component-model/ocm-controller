@@ -102,6 +102,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
 		os.Exit(1)
 	}
+
 	if err = (&controllers.LocalizationReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),

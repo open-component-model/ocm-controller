@@ -108,7 +108,7 @@ func TestConfigurationReconciler(t *testing.T) {
 				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
-				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
 			},
 		},
 		{
@@ -177,7 +177,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 				require.NoError(t, err)
-				fakeOcm.GetResourceReturns(content, nil)
+				fakeOcm.GetResourceReturns(content, "", nil)
 			},
 		},
 		{
@@ -262,7 +262,7 @@ func TestConfigurationReconciler(t *testing.T) {
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				fakeOcm.GetResourceReturns(nil, errors.New("boo"))
+				fakeOcm.GetResourceReturns(nil, "digest", errors.New("boo"))
 			},
 		},
 		{
@@ -305,7 +305,7 @@ func TestConfigurationReconciler(t *testing.T) {
 		},
 		{
 			name:        "error while running configurator",
-			expectError: "configurator error: error processing template: processing template adjustments: unresolved nodes:\n\t(( nope ))\tin template adjustments\tadjustments.[0].value\t(adjustments.name:subst-0.value)\t*'nope' not found",
+			expectError: "configurator error: error while doing cascade with: processing template adjustments: unresolved nodes:\n\t(( nope ))\tin template adjustments\tadjustments.[0].value\t(adjustments.name:subst-0.value)\t*'nope' not found",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -545,15 +545,14 @@ configuration:
 				require.NoError(t, err)
 				args := cache.PushDataCallingArgumentsOnCall(0)
 				data, name, version := args[0], args[1], args[2]
-				assert.Equal(t, "sha-6558931820223250200", name)
+				assert.Equal(t, "sha-1009814895297045910", name)
 				assert.Equal(t, "999", version)
 
 				t.Log("extracting the passed in data and checking if the configuration worked")
-				dataContent, err := Untar(io.NopCloser(bytes.NewBuffer([]byte(data.(string)))))
 				require.NoError(t, err)
 				assert.Contains(
 					t,
-					string(dataContent),
+					data.(string),
 					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
 					"the configuration data should have been applied",
 				)

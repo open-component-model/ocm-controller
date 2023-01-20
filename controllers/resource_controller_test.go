@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,21 +17,31 @@ import (
 )
 
 func TestResourceReconciler(t *testing.T) {
-	t.Log("setting up component version")
-
-	cv := DefaultComponent.DeepCopy()
-
 	t.Log("setting up resource object")
 	resource := DefaultResource.DeepCopy()
+	// Tests that the component descriptor exists for root items.
+	resource.Spec.Resource.ReferencePath = nil
 
-	client := env.FakeKubeClient(WithObjets(cv, resource))
+	t.Log("setting up component version")
+	cv := DefaultComponent.DeepCopy()
+	cd := DefaultComponentDescriptor.DeepCopy()
+	cv.Status.ComponentDescriptor = v1alpha1.Reference{
+		Name:    resource.Spec.Resource.Name,
+		Version: resource.Spec.Resource.Version,
+		ComponentDescriptorRef: meta.NamespacedObjectReference{
+			Name:      cd.Name,
+			Namespace: cd.Namespace,
+		},
+	}
+
+	client := env.FakeKubeClient(WithObjets(cv, resource, cd))
 	t.Log("priming fake cache")
 	cache := &cachefakes.FakeCache{}
 	cache.PushDataReturns("digest", nil)
 
 	t.Log("priming fake ocm client")
 	ocmClient := &fakes.MockFetcher{}
-	ocmClient.GetResourceReturns(io.NopCloser(bytes.NewBuffer([]byte("content"))), nil)
+	ocmClient.GetResourceReturns(io.NopCloser(bytes.NewBuffer([]byte("content"))), "digest", nil)
 
 	rr := ResourceReconciler{
 		Scheme:    env.scheme,
@@ -63,13 +74,7 @@ func TestResourceReconciler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "1.0.0", resource.Status.LastAppliedResourceVersion)
 
-	t.Log("verifying calling parameters for cache")
-	args := cache.PushDataCallingArgumentsOnCall(0)
-	require.NotEmpty(t, args, "cache pushData should have been called once")
-	assert.Equal(t, "content", args[0])
-
 	hash, err := snapshot.Spec.Identity.Hash()
 	require.NoError(t, err)
-	assert.Equal(t, hash, args[1])
-	assert.Equal(t, "1.0.0", args[2])
+	assert.Equal(t, "sha-18322151501422808564", hash)
 }

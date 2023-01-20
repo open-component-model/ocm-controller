@@ -14,6 +14,7 @@ import (
 // getResourceReturnValues defines the return values of the GetResource function.
 type getResourceReturnValues struct {
 	reader io.ReadCloser
+	digest string
 	err    error
 }
 
@@ -39,22 +40,23 @@ type MockFetcher struct {
 	listComponentVersionsCalledWith     [][]any
 }
 
-func (m *MockFetcher) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, error) {
+func (m *MockFetcher) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error) {
 	if _, ok := m.getResourceReturns[m.getResourceCallCount]; !ok {
-		return nil, fmt.Errorf("unexpected number of calls; not enough return values have been configured; call count %d", m.getResourceCallCount)
+		return nil, "", fmt.Errorf("unexpected number of calls; not enough return values have been configured; call count %d", m.getResourceCallCount)
 	}
 	m.getResourceCalledWith = append(m.getResourceCalledWith, []any{cv, resource})
 	result := m.getResourceReturns[m.getResourceCallCount]
 	m.getResourceCallCount++
-	return result.reader, result.err
+	return result.reader, result.digest, result.err
 }
 
-func (m *MockFetcher) GetResourceReturns(reader io.ReadCloser, err error) {
+func (m *MockFetcher) GetResourceReturns(reader io.ReadCloser, digest string, err error) {
 	if m.getResourceReturns == nil {
 		m.getResourceReturns = make(map[int]getResourceReturnValues)
 	}
 	m.getResourceReturns[0] = getResourceReturnValues{
 		reader: reader,
+		digest: digest,
 		err:    err,
 	}
 }

@@ -144,7 +144,7 @@ func TestClient_FetchPush(t *testing.T) {
 			expected: []byte(""),
 			resource: v1alpha1.ResourceRef{
 				Name:    "test-resource-2",
-				Version: "v0.0.1",
+				Version: "v0.0.2",
 			},
 			push: true,
 		},
@@ -154,7 +154,7 @@ func TestClient_FetchPush(t *testing.T) {
 			expected: []byte(""),
 			resource: v1alpha1.ResourceRef{
 				Name:    "test-resource-2",
-				Version: "v0.0.1",
+				Version: "v0.0.3",
 			},
 		},
 	}
@@ -189,7 +189,7 @@ func TestClient_FetchPush(t *testing.T) {
 			if tc.push {
 				_, err := c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
-				blob, err := c.FetchDataByIdentity(context.Background(), name, tc.resource.Version)
+				blob, _, err := c.FetchDataByIdentity(context.Background(), name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
 				content, err := io.ReadAll(blob)
 				g.Expect(err).NotTo(HaveOccurred())

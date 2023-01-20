@@ -9,15 +9,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
-	"github.com/open-component-model/ocm/pkg/spiff"
-	"github.com/open-component-model/ocm/pkg/utils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,8 +24,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
+	"github.com/open-component-model/ocm/pkg/spiff"
+	"github.com/open-component-model/ocm/pkg/utils"
+
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/component"
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
@@ -78,6 +81,10 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		}
 	}
 
+	if len(resourceData) == 0 {
+		return "", fmt.Errorf("resource data cannot be empty")
+	}
+
 	// get config resource
 	config := &configdata.ConfigData{}
 	// TODO: allow for snapshots to be sources here. The chain could be working on an already modified source.
@@ -86,17 +93,25 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		return "",
 			fmt.Errorf("resource ref is empty for config ref")
 	}
-	reader, err := m.OCMClient.GetResource(ctx, componentVersion, *resourceRef)
+	reader, _, err := m.OCMClient.GetResource(ctx, componentVersion, *resourceRef)
 	if err != nil {
 		return "",
 			fmt.Errorf("failed to get resource: %w", err)
 	}
 	defer reader.Close()
 
-	content, err := io.ReadAll(reader)
+	// This content might be Tarred up by OCM.
+	uncompressed, _, err := compression.AutoDecompress(reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
+
+	content, err := io.ReadAll(uncompressed)
 	if err != nil {
 		return "", fmt.Errorf("failed to read blob: %w", err)
 	}
+
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
 		return "",
 			fmt.Errorf("failed to unmarshal content: %w", err)
@@ -104,7 +119,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 
 	log.Info("preparing localization substitutions")
 
-	componentDescriptor, err := GetComponentDescriptor(ctx, m.Client, spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
+	componentDescriptor, err := component.GetComponentDescriptor(ctx, m.Client, spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component descriptor from version")
 	}
@@ -116,12 +131,12 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	if spec.Values != nil {
 		rules, err = m.createSubstitutionRulesForConfigurationValues(spec, *config)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to create configuration values for config '%s': %w", config.Name, err)
 		}
 	} else {
 		rules, err = m.createSubstitutionRulesForLocalization(*componentDescriptor, *config)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to create localization values for config '%s': %w", config.Name, err)
 		}
 	}
 
@@ -131,6 +146,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	}
 	defer vfs.Cleanup(virtualFS)
 
+	//log.Info("resource data", "data", string(resourceData))
 	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
@@ -156,13 +172,18 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		return "", fmt.Errorf("build tar error: %w", err)
 	}
 
+	version := resourceRef.Version
+	if version == "" {
+		version = "latest"
+	}
+
 	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
 	// find it later on.
 	identity := v1alpha1.Identity{
-		v1alpha1.ComponentNameKey:    componentVersion.Spec.Component,
-		v1alpha1.ComponentVersionKey: componentVersion.Status.ReconciledVersion,
+		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
+		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
 		v1alpha1.ResourceNameKey:     resourceRef.Name,
-		v1alpha1.ResourceVersionKey:  resourceRef.Version,
+		v1alpha1.ResourceVersionKey:  version,
 	}
 	snapshotDigest, err := m.writeToCache(ctx, identity, artifactPath.Name(), obj.GetResourceVersion())
 	if err != nil {
@@ -227,8 +248,8 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := m.Client.Get(ctx, spec.GetSourceSnapshotKey(), srcSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("snapshot not found")
-			return nil, nil
+			log.Info("snapshot not found", "snapshot", spec.GetSourceSnapshotKey())
+			return nil, err
 		}
 		return nil,
 			fmt.Errorf("failed to get component object: %w", err)
@@ -248,13 +269,19 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 }
 
 func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Context, spec *v1alpha1.MutationSpec, version *v1alpha1.ComponentVersion) ([]byte, error) {
-	resource, err := m.OCMClient.GetResource(ctx, version, *spec.Source.ResourceRef)
+	resource, _, err := m.OCMClient.GetResource(ctx, version, *spec.Source.ResourceRef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
 	}
 	defer resource.Close()
 
-	content, err := io.ReadAll(resource)
+	uncompressed, _, err := compression.AutoDecompress(resource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
+
+	content, err := io.ReadAll(uncompressed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read resource data: %w", err)
 	}
@@ -271,8 +298,13 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
+	uncompressed, _, err := compression.AutoDecompress(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
 
-	return io.ReadAll(reader)
+	return io.ReadAll(uncompressed)
 }
 
 func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(componentDescriptor v1alpha1.ComponentDescriptor, config configdata.ConfigData) (localize.Substitutions, error) {
@@ -325,17 +357,17 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 
 	defaults, err := json.Marshal(config.Configuration.Defaults)
 	if err != nil {
-		return nil, fmt.Errorf("configurator error: %w", err)
+		return nil, fmt.Errorf("failed to marshal configuration defaults: %w", err)
 	}
 
 	values, err := json.Marshal(spec.Values)
 	if err != nil {
-		return nil, fmt.Errorf("configurator error: %w", err)
+		return nil, fmt.Errorf("failed to marshal spec values: %w", err)
 	}
 
 	schema, err := json.Marshal(config.Configuration.Schema)
 	if err != nil {
-		return nil, fmt.Errorf("configurator error: %w", err)
+		return nil, fmt.Errorf("failed to marshal configuration schema: %w", err)
 	}
 
 	configSubstitions, err := m.configurator(rules, defaults, values, schema)
@@ -345,7 +377,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 	return configSubstitions, nil
 }
 
-func (r *MutationReconcileLooper) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
+func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
 	// configure defaults
 	templ := make(map[string]any)
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
@@ -355,7 +387,7 @@ func (r *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 	// configure values overrides... must be a better way
 	var valuesMap map[string]any
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(values, &valuesMap); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal template: %w", err)
+		return nil, fmt.Errorf("cannot unmarshal values: %w", err)
 	}
 
 	for k, v := range valuesMap {
@@ -385,7 +417,7 @@ func (r *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 
 	config, err := spiff.CascadeWith(spiff.TemplateData("adjustments", templateBytes), spiff.Mode(spiffing.MODE_PRIVATE))
 	if err != nil {
-		return nil, fmt.Errorf("error processing template: %w", err)
+		return nil, fmt.Errorf("error while doing cascade with: %w", err)
 	}
 
 	var result struct {
@@ -393,7 +425,7 @@ func (r *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 	}
 
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(config, &result); err != nil {
-		return nil, fmt.Errorf("error processing template: %w", err)
+		return nil, fmt.Errorf("error unmarshaling result: %w", err)
 	}
 
 	return result.Adjustments, nil

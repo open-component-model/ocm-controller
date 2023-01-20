@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -19,9 +20,8 @@ import (
 )
 
 func TestClient_GetResource(t *testing.T) {
-	fakeKubeClient := env.FakeKubeClient()
 	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"))
-	ocmClient := NewClient(fakeKubeClient, cache)
+
 	component := "github.com/skarlso/ocm-demo-index"
 	resource := "remote-controller-demo"
 	resourceVersion := "v0.0.1"
@@ -39,6 +39,17 @@ func TestClient_GetResource(t *testing.T) {
 	}, res)
 	require.NoError(t, err)
 
+	cd := &v1alpha1.ComponentDescriptor{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "github.com-skarlso-ocm-demo-index-v0.0.1-12345",
+		},
+		Spec: v1alpha1.ComponentDescriptorSpec{
+			Version: "v0.0.1",
+		},
+	}
+	fakeKubeClient := env.FakeKubeClient(WithObjets(cd))
+	ocmClient := NewClient(fakeKubeClient, cache)
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -55,6 +66,14 @@ func TestClient_GetResource(t *testing.T) {
 		},
 		Status: v1alpha1.ComponentVersionStatus{
 			ReconciledVersion: "v0.0.1",
+			ComponentDescriptor: v1alpha1.Reference{
+				Name:    component,
+				Version: "v0.0.1",
+				ComponentDescriptorRef: meta.NamespacedObjectReference{
+					Name:      "github.com-skarlso-ocm-demo-index-v0.0.1-12345",
+					Namespace: "default",
+				},
+			},
 		},
 	}
 	resourceRef := v1alpha1.ResourceRef{
@@ -62,11 +81,12 @@ func TestClient_GetResource(t *testing.T) {
 		Version: "v0.0.1",
 	}
 
-	reader, err := ocmClient.GetResource(context.Background(), cv, resourceRef)
+	reader, digest, err := ocmClient.GetResource(context.Background(), cv, resourceRef)
 	assert.NoError(t, err)
 	content, err := io.ReadAll(reader)
 	require.NoError(t, err)
 	assert.Equal(t, data, string(content))
+	assert.Equal(t, "sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", digest)
 }
 
 func TestClient_GetComponentVersion(t *testing.T) {
