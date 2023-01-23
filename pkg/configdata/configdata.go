@@ -31,6 +31,7 @@ type ConfigRule struct {
 type LocalizationRule struct {
 	Resource   ResourceItem `json:"resource"`
 	File       string       `json:"file"`
+	Registry   string       `json:"registry,omitempty"`
 	Repository string       `json:"repository,omitempty"`
 	Image      string       `json:"image,omitempty"`
 	Tag        string       `json:"tag,omitempty"`
