@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -310,6 +312,17 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(componentDescriptor v1alpha1.ComponentDescriptor, config configdata.ConfigData) (localize.Substitutions, error) {
 	var localizations localize.Substitutions
 	for _, l := range config.Localization {
+		if l.Mapping != nil {
+			res, err := m.compileMapping(componentDescriptor, l.Mapping.Transform)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile mapping: %w", err)
+			}
+			if err := localizations.Add("custom", l.File, l.Mapping.Path, res); err != nil {
+				return nil, fmt.Errorf("failed to add identifier: %w", err)
+			}
+			continue
+		}
+
 		lr := componentDescriptor.GetResource(l.Resource.Name)
 		if lr == nil {
 			continue
@@ -434,4 +447,20 @@ func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 	}
 
 	return result.Adjustments, nil
+}
+
+func (m *MutationReconcileLooper) compileMapping(cd v1alpha1.ComponentDescriptor, mapping string) (json.RawMessage, error) {
+	ctx := cuecontext.New()
+	root := ctx.CompileString("component:{}").FillPath(cue.ParsePath("component"), ctx.Encode(cd.Spec))
+	v := ctx.CompileString(mapping, cue.Scope(root))
+	res, err := v.LookupPath(cue.ParsePath("out")).Bytes()
+	if err != nil {
+		return nil, err
+	}
+	var out json.RawMessage
+	if err := json.Unmarshal(res, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+
 }

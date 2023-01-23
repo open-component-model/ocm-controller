@@ -37,6 +37,26 @@ localization:
   tag: image.tag
   resource:
     name: introspect-image
+- file: custom_resource.yaml
+  mapping:
+    path: metadata.labels
+    transform: |-
+        import "encoding/json"
+        customLabels: {
+            version: component.version
+            env: "test"
+        }
+        out: json.Marshal(customLabels)
+- file: custom_resource.yaml
+  mapping:
+    path: spec.values
+    transform: |-
+        import "encoding/json"
+        values: [for x in component.resources {
+          name: "\(x.name)-\(x.digest.hashAlgorithm)-\(x.version)"
+          image: x.access.globalAccess.ref
+        }]
+        out: json.Marshal(values)
 `)
 
 type testCase struct {
@@ -595,7 +615,6 @@ localization:
 					"registry: ghcr.io",
 					"the registry should have been altered during localization",
 				)
-				t.Log(data.(string))
 
 				assert.Contains(
 					t,
@@ -609,6 +628,20 @@ localization:
 					data.(string),
 					"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
 					"the reference should have been altered during localization",
+				)
+
+				assert.Contains(
+					t,
+					data.(string),
+					"version: v0.0.1",
+					"the labels should have been added via the localization mapping",
+				)
+
+				assert.Contains(
+					t,
+					data.(string),
+					"name: introspect-image-sha256-1.0.0",
+					"the custome resource spec.values should have been updated via the localization mapping",
 				)
 			}
 		})

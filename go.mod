@@ -10,6 +10,7 @@ replace github.com/spf13/cobra => github.com/mandelsoft/cobra v1.5.1-0.202210301
 replace github.com/spf13/pflag => github.com/mandelsoft/pflag v0.0.0-20221103113840-a15b5f7fa89e
 
 require (
+	cuelang.org/go v0.4.3
 	github.com/Masterminds/semver v1.5.0
 	github.com/containers/image/v5 v5.21.1
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
@@ -59,6 +60,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.17.2 // indirect
 	github.com/aws/smithy-go v1.13.4 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
+	github.com/cockroachdb/apd/v2 v2.0.1 // indirect
 	github.com/containerd/containerd v1.6.12 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.12.1 // indirect
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
@@ -106,6 +108,7 @@ require (
 	github.com/moby/sys/mountinfo v0.6.2 // indirect
 	github.com/moby/term v0.0.0-20221105221325-4eb28fa6025c // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
+	github.com/mpvl/unique v0.0.0-20150818121801-cbe035fff7de // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
