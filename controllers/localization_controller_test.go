@@ -31,6 +31,12 @@ localization:
   image: spec.template.spec.containers[0].image
   resource:
     name: introspect-image
+- file: values.yaml
+  registry: image.registry
+  repository: image.repository
+  tag: image.tag
+  resource:
+    name: introspect-image
 `)
 
 type testCase struct {
@@ -581,6 +587,28 @@ localization:
 					data.(string),
 					"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
 					"the image should have been altered during localization",
+				)
+
+				assert.Contains(
+					t,
+					data.(string),
+					"registry: ghcr.io",
+					"the registry should have been altered during localization",
+				)
+				t.Log(data.(string))
+
+				assert.Contains(
+					t,
+					data.(string),
+					"repository: mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
+					"the repository should have been altered during localization",
+				)
+
+				assert.Contains(
+					t,
+					data.(string),
+					"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+					"the reference should have been altered during localization",
 				)
 			}
 		})

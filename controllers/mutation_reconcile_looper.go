@@ -327,9 +327,14 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(compone
 				fmt.Errorf("failed to parse access reference: %w", err)
 		}
 
-		if l.Repository != "" {
+		if l.Registry != "" {
+			if err := localizations.Add("registry", l.File, l.Registry, ref.Context().Registry.Name()); err != nil {
+				return nil, fmt.Errorf("failed to add registry: %w", err)
+			}
+		}
 
-			if err := localizations.Add("repository", l.File, l.Repository, ref.Context().Name()); err != nil {
+		if l.Repository != "" {
+			if err := localizations.Add("repository", l.File, l.Repository, ref.Context().RepositoryStr()); err != nil {
 				return nil, fmt.Errorf("failed to add repository: %w", err)
 			}
 		}
@@ -341,7 +346,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(compone
 		}
 
 		if l.Tag != "" {
-			if err := localizations.Add("image", l.File, l.Tag, ref.Identifier()); err != nil {
+			if err := localizations.Add("tag", l.File, l.Tag, ref.Identifier()); err != nil {
 				return nil, fmt.Errorf("failed to add identifier: %w", err)
 			}
 		}
