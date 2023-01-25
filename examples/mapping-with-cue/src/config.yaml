@@ -1,0 +1,33 @@
+kind: ConfigData
+localization:
+- file: deployment.yaml
+  mapping:
+    path: spec.template.spec
+    transform: |-
+        package main
+
+        import "encoding/json"
+
+        spec: initContainers: [ for x in component.spec.resources
+          if x.type == "ociImage" && x.extraIdentity.init != _|_ {
+            {
+              name:  x.name
+              image: x.access.imageReference
+              args: {for v in x.labels if v.name == "args" {v.value}}
+            }
+          },
+        ]
+
+        spec: containers: [ for x in component.spec.resources
+          if x.type == "ociImage" && x.extraIdentity.init == _|_ {
+            {
+              name:  x.name
+              image: x.access.imageReference
+              if x.labels != _|_ {
+                ports: {for v in x.labels if v.name == "ports" {v.value}}
+              }
+            }
+          },
+        ]
+
+        out: json.Marshal(spec)

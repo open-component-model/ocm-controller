@@ -1,0 +1,19 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ComponentVersion
+metadata:
+  name: monolith
+spec:
+  interval: 10m0s
+  component: phoban.io/monolith
+  version:
+    semver: ">=v1.2.0"
+  repository:
+    url: ghcr.io/phoban01
+    secretRef:
+      name: creds
+  verify:
+  - name: default
+    publicKey:
+      secretRef:
+        name: publickey
+

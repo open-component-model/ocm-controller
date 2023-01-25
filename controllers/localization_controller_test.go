@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
@@ -63,7 +64,7 @@ type testCase struct {
 	name                string
 	mock                func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher)
 	componentVersion    func() *v1alpha1.ComponentVersion
-	componentDescriptor func() *v1alpha1.ComponentDescriptor
+	componentDescriptor func(owner client.Object) *v1alpha1.ComponentDescriptor
 	snapshot            func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot
 	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.Source
 	expectError         string
@@ -85,8 +86,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
 				return v1alpha1.Source{
@@ -137,8 +141,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
@@ -175,8 +182,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
@@ -207,8 +217,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
 				return v1alpha1.Source{
@@ -257,8 +270,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
@@ -292,8 +308,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
@@ -330,9 +349,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				cd.Spec.Resources[0].Access.Object["type"] = "unknown"
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -370,9 +391,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				cd.Spec.Resources[0].Access.Object["globalAccess"].(map[string]any)["ref"] = "invalid:@"
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -410,8 +433,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
@@ -446,8 +472,11 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
@@ -494,8 +523,11 @@ localization:
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
@@ -533,8 +565,11 @@ localization:
 				}
 				return cv
 			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
+			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
+				cd := DefaultComponentDescriptor.DeepCopy()
+				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
+				require.NoError(t, err)
+				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
 				// do nothing
@@ -562,7 +597,7 @@ localization:
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			cv := tt.componentVersion()
 			resource := DefaultResource.DeepCopy()
-			cd := tt.componentDescriptor()
+			cd := tt.componentDescriptor(cv)
 			snapshot := tt.snapshot(cv, resource)
 			source := tt.source(snapshot)
 			localization := DefaultLocalization.DeepCopy()
