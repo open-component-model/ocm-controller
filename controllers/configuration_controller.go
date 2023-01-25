@@ -160,13 +160,14 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 
 		switch field {
 		case "SourceRef":
-			if l.Spec.Source.SourceRef.Kind == kind {
+			if l.Spec.Source.SourceRef != nil && l.Spec.Source.SourceRef.Kind == kind {
 				namespace := l.GetNamespace()
 				if l.Spec.Source.SourceRef.Namespace != "" {
 					namespace = l.Spec.Source.SourceRef.Namespace
 				}
 				return []string{fmt.Sprintf("%s/%s", namespace, l.Spec.Source.SourceRef.Name)}
 			}
+			return []string{fmt.Sprintf("%s/%s", l.Spec.ComponentVersionRef.Namespace, l.Spec.ComponentVersionRef.Name)}
 		case "ConfigRef":
 			namespace := l.GetNamespace()
 			if l.Spec.ComponentVersionRef.Namespace != "" {
@@ -176,7 +177,5 @@ func (r *ConfigurationReconciler) indexBy(kind, field string) func(o client.Obje
 		default:
 			return nil
 		}
-
-		return nil
 	}
 }
