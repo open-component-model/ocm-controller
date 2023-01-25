@@ -12,7 +12,6 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -208,8 +207,6 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 			signing.VerifyDigests(),
 			signing.VerifySignature(signature.Name),
 		)
-
-		opts.NormalizationAlgo = compdesc.JsonNormalisationV2
 
 		if err := opts.Complete(signingattr.Get(octx)); err != nil {
 			return false, fmt.Errorf("verify error: %w", err)

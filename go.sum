@@ -959,8 +959,8 @@ github.com/onsi/gomega v1.10.3/go.mod h1:V9xEwhxec5O8UDM77eCW8vLymOMltsqPVYWrpDs
 github.com/onsi/gomega v1.15.0/go.mod h1:cIuvLEne0aoVhAgh/O6ac0Op8WWw9H6eYCriF+tEHG0=
 github.com/onsi/gomega v1.24.1 h1:KORJXNNTzJXzu4ScJWssJfJMnJ+2QJqhoQSRwNlze9E=
 github.com/onsi/gomega v1.24.1/go.mod h1:3AOiACssS3/MajrniINInwbfOOtfZvplPzuRSmvt1jM=
-github.com/open-component-model/ocm v0.1.0-alpha.2 h1:69v/JRYspBNJA6Z/epQP47y5vUawyfu96g67aOY0pTM=
-github.com/open-component-model/ocm v0.1.0-alpha.2/go.mod h1:aPlBtHOXiAVG9wy7vL1fIwwEjJwB0HMk5n16JlI5k2o=
+github.com/open-component-model/ocm v0.0.1-0.20230125120944-4c043d3c2263 h1:E5awouDL25JB7TEkaD+8UoydEFABmVRxYCRho8pJF4s=
+github.com/open-component-model/ocm v0.0.1-0.20230125120944-4c043d3c2263/go.mod h1:aPlBtHOXiAVG9wy7vL1fIwwEjJwB0HMk5n16JlI5k2o=
 github.com/open-component-model/ocm-controllers-sdk v0.0.6 h1:EriZ9IhYfVyPfvvglLRSUlBuxXt9aQIlfl2vgMhz2Ww=
 github.com/open-component-model/ocm-controllers-sdk v0.0.6/go.mod h1:npwcEnReNGiZ8DAJ5WEpcmenGWqHhMUHbN0040oS/CM=
 github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
