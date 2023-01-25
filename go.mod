@@ -22,7 +22,7 @@ require (
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.24.1
-	github.com/open-component-model/ocm v0.1.0-alpha.2
+	github.com/open-component-model/ocm v0.0.1-0.20230125120944-4c043d3c2263
 	github.com/open-component-model/ocm-controllers-sdk v0.0.6
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc2
