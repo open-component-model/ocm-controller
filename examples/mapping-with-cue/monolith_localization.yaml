@@ -16,4 +16,4 @@ spec:
         name: config
   snapshotTemplate:
     name: localized-deployment
-    tag: latest
+    createFluxSource: true

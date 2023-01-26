@@ -44,6 +44,9 @@ type SnapshotTemplateSpec struct {
 
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// +optional
+	CreateFluxSource bool `json:"createFluxSource,omitempty"`
 }
 
 // GetRequeueAfter returns the duration after which the Resource must be

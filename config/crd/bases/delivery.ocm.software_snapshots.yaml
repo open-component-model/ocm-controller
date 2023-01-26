@@ -35,6 +35,8 @@ spec:
           spec:
             description: SnapshotSpec defines the desired state of Snapshot
             properties:
+              createFluxSource:
+                type: boolean
               identity:
                 additionalProperties:
                   type: string

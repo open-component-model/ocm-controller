@@ -36,6 +36,9 @@ func (i *Identity) Hash() (string, error) {
 // SnapshotSpec defines the desired state of Snapshot
 type SnapshotSpec struct {
 	Identity Identity `json:"identity"`
+
+	// +optional
+	CreateFluxSource bool `json:"createFluxSource,omitempty"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot

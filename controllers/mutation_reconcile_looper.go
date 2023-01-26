@@ -210,7 +210,8 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Identity: identity,
+			Identity:         identity,
+			CreateFluxSource: spec.SnapshotTemplate.CreateFluxSource,
 		}
 		return nil
 	})
