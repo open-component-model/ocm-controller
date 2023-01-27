@@ -72,6 +72,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if v, found := os.LookupEnv("OCI_REGISTRY_LOCALHOST"); found {
+		ociRegistryAddr = v
+	}
+
 	cache := oci.NewClient(ociRegistryAddr)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
 

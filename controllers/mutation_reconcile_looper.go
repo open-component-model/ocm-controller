@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/containers/image/v5/pkg/compression"
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
@@ -25,6 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	"github.com/open-component-model/ocm/pkg/spiff"
@@ -136,7 +140,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 			return "", fmt.Errorf("failed to create configuration values for config '%s': %w", config.Name, err)
 		}
 	} else {
-		rules, err = m.createSubstitutionRulesForLocalization(*componentDescriptor, *config)
+		rules, err = m.createSubstitutionRulesForLocalization(ctx, *componentDescriptor, *config)
 		if err != nil {
 			return "", fmt.Errorf("failed to create localization values for config '%s': %w", config.Name, err)
 		}
@@ -218,7 +222,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 
 	newSnapshotCR := snapshotCR.DeepCopy()
 	newSnapshotCR.Status.Digest = snapshotDigest
-	newSnapshotCR.Status.Tag = obj.GetResourceVersion()
+	newSnapshotCR.Status.Tag = spec.SnapshotTemplate.Tag
 	if err := patchObject(ctx, m.Client, snapshotCR, newSnapshotCR); err != nil {
 		return "",
 			fmt.Errorf("failed to patch snapshot CR: %w", err)
@@ -309,11 +313,22 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 	return io.ReadAll(uncompressed)
 }
 
-func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(componentDescriptor v1alpha1.ComponentDescriptor, config configdata.ConfigData) (localize.Substitutions, error) {
+func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx context.Context, componentDescriptor v1alpha1.ComponentDescriptor, config configdata.ConfigData) (localize.Substitutions, error) {
 	var localizations localize.Substitutions
 	for _, l := range config.Localization {
 		if l.Mapping != nil {
-			res, err := m.compileMapping(componentDescriptor, l.Mapping.Transform)
+			if len(componentDescriptor.GetOwnerReferences()) != 1 {
+				return nil, errors.New("component descriptor has no owner component version")
+			}
+			parentKey := types.NamespacedName{
+				Name:      componentDescriptor.GetOwnerReferences()[0].Name,
+				Namespace: componentDescriptor.GetNamespace(),
+			}
+			parent := &v1alpha1.ComponentVersion{}
+			if err := m.Client.Get(ctx, parentKey, parent); err != nil {
+				return nil, err
+			}
+			res, err := m.compileMapping(ctx, parent, l.Mapping.Transform)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile mapping: %w", err)
 			}
@@ -449,18 +464,110 @@ func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 	return result.Adjustments, nil
 }
 
-func (m *MutationReconcileLooper) compileMapping(cd v1alpha1.ComponentDescriptor, mapping string) (json.RawMessage, error) {
-	ctx := cuecontext.New()
-	root := ctx.CompileString("component:{}").FillPath(cue.ParsePath("component"), ctx.Encode(cd.Spec))
-	v := ctx.CompileString(mapping, cue.Scope(root))
+func (m *MutationReconcileLooper) compileMapping(ctx context.Context, cv *v1alpha1.ComponentVersion, mapping string) (json.RawMessage, error) {
+	cueCtx := cuecontext.New()
+	cd, err := component.GetComponentDescriptor(ctx, m.Client, nil, cv.Status.ComponentDescriptor)
+	if err != nil {
+		return nil, err
+	}
+
+	// first create the component descriptor struct
+	root := cueCtx.CompileString("component:{}").FillPath(cue.ParsePath("component"), cueCtx.Encode(cd.Spec))
+
+	// populate with refs
+	root, err = m.populateReferences(ctx, root, cv.GetNamespace())
+	if err != nil {
+		return nil, err
+	}
+
+	// populate the mapping
+	v := cueCtx.CompileString(mapping, cue.Scope(root))
+
+	// resolve the output
 	res, err := v.LookupPath(cue.ParsePath("out")).Bytes()
 	if err != nil {
 		return nil, err
 	}
+
+	// format the result
 	var out json.RawMessage
 	if err := json.Unmarshal(res, &out); err != nil {
 		return nil, err
 	}
-	return out, nil
 
+	return out, nil
+}
+
+func (m *MutationReconcileLooper) populateReferences(ctx context.Context, src cue.Value, namespace string) (cue.Value, error) {
+	root := src
+
+	path := cue.ParsePath("component.references")
+
+	refs := root.LookupPath(path)
+	if !refs.Exists() {
+		return src, nil
+	}
+
+	refList, err := refs.List()
+	if err != nil {
+		return src, err
+	}
+
+	for refList.Next() {
+		val := refList.Value()
+		index := refList.Selector()
+
+		refData, err := val.Struct()
+		if err != nil {
+			return src, err
+		}
+
+		refName, err := getStructFieldValue(refData, "componentName")
+		if err != nil {
+			return src, err
+		}
+
+		refVersion, err := getStructFieldValue(refData, "version")
+		if err != nil {
+			return src, err
+		}
+
+		refCDRef, err := component.ConstructUniqueName(refName, refVersion, v1.NewIdentity(refName, refVersion))
+		if err != nil {
+			return src, err
+		}
+
+		ref := v1alpha1.Reference{
+			Name:    refName,
+			Version: refVersion,
+			ComponentDescriptorRef: meta.NamespacedObjectReference{
+				Namespace: namespace,
+				Name:      refCDRef,
+			},
+		}
+
+		cd, err := component.GetComponentDescriptor(ctx, m.Client, nil, ref)
+		if err != nil {
+			return src, err
+		}
+
+		val = val.FillPath(cue.ParsePath("component"), cd.Spec)
+
+		val, err = m.populateReferences(ctx, val, namespace)
+		if err != nil {
+			return src, err
+		}
+
+		root = root.FillPath(cue.MakePath(cue.Str("component"), cue.Str("references"), index), val)
+	}
+
+	return root, nil
+}
+
+func getStructFieldValue(v *cue.Struct, field string) (string, error) {
+	f, err := v.FieldByName(field, false)
+	if err != nil {
+		return "", err
+	}
+	return f.Value.String()
 }

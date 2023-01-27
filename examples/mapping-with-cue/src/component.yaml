@@ -1,0 +1,44 @@
+name: phoban.io/monolith
+version: v1.0.0
+provider:
+  name: weaveworks
+resources:
+- name:  bootstrap
+  type: ociImage
+  version: 1.36.0
+  extraIdentity:
+    init: "true"
+  labels:
+  - name: args
+    value: ["date"]
+  access:
+    type: ociArtifact
+    imageReference:  busybox:1.36.0
+- name: server
+  type: ociImage
+  version: 1.23.3-alpine
+  labels:
+  - name: ports
+    value:
+    - containerPort: 8080
+  access:
+    type: ociArtifact
+    imageReference: nginx:1.23.3-alpine
+- name: cache
+  type: ociImage
+  version: 7.0.8
+  access:
+    type: ociArtifact
+    imageReference: redis:7.0.8
+- name: deployment
+  type: PlainText
+  input:
+    type: file
+    path: deployment.yaml
+    compress: true
+- name: config
+  type: PlainText
+  input:
+    type: file
+    path: config.yaml
+    compress: true

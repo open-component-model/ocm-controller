@@ -8,12 +8,10 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/Masterminds/semver"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/patch"
-	hash "github.com/mitchellh/hashstructure"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,10 +25,10 @@ import (
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/component"
 	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
@@ -180,7 +178,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	}
 
 	// setup the component descriptor kubernetes resource
-	componentName, err := r.constructComponentName(cd.GetName(), cd.GetVersion(), nil)
+	componentName, err := component.ConstructUniqueName(cd.GetName(), cd.GetVersion(), nil)
 	if err != nil {
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -315,7 +313,7 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(ctx context.Conte
 
 	log := log.FromContext(ctx)
 	// setup the component descriptor kubernetes resource
-	componentName, err := r.constructComponentName(ref.ComponentName, ref.Version, ref.GetMeta().ExtraIdentity)
+	componentName, err := component.ConstructUniqueName(ref.ComponentName, ref.Version, ref.GetMeta().ExtraIdentity)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate name: %w", err)
 	}
@@ -345,22 +343,4 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(ctx context.Conte
 	log.V(4).Info(fmt.Sprintf("%s(ed) descriptor", op), "descriptor", klog.KObj(descriptor))
 
 	return descriptor, nil
-}
-
-// constructComponentName constructs a unique name from a component name and version.
-func (r *ComponentVersionReconciler) constructComponentName(name, version string, identity v1.Identity) (string, error) {
-	namingScheme := struct {
-		ComponentName string
-		Version       string
-		Identity      v1.Identity
-	}{
-		ComponentName: name,
-		Version:       version,
-		Identity:      identity,
-	}
-	h, err := hash.Hash(namingScheme, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate hash for name, version, identity: %w", err)
-	}
-	return fmt.Sprintf("%s-%s-%d", strings.ReplaceAll(name, "/", "-"), version, h), nil
 }

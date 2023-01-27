@@ -1,0 +1,19 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Localization
+metadata:
+  name: deployment
+spec:
+  interval: 10m0s
+  componentVersionRef:
+    name: monolith
+    namespace: ocm-system
+  source:
+    resourceRef:
+      name: deployment
+  configRef:
+    resource:
+      resourceRef:
+        name: config
+  snapshotTemplate:
+    name: localized-deployment
+    tag: latest
