@@ -6,7 +6,7 @@ spec:
   interval: 10m0s
   component: phoban.io/monolith
   version:
-    semver: ">=v1.2.0"
+    semver: ">=v1.3.0"
   repository:
     url: ghcr.io/phoban01
     secretRef:
@@ -16,4 +16,5 @@ spec:
     publicKey:
       secretRef:
         name: publickey
-
+  references:
+    expand: true

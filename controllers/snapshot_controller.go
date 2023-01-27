@@ -8,14 +8,18 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/source-controller/api/v1beta2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -34,6 +38,8 @@ type SnapshotReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots/finalizers,verbs=update
+
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -57,6 +63,42 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
 	}
 
+	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to construct name: %w", err)
+	}
+
+	if obj.Spec.CreateFluxSource {
+		log.Info("reconciling flux oci source for snapshot")
+
+		ociRepoCR := &v1beta2.OCIRepository{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: obj.GetNamespace(),
+				Name:      obj.GetName(),
+			},
+		}
+
+		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, ociRepoCR, func() error {
+			if ociRepoCR.ObjectMeta.CreationTimestamp.IsZero() {
+				if err := controllerutil.SetOwnerReference(obj, ociRepoCR, r.Scheme); err != nil {
+					return fmt.Errorf("failed to set owner reference on oci repository source: %w", err)
+				}
+			}
+			ociRepoCR.Spec = v1beta2.OCIRepositorySpec{
+				Interval: metav1.Duration{Duration: time.Hour},
+				Insecure: true,
+				URL:      fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, name),
+				Reference: &v1beta2.OCIRepositoryRef{
+					Tag: obj.Status.Tag,
+				},
+			}
+			return nil
+		})
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to create or update component descriptor: %w", err)
+		}
+	}
+
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
@@ -64,12 +106,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	conditions.MarkTrue(obj, v1alpha1.SnapshotReady, v1alpha1.SnapshotReadyReason, "Snapshot with name '%s' is ready", obj.Name)
 
-	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to construct name: %w", err)
-	}
-
-	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s@%s", r.RegistryServiceName, name, obj.Status.Digest)
+	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, name)
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to patch resource: %w", err)

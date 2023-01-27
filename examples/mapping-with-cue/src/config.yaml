@@ -8,7 +8,7 @@ localization:
 
         import "encoding/json"
 
-        spec: initContainers: [ for x in component.spec.resources
+        spec: initContainers: [ for x in component.resources
           if x.type == "ociImage" && x.extraIdentity.init != _|_ {
             {
               name:  x.name
@@ -18,7 +18,7 @@ localization:
           },
         ]
 
-        spec: containers: [ for x in component.spec.resources
+        spec: containers: [ for x in component.resources
           if x.type == "ociImage" && x.extraIdentity.init == _|_ {
             {
               name:  x.name

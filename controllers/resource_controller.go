@@ -142,7 +142,8 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 			}
 		}
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Identity: identity,
+			Identity:         identity,
+			CreateFluxSource: obj.Spec.SnapshotTemplate.CreateFluxSource,
 		}
 		return nil
 	})

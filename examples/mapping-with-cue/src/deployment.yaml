@@ -13,4 +13,5 @@ spec:
       labels:
         app: monolith
     spec:
+      initContainers: []
       containers: []
