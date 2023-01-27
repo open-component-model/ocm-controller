@@ -146,13 +146,16 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		}
 	}
 
+	if len(rules) == 0 {
+		log.Info("no rules generated from the available config data; the generate snapshot will have no modifications")
+	}
+
 	virtualFS, err := osfs.NewTempFileSystem()
 	if err != nil {
 		return "", fmt.Errorf("fs error: %w", err)
 	}
 	defer vfs.Cleanup(virtualFS)
 
-	//log.Info("resource data", "data", string(resourceData))
 	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
@@ -288,6 +291,7 @@ func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Cont
 	}
 	defer uncompressed.Close()
 
+	// This will be problematic with a 6 Gig large object when it's trying to read it all.
 	content, err := io.ReadAll(uncompressed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read resource data: %w", err)
@@ -296,6 +300,7 @@ func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Cont
 	return content, nil
 }
 
+// This might be problematic if the resource is too large in the snapshot. ReadAll will read it into memory.
 func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot *v1alpha1.Snapshot) ([]byte, error) {
 	name, err := ocm.ConstructRepositoryName(snapshot.Spec.Identity)
 	if err != nil {
@@ -310,7 +315,7 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 		return nil, fmt.Errorf("failed to auto decompress: %w", err)
 	}
 	defer uncompressed.Close()
-
+	// We don't decompress snapshots because those are archives and are decompressed by the caching layer already.
 	return io.ReadAll(uncompressed)
 }
 
