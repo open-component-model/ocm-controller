@@ -19,6 +19,7 @@ const (
 	ResourceVersionKey  = "resource-version"
 )
 
+// TODO: move Identity to its own file
 // Identity defines a cache entry. It is used to generate a hash that is then used by the
 // caching layer to identify an entry.
 // +kubebuilder:validation:MaxProperties=20
@@ -39,6 +40,10 @@ type SnapshotSpec struct {
 
 	// +optional
 	CreateFluxSource bool `json:"createFluxSource,omitempty"`
+
+	Digest string `json:"digest"`
+
+	Tag string `json:"tag"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot
@@ -48,11 +53,11 @@ type SnapshotStatus struct {
 
 	// Digest is calculated by the caching layer.
 	// +optional
-	Digest string `json:"digest,omitempty"`
+	LastReconciledDigest string `json:"digest,omitempty"`
 
 	// Tag defines the explicit tag that was used to create the related snapshot and cache entry.
 	// +optional
-	Tag string `json:"tag,omitempty"`
+	LastReconciledTag string `json:"tag,omitempty"`
 
 	// RepositoryURL has the concrete URL pointing to the local registry including the service name.
 	// +optional

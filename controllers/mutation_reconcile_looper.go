@@ -215,6 +215,8 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
 			Identity:         identity,
 			CreateFluxSource: spec.SnapshotTemplate.CreateFluxSource,
+			Digest:           snapshotDigest,
+			Tag:              obj.GetResourceVersion(),
 		}
 		return nil
 	})
@@ -222,14 +224,6 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	if err != nil {
 		return "",
 			fmt.Errorf("failed to create or update component descriptor: %w", err)
-	}
-
-	newSnapshotCR := snapshotCR.DeepCopy()
-	newSnapshotCR.Status.Digest = snapshotDigest
-	newSnapshotCR.Status.Tag = obj.GetResourceVersion()
-	if err := patchObject(ctx, m.Client, snapshotCR, newSnapshotCR); err != nil {
-		return "",
-			fmt.Errorf("failed to patch snapshot CR: %w", err)
 	}
 
 	return snapshotDigest, nil
@@ -306,7 +300,7 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct name: %w", err)
 	}
-	reader, err := m.Cache.FetchDataByDigest(ctx, name, snapshot.Status.Digest)
+	reader, err := m.Cache.FetchDataByDigest(ctx, name, snapshot.Status.LastReconciledDigest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
