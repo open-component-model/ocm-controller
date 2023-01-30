@@ -389,7 +389,7 @@ func computeStreamBlob(reader io.ReadCloser, mediaType string) (v1.Layer, error)
 	if t == "" {
 		t = types.OCILayer
 	}
-	l := stream.NewLayer(reader, stream.WithMediaType(t))
+	l := stream.NewLayer(reader, stream.WithMediaType(t), stream.WithCompressionLevel(0))
 	return l, nil
 }
 
