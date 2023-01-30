@@ -532,7 +532,7 @@ func (m *MutationReconcileLooper) populateReferences(ctx context.Context, src cu
 			return src, err
 		}
 
-		refCDRef, err := component.ConstructUniqueName(refName, refVersion, v1.NewIdentity(refName, refVersion))
+		refCDRef, err := component.ConstructUniqueName(refName, refVersion, v1.Identity{})
 		if err != nil {
 			return src, err
 		}

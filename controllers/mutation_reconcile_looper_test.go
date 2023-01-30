@@ -169,7 +169,7 @@ func (c *componentGenerator) build(isRoot bool) *v1alpha1.ComponentDescriptor {
 
 	if !isRoot {
 		var err error
-		c.name, err = component.ConstructUniqueName(c.name, c.version, v1.NewIdentity(c.name, c.version))
+		c.name, err = component.ConstructUniqueName(c.name, c.version, v1.Identity{})
 		if err != nil {
 			return nil
 		}
