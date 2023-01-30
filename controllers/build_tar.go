@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"archive/tar"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +31,8 @@ func BuildTar(artifactPath, sourceDir string) error {
 		}
 	}()
 
-	tw := tar.NewWriter(tf)
+	gw := gzip.NewWriter(tf)
+	tw := tar.NewWriter(gw)
 
 	if err := filepath.Walk(sourceDir, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -86,6 +88,7 @@ func BuildTar(artifactPath, sourceDir string) error {
 		return f.Close()
 	}); err != nil {
 		tw.Close()
+		gw.Close()
 		tf.Close()
 		return err
 	}
@@ -93,10 +96,13 @@ func BuildTar(artifactPath, sourceDir string) error {
 		tf.Close()
 		return err
 	}
+	if err := gw.Close(); err != nil {
+		tf.Close()
+		return err
+	}
 	if err := tf.Close(); err != nil {
 		return err
 	}
-
 	if err := os.Chmod(tmpName, 0o640); err != nil {
 		return err
 	}

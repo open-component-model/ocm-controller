@@ -544,15 +544,15 @@ configuration:
 				}, snapshotOutput)
 				require.NoError(t, err)
 				args := cache.PushDataCallingArgumentsOnCall(0)
-				data, name, version := args[0], args[1], args[2]
+				reader, name, version := args[0], args[1], args[2]
 				assert.Equal(t, "sha-1009814895297045910", name)
 				assert.Equal(t, "999", version)
-
+				data, err := Untar(io.NopCloser(bytes.NewBuffer([]byte(reader.(string)))))
 				t.Log("extracting the passed in data and checking if the configuration worked")
 				require.NoError(t, err)
 				assert.Contains(
 					t,
-					data.(string),
+					string(data),
 					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
 					"the configuration data should have been applied",
 				)
