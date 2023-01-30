@@ -226,7 +226,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 
 	newSnapshotCR := snapshotCR.DeepCopy()
 	newSnapshotCR.Status.Digest = snapshotDigest
-	newSnapshotCR.Status.Tag = spec.SnapshotTemplate.Tag
+	newSnapshotCR.Status.Tag = obj.GetResourceVersion()
 	if err := patchObject(ctx, m.Client, snapshotCR, newSnapshotCR); err != nil {
 		return "",
 			fmt.Errorf("failed to patch snapshot CR: %w", err)

@@ -21,6 +21,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
@@ -111,7 +112,9 @@ func (c *Client) PushData(ctx context.Context, data io.ReadCloser, name, tag str
 // FetchDataByIdentity fetches an existing resource. Errors if there is no resource available. It's advised to call IsCached
 // before fetching. Returns the digest of the resource alongside the data for further processing.
 func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, error) {
+	logger := log.FromContext(ctx).WithName("cache")
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
+	logger.V(4).Info("cache hit for data", "name", name, "tag", tag, "repository", repositoryName)
 	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get repository: %w", err)
@@ -121,6 +124,7 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to fetch manifest to obtain layers: %w", err)
 	}
+	logger.V(4).Info("got the manifest", "manifest", manifest)
 	layers := manifest.Layers
 	if len(layers) == 0 {
 		return nil, "", fmt.Errorf("layers for repository is empty")
