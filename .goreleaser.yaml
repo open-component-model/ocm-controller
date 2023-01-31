@@ -27,3 +27,5 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+dockers:
+  - image_templates: ["{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:{{ .Version }}-{{ .Arch }}"]
