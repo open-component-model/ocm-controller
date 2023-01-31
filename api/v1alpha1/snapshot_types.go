@@ -19,26 +19,16 @@ const (
 	ResourceVersionKey  = "resource-version"
 )
 
-// Identity defines a cache entry. It is used to generate a hash that is then used by the
-// caching layer to identify an entry.
-// +kubebuilder:validation:MaxProperties=20
-type Identity map[string]string
-
-func (i *Identity) Hash() (string, error) {
-	hash, err := hashstructure.Hash(i, hashstructure.FormatV2, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to hash identity: %w", err)
-	}
-
-	return fmt.Sprintf("sha-%d", hash), nil
-}
-
 // SnapshotSpec defines the desired state of Snapshot
 type SnapshotSpec struct {
 	Identity Identity `json:"identity"`
 
 	// +optional
 	CreateFluxSource bool `json:"createFluxSource,omitempty"`
+
+	Digest string `json:"digest"`
+
+	Tag string `json:"tag"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot
@@ -48,15 +38,30 @@ type SnapshotStatus struct {
 
 	// Digest is calculated by the caching layer.
 	// +optional
-	Digest string `json:"digest,omitempty"`
+	LastReconciledDigest string `json:"digest,omitempty"`
 
 	// Tag defines the explicit tag that was used to create the related snapshot and cache entry.
 	// +optional
-	Tag string `json:"tag,omitempty"`
+	LastReconciledTag string `json:"tag,omitempty"`
 
 	// RepositoryURL has the concrete URL pointing to the local registry including the service name.
 	// +optional
 	RepositoryURL string `json:"repositoryURL,omitempty"`
+}
+
+// Identity defines a cache entry. It is used to generate a hash that is then used by the
+// caching layer to identify an entry.
+// +kubebuilder:validation:MaxProperties=20
+type Identity map[string]string
+
+// Hash calculates the hash of an identity
+func (i *Identity) Hash() (string, error) {
+	hash, err := hashstructure.Hash(i, hashstructure.FormatV2, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash identity: %w", err)
+	}
+
+	return fmt.Sprintf("sha-%d", hash), nil
 }
 
 //+kubebuilder:object:root=true

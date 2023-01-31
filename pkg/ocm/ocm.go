@@ -68,6 +68,7 @@ func NewClient(client client.Client, cache cache.Cache) *Client {
 
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
 func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error) {
+	logger := log.FromContext(ctx).WithName("ocm")
 	version := "latest"
 	if resource.Version != "" {
 		version = resource.Version
@@ -99,6 +100,7 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
+	logger.V(4).Info("object with name is NOT cached, proceeding to fetch", "resource", resource, "name", name, "version", version)
 
 	cva, err := c.GetComponentVersion(ctx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
@@ -132,6 +134,7 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 		return nil, "", fmt.Errorf("failed to cache blob: %w", err)
 	}
 
+	logger.V(4).Info("pushed data with digest", "digest", digest)
 	// re-fetch the resource to have a streamed reader available
 	dataReader, err := c.cache.FetchDataByDigest(ctx, name, digest)
 	if err != nil {

@@ -20,4 +20,3 @@ spec:
           - name: carts
   snapshotTemplate:
     name: carts-manifests-localized
-    tag: latest

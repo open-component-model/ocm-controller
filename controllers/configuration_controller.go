@@ -122,7 +122,7 @@ func (r *ConfigurationReconciler) requestsForRevisionChangeOf(indexKey string) f
 			panic(fmt.Sprintf("expected snapshot but got: %T", obj))
 		}
 
-		if snap.Status.Digest == "" {
+		if snap.Status.LastReconciledDigest == "" {
 			return nil
 		}
 
@@ -136,7 +136,7 @@ func (r *ConfigurationReconciler) requestsForRevisionChangeOf(indexKey string) f
 
 		var reqs []reconcile.Request
 		for _, d := range list.Items {
-			if snap.Status.Digest == d.Status.LatestSnapshotDigest {
+			if snap.Status.LastReconciledDigest == d.Status.LatestSnapshotDigest {
 				continue
 			}
 			reqs = append(reqs, reconcile.Request{

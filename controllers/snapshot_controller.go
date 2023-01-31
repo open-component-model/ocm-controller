@@ -89,7 +89,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				Insecure: true,
 				URL:      fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, name),
 				Reference: &v1beta2.OCIRepositoryRef{
-					Tag: obj.Status.Tag,
+					Tag: obj.Spec.Tag,
 				},
 			}
 			return nil
@@ -106,6 +106,8 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	conditions.MarkTrue(obj, v1alpha1.SnapshotReady, v1alpha1.SnapshotReadyReason, "Snapshot with name '%s' is ready", obj.Name)
 
+	obj.Status.LastReconciledDigest = obj.Spec.Digest
+	obj.Status.LastReconciledTag = obj.Spec.Tag
 	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, name)
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {

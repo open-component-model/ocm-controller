@@ -98,7 +98,6 @@ var (
 			},
 			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
 				Name: "snapshot-test-name",
-				Tag:  "v0.0.1",
 			},
 		},
 	}
@@ -167,7 +166,6 @@ var (
 			},
 			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
 				Name: "test-localization-modified",
-				Tag:  "v0.0.2",
 			},
 		},
 	}
@@ -198,7 +196,6 @@ var (
 			},
 			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
 				Name: "test-configuration-modified",
-				Tag:  "v0.0.2",
 			},
 		},
 	}

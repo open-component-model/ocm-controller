@@ -20,7 +20,6 @@ spec:
           - name: carts
   snapshotTemplate:
     name: carts-manifests-configured
-    tag: latest
   values:
     color: "blue"
     message: "Hola"

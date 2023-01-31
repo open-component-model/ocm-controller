@@ -62,8 +62,8 @@ func TestResourceReconciler(t *testing.T) {
 	}, snapshot)
 
 	require.NoError(t, err)
-	assert.Equal(t, "digest", snapshot.Status.Digest)
-	assert.Equal(t, "1.0.0", snapshot.Status.Tag)
+	assert.Equal(t, "digest", snapshot.Spec.Digest)
+	assert.Equal(t, "1.0.0", snapshot.Spec.Tag)
 
 	t.Log("verifying updated resource object status")
 	err = client.Get(context.Background(), types.NamespacedName{

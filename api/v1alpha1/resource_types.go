@@ -33,11 +33,6 @@ type SnapshotTemplateSpec struct {
 	// +required
 	Name string `json:"name"`
 
-	//TODO@souleb: add a description, and validation markers
-	// Tag is supplied for convience and ease of integration with systems such as Flux
-	// +optional
-	Tag string `json:"tag,omitempty"`
-
 	//TODO@souleb: add a description, is that actually used?
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`

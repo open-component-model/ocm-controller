@@ -91,11 +91,6 @@ spec:
                     type: object
                   name:
                     type: string
-                  tag:
-                    description: 'TODO@souleb: add a description, and validation markers
-                      Tag is supplied for convience and ease of integration with systems
-                      such as Flux'
-                    type: string
                 required:
                 - name
                 type: object

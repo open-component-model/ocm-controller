@@ -13,4 +13,3 @@ spec:
       - name: installer
   snapshotTemplate:
     name: podinfo-manifests
-    tag: latest

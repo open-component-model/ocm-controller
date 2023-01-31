@@ -144,20 +144,14 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
 			Identity:         identity,
 			CreateFluxSource: obj.Spec.SnapshotTemplate.CreateFluxSource,
+			Digest:           digest,
+			Tag:              version,
 		}
 		return nil
 	})
 	if err != nil {
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
 			fmt.Errorf("failed to create or update snapshot: %w", err)
-	}
-
-	newSnapshot := snapshotCR.DeepCopy()
-	newSnapshot.Status.Digest = digest
-	newSnapshot.Status.Tag = version
-	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshot); err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to patch snapshot: %w", err)
 	}
 
 	log.Info("successfully pushed resource", "resource", obj.Spec.Resource.Name)
