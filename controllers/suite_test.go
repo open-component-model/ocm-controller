@@ -157,7 +157,7 @@ var (
 				Name:      DefaultComponent.Name,
 				Namespace: DefaultComponent.Namespace,
 			},
-			ConfigRef: v1alpha1.ConfigReference{
+			ConfigRef: &v1alpha1.ConfigReference{
 				Resource: v1alpha1.Source{
 					ResourceRef: &v1alpha1.ResourceRef{
 						Name: DefaultResource.Name,
@@ -183,7 +183,7 @@ var (
 				Name:      DefaultComponent.Name,
 				Namespace: DefaultComponent.Namespace,
 			},
-			ConfigRef: v1alpha1.ConfigReference{
+			ConfigRef: &v1alpha1.ConfigReference{
 				Resource: v1alpha1.Source{
 					ResourceRef: &v1alpha1.ResourceRef{
 						Name: DefaultResource.Name,

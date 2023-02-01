@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 
-	"sigs.k8s.io/cluster-api/util/patch"
+	"github.com/fluxcd/pkg/runtime/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

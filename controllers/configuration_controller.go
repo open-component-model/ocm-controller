@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fluxcd/pkg/runtime/patch"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -91,11 +92,17 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
 	}
 
+	httpClient := retryablehttp.NewClient()
+	httpClient.RetryWaitMin = 5 * time.Second
+	httpClient.RetryWaitMax = 30 * time.Second
+	httpClient.Logger = nil
+
 	mutationLooper := MutationReconcileLooper{
-		Scheme:    r.Scheme,
-		OCMClient: r.OCMClient,
-		Client:    r.Client,
-		Cache:     r.Cache,
+		Scheme:     r.Scheme,
+		OCMClient:  r.OCMClient,
+		Client:     r.Client,
+		Cache:      r.Cache,
+		HttpClient: httpClient,
 	}
 
 	digest, err := mutationLooper.ReconcileMutationObject(ctx, obj.Spec, obj)
@@ -103,7 +110,9 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		return ctrl.Result{RequeueAfter: obj.Spec.GetRequeueAfter()}, err
 	}
 	obj.Status.LatestSnapshotDigest = digest
-	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
+	if obj.Spec.ConfigRef != nil {
+		obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
+	}
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {
