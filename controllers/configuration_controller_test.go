@@ -645,7 +645,6 @@ configuration:
 					args := cache.PushDataCallingArgumentsOnCall(0)
 					data := args[0].(string)
 					sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(data))), "merge-target.yaml")
-					fmt.Println(string(sourceFile))
 					deployment := appsv1.Deployment{}
 					err = yaml.Unmarshal(sourceFile, &deployment)
 					assert.NoError(t, err)
