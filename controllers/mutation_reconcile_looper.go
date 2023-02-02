@@ -489,45 +489,34 @@ func getStructFieldValue(v *cue.Struct, field string) (string, error) {
 }
 
 func (m *MutationReconcileLooper) getSource(ctx context.Context, ref v1alpha1.PatchStrategicMergeSourceRef) (sourcev1.Source, error) {
-	var sourceObj sourcev1.Source
-	key := types.NamespacedName{
-		Name:      ref.Name,
-		Namespace: ref.Namespace,
-	}
-	switch ref.Kind {
-	case sourcev1.GitRepositoryKind:
-		var repository sourcev1.GitRepository
-		err := m.Client.Get(ctx, key, &repository)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return sourceObj, err
-			}
-			return sourceObj, fmt.Errorf("unable to get source '%s': %w", key, err)
+	get := func(obj client.Object) error {
+		key := types.NamespacedName{
+			Name:      ref.Name,
+			Namespace: ref.Namespace,
 		}
-		sourceObj = &repository
-	case sourcev1.BucketKind:
-		var bucket sourcev1.Bucket
-		err := m.Client.Get(ctx, key, &bucket)
+		err := m.Client.Get(ctx, key, obj)
 		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return sourceObj, err
-			}
-			return sourceObj, fmt.Errorf("unable to get source '%s': %w", key, err)
+			return fmt.Errorf("unable to get source '%s': %w", key, err)
 		}
-		sourceObj = &bucket
-	case sourcev1.OCIRepositoryKind:
-		var ocirepo sourcev1.OCIRepository
-		err := m.Client.Get(ctx, key, &ocirepo)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return sourceObj, err
-			}
-			return sourceObj, fmt.Errorf("unable to get source '%s': %w", key, err)
-		}
-		sourceObj = &ocirepo
-	default:
-		return sourceObj, fmt.Errorf("source `%s` kind '%s' not supported", ref.Name, ref.Kind)
+		return nil
 	}
 
-	return sourceObj, nil
+	var obj client.Object
+	switch ref.Kind {
+	case sourcev1.GitRepositoryKind:
+		obj = &sourcev1.GitRepository{}
+	case sourcev1.BucketKind:
+		obj = &sourcev1.Bucket{}
+	case sourcev1.OCIRepositoryKind:
+		obj = &sourcev1.OCIRepository{}
+	default:
+		return nil, fmt.Errorf("source `%s` kind '%s' not supported", ref.Name, ref.Kind)
+	}
+
+	if err := get(obj); err != nil {
+		return nil, fmt.Errorf("unable to get source '%s': %w", ref, err)
+	}
+
+	return obj.(sourcev1.Source), nil
+}
 }
