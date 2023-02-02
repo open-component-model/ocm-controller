@@ -96,8 +96,6 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 	)
 
 	if spec.ConfigRef != nil {
-		var rules localize.Substitutions
-
 		virtualFS, err := osfs.NewTempFileSystem()
 		if err != nil {
 			return "", fmt.Errorf("fs error: %w", err)
@@ -115,6 +113,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 
 		sourceDir = filepath.Join(os.TempDir(), fi.Name())
 
+		var rules localize.Substitutions
 		rules, identity, err = m.generateSubstRules(ctx, componentVersion, spec)
 		if err != nil {
 			return "", err
