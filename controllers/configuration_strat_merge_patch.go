@@ -111,9 +111,9 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context, spec 
 	sourceDir := filepath.Dir(targetPath)
 
 	identity := v1alpha1.Identity{
-		"SourceName":             source.(client.Object).GetName(),
-		"SourceNamespace":        source.(client.Object).GetNamespace(),
-		"SourceArtifactChecksum": source.GetArtifact().Checksum,
+		v1alpha1.SourceNameKey:             source.(client.Object).GetName(),
+		v1alpha1.SourceNamespaceKey:        source.(client.Object).GetNamespace(),
+		v1alpha1.SourceArtifactChecksumKey: source.GetArtifact().Checksum,
 	}
 
 	return sourceDir, identity, nil
