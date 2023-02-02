@@ -3,13 +3,10 @@ package controllers
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -17,17 +14,14 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/fluxcd/pkg/apis/meta"
-	generator "github.com/fluxcd/pkg/kustomize"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,11 +41,10 @@ import (
 )
 
 type MutationReconcileLooper struct {
-	Scheme     *runtime.Scheme
-	OCMClient  ocm.FetchVerifier
-	Client     client.Client
-	Cache      cache.Cache
-	HttpClient *retryablehttp.Client
+	Scheme    *runtime.Scheme
+	OCMClient ocm.FetchVerifier
+	Client    client.Client
+	Cache     cache.Cache
 }
 
 func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, spec v1alpha1.MutationSpec, obj client.Object) (string, error) {
@@ -538,61 +531,4 @@ func (m *MutationReconcileLooper) getSource(ctx context.Context, ref v1alpha1.Pa
 	}
 
 	return sourceObj, nil
-}
-
-func (m *MutationReconcileLooper) fetchArtifact(ctx context.Context, artifact *sourcev1.Artifact) (*bytes.Buffer, error) {
-	artifactURL := artifact.URL
-
-	req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodGet, artifactURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create a new request: %w", err)
-	}
-
-	resp, err := m.HttpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download artifact, error: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// check response
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to download artifact from %s, status: %s", artifactURL, resp.Status)
-	}
-
-	var buf bytes.Buffer
-
-	// verify checksum matches origin
-	if err := m.verifyArtifact(artifact, &buf, resp.Body); err != nil {
-		return nil, err
-	}
-
-	return &buf, nil
-}
-
-func (m *MutationReconcileLooper) verifyArtifact(artifact *sourcev1.Artifact, buf *bytes.Buffer, reader io.Reader) error {
-	hasher := sha256.New()
-
-	// for backwards compatibility with source-controller v0.17.2 and older
-	if len(artifact.Checksum) == 40 {
-		hasher = sha1.New()
-	}
-
-	// compute checksum
-	mw := io.MultiWriter(hasher, buf)
-	if _, err := io.Copy(mw, reader); err != nil {
-		return err
-	}
-
-	if checksum := fmt.Sprintf("%x", hasher.Sum(nil)); checksum != artifact.Checksum {
-		return fmt.Errorf("failed to verify artifact: computed checksum '%s' doesn't match advertised '%s'",
-			checksum, artifact.Checksum)
-	}
-
-	return nil
-}
-
-func (m *MutationReconcileLooper) generate(obj unstructured.Unstructured,
-	workDir string, dirPath string) error {
-	_, err := generator.NewGenerator(workDir, obj).WriteFile(dirPath)
-	return err
 }

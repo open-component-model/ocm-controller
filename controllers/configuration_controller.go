@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/hashicorp/go-retryablehttp"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -92,17 +91,11 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
 	}
 
-	httpClient := retryablehttp.NewClient()
-	httpClient.RetryWaitMin = 5 * time.Second
-	httpClient.RetryWaitMax = 30 * time.Second
-	httpClient.Logger = nil
-
 	mutationLooper := MutationReconcileLooper{
-		Scheme:     r.Scheme,
-		OCMClient:  r.OCMClient,
-		Client:     r.Client,
-		Cache:      r.Cache,
-		HttpClient: httpClient,
+		Scheme:    r.Scheme,
+		OCMClient: r.OCMClient,
+		Client:    r.Client,
+		Cache:     r.Cache,
 	}
 
 	digest, err := mutationLooper.ReconcileMutationObject(ctx, obj.Spec, obj)
