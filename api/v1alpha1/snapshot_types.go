@@ -50,6 +50,10 @@ type SnapshotStatus struct {
 	// RepositoryURL has the concrete URL pointing to the local registry including the service name.
 	// +optional
 	RepositoryURL string `json:"repositoryURL,omitempty"`
+
+	// ObservedGeneration is the last reconciled generation.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // Identity defines a cache entry. It is used to generate a hash that is then used by the

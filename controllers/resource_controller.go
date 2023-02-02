@@ -7,6 +7,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/fluxcd/pkg/runtime/patch"
@@ -14,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,6 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
+	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/component"
@@ -48,24 +54,101 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
 	log := log.FromContext(ctx).WithName("resource-controller")
 
 	log.Info("starting resource reconcile loop")
 	resource := &v1alpha1.Resource{}
 	if err := r.Client.Get(ctx, req.NamespacedName, resource); err != nil {
 		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			result, retErr = ctrl.Result{}, nil
+			return
 		}
-		return ctrl.Result{}, fmt.Errorf("failed to get resource object: %w", err)
+		result, retErr = ctrl.Result{}, fmt.Errorf("failed to get resource object: %w", err)
+		return
 	}
+
+	// Always attempt to patch the object and status after each reconciliation.
+	defer func() {
+		// Set status observed generation option if the object is stalled or ready.
+		if conditions.IsStalled(resource) || conditions.IsReady(resource) {
+			resource.Status.ObservedGeneration = resource.Generation
+		}
+
+		patchHelper, err := patch.NewHelper(resource, r.Client)
+		if err != nil {
+			result, retErr = ctrl.Result{}, err
+			return
+		}
+
+		if err := patchHelper.Patch(ctx, resource); err != nil {
+			if !resource.GetDeletionTimestamp().IsZero() {
+				err = kerrors.FilterOut(err, func(e error) bool { return apierrors.IsNotFound(e) })
+			}
+
+			retErr = kerrors.NewAggregate([]error{retErr, err})
+		}
+	}()
+
 	log.Info("found resource", "resource", resource)
 
-	return r.reconcile(ctx, resource)
+	result, retErr = r.reconcile(ctx, resource)
+	return
 }
 
-func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resource) (ctrl.Result, error) {
+func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resource) (result ctrl.Result, retErr error) {
 	log := log.FromContext(ctx).WithName("resource-controller")
+
+	// Initialize the patch helper.
+	patchHelper, err := patch.NewHelper(obj, r.Client)
+	if err != nil {
+		result, retErr = ctrl.Result{}, err
+		return
+	}
+
+	defer func() {
+		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
+			conditions.Delete(obj, meta.ReconcilingCondition)
+		}
+
+		// Check if it's a successful reconciliation.
+		// We don't set Requeue in case of error, so we can safely check for Requeue.
+		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && retErr == nil {
+			// Remove the reconciling condition if it's set.
+			conditions.Delete(obj, meta.ReconcilingCondition)
+
+			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
+			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
+				retErr = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
+			}
+		}
+
+		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
+		// indicate that reconciliation will be retried.
+		if conditions.IsReconciling(obj) {
+			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
+			reconciling.Reason = meta.ProgressingWithRetryReason
+			conditions.Set(obj, reconciling)
+		}
+
+		// If not reconciling or stalled than mark Ready=True
+		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
+			retErr == nil && result.RequeueAfter == obj.GetRequeueAfter() {
+			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
+		}
+	}()
+
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
+
+	if obj.Generation != obj.Status.ObservedGeneration {
+		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
+			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
+
+		if err := patchHelper.Patch(ctx, obj); err != nil {
+			result, retErr = ctrl.Result{}, err
+			return
+		}
+	}
 
 	log.Info("finding component ref", "resource", obj)
 
@@ -78,24 +161,27 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	componentVersion := &v1alpha1.ComponentVersion{}
 	if err := r.Get(ctx, cdvKey, componentVersion); err != nil {
 		if apierrors.IsNotFound(err) {
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+			result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+			return
 		}
 
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component version: %w", err)
+		err = fmt.Errorf("failed to get component version: %w", err)
+		conditions.MarkStalled(obj, v1alpha1.ComponentVersionInvalidReason, err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ComponentVersionInvalidReason, err.Error())
+		result, retErr = ctrl.Result{}, err
+		return
 	}
+
+	conditions.Delete(obj, meta.StalledCondition)
 
 	log.Info("got component version", "component version", cdvKey.String())
 
-	// Initialize the patch helper.
-	patchHelper, err := patch.NewHelper(obj, r.Client)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
-	}
-
 	reader, digest, err := r.OCMClient.GetResource(ctx, componentVersion, obj.Spec.Resource)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, fmt.Errorf("failed to get resource: %w", err)
+		err = fmt.Errorf("failed to get resource: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())
+		result, retErr = ctrl.Result{}, err
+		return
 	}
 	defer reader.Close()
 
@@ -108,14 +194,22 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	// below identity, that would be the top-level component instead of the component that this resource belongs to.
 	componentDescriptor, err := component.GetComponentDescriptor(ctx, r.Client, obj.Spec.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to get component descriptor for resource: %w", err)
+		err = fmt.Errorf("failed to get component descriptor for resource: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
+		result, retErr = ctrl.Result{}, err
+		return
 	}
 
 	if componentDescriptor == nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.Resource.ReferencePath)
+		err := fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.Spec.Resource.ReferencePath)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
+		// Mark stalled because we can't do anything until the component descriptor is available. Likely requires some sort of manual intervention.
+		conditions.MarkStalled(obj, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
+		result, retErr = ctrl.Result{}, err
+		return
 	}
+
+	conditions.Delete(obj, meta.StalledCondition)
 
 	identity := v1alpha1.Identity{
 		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
@@ -150,22 +244,36 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return nil
 	})
 	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()},
-			fmt.Errorf("failed to create or update snapshot: %w", err)
+		err = fmt.Errorf("failed to create or update snapshot: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateSnapshotFailedReason, err.Error())
+		result, retErr = ctrl.Result{}, err
+		return
 	}
 
+<<<<<<< HEAD
+=======
+	newSnapshot := snapshotCR.DeepCopy()
+	newSnapshot.Status.Digest = digest
+	newSnapshot.Status.Tag = version
+	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshot); err != nil {
+		err = fmt.Errorf("failed to patch snapshot: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.PatchSnapshotFailedReason, err.Error())
+		result, retErr = ctrl.Result{}, err
+		return
+	}
+
+>>>>>>> e13fc8f (initial commit of conditions in all controllers)
 	log.Info("successfully pushed resource", "resource", obj.Spec.Resource.Name)
 	obj.Status.LastAppliedResourceVersion = obj.Spec.Resource.Version
-
 	obj.Status.ObservedGeneration = obj.GetGeneration()
-
-	if err := patchHelper.Patch(ctx, obj); err != nil {
-		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
-		}, fmt.Errorf("failed to patch resource and set snaphost value: %w", err)
-	}
 
 	log.Info("successfully reconciled resource", "name", obj.GetName())
 
-	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+	// Remove any stale Ready condition, most likely False, set above. Its value
+	// is derived from the overall result of the reconciliation in the deferred
+	// block at the very end.
+	conditions.Delete(obj, meta.ReadyCondition)
+
+	result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+	return
 }

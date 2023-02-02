@@ -6,6 +6,8 @@
 package v1alpha1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -19,6 +21,22 @@ type Localization struct {
 
 	Spec   MutationSpec   `json:"spec,omitempty"`
 	Status MutationStatus `json:"status,omitempty"`
+}
+
+// GetConditions returns the conditions of the Localization.
+func (in *Localization) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the conditions of the Localization.
+func (in *Localization) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
+}
+
+// GetRequeueAfter returns the duration after which the Localization must be
+// reconciled again.
+func (in Localization) GetRequeueAfter() time.Duration {
+	return in.Spec.Interval.Duration
 }
 
 //+kubebuilder:object:root=true

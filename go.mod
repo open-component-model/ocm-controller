@@ -12,7 +12,7 @@ replace github.com/spf13/pflag => github.com/mandelsoft/pflag v0.0.0-20221103113
 require (
 	cuelang.org/go v0.4.3
 	github.com/Masterminds/semver v1.5.0
-	github.com/Masterminds/semver/v3 v3.1.1
+	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/containers/image/v5 v5.21.1
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
@@ -37,6 +37,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
+	sigs.k8s.io/cluster-api v1.3.3
 	sigs.k8s.io/controller-runtime v0.14.1
 	sigs.k8s.io/kustomize/api v0.12.1
 )
@@ -64,6 +65,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.17.2 // indirect
 	github.com/aws/smithy-go v1.13.4 // indirect
+	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cockroachdb/apd/v2 v2.0.1 // indirect
 	github.com/containerd/containerd v1.6.12 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.12.1 // indirect
@@ -91,6 +93,7 @@ require (
 	github.com/fvbommel/sortorder v1.0.2 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
+	github.com/gobuffalo/flect v0.3.0 // indirect
 	github.com/goccy/go-yaml v1.9.5 // indirect
 	github.com/gomodule/redigo v1.8.2 // indirect
 	github.com/google/go-github/v45 v45.2.0 // indirect
@@ -126,7 +129,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/cobra v1.6.1 // indirect
-	github.com/spf13/viper v1.12.0 // indirect
 	github.com/theupdateframework/notary v0.7.0 // indirect
 	github.com/tonglil/buflogr v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
@@ -178,7 +180,7 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.1.0 // indirect
+	golang.org/x/crypto v0.3.0 // indirect
 	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/oauth2 v0.2.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect
@@ -194,7 +196,7 @@ require (
 	k8s.io/api v0.26.1
 	k8s.io/apiextensions-apiserver v0.26.1 // indirect
 	k8s.io/component-base v0.26.1 // indirect
-	k8s.io/klog/v2 v2.90.0
+	k8s.io/klog/v2 v2.90.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20221110221610-a28e98eb7c70 // indirect
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

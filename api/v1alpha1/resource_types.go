@@ -44,12 +44,6 @@ type SnapshotTemplateSpec struct {
 	CreateFluxSource bool `json:"createFluxSource,omitempty"`
 }
 
-// GetRequeueAfter returns the duration after which the Resource must be
-// reconciled again.
-func (in Resource) GetRequeueAfter() time.Duration {
-	return in.Spec.Interval.Duration
-}
-
 // ResourceStatus defines the observed state of Resource
 type ResourceStatus struct {
 	// ObservedGeneration is the last reconciled generation.
@@ -73,6 +67,22 @@ type Resource struct {
 
 	Spec   ResourceSpec   `json:"spec,omitempty"`
 	Status ResourceStatus `json:"status,omitempty"`
+}
+
+// GetConditions returns the conditions of the Resource.
+func (in *Resource) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the conditions of the Resource.
+func (in *Resource) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
+}
+
+// GetRequeueAfter returns the duration after which the Resource must be
+// reconciled again.
+func (in Resource) GetRequeueAfter() time.Duration {
+	return in.Spec.Interval.Duration
 }
 
 //+kubebuilder:object:root=true
