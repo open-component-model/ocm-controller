@@ -6,6 +6,7 @@ on:
       - 'CODE_OF_CONDUCT.md'
       - 'README.md'
       - 'Contributing.md'
+  workflow_call:
 
   push:
     branches:
