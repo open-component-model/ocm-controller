@@ -19,14 +19,53 @@ type MutationSpec struct {
 	// +required
 	Source Source `json:"source"`
 
-	// +required
-	ConfigRef ConfigReference `json:"configRef"`
+	// +optional
+	ConfigRef *ConfigReference `json:"configRef,omitempty"`
 
 	// +required
 	SnapshotTemplate SnapshotTemplateSpec `json:"snapshotTemplate"`
 
 	// +optional
 	Values map[string]string `json:"values,omitempty"`
+
+	// +optional
+	PatchStrategicMerge *PatchStrategicMerge `json:"patchStrategicMerge,omitempty"`
+}
+
+// PatchStrategicMerge contains the source and target details required to perform a strategic merge
+type PatchStrategicMerge struct {
+	// +required
+	Source PatchStrategicMergeSource `json:"source"`
+
+	// +required
+	Target PatchStrategicMergeTarget `json:"target"`
+}
+
+// PatchStrategicMergeSource contains the details required to retrieve the source from a Flux source
+type PatchStrategicMergeSource struct {
+	// +required
+	SourceRef PatchStrategicMergeSourceRef `json:"sourceRef"`
+
+	// +required
+	Path string `json:"path"`
+}
+
+// PatchStrategicMergeSourceRef contains the flux source identity metadata
+type PatchStrategicMergeSourceRef struct {
+	// +kubebuilder:validation:Enum=OCIRepository;GitRepository;Bucket
+	// +required
+	Kind string `json:"kind"`
+
+	// +required
+	Name string `json:"name"`
+
+	// +required
+	Namespace string `json:"namespace"`
+}
+
+// PatchStrategicMergeTarget provides details about the merge target
+type PatchStrategicMergeTarget struct {
+	Path string `json:"path"`
 }
 
 // MutationStatus defines a common status for Localizations and Configurations.

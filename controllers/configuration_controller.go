@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fluxcd/pkg/runtime/patch"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -41,6 +41,8 @@ type ConfigurationReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations/finalizers,verbs=update
+
+//+kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories;buckets;ocirepositories,verbs=get;list;watch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -103,7 +105,9 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		return ctrl.Result{RequeueAfter: obj.Spec.GetRequeueAfter()}, err
 	}
 	obj.Status.LatestSnapshotDigest = digest
-	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
+	if obj.Spec.ConfigRef != nil {
+		obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
+	}
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
 	if err := patchHelper.Patch(ctx, obj); err != nil {

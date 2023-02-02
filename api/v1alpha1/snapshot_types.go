@@ -13,10 +13,13 @@ import (
 )
 
 const (
-	ComponentNameKey    = "component-name"
-	ComponentVersionKey = "component-version"
-	ResourceNameKey     = "resource-name"
-	ResourceVersionKey  = "resource-version"
+	ComponentNameKey          = "component-name"
+	ComponentVersionKey       = "component-version"
+	ResourceNameKey           = "resource-name"
+	ResourceVersionKey        = "resource-version"
+	SourceNameKey             = "source-name"
+	SourceNamespaceKey        = "source-namespace"
+	SourceArtifactChecksumKey = "source-artifact-checksum"
 )
 
 // SnapshotSpec defines the desired state of Snapshot

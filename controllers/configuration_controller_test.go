@@ -1,21 +1,29 @@
 package controllers
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/onsi/gomega/ghttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
@@ -54,6 +62,7 @@ type configurationTestCase struct {
 	componentDescriptor func() *v1alpha1.ComponentDescriptor
 	snapshot            func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot
 	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.Source
+	patchStrategicMerge func(cfg *v1alpha1.Configuration, source client.Object, filename string) *v1alpha1.Configuration
 	expectError         string
 }
 
@@ -505,6 +514,76 @@ configuration:
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
 			},
 		},
+		{
+			name: "it performs a strategic merge",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			patchStrategicMerge: func(cfg *v1alpha1.Configuration, source client.Object, filename string) *v1alpha1.Configuration {
+				cfg.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
+					Source: v1alpha1.PatchStrategicMergeSource{
+						SourceRef: v1alpha1.PatchStrategicMergeSourceRef{
+							Kind:      "GitRepository",
+							Name:      source.GetName(),
+							Namespace: source.GetNamespace(),
+						},
+						Path: filename,
+					},
+					Target: v1alpha1.PatchStrategicMergeTarget{
+						Path: "merge-target/merge-target.yaml",
+					},
+				}
+				cfg.Spec.ConfigRef = nil
+				return cfg
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				identity := v1alpha1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Spec.Component,
+					v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
+					v1alpha1.ResourceNameKey:     resource.Spec.Resource.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.Resource.Version,
+				}
+				sourceSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-snapshot",
+						Namespace: cv.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{
+						Identity: identity,
+					},
+				}
+				return sourceSnapshot
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
+				return v1alpha1.Source{
+					SourceRef: &meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "Snapshot",
+						Name:       snapshot.Name,
+						Namespace:  snapshot.Namespace,
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "merge-target.tar.gz"))
+				require.NoError(t, err)
+				fakeCache.FetchDataByDigestReturns(content, nil)
+				fakeOcm.GetResourceReturnsOnCall(0, nil, nil)
+				fakeOcm.GetResourceReturnsOnCall(1, nil, nil)
+			},
+		},
 	}
 	for i, tt := range testCases {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
@@ -515,10 +594,26 @@ configuration:
 			source := tt.source(snapshot)
 			configuration := DefaultConfiguration.DeepCopy()
 			configuration.Spec.Source = source
+
 			objs := []client.Object{cv, resource, cd, configuration}
+
 			if snapshot != nil {
 				objs = append(objs, snapshot)
 			}
+
+			if tt.patchStrategicMerge != nil {
+				path := "/file.tar.gz"
+				server := ghttp.NewServer()
+				server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
+					http.ServeFile(writer, request, "testdata/patch-repo.tar.gz")
+				})
+				checksum := "2f49fe50940c8c5918102070fc963e670d89fa242f77958d32c295b396a6539e"
+				gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
+				configuration = tt.patchStrategicMerge(configuration, gitRepo, "sites/eu-west-1/deployment.yaml")
+				objs = append(objs, gitRepo)
+				sourcev1.AddToScheme(env.scheme)
+			}
+
 			client := env.FakeKubeClient(WithObjets(objs...))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
@@ -537,26 +632,101 @@ configuration:
 			} else {
 				require.NoError(t, err)
 				t.Log("check if target snapshot has been created and cache was called")
+
 				snapshotOutput := &v1alpha1.Snapshot{}
 				err = client.Get(context.Background(), types.NamespacedName{
 					Namespace: configuration.Namespace,
 					Name:      configuration.Spec.SnapshotTemplate.Name,
 				}, snapshotOutput)
 				require.NoError(t, err)
-				args := cache.PushDataCallingArgumentsOnCall(0)
-				data, name, version := args[0], args[1], args[2]
-				assert.Equal(t, "sha-1009814895297045910", name)
-				assert.Equal(t, "999", version)
 
-				t.Log("extracting the passed in data and checking if the configuration worked")
-				require.NoError(t, err)
-				assert.Contains(
-					t,
-					data.(string),
-					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
-					"the configuration data should have been applied",
-				)
+				if tt.patchStrategicMerge != nil {
+					t.Log("verifying that the strategic merge was performed")
+					args := cache.PushDataCallingArgumentsOnCall(0)
+					data := args[0].(string)
+					sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(data))), "merge-target.yaml")
+					deployment := appsv1.Deployment{}
+					err = yaml.Unmarshal(sourceFile, &deployment)
+					assert.NoError(t, err)
+					assert.Equal(t, int32(2), *deployment.Spec.Replicas, "has correct number of replicas")
+					assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Containers), "has correct number of containers")
+					assert.Equal(t, corev1.PullPolicy("Always"), deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy)
+				} else {
+					t.Log("extracting the passed in data and checking if the configuration worked")
+					args := cache.PushDataCallingArgumentsOnCall(0)
+					data, name, version := args[0], args[1], args[2]
+					assert.Equal(t, "999", version)
+					assert.Equal(t, "sha-1009814895297045910", name)
+					assert.Contains(
+						t,
+						data.(string),
+						"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
+						"the configuration data should have been applied",
+					)
+				}
 			}
 		})
 	}
+}
+
+func createGitRepository(name, namespace, artifactURL, checksum string) *sourcev1.GitRepository {
+	updatedTime := time.Now()
+	return &sourcev1.GitRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: sourcev1.GitRepositorySpec{
+			URL: "https://github.com/" + namespace + "/" + name,
+			Reference: &sourcev1.GitRepositoryRef{
+				Branch: "master",
+			},
+			Interval:          metav1.Duration{Duration: time.Second * 30},
+			GitImplementation: "go-git",
+		},
+		Status: sourcev1.GitRepositoryStatus{
+			ObservedGeneration: int64(1),
+			Conditions: []metav1.Condition{
+				{
+					Type:               "Ready",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: updatedTime},
+					Reason:             "GitOperationSucceed",
+					Message:            "Fetched revision: master/b8e362c206e3d0cbb7ed22ced771a0056455a2fb",
+				},
+			},
+			URL: artifactURL,
+			Artifact: &sourcev1.Artifact{
+				Path:           "gitrepository/flux-system/test-tf-controller/b8e362c206e3d0cbb7ed22ced771a0056455a2fb.tar.gz",
+				URL:            artifactURL,
+				Revision:       "master/b8e362c206e3d0cbb7ed22ced771a0056455a2fb",
+				Checksum:       checksum,
+				LastUpdateTime: metav1.Time{Time: updatedTime},
+			},
+		},
+	}
+}
+
+func extractFileFromTarGz(t *testing.T, data io.Reader, filename string) []byte {
+	tarReader := tar.NewReader(data)
+
+	result := &bytes.Buffer{}
+
+	for {
+		header, err := tarReader.Next()
+
+		if err == io.EOF {
+			break
+		}
+
+		assert.NoError(t, err)
+
+		if filepath.Base(header.Name) == filename {
+			_, err := io.Copy(result, tarReader)
+			assert.NoError(t, err)
+			break
+		}
+	}
+
+	return result.Bytes()
 }

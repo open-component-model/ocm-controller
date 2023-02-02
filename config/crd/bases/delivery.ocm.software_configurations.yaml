@@ -112,6 +112,52 @@ spec:
                 type: object
               interval:
                 type: string
+              patchStrategicMerge:
+                description: PatchStrategicMerge contains the source and target details
+                  required to perform a strategic merge
+                properties:
+                  source:
+                    description: PatchStrategicMergeSource contains the details required
+                      to retrieve the source from a Flux source
+                    properties:
+                      path:
+                        type: string
+                      sourceRef:
+                        description: PatchStrategicMergeSourceRef contains the flux
+                          source identity metadata
+                        properties:
+                          kind:
+                            enum:
+                            - OCIRepository
+                            - GitRepository
+                            - Bucket
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        required:
+                        - kind
+                        - name
+                        - namespace
+                        type: object
+                    required:
+                    - path
+                    - sourceRef
+                    type: object
+                  target:
+                    description: PatchStrategicMergeTarget provides details about
+                      the merge target
+                    properties:
+                      path:
+                        type: string
+                    required:
+                    - path
+                    type: object
+                required:
+                - source
+                - target
+                type: object
               snapshotTemplate:
                 description: SnapshotTemplateSpec defines the template used to create
                   snapshots
@@ -192,7 +238,6 @@ spec:
                 type: object
             required:
             - componentVersionRef
-            - configRef
             - interval
             - snapshotTemplate
             - source

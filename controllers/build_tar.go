@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// BuildTar is a modified version of https://github.com/fluxcd/pkg/blob/2ee90dd5b2ec033f44881f160e29584cceda8f37/oci/client/build.go
-func BuildTar(artifactPath, sourceDir string) error {
+// buildTar is a modified version of https://github.com/fluxcd/pkg/blob/2ee90dd5b2ec033f44881f160e29584cceda8f37/oci/client/build.go
+func buildTar(artifactPath, sourceDir string) error {
 	if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
 		return fmt.Errorf("invalid source dir path: %s", sourceDir)
 	}

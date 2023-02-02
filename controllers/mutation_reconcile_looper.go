@@ -15,17 +15,16 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
@@ -91,142 +90,59 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 		return "", fmt.Errorf("resource data cannot be empty")
 	}
 
-	// get config resource
-	config := &configdata.ConfigData{}
-	// TODO: allow for snapshots to be sources here. The chain could be working on an already modified source.
-	resourceRef := spec.ConfigRef.Resource.ResourceRef
-	if resourceRef == nil {
-		return "",
-			fmt.Errorf("resource ref is empty for config ref")
-	}
-	reader, _, err := m.OCMClient.GetResource(ctx, componentVersion, *resourceRef)
-	if err != nil {
-		return "",
-			fmt.Errorf("failed to get resource: %w", err)
-	}
-	defer reader.Close()
+	var (
+		identity  v1alpha1.Identity
+		sourceDir string
+	)
 
-	// This content might be Tarred up by OCM.
-	uncompressed, _, err := compression.AutoDecompress(reader)
-	if err != nil {
-		return "", fmt.Errorf("failed to auto decompress: %w", err)
-	}
-	defer uncompressed.Close()
-
-	content, err := io.ReadAll(uncompressed)
-	if err != nil {
-		return "", fmt.Errorf("failed to read blob: %w", err)
-	}
-
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
-		return "",
-			fmt.Errorf("failed to unmarshal content: %w", err)
-	}
-
-	log.Info("preparing localization substitutions")
-
-	componentDescriptor, err := component.GetComponentDescriptor(ctx, m.Client, spec.ConfigRef.Resource.ResourceRef.ReferencePath, componentVersion.Status.ComponentDescriptor)
-	if err != nil {
-		return "", fmt.Errorf("failed to get component descriptor from version")
-	}
-	if componentDescriptor == nil {
-		return "", fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", spec.ConfigRef.Resource.ResourceRef.ReferencePath)
-	}
-
-	var rules localize.Substitutions
-	if spec.Values != nil {
-		rules, err = m.createSubstitutionRulesForConfigurationValues(spec, *config)
+	if spec.ConfigRef != nil {
+		virtualFS, err := osfs.NewTempFileSystem()
 		if err != nil {
-			return "", fmt.Errorf("failed to create configuration values for config '%s': %w", config.Name, err)
+			return "", fmt.Errorf("fs error: %w", err)
 		}
-	} else {
-		rules, err = m.createSubstitutionRulesForLocalization(ctx, *componentDescriptor, *config)
+		defer vfs.Cleanup(virtualFS)
+
+		if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
+			return "", fmt.Errorf("extract tar error: %w", err)
+		}
+
+		fi, err := virtualFS.Stat("/")
 		if err != nil {
-			return "", fmt.Errorf("failed to create localization values for config '%s': %w", config.Name, err)
+			return "", fmt.Errorf("fs error: %w", err)
+		}
+
+		sourceDir = filepath.Join(os.TempDir(), fi.Name())
+
+		var rules localize.Substitutions
+		rules, identity, err = m.generateSubstRules(ctx, componentVersion, spec)
+		if err != nil {
+			return "", err
+		}
+
+		if len(rules) == 0 {
+			log.Info("no rules generated from the available config data; the generate snapshot will have no modifications")
+		}
+
+		if err := localize.Substitute(rules, virtualFS); err != nil {
+			return "", fmt.Errorf("localization substitution failed: %w", err)
 		}
 	}
 
-	if len(rules) == 0 {
-		log.Info("no rules generated from the available config data; the generate snapshot will have no modifications")
-	}
-
-	virtualFS, err := osfs.NewTempFileSystem()
-	if err != nil {
-		return "", fmt.Errorf("fs error: %w", err)
-	}
-	defer vfs.Cleanup(virtualFS)
-
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
-		return "", fmt.Errorf("extract tar error: %w", err)
-	}
-
-	if err := localize.Substitute(rules, virtualFS); err != nil {
-		return "", fmt.Errorf("localization substitution failed: %w", err)
-	}
-
-	fi, err := virtualFS.Stat("/")
-	if err != nil {
-		return "", fmt.Errorf("fs error: %w", err)
-	}
-
-	sourceDir := filepath.Join(os.TempDir(), fi.Name())
-
-	artifactPath, err := os.CreateTemp("", "snapshot-artifact-*.tgz")
-	if err != nil {
-		return "", fmt.Errorf("fs error: %w", err)
-	}
-	defer os.Remove(artifactPath.Name())
-
-	if err := BuildTar(artifactPath.Name(), sourceDir); err != nil {
-		return "", fmt.Errorf("build tar error: %w", err)
-	}
-
-	version := resourceRef.Version
-	if version == "" {
-		version = "latest"
-	}
-
-	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
-	// find it later on.
-	identity := v1alpha1.Identity{
-		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
-		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
-		v1alpha1.ResourceNameKey:     resourceRef.Name,
-		v1alpha1.ResourceVersionKey:  version,
-	}
-	snapshotDigest, err := m.writeToCache(ctx, identity, artifactPath.Name(), obj.GetResourceVersion())
-	if err != nil {
-		return "", err
-	}
-
-	snapshotCR := &v1alpha1.Snapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      spec.SnapshotTemplate.Name,
-		},
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, m.Client, snapshotCR, func() error {
-		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
-			if err := controllerutil.SetOwnerReference(obj, snapshotCR, m.Scheme); err != nil {
-				return fmt.Errorf("failed to set owner reference on snapshot: %w", err)
-			}
+	if spec.PatchStrategicMerge != nil {
+		tmpDir, err := os.MkdirTemp("", "kustomization-")
+		if err != nil {
+			err = fmt.Errorf("tmp dir error: %w", err)
+			return "", err
 		}
-		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Identity:         identity,
-			CreateFluxSource: spec.SnapshotTemplate.CreateFluxSource,
-			Digest:           snapshotDigest,
-			Tag:              obj.GetResourceVersion(),
-		}
-		return nil
-	})
+		defer os.RemoveAll(tmpDir)
 
-	if err != nil {
-		return "",
-			fmt.Errorf("failed to create or update component descriptor: %w", err)
+		sourceDir, identity, err = m.strategicMergePatch(ctx, spec, resourceData, tmpDir)
+		if err != nil {
+			return "", err
+		}
 	}
 
-	return snapshotDigest, nil
+	return m.writeSnapshot(ctx, spec.SnapshotTemplate, obj, sourceDir, identity)
 }
 
 func (m *MutationReconcileLooper) writeToCache(ctx context.Context, identity v1alpha1.Identity, artifactPath string, version string) (string, error) {
@@ -570,4 +486,30 @@ func getStructFieldValue(v *cue.Struct, field string) (string, error) {
 		return "", err
 	}
 	return f.Value.String()
+}
+
+func (m *MutationReconcileLooper) getSource(ctx context.Context, ref v1alpha1.PatchStrategicMergeSourceRef) (sourcev1.Source, error) {
+	var obj client.Object
+	switch ref.Kind {
+	case sourcev1.GitRepositoryKind:
+		obj = &sourcev1.GitRepository{}
+	case sourcev1.BucketKind:
+		obj = &sourcev1.Bucket{}
+	case sourcev1.OCIRepositoryKind:
+		obj = &sourcev1.OCIRepository{}
+	default:
+		return nil, fmt.Errorf("source `%s` kind '%s' not supported", ref.Name, ref.Kind)
+	}
+
+	key := types.NamespacedName{
+		Name:      ref.Name,
+		Namespace: ref.Namespace,
+	}
+
+	err := m.Client.Get(ctx, key, obj)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get source '%s': %w", key, err)
+	}
+
+	return obj.(sourcev1.Source), nil
 }
