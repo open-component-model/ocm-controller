@@ -115,7 +115,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 
 		sourceDir = filepath.Join(os.TempDir(), fi.Name())
 
-		rules, identity, err = m.generateSubstRules(ctx, componentVersion, spec, resourceData)
+		rules, identity, err = m.generateSubstRules(ctx, componentVersion, spec)
 		if err != nil {
 			return "", err
 		}

@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (m *MutationReconcileLooper) generateSubstRules(ctx context.Context, cv *v1alpha1.ComponentVersion, spec v1alpha1.MutationSpec, resource []byte) (localize.Substitutions, v1alpha1.Identity, error) {
+func (m *MutationReconcileLooper) generateSubstRules(ctx context.Context, cv *v1alpha1.ComponentVersion, spec v1alpha1.MutationSpec) (localize.Substitutions, v1alpha1.Identity, error) {
 	log := log.FromContext(ctx)
 
 	config := &configdata.ConfigData{}
