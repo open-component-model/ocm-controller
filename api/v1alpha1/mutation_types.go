@@ -43,8 +43,11 @@ type PatchStrategicMerge struct {
 
 // PatchStrategicMergeSource contains the details required to retrieve the source from a Flux source
 type PatchStrategicMergeSource struct {
+	// +required
 	SourceRef PatchStrategicMergeSourceRef `json:"sourceRef"`
-	Path      string                       `json:"path"`
+
+	// +required
+	Path string `json:"path"`
 }
 
 // PatchStrategicMergeSourceRef contains the flux source identity metadata
@@ -56,8 +59,8 @@ type PatchStrategicMergeSourceRef struct {
 	// +required
 	Name string `json:"name"`
 
-	// +optional
-	Namespace string `json:"namespace,omitempty"`
+	// +required
+	Namespace string `json:"namespace"`
 }
 
 // PatchStrategicMergeTarget provides details about the merge target

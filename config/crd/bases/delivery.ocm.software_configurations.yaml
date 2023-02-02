@@ -139,6 +139,7 @@ spec:
                         required:
                         - kind
                         - name
+                        - namespace
                         type: object
                     required:
                     - path
