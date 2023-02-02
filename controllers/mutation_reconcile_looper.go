@@ -489,18 +489,6 @@ func getStructFieldValue(v *cue.Struct, field string) (string, error) {
 }
 
 func (m *MutationReconcileLooper) getSource(ctx context.Context, ref v1alpha1.PatchStrategicMergeSourceRef) (sourcev1.Source, error) {
-	get := func(obj client.Object) error {
-		key := types.NamespacedName{
-			Name:      ref.Name,
-			Namespace: ref.Namespace,
-		}
-		err := m.Client.Get(ctx, key, obj)
-		if err != nil {
-			return fmt.Errorf("unable to get source '%s': %w", key, err)
-		}
-		return nil
-	}
-
 	var obj client.Object
 	switch ref.Kind {
 	case sourcev1.GitRepositoryKind:
@@ -513,10 +501,15 @@ func (m *MutationReconcileLooper) getSource(ctx context.Context, ref v1alpha1.Pa
 		return nil, fmt.Errorf("source `%s` kind '%s' not supported", ref.Name, ref.Kind)
 	}
 
-	if err := get(obj); err != nil {
-		return nil, fmt.Errorf("unable to get source '%s': %w", ref, err)
+	key := types.NamespacedName{
+		Name:      ref.Name,
+		Namespace: ref.Namespace,
+	}
+
+	err := m.Client.Get(ctx, key, obj)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get source '%s': %w", key, err)
 	}
 
 	return obj.(sourcev1.Source), nil
-}
 }
