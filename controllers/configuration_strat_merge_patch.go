@@ -29,11 +29,6 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context, spec 
 		return "", nil, err
 	}
 
-	dirPath, err := securejoin.SecureJoin(workDir, spec.PatchStrategicMerge.Source.Path)
-	if err != nil {
-		return "", nil, err
-	}
-
 	gzipSnapshot := &bytes.Buffer{}
 	gz := gzip.NewWriter(gzipSnapshot)
 	if _, err := gz.Write(resource); err != nil {
@@ -61,7 +56,7 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context, spec 
 			Kind:       kustypes.KustomizationKind,
 		},
 		Resources: []string{
-			filepath.Base(dirPath),
+			spec.PatchStrategicMerge.Source.Path,
 		},
 		PatchesStrategicMerge: []kustypes.PatchStrategicMerge{
 			kustypes.PatchStrategicMerge(spec.PatchStrategicMerge.Target.Path),

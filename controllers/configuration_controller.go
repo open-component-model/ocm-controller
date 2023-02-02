@@ -42,6 +42,8 @@ type ConfigurationReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations/finalizers,verbs=update
 
+//+kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories;buckets;ocirepositories,verbs=get;list;watch
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	snapshotSourceKey := ".metadata.snapshot.source"

@@ -607,9 +607,9 @@ configuration:
 				server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
 					http.ServeFile(writer, request, "testdata/patch-repo.tar.gz")
 				})
-				checksum := "fa58102409fc993ca8010e7ad276cffe22cf2414c17b53778618c27ba0980f2a"
+				checksum := "2f49fe50940c8c5918102070fc963e670d89fa242f77958d32c295b396a6539e"
 				gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
-				configuration = tt.patchStrategicMerge(configuration, gitRepo, "deployment.yaml")
+				configuration = tt.patchStrategicMerge(configuration, gitRepo, "sites/eu-west-1/deployment.yaml")
 				objs = append(objs, gitRepo)
 				sourcev1.AddToScheme(env.scheme)
 			}
