@@ -22,7 +22,6 @@ require (
 	github.com/fluxcd/pkg/tar v0.2.0
 	github.com/fluxcd/source-controller/api v0.33.0
 	github.com/google/go-containerregistry v0.12.0
-	github.com/hashicorp/go-retryablehttp v0.7.2
 	github.com/mandelsoft/spiff v1.7.0-beta-3
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31
 	github.com/mitchellh/hashstructure v1.1.0
@@ -38,6 +37,7 @@ require (
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
 	sigs.k8s.io/controller-runtime v0.14.1
+	sigs.k8s.io/kustomize/api v0.12.1
 )
 
 require (
@@ -102,6 +102,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hclog v1.2.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
@@ -140,7 +141,6 @@ require (
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 	google.golang.org/genproto v0.0.0-20220920201722-2b89144ce006 // indirect
 	google.golang.org/grpc v1.49.0 // indirect
-	sigs.k8s.io/kustomize/api v0.12.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
 )
 
@@ -189,7 +189,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.26.1
 	k8s.io/apiextensions-apiserver v0.26.1 // indirect
