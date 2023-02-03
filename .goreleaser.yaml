@@ -28,4 +28,6 @@ changelog:
       - '^docs:'
       - '^test:'
 dockers:
-  - image_templates: ["{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:{{ .Version }}-{{ .Arch }}"]
+  - image_templates: ["{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:{{ .Version }}"]
+    build_flag_templates:
+    - "--platform=linux/amd64"
