@@ -37,7 +37,6 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
-	sigs.k8s.io/cluster-api v1.3.3
 	sigs.k8s.io/controller-runtime v0.14.1
 	sigs.k8s.io/kustomize/api v0.12.1
 )
@@ -65,7 +64,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.17.2 // indirect
 	github.com/aws/smithy-go v1.13.4 // indirect
-	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cockroachdb/apd/v2 v2.0.1 // indirect
 	github.com/containerd/containerd v1.6.12 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.12.1 // indirect
@@ -93,7 +91,6 @@ require (
 	github.com/fvbommel/sortorder v1.0.2 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
-	github.com/gobuffalo/flect v0.3.0 // indirect
 	github.com/goccy/go-yaml v1.9.5 // indirect
 	github.com/gomodule/redigo v1.8.2 // indirect
 	github.com/google/go-github/v45 v45.2.0 // indirect
@@ -128,7 +125,9 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
+	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/cobra v1.6.1 // indirect
+	github.com/spf13/viper v1.13.0 // indirect
 	github.com/theupdateframework/notary v0.7.0 // indirect
 	github.com/tonglil/buflogr v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect

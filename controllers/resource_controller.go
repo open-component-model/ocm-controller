@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -250,19 +249,6 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return
 	}
 
-<<<<<<< HEAD
-=======
-	newSnapshot := snapshotCR.DeepCopy()
-	newSnapshot.Status.Digest = digest
-	newSnapshot.Status.Tag = version
-	if err := patchObject(ctx, r.Client, snapshotCR, newSnapshot); err != nil {
-		err = fmt.Errorf("failed to patch snapshot: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.PatchSnapshotFailedReason, err.Error())
-		result, retErr = ctrl.Result{}, err
-		return
-	}
-
->>>>>>> e13fc8f (initial commit of conditions in all controllers)
 	log.Info("successfully pushed resource", "resource", obj.Spec.Resource.Name)
 	obj.Status.LastAppliedResourceVersion = obj.Spec.Resource.Version
 	obj.Status.ObservedGeneration = obj.GetGeneration()

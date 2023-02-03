@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/source-controller/api/v1beta2"
@@ -17,7 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
-	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -128,7 +128,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	obj.Status.LastReconciledDigest = obj.Spec.Digest
 	obj.Status.LastReconciledTag = obj.Spec.Tag
 	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, name)
-	conditions.MarkTrue(obj, v1alpha1.SnapshotReady, v1alpha1.SnapshotReadyReason, "Snapshot with name '%s' is ready", obj.Name)
+	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", obj.Name)
 
 	return ctrl.Result{}, nil
 }
