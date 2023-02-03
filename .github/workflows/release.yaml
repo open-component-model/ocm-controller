@@ -22,7 +22,9 @@ jobs:
     name: Trigger release build
     runs-on: ubuntu-latest
     permissions:
-      contents: read|write
+      contents: 'write'
+      id-token: 'write'
+      pull-requests: 'write'
     steps:
     - name: Checkout
       uses: actions/checkout@v3
