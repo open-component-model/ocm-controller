@@ -65,8 +65,8 @@ type ComponentVersionSpec struct {
 	// +required
 	Repository Repository `json:"repository"`
 
-	// +required
-	Verify []Signature `json:"verify"`
+	// +optional
+	Verify []Signature `json:"verify,omitempty"`
 
 	// +optional
 	References ReferencesConfig `json:"references,omitempty"`
