@@ -11,6 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  DOCKERFILE: ${{ github.workspace }}/goreleaser.dockerfile
 
 jobs:
   tests:

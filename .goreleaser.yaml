@@ -10,6 +10,8 @@ builds:
     goos:
       - linux
       - darwin
+    goarch:
+      - amd64
 archives:
   - name_template: >-
       {{ .ProjectName }}_
@@ -29,11 +31,14 @@ changelog:
       - '^test:'
 # for more information on what this target does: https://goreleaser.com/errors/docker-build/
 dockers:
-  - image_templates: ["{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:{{ .Version }}"]
+  - id: linux-build
+    image_templates:
+    - "{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:{{ .Tag }}"
+    - "{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:latest"
     # GOOS of the built binary that should be used.
     goos: linux
     # GOARCH of the built binary that should be used.
     goarch: amd64
-    dockerfile: goreleaser.dockerfile
+    dockerfile: "{{ .Env.DOCKERFILE }}"
     build_flag_templates:
     - "--platform=linux/amd64"
