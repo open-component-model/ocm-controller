@@ -27,7 +27,13 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+# for more information on what this target does: https://goreleaser.com/errors/docker-build/
 dockers:
   - image_templates: ["{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:{{ .Version }}"]
+    # GOOS of the built binary that should be used.
+    goos: linux
+    # GOARCH of the built binary that should be used.
+    goarch: amd64
+    dockerfile: goreleaser.dockerfile
     build_flag_templates:
     - "--platform=linux/amd64"
