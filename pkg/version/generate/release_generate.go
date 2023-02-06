@@ -11,7 +11,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/open-component-model/ocm/pkg/version"
+	"github.com/open-component-model/ocm-controller/pkg/version"
 )
 
 func main() {
