@@ -12,6 +12,7 @@ replace github.com/spf13/pflag => github.com/mandelsoft/pflag v0.0.0-20221103113
 require (
 	cuelang.org/go v0.4.3
 	github.com/Masterminds/semver v1.5.0
+	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/containers/image/v5 v5.21.1
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
@@ -42,7 +43,6 @@ require (
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
 	github.com/Microsoft/hcsshim v0.9.5 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.17.1 // indirect

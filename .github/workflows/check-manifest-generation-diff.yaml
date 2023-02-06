@@ -15,6 +15,9 @@ jobs:
     - name: Make manifests && generate
       run: |
         make manifests && make generate
+    - name: go mod tidy
+      run: |
+        go mod tidy
     - name: Check for diff
       run: |
         git diff --exit-code --shortstat
