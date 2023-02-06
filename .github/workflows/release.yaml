@@ -17,6 +17,7 @@ jobs:
     uses: ./.github/workflows/tests.yaml
     permissions:
       contents: read
+      pull-requests: 'read'
   release:
     needs: tests
     name: Trigger release build
@@ -24,7 +25,8 @@ jobs:
     permissions:
       contents: 'write'
       id-token: 'write'
-      pull-requests: 'write'
+      pull-requests: 'read'
+      repository-projects: read
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -91,7 +93,7 @@ jobs:
       with:
         distribution: goreleaser
         version: latest
-        args: release --rm-dist --timeout 60m --skip-validate --config=./.goreleaser.yaml --release-notes=${{ env.RELEASE_NOTES_FILE }}
+        args: release --clean --timeout 60m --skip-validate --config=./.goreleaser.yaml --release-notes=${{ env.RELEASE_NOTES_FILE }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GORELEASER_CURRENT_TAG: ${{ env.RELEASE_VERSION }}
