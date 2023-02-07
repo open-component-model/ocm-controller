@@ -188,12 +188,6 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (result ctrl.Result, retErr error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
-	patchHelper, err := patch.NewHelper(obj, r.Client)
-	if err != nil {
-		result, retErr = ctrl.Result{}, err
-		return
-	}
-
 	defer func() {
 		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
@@ -229,13 +223,9 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
 
 	if obj.Generation != obj.Status.ObservedGeneration {
+		// don't have to patch here since we patch the object in the outer reconcile call.
 		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
 			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
-
-		if err := patchHelper.Patch(ctx, obj); err != nil {
-			result, retErr = ctrl.Result{}, err
-			return
-		}
 	}
 
 	// get component version

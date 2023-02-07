@@ -114,13 +114,6 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Configuration) (result ctrl.Result, retErr error) {
-	// Initialize the patch helper.
-	patchHelper, err := patch.NewHelper(obj, r.Client)
-	if err != nil {
-		result, retErr = ctrl.Result{}, err
-		return
-	}
-
 	defer func() {
 		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
@@ -158,11 +151,6 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 	if obj.Generation != obj.Status.ObservedGeneration {
 		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
 			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
-
-		if err := patchHelper.Patch(ctx, obj); err != nil {
-			result, retErr = ctrl.Result{}, err
-			return
-		}
 	}
 
 	mutationLooper := MutationReconcileLooper{
