@@ -104,6 +104,8 @@ type ComponentVersionStatus struct {
 	Verified          bool   `json:"verified,omitempty"`
 
 	// +optional
+	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+	// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// ObservedGeneration is the last reconciled generation.

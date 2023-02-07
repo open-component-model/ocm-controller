@@ -76,7 +76,10 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var retErr error
+	var (
+		retErr error
+		result = &ctrl.Result{}
+	)
 	log := log.FromContext(ctx).WithName("configuration-controller")
 
 	obj := &v1alpha1.Configuration{}
@@ -95,25 +98,6 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// Always attempt to patch the object and status after each reconciliation.
-	defer func() {
-		// Set status observed generation option if the object is stalled or ready.
-		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
-			obj.Status.ObservedGeneration = obj.Generation
-		}
-
-		if err := patchHelper.Patch(ctx, obj); err != nil {
-			retErr = errors.Join(retErr, err)
-		}
-	}()
-
-	log.Info("reconciling configuration")
-
-	var result ctrl.Result
-	result, retErr = r.reconcile(ctx, obj)
-	return result, retErr
-}
-
-func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Configuration) (result ctrl.Result, retErr error) {
 	defer func() {
 		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
@@ -144,8 +128,24 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 			retErr == nil && result.RequeueAfter == obj.GetRequeueAfter() {
 			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
 		}
+
+		// Set status observed generation option if the object is stalled or ready.
+		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
+			obj.Status.ObservedGeneration = obj.Generation
+		}
+
+		if err := patchHelper.Patch(ctx, obj); err != nil {
+			retErr = errors.Join(retErr, err)
+		}
 	}()
 
+	log.Info("reconciling configuration")
+
+	*result, retErr = r.reconcile(ctx, obj)
+	return *result, retErr
+}
+
+func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Configuration) (ctrl.Result, error) {
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
 
 	if obj.Generation != obj.Status.ObservedGeneration {
@@ -165,8 +165,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		err = fmt.Errorf("could not reconcile mutation object: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
-		result, retErr = ctrl.Result{}, err
-		return
+		return ctrl.Result{}, err
 	}
 
 	conditions.Delete(obj, meta.StalledCondition)
@@ -181,9 +180,8 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 	// is derived from the overall result of the reconciliation in the deferred
 	// block at the very end.
 	conditions.Delete(obj, meta.ReadyCondition)
-
-	result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-	return
+	
+	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
 func (r *ConfigurationReconciler) requestsForRevisionChangeOf(indexKey string) func(obj client.Object) []reconcile.Request {

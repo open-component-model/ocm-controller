@@ -67,7 +67,10 @@ func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var retErr error
+	var (
+		retErr error
+		result = &ctrl.Result{}
+	)
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	log.Info("starting ocm component loop")
@@ -75,24 +78,57 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	component := &v1alpha1.ComponentVersion{}
 	if err := r.Client.Get(ctx, req.NamespacedName, component); err != nil {
 		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			return *result, nil
 		}
 		retErr = fmt.Errorf("failed to get component object: %w", err)
-		return ctrl.Result{}, retErr
+		return *result, retErr
 	}
 
 	patchHelper, err := patch.NewHelper(component, r.Client)
 	if err != nil {
 		retErr = errors.Join(retErr, err)
-		return ctrl.Result{}, retErr
+		return *result, retErr
 	}
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		// Set status observed generation option if the object is stalled or ready.
+		if condition := conditions.Get(component, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
+			conditions.Delete(component, meta.ReconcilingCondition)
+		}
+
+		// Check if it's a successful reconciliation.
+		// We don't set Requeue in case of error, so we can safely check for Requeue.
+		if result.RequeueAfter == component.GetRequeueAfter() && !result.Requeue && retErr == nil {
+			// Remove the reconciling condition if it's set.
+			conditions.Delete(component, meta.ReconcilingCondition)
+
+			// Set the return err as the ready failure message if the resource is not ready, but also not reconciling or stalled.
+			if ready := conditions.Get(component, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(component) {
+				retErr = errors.New(conditions.GetMessage(component, meta.ReadyCondition))
+			}
+		}
+
+		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
+		// indicate that reconciliation will be retried.
+		if conditions.IsReconciling(component) {
+			reconciling := conditions.Get(component, meta.ReconcilingCondition)
+			reconciling.Reason = meta.ProgressingWithRetryReason
+			conditions.Set(component, reconciling)
+		}
+
+		// If not reconciling or stalled than mark Ready=True
+		if !conditions.IsReconciling(component) &&
+			!conditions.IsStalled(component) &&
+			retErr == nil &&
+			result.RequeueAfter == component.GetRequeueAfter() {
+			conditions.MarkTrue(component, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
+		}
+		// Set status observed generation option if the component is stalled or ready.
 		if conditions.IsStalled(component) || conditions.IsReady(component) {
 			component.Status.ObservedGeneration = component.Generation
 		}
+
+		// Update the object.
 		if err := patchHelper.Patch(ctx, component); err != nil {
 			retErr = errors.Join(retErr, err)
 		}
@@ -106,14 +142,15 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	update, version, err := r.checkVersion(ctx, component)
 	if err != nil {
 		retErr = fmt.Errorf("failed to check version: %w", err)
-		return ctrl.Result{}, retErr
+		return *result, retErr
 	}
 
 	if !update {
 		log.V(4).Info("no new version which satisfies the semver constraint detected")
-		return ctrl.Result{
+		result = &ctrl.Result{
 			RequeueAfter: component.GetRequeueAfter(),
-		}, nil
+		}
+		return *result, nil
 	}
 
 	log.Info("running verification of component")
@@ -123,7 +160,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		conditions.MarkStalled(component, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(component, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
 		retErr = err
-		return ctrl.Result{}, retErr
+		return *result, retErr
 	}
 
 	if !ok {
@@ -131,16 +168,15 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		conditions.MarkStalled(component, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(component, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
 		retErr = err
-		return ctrl.Result{}, retErr
+		return *result, retErr
 	}
 
 	// Remove stalled condition if set. If verification was successful we want to continue with the reconciliation.
 	conditions.Delete(component, meta.StalledCondition)
 
-	// Keep the return error updated. The result doesn't matter.
-	var result ctrl.Result
-	result, retErr = r.reconcile(ctx, component, version)
-	return result, retErr
+	// update the result for the defer call to have the latest information
+	*result, retErr = r.reconcile(ctx, component, version)
+	return *result, retErr
 }
 
 func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
@@ -185,40 +221,8 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	return true, latest, nil
 }
 
-func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (result ctrl.Result, retErr error) {
+func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
-
-	defer func() {
-		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
-			conditions.Delete(obj, meta.ReconcilingCondition)
-		}
-
-		// Check if it's a successful reconciliation.
-		// We don't set Requeue in case of error, so we can safely check for Requeue.
-		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && retErr == nil {
-			// Remove the reconciling condition if it's set.
-			conditions.Delete(obj, meta.ReconcilingCondition)
-
-			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
-			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
-				retErr = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
-			}
-		}
-
-		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
-		// indicate that reconciliation will be retried.
-		if conditions.IsReconciling(obj) {
-			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
-			reconciling.Reason = meta.ProgressingWithRetryReason
-			conditions.Set(obj, reconciling)
-		}
-
-		// If not reconciling or stalled than mark Ready=True
-		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
-			retErr == nil && result.RequeueAfter == obj.GetRequeueAfter() {
-			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
-		}
-	}()
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
 
@@ -233,8 +237,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 		err = fmt.Errorf("failed to get component version: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.ComponentVersionInvalidReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ComponentVersionInvalidReason, err.Error())
-		result, retErr = ctrl.Result{}, err
-		return
+		return ctrl.Result{}, err
 	}
 
 	conditions.Delete(obj, meta.StalledCondition)
@@ -246,8 +249,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	if err != nil {
 		err = fmt.Errorf("failed to convert component descriptor: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ConvertComponentDescriptorFailedReason, err.Error())
-		result, retErr = ctrl.Result{}, err
-		return
+		return ctrl.Result{}, err
 	}
 
 	// setup the component descriptor kubernetes resource
@@ -255,8 +257,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	if err != nil {
 		err = fmt.Errorf("failed to generate name: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.NameGenerationFailedReason, err.Error())
-		result, retErr = ctrl.Result{}, err
-		return
+		return ctrl.Result{}, err
 	}
 	descriptor := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -287,8 +288,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	if err != nil {
 		err = fmt.Errorf("failed to create or update component descriptor: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateComponentDescriptorFailedReason, err.Error())
-		result, retErr = ctrl.Result{}, err
-		return
+		return ctrl.Result{}, err
 	}
 
 	componentDescriptor := v1alpha1.Reference{
@@ -305,8 +305,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 		if err != nil {
 			err = fmt.Errorf("failed to parse references: %w", err)
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ParseReferencesFailedReason, err.Error())
-			result, retErr = ctrl.Result{}, err
-			return
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -320,8 +319,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	conditions.Delete(obj, meta.ReadyCondition)
 
 	log.Info("reconciliation complete")
-	result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-	return
+	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
 // parseReferences takes a list of references to embedded components and constructs a dependency tree out of them.
