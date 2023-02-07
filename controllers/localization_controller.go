@@ -87,17 +87,17 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, retErr
 	}
 
+	patchHelper, err := patch.NewHelper(obj, r.Client)
+	if err != nil {
+		retErr = errors.Join(retErr, err)
+		return ctrl.Result{}, retErr
+	}
+
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
 		// Set status observed generation option if the object is stalled or ready.
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
-		}
-
-		patchHelper, err := patch.NewHelper(obj, r.Client)
-		if err != nil {
-			retErr = errors.Join(retErr, err)
-			return
 		}
 
 		if err := patchHelper.Patch(ctx, obj); err != nil {

@@ -81,19 +81,18 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, retErr
 	}
 
+	patchHelper, err := patch.NewHelper(component, r.Client)
+	if err != nil {
+		retErr = errors.Join(retErr, err)
+		return ctrl.Result{}, retErr
+	}
+
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
 		// Set status observed generation option if the object is stalled or ready.
 		if conditions.IsStalled(component) || conditions.IsReady(component) {
 			component.Status.ObservedGeneration = component.Generation
 		}
-
-		patchHelper, err := patch.NewHelper(component, r.Client)
-		if err != nil {
-			retErr = errors.Join(retErr, err)
-			return
-		}
-
 		if err := patchHelper.Patch(ctx, component); err != nil {
 			retErr = errors.Join(retErr, err)
 		}

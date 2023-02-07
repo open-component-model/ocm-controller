@@ -67,17 +67,17 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, retErr
 	}
 
+	patchHelper, err := patch.NewHelper(resource, r.Client)
+	if err != nil {
+		retErr = errors.Join(retErr, err)
+		return ctrl.Result{}, retErr
+	}
+
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
 		// Set status observed generation option if the object is stalled or ready.
 		if conditions.IsStalled(resource) || conditions.IsReady(resource) {
 			resource.Status.ObservedGeneration = resource.Generation
-		}
-
-		patchHelper, err := patch.NewHelper(resource, r.Client)
-		if err != nil {
-			retErr = errors.Join(retErr, err)
-			return
 		}
 
 		if err := patchHelper.Patch(ctx, resource); err != nil {
