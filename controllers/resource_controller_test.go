@@ -7,9 +7,11 @@ import (
 	"testing"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
@@ -51,7 +53,12 @@ func TestResourceReconciler(t *testing.T) {
 	}
 
 	t.Log("calling reconcile on resource controller")
-	_, err := rr.reconcile(context.Background(), resource)
+	_, err := rr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: resource.Namespace,
+			Name:      resource.Name,
+		},
+	})
 	require.NoError(t, err)
 
 	t.Log("verifying generated snapshot")
@@ -77,4 +84,5 @@ func TestResourceReconciler(t *testing.T) {
 	hash, err := snapshot.Spec.Identity.Hash()
 	require.NoError(t, err)
 	assert.Equal(t, "sha-18322151501422808564", hash)
+	assert.True(t, conditions.IsTrue(resource, meta.ReadyCondition))
 }

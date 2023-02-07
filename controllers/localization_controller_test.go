@@ -11,10 +11,12 @@ import (
 	"testing"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -618,9 +620,21 @@ localization:
 				Cache:     cache,
 			}
 
-			_, err := lr.reconcile(context.Background(), localization)
+			_, err := lr.Reconcile(context.Background(), ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: localization.Namespace,
+					Name:      localization.Name,
+				},
+			})
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
+				err = client.Get(context.Background(), types.NamespacedName{
+					Namespace: localization.Namespace,
+					Name:      localization.Name,
+				}, localization)
+				require.NoError(t, err)
+
+				assert.True(t, conditions.IsFalse(localization, meta.ReadyCondition))
 			} else {
 				require.NoError(t, err)
 				t.Log("check if target snapshot has been created and cache was called")
@@ -678,6 +692,14 @@ localization:
 					"name: introspect-image-sha256-1.0.0",
 					"the custome resource spec.values should have been updated via the localization mapping",
 				)
+
+				err = client.Get(context.Background(), types.NamespacedName{
+					Namespace: localization.Namespace,
+					Name:      localization.Name,
+				}, localization)
+				require.NoError(t, err)
+
+				assert.True(t, conditions.IsTrue(localization, meta.ReadyCondition))
 			}
 		})
 	}

@@ -175,7 +175,7 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 			fmt.Errorf("failed to get component object: %w", err)
 	}
 
-	if conditions.IsFalse(srcSnapshot, v1alpha1.SnapshotReady) {
+	if conditions.IsFalse(srcSnapshot, meta.ReadyCondition) {
 		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
 		return nil, nil
 	}

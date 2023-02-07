@@ -119,7 +119,7 @@ func (t *testEnv) AddComponentVersionToRepository(component Component, resources
 
 	compvers, err := comp.NewVersion(component.Version, true)
 	if err != nil {
-		return fmt.Errorf("failed to create new version '%s': %w", component.Version, err)
+		return fmt.Errorf("failed to create new Version '%s': %w", component.Version, err)
 	}
 	defer compvers.Close()
 
@@ -142,7 +142,7 @@ func (t *testEnv) AddComponentVersionToRepository(component Component, resources
 	}
 
 	if err := comp.AddVersion(compvers); err != nil {
-		return fmt.Errorf("failed to add version: %w", err)
+		return fmt.Errorf("failed to add Version: %w", err)
 	}
 
 	if component.Sign != nil {

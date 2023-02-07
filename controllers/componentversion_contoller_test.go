@@ -9,10 +9,14 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
@@ -64,19 +68,37 @@ func TestComponentVersionReconcile(t *testing.T) {
 			},
 		},
 	}
+
 	fakeOcm := &fakes.MockFetcher{}
 	fakeOcm.VerifyComponentReturns(true, nil)
 	fakeOcm.GetComponentVersionReturnsForName(embedded.descriptor.ComponentSpec.Name, embedded, nil)
 	fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
+	fakeOcm.VerifyComponentReturns(true, nil)
+	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+
 	cvr := ComponentVersionReconciler{
 		Scheme:    env.scheme,
 		Client:    client,
 		OCMClient: fakeOcm,
 	}
-	_, err := cvr.reconcile(context.Background(), cv, "0.0.1")
-	assert.NoError(t, err)
+	_, err := cvr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      cv.Name,
+			Namespace: cv.Namespace,
+		},
+	})
+	require.NoError(t, err)
+
+	t.Log("verifying updated object status")
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      cv.Name,
+		Namespace: cv.Namespace,
+	}, cv)
+	require.NoError(t, err)
+
 	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
+	assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
 }
 
 func TestComponentVersionSemverCheck(t *testing.T) {

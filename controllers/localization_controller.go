@@ -7,12 +7,14 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/fluxcd/pkg/runtime/patch"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -24,6 +26,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
+	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
@@ -70,6 +75,11 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var (
+		retErr error
+		result = &ctrl.Result{}
+	)
+
 	log := log.FromContext(ctx).WithName("localization-controller")
 
 	obj := &v1alpha1.Localization{}
@@ -77,19 +87,70 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("failed to get localization object: %w", err)
+		retErr = fmt.Errorf("failed to get localization object: %w", err)
+		return ctrl.Result{}, retErr
 	}
+
+	patchHelper, err := patch.NewHelper(obj, r.Client)
+	if err != nil {
+		retErr = errors.Join(retErr, err)
+		return ctrl.Result{}, retErr
+	}
+
+	// Always attempt to patch the object and status after each reconciliation.
+	defer func() {
+		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
+			conditions.Delete(obj, meta.ReconcilingCondition)
+		}
+
+		// Check if it's a successful reconciliation.
+		// We don't set Requeue in case of error, so we can safely check for Requeue.
+		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && retErr == nil {
+			// Remove the reconciling condition if it's set.
+			conditions.Delete(obj, meta.ReconcilingCondition)
+
+			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
+			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
+				retErr = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
+			}
+		}
+
+		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
+		// indicate that reconciliation will be retried.
+		if conditions.IsReconciling(obj) {
+			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
+			reconciling.Reason = meta.ProgressingWithRetryReason
+			conditions.Set(obj, reconciling)
+		}
+
+		// If not reconciling or stalled than mark Ready=True
+		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
+			retErr == nil && result.RequeueAfter == obj.GetRequeueAfter() {
+			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
+		}
+
+		// Set status observed generation option if the object is stalled or ready.
+		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
+			obj.Status.ObservedGeneration = obj.Generation
+		}
+
+		if err := patchHelper.Patch(ctx, obj); err != nil {
+			retErr = errors.Join(retErr, err)
+		}
+	}()
 
 	log.Info("reconciling localization")
 
-	return r.reconcile(ctx, obj)
+	*result, retErr = r.reconcile(ctx, obj)
+	return *result, retErr
 }
 
 func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Localization) (ctrl.Result, error) {
-	// Initialize the patch helper.
-	patchHelper, err := patch.NewHelper(obj, r.Client)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: r.RetryInterval}, err
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
+
+	if obj.Generation != obj.Status.ObservedGeneration {
+		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
+			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
 	}
 
 	mutationLooper := MutationReconcileLooper{
@@ -101,19 +162,21 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 
 	digest, err := mutationLooper.ReconcileMutationObject(ctx, obj.Spec, obj)
 	if err != nil {
-		return ctrl.Result{RequeueAfter: obj.Spec.GetRequeueAfter()}, err
+		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
+		return ctrl.Result{}, err
 	}
+
 	obj.Status.LatestSnapshotDigest = digest
 	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
-	if err := patchHelper.Patch(ctx, obj); err != nil {
-		return ctrl.Result{
-			RequeueAfter: obj.Spec.GetRequeueAfter(),
-		}, fmt.Errorf("failed to patch resource and set snaphost value: %w", err)
-	}
+	// Remove any stale Ready condition, most likely False, set above. Its value
+	// is derived from the overall result of the reconciliation in the deferred
+	// block at the very end.
+	conditions.Delete(obj, meta.ReadyCondition)
 
-	return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
+	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
 func (r *LocalizationReconciler) requestsForRevisionChangeOf(indexKey string) func(obj client.Object) []reconcile.Request {

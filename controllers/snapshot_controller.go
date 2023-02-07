@@ -7,9 +7,11 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/source-controller/api/v1beta2"
@@ -51,6 +53,7 @@ func (r *SnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var retErr error
 	log := log.FromContext(ctx).WithName("snapshot-reconcile")
 
 	log.Info("reconciling snapshot")
@@ -60,8 +63,27 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
+		retErr = fmt.Errorf("failed to get component object: %w", err)
+		return ctrl.Result{}, retErr
 	}
+
+	patchHelper, err := patch.NewHelper(obj, r.Client)
+	if err != nil {
+		retErr = errors.Join(retErr, err)
+		return ctrl.Result{}, retErr
+	}
+
+	// Always attempt to patch the object and status after each reconciliation.
+	defer func() {
+		// Set status observed generation option if the object is stalled or ready.
+		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
+			obj.Status.ObservedGeneration = obj.Generation
+		}
+
+		if err := patchHelper.Patch(ctx, obj); err != nil {
+			retErr = errors.Join(retErr, err)
+		}
+	}()
 
 	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
 	if err != nil {
@@ -99,20 +121,10 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 	}
 
-	patchHelper, err := patch.NewHelper(obj, r.Client)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
-	}
-
-	conditions.MarkTrue(obj, v1alpha1.SnapshotReady, v1alpha1.SnapshotReadyReason, "Snapshot with name '%s' is ready", obj.Name)
-
 	obj.Status.LastReconciledDigest = obj.Spec.Digest
 	obj.Status.LastReconciledTag = obj.Spec.Tag
 	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, name)
-
-	if err := patchHelper.Patch(ctx, obj); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to patch resource: %w", err)
-	}
+	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", obj.Name)
 
 	return ctrl.Result{}, nil
 }

@@ -102,6 +102,25 @@ type ComponentVersionStatus struct {
 
 	ReconciledVersion string `json:"reconciledVersion,omitempty"`
 	Verified          bool   `json:"verified,omitempty"`
+
+	// +optional
+	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+	// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// ObservedGeneration is the last reconciled generation.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
+// GetConditions returns the conditions of the ComponentVersion.
+func (in *ComponentVersion) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the conditions of the ComponentVersion.
+func (in *ComponentVersion) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
 }
 
 // GetRequeueAfter returns the duration after which the ComponentVersion must be
