@@ -211,6 +211,10 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 		return false, "", fmt.Errorf("failed to parse latest version: %w", err)
 	}
 
+	if latestSemver.Equal(current) {
+		return false, "", nil
+	}
+
 	// compare given constraint and latest available version
 	valid, errs := constraint.Validate(latestSemver)
 	if !valid || len(errs) > 0 {
