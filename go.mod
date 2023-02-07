@@ -1,6 +1,6 @@
 module github.com/open-component-model/ocm-controller
 
-go 1.19
+go 1.20
 
 // Something requires the naming package. :( Which was an experimental package and has been removed.
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.0

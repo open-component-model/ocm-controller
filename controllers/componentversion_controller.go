@@ -18,7 +18,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -67,7 +66,8 @@ func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
+func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	var retErr error
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	log.Info("starting ocm component loop")
@@ -75,11 +75,10 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	component := &v1alpha1.ComponentVersion{}
 	if err := r.Client.Get(ctx, req.NamespacedName, component); err != nil {
 		if apierrors.IsNotFound(err) {
-			result, retErr = ctrl.Result{}, nil
-			return
+			return ctrl.Result{}, nil
 		}
-		result, retErr = ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
-		return
+		retErr = fmt.Errorf("failed to get component object: %w", err)
+		return ctrl.Result{}, retErr
 	}
 
 	// Always attempt to patch the object and status after each reconciliation.
@@ -91,16 +90,12 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		patchHelper, err := patch.NewHelper(component, r.Client)
 		if err != nil {
-			result, retErr = ctrl.Result{}, err
+			retErr = errors.Join(retErr, err)
 			return
 		}
 
 		if err := patchHelper.Patch(ctx, component); err != nil {
-			if !component.GetDeletionTimestamp().IsZero() {
-				err = kerrors.FilterOut(err, func(e error) bool { return apierrors.IsNotFound(e) })
-			}
-
-			retErr = kerrors.NewAggregate([]error{retErr, err})
+			retErr = errors.Join(retErr, err)
 		}
 	}()
 
@@ -111,8 +106,8 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// reconcile the version before calling reconcile func
 	update, version, err := r.checkVersion(ctx, component)
 	if err != nil {
-		result, retErr = ctrl.Result{}, fmt.Errorf("failed to check version: %w", err)
-		return
+		retErr = fmt.Errorf("failed to check version: %w", err)
+		return ctrl.Result{}, retErr
 	}
 
 	if !update {
@@ -128,23 +123,25 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		err := fmt.Errorf("failed to verify component: %w", err)
 		conditions.MarkStalled(component, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(component, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
-		result, retErr = ctrl.Result{}, err
-		return
+		retErr = err
+		return ctrl.Result{}, retErr
 	}
 
 	if !ok {
 		err := fmt.Errorf("attempted to verify component, but the digest didn't match")
 		conditions.MarkStalled(component, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(component, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
-		result, retErr = ctrl.Result{RequeueAfter: component.GetRequeueAfter()}, err
-		return
+		retErr = err
+		return ctrl.Result{}, retErr
 	}
 
 	// Remove stalled condition if set. If verification was successful we want to continue with the reconciliation.
 	conditions.Delete(component, meta.StalledCondition)
 
+	// Keep the return error updated. The result doesn't matter.
+	var result ctrl.Result
 	result, retErr = r.reconcile(ctx, component, version)
-	return
+	return result, retErr
 }
 
 func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {

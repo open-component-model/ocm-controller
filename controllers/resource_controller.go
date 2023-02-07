@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,18 +52,19 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
+func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// keep track of the return error to join up with any other errors during the defer patch.
+	var retErr error
 	log := log.FromContext(ctx).WithName("resource-controller")
 
 	log.Info("starting resource reconcile loop")
 	resource := &v1alpha1.Resource{}
 	if err := r.Client.Get(ctx, req.NamespacedName, resource); err != nil {
 		if apierrors.IsNotFound(err) {
-			result, retErr = ctrl.Result{}, nil
-			return
+			return ctrl.Result{}, nil
 		}
-		result, retErr = ctrl.Result{}, fmt.Errorf("failed to get resource object: %w", err)
-		return
+		retErr = fmt.Errorf("failed to get resource object: %w", err)
+		return ctrl.Result{}, retErr
 	}
 
 	// Always attempt to patch the object and status after each reconciliation.
@@ -76,23 +76,20 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 		patchHelper, err := patch.NewHelper(resource, r.Client)
 		if err != nil {
-			result, retErr = ctrl.Result{}, err
+			retErr = errors.Join(retErr, err)
 			return
 		}
 
 		if err := patchHelper.Patch(ctx, resource); err != nil {
-			if !resource.GetDeletionTimestamp().IsZero() {
-				err = kerrors.FilterOut(err, func(e error) bool { return apierrors.IsNotFound(e) })
-			}
-
-			retErr = kerrors.NewAggregate([]error{retErr, err})
+			retErr = errors.Join(retErr, err)
 		}
 	}()
 
 	log.Info("found resource", "resource", resource)
 
+	var result ctrl.Result
 	result, retErr = r.reconcile(ctx, resource)
-	return
+	return result, retErr
 }
 
 func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resource) (result ctrl.Result, retErr error) {
