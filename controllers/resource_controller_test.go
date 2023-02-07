@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
@@ -83,4 +84,5 @@ func TestResourceReconciler(t *testing.T) {
 	hash, err := snapshot.Spec.Identity.Hash()
 	require.NoError(t, err)
 	assert.Equal(t, "sha-18322151501422808564", hash)
+	assert.True(t, conditions.IsTrue(resource, meta.ReadyCondition))
 }

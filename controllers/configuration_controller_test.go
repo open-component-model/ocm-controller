@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
@@ -626,7 +628,13 @@ configuration:
 				Cache:     cache,
 			}
 
-			_, err := cr.reconcile(context.Background(), configuration)
+			_, err := cr.Reconcile(context.Background(), ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: configuration.Namespace,
+					Name:      configuration.Name,
+				},
+			})
+
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
 			} else {
@@ -664,6 +672,14 @@ configuration:
 						"the configuration data should have been applied",
 					)
 				}
+
+				err = client.Get(context.Background(), types.NamespacedName{
+					Namespace: configuration.Namespace,
+					Name:      configuration.Name,
+				}, configuration)
+				require.NoError(t, err)
+
+				assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
 			}
 		})
 	}

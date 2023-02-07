@@ -100,11 +100,11 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
-	logger.V(4).Info("object with name is NOT cached, proceeding to fetch", "resource", resource, "name", name, "version", version)
+	logger.V(4).Info("object with name is NOT cached, proceeding to fetch", "resource", resource, "name", name, "Version", version)
 
 	cva, err := c.GetComponentVersion(ctx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get component version: %w", err)
+		return nil, "", fmt.Errorf("failed to get component Version: %w", err)
 	}
 	defer cva.Close()
 
@@ -143,7 +143,7 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 	return dataReader, digest, nil
 }
 
-// GetComponentVersion returns a component version. It's the caller's responsibility to clean it up and close the component version once done with it.
+// GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
 func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
 	log := log.FromContext(ctx)
 
@@ -164,7 +164,7 @@ func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.Componen
 
 	cv, err := repo.LookupComponentVersion(name, version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to look up component version: %w", err)
+		return nil, fmt.Errorf("failed to look up component Version: %w", err)
 	}
 
 	return cv, nil
@@ -192,7 +192,7 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 
 	cv, err := repo.LookupComponentVersion(obj.Spec.Component, version)
 	if err != nil {
-		return false, fmt.Errorf("failed to look up component version: %w", err)
+		return false, fmt.Errorf("failed to look up component Version: %w", err)
 	}
 	defer cv.Close()
 
@@ -285,17 +285,17 @@ func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.Co
 	}
 
 	sort.SliceStable(versions, func(i, j int) bool {
-		return versions[i].semver.GreaterThan(versions[j].semver)
+		return versions[i].Semver.GreaterThan(versions[j].Semver)
 	})
 
-	return versions[0].version, nil
+	return versions[0].Version, nil
 }
 
 // Version has two values to be able to sort a list but still return the actual Version.
 // The Version might contain a `v`.
 type Version struct {
-	semver  *semver.Version
-	version string
+	Semver  *semver.Version
+	Version string
 }
 
 func (c *Client) ListComponentVersions(octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error) {
@@ -324,8 +324,8 @@ func (c *Client) ListComponentVersions(octx ocm.Context, obj *v1alpha1.Component
 			return nil, fmt.Errorf("failed to parse Version '%s': %w", v, err)
 		}
 		result = append(result, Version{
-			semver:  parsed,
-			version: v,
+			Semver:  parsed,
+			Version: v,
 		})
 	}
 	return result, nil

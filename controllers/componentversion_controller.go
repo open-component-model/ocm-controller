@@ -228,11 +228,6 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
 	}
 
-	// get component version
-	// TODO@souleb: resolve all referenced dependencies and pass them to the function
-	// this will allow us to return early if the dependencies are not ready, and set error
-	// conditions on the component version.
-	// We can the pass the needed dependencies to the function as Option
 	cv, err := r.OCMClient.GetComponentVersion(ctx, obj, obj.Spec.Component, version)
 	if err != nil {
 		err = fmt.Errorf("failed to get component version: %w", err)
