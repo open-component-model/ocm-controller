@@ -91,6 +91,17 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, retErr
 	}
 
+	snapshot, err := CheckIfSnapshotExists(ctx, r.Client, obj.Spec.SnapshotTemplate.Name, obj.Namespace)
+	if err != nil {
+		retErr = errors.Join(retErr, err)
+		return ctrl.Result{}, retErr
+	}
+
+	if snapshot != nil && conditions.IsTrue(snapshot, meta.ReadyCondition) {
+		log.Info("snapshot found and is done for configuration, re-queueing", "snapshot", obj.Spec.SnapshotTemplate.Name)
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+	}
+
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		retErr = errors.Join(retErr, err)
@@ -99,6 +110,11 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
+		// Patching has not been set up, or the controller errored earlier.
+		if patchHelper == nil {
+			return
+		}
+
 		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
 		}
@@ -162,6 +178,9 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 
 	digest, err := mutationLooper.ReconcileMutationObject(ctx, obj.Spec, obj)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		}
 		err = fmt.Errorf("could not reconcile mutation object: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
@@ -180,7 +199,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 	// is derived from the overall result of the reconciliation in the deferred
 	// block at the very end.
 	conditions.Delete(obj, meta.ReadyCondition)
-	
+
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 

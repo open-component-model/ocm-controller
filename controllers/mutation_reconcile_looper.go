@@ -61,10 +61,6 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, s
 
 	componentVersion := &v1alpha1.ComponentVersion{}
 	if err := m.Client.Get(ctx, cv, componentVersion); err != nil {
-		if apierrors.IsNotFound(err) {
-			return "", nil
-		}
-
 		return "",
 			fmt.Errorf("failed to get component object: %w", err)
 	}
@@ -168,7 +164,7 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := m.Client.Get(ctx, spec.GetSourceSnapshotKey(), srcSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("snapshot not found", "snapshot", spec.GetSourceSnapshotKey())
+			log.Info("snapshot doesn't exist yet", "snapshot", spec.GetSourceSnapshotKey())
 			return nil, err
 		}
 		return nil,

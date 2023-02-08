@@ -70,6 +70,17 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, retErr
 	}
 
+	snapshot, err := CheckIfSnapshotExists(ctx, r.Client, obj.Spec.SnapshotTemplate.Name, obj.Namespace)
+	if err != nil {
+		retErr = errors.Join(retErr, err)
+		return ctrl.Result{}, retErr
+	}
+
+	if snapshot != nil && conditions.IsTrue(snapshot, meta.ReadyCondition) {
+		log.Info("snapshot found and is done for resource, re-queueing", "snapshot", obj.Spec.SnapshotTemplate.Name)
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+	}
+
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		retErr = errors.Join(retErr, err)
@@ -78,6 +89,11 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
+		// Patching has not been set up, or the controller errored earlier.
+		if patchHelper == nil {
+			return
+		}
+
 		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
 		}
@@ -238,6 +254,6 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	// is derived from the overall result of the reconciliation in the deferred
 	// block at the very end.
 	conditions.Delete(obj, meta.ReadyCondition)
-	
+
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
