@@ -215,7 +215,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Co
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
-		err = fmt.Errorf("could not reconcile mutation object: %w", err)
+		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
 		return ctrl.Result{}, err
 	}

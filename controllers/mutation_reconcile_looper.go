@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	"github.com/open-component-model/ocm/pkg/spiff"
 	"github.com/open-component-model/ocm/pkg/utils"
