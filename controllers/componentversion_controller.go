@@ -160,6 +160,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	log.Info("running verification of component")
 	ok, err := r.OCMClient.VerifyComponent(ctx, obj, version)
 	if err != nil {
+		log.Error(err, "failed to verify component", "component", klog.KObj(obj))
 		err := fmt.Errorf("failed to verify component: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
@@ -169,6 +170,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	if !ok {
 		err := fmt.Errorf("attempted to verify component, but the digest didn't match")
+		log.Error(err, "invalid digest for component version", "component", klog.KObj(obj))
 		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
 		result, retErr = ctrl.Result{}, nil

@@ -77,6 +77,7 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	componentVersion := &v1alpha1.ComponentVersion{}
 	if err := r.Get(ctx, cv, componentVersion); err != nil {
+		log.Error(err, "failed to get component version", "component", cv)
 		err = fmt.Errorf("failed to get component version: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.ComponentVersionInvalidReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ComponentVersionInvalidReason, err.Error())

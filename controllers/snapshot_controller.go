@@ -98,6 +98,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
 	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateRepositoryNameReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to construct name: %w", err)
 	}
 
@@ -128,7 +129,11 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return nil
 		})
 		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to create or update component descriptor: %w", err)
+			log.Error(err, "failed to create or update oci repository")
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
+			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
+			retErr = nil
+			return ctrl.Result{}, nil
 		}
 	}
 
