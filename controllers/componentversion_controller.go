@@ -69,7 +69,7 @@ func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var (
 		retErr error
-		result = &ctrl.Result{}
+		result ctrl.Result
 	)
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
@@ -78,16 +78,16 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	obj := &v1alpha1.ComponentVersion{}
 	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			return *result, nil
+			return result, nil
 		}
 		retErr = fmt.Errorf("failed to get component object: %w", err)
-		return *result, retErr
+		return result, retErr
 	}
 
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		retErr = errors.Join(retErr, err)
-		return *result, retErr
+		return result, retErr
 	}
 
 	// Always attempt to patch the object and status after each reconciliation.
@@ -147,14 +147,14 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	update, version, err := r.checkVersion(ctx, obj)
 	if err != nil {
 		retErr = fmt.Errorf("failed to check version: %w", err)
-		return *result, retErr
+		return result, retErr
 	}
 
 	if !update {
-		result = &ctrl.Result{
+		result = ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
 		}
-		return *result, nil
+		return result, nil
 	}
 
 	log.Info("running verification of component")
@@ -163,24 +163,24 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		err := fmt.Errorf("failed to verify component: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
-		retErr = err
-		return *result, retErr
+		result, retErr = ctrl.Result{}, nil
+		return result, retErr
 	}
 
 	if !ok {
 		err := fmt.Errorf("attempted to verify component, but the digest didn't match")
 		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
-		retErr = err
-		return *result, retErr
+		result, retErr = ctrl.Result{}, nil
+		return result, retErr
 	}
 
 	// Remove stalled condition if set. If verification was successful we want to continue with the reconciliation.
 	conditions.Delete(obj, meta.StalledCondition)
 
 	// update the result for the defer call to have the latest information
-	*result, retErr = r.reconcile(ctx, obj, version)
-	return *result, retErr
+	result, retErr = r.reconcile(ctx, obj, version)
+	return result, retErr
 }
 
 func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {

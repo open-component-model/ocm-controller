@@ -57,6 +57,11 @@ type ResourceStatus struct {
 
 	// +optional
 	LastAppliedResourceVersion string `json:"lastAppliedResourceVersion,omitempty"`
+
+	// LastObservedComponentVersionGeneration defines the generation of the last reconciled component version for
+	// this resource object. If there is a mismatch, we trigger a reconcile loop.
+	// +optional
+	LastObservedComponentVersionGeneration int64 `json:"lastObservedComponentVersionGeneration,omitempty"`
 }
 
 //+kubebuilder:object:root=true

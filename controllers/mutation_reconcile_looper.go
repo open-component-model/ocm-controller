@@ -47,23 +47,12 @@ type MutationReconcileLooper struct {
 	Cache     cache.Cache
 }
 
-func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, spec v1alpha1.MutationSpec, obj client.Object) (string, error) {
+func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, spec v1alpha1.MutationSpec, obj client.Object) (string, error) {
 	log := log.FromContext(ctx)
 	var (
 		resourceData []byte
 		err          error
 	)
-
-	cv := types.NamespacedName{
-		Name:      spec.ComponentVersionRef.Name,
-		Namespace: spec.ComponentVersionRef.Namespace,
-	}
-
-	componentVersion := &v1alpha1.ComponentVersion{}
-	if err := m.Client.Get(ctx, cv, componentVersion); err != nil {
-		return "",
-			fmt.Errorf("failed to get component object: %w", err)
-	}
 
 	if spec.Source.SourceRef == nil && spec.Source.ResourceRef == nil {
 		return "",

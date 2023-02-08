@@ -173,6 +173,12 @@ spec:
                 type: array
               lastAppliedResourceVersion:
                 type: string
+              lastObservedComponentVersionGeneration:
+                description: LastObservedComponentVersionGeneration defines the generation
+                  of the last reconciled component version for this resource object.
+                  If there is a mismatch, we trigger a reconcile loop.
+                format: int64
+                type: integer
               observedGeneration:
                 description: ObservedGeneration is the last reconciled generation.
                 format: int64
