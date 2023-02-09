@@ -147,6 +147,8 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	update, version, err := r.checkVersion(ctx, obj)
 	if err != nil {
 		retErr = fmt.Errorf("failed to check version: %w", err)
+		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
 		return result, retErr
 	}
 

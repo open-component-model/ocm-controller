@@ -160,11 +160,13 @@ func (r *ResourceReconciler) shouldReconcile(ctx context.Context, cv *v1alpha1.C
 	// If there is a mismatch between the observed generation of a component version, we trigger
 	// a reconcile. There is either a new version available or a dependent component version
 	// finished its reconcile process.
-	if obj.Status.LastObservedComponentVersionGeneration != cv.Status.ObservedGeneration {
+
+	if obj.Status.LastAppliedComponentVersion != cv.Status.ReconciledVersion {
 		return true, nil
 	}
 
-	// If there is no mismatch, we check if we are already done with our snapshot.
+	// Check if the snapshot exists, if the API returns a "not found" error then we should reconcile and swallow
+	// the error. For any other kind of error we should not reconcile and return the error.
 	snapshot := &v1alpha1.Snapshot{}
 	if err := r.Get(ctx, types.NamespacedName{
 		Name:      obj.Spec.SnapshotTemplate.Name,
@@ -173,7 +175,7 @@ func (r *ResourceReconciler) shouldReconcile(ctx context.Context, cv *v1alpha1.C
 		if apierrors.IsNotFound(err) {
 			return true, nil
 		}
-		return false, fmt.Errorf("failed to get snapshot for localization object: %w", err)
+		return false, fmt.Errorf("failed to get snapshot for resource object: %w", err)
 	}
 
 	// If there is no ready condition, we should return true to trigger a reconcile loop.
@@ -265,7 +267,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, componentVersion *v1
 	log.Info("successfully pushed resource", "resource", obj.Spec.Resource.Name)
 	obj.Status.LastAppliedResourceVersion = obj.Spec.Resource.Version
 	obj.Status.ObservedGeneration = obj.GetGeneration()
-	obj.Status.LastObservedComponentVersionGeneration = componentVersion.Status.ObservedGeneration
+	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
 
 	log.Info("successfully reconciled resource", "name", obj.GetName())
 

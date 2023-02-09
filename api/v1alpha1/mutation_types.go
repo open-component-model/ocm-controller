@@ -84,10 +84,10 @@ type MutationStatus struct {
 
 	LatestConfigVersion string `json:"latestConfigVersion,omitempty"`
 
-	// LastObservedComponentVersionGeneration defines the generation of the last reconciled component version for
-	// this mutation object. If there is a mismatch, we trigger a reconcile loop.
+	// LastAppliedComponentVersion tracks the last applied component version. If there is a change
+	// we fire off a reconcile loop to get that new version.
 	// +optional
-	LastObservedComponentVersionGeneration int64 `json:"lastObservedComponentVersionGeneration,omitempty"`
+	LastAppliedComponentVersion string `json:"lastAppliedComponentVersion,omitempty"`
 }
 
 type ConfigReference struct {

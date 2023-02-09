@@ -176,7 +176,7 @@ func (r *LocalizationReconciler) shouldReconcile(ctx context.Context, cv *v1alph
 	// If there is a mismatch between the observed generation of a component version, we trigger
 	// a reconcile. There is either a new version available or a dependent component version
 	// finished its reconcile process.
-	if obj.Status.LastObservedComponentVersionGeneration != cv.Status.ObservedGeneration {
+	if obj.Status.LastAppliedComponentVersion != cv.Status.ReconciledVersion {
 		return true, nil
 	}
 
@@ -224,7 +224,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Com
 	obj.Status.LatestSnapshotDigest = digest
 	obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
 	obj.Status.ObservedGeneration = obj.GetGeneration()
-	obj.Status.LastObservedComponentVersionGeneration = cv.Status.ObservedGeneration
+	obj.Status.LastAppliedComponentVersion = cv.Status.ReconciledVersion
 
 	// Remove any stale Ready condition, most likely False, set above. Its value
 	// is derived from the overall result of the reconciliation in the deferred

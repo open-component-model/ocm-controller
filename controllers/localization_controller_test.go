@@ -716,7 +716,7 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			name: "should not reconcile in case of matching generation and existing snapshot with ready state",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
 			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
@@ -737,7 +737,7 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
 			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
@@ -758,7 +758,7 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.2"
 				return cv
 			},
 			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
@@ -771,7 +771,7 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			// We don't set a source because it shouldn't get that far.
 			localization := DefaultLocalization.DeepCopy()
-			localization.Status.LastObservedComponentVersionGeneration = 99
+			localization.Status.LastAppliedComponentVersion = "v0.0.1"
 			localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
 				Name: "name",
 			}

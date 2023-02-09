@@ -101,7 +101,7 @@ func TestResourceShouldReconcile(t *testing.T) {
 			name: "should not reconcile in case of matching generation and existing snapshot with ready state",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
 			snapshot: func(resource v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -122,7 +122,7 @@ func TestResourceShouldReconcile(t *testing.T) {
 			errStr: "failed to get resource: unexpected number of calls; not enough return values have been configured; call count 0",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
 			snapshot: func(resource v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -143,7 +143,7 @@ func TestResourceShouldReconcile(t *testing.T) {
 			errStr: "failed to get resource: unexpected number of calls; not enough return values have been configured; call count 0",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.2"
 				return cv
 			},
 			snapshot: func(resource v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -156,7 +156,7 @@ func TestResourceShouldReconcile(t *testing.T) {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			// We don't set a source because it shouldn't get that far.
 			resource := DefaultResource.DeepCopy()
-			resource.Status.LastObservedComponentVersionGeneration = 99
+			resource.Status.LastAppliedComponentVersion = "v0.0.1"
 			snapshot := tt.snapshot(*resource)
 			cv := tt.componentVersion()
 

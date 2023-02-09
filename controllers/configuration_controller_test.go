@@ -530,7 +530,6 @@ configuration:
 			name: "it performs a strategic merge",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -609,7 +608,7 @@ configuration:
 			configuration.Spec.Source = source
 			// This part is testing that even though the generation matches, the snapshots aren't there yet
 			// so they should be created.
-			configuration.Status.LastObservedComponentVersionGeneration = cv.Status.ObservedGeneration
+			configuration.Status.LastAppliedComponentVersion = cv.Status.ReconciledVersion
 
 			objs := []client.Object{cv, resource, cd, configuration}
 
@@ -710,7 +709,7 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			name: "should not reconcile in case of matching generation and existing snapshot with ready state",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
 			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
@@ -731,7 +730,7 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
 			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
@@ -752,7 +751,7 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 99
+				cv.Status.ReconciledVersion = "v0.0.2"
 				return cv
 			},
 			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
@@ -765,7 +764,7 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			// We don't set a source because it shouldn't get that far.
 			configuration := DefaultConfiguration.DeepCopy()
-			configuration.Status.LastObservedComponentVersionGeneration = 99
+			configuration.Status.LastAppliedComponentVersion = "v0.0.1"
 			configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
 				Name: "name",
 			}

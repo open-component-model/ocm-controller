@@ -101,6 +101,35 @@ func TestComponentVersionReconcile(t *testing.T) {
 	assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
 }
 
+func TestComponentVersionReconcileFailure(t *testing.T) {
+	cv := DefaultComponent.DeepCopy()
+	client := env.FakeKubeClient(WithObjets(cv))
+
+	fakeOcm := &fakes.MockFetcher{}
+	cvr := ComponentVersionReconciler{
+		Scheme:    env.scheme,
+		Client:    client,
+		OCMClient: fakeOcm,
+	}
+	_, err := cvr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      cv.Name,
+			Namespace: cv.Namespace,
+		},
+	})
+	assert.EqualError(t, err, "failed to check version: failed to parse latest version: Invalid Semantic Version")
+
+	t.Log("verifying updated object status")
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      cv.Name,
+		Namespace: cv.Namespace,
+	}, cv)
+	require.NoError(t, err)
+
+	assert.True(t, conditions.IsFalse(cv, meta.ReadyCondition))
+	assert.True(t, conditions.IsTrue(cv, meta.StalledCondition))
+}
+
 func TestComponentVersionSemverCheck(t *testing.T) {
 	semverTests := []struct {
 		description       string
