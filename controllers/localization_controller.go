@@ -172,6 +172,14 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return result, retErr
 }
 
+// shouldReconcile deals with the following cases:
+// - if the last applied component version does NOT match the ReconciledVersion reconciliation should _PROCEED_
+// If the component version are the same, we deal with two further cases:
+//   - the snapshot that the reconciliation would produce is not found yet; the reconciliation should _PROCEED_
+//   - the snapshot IS found, but it's not Ready yet ( this could be caused by transient error ) and needs a potential
+//     update; the reconciliation should _PROCEED_
+//
+// If neither of these cases match, the reconciliation should _STOP_ and requeue the object.
 func (r *LocalizationReconciler) shouldReconcile(ctx context.Context, cv *v1alpha1.ComponentVersion, obj *v1alpha1.Localization) (bool, error) {
 	// If there is a mismatch between the observed generation of a component version, we trigger
 	// a reconcile. There is either a new version available or a dependent component version
