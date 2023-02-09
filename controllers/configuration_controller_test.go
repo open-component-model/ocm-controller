@@ -650,6 +650,14 @@ configuration:
 
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
+
+				err = client.Get(context.Background(), types.NamespacedName{
+					Namespace: configuration.Namespace,
+					Name:      configuration.Name,
+				}, configuration)
+				require.NoError(t, err)
+
+				assert.True(t, conditions.IsFalse(configuration, meta.ReadyCondition))
 			} else {
 				require.NoError(t, err)
 				t.Log("check if target snapshot has been created and cache was called")

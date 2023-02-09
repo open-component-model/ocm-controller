@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -88,6 +89,58 @@ func TestResourceReconciler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "sha-18322151501422808564", hash)
 	assert.True(t, conditions.IsTrue(resource, meta.ReadyCondition))
+}
+
+func TestResourceReconcilerFailed(t *testing.T) {
+	t.Log("setting up resource object")
+	resource := DefaultResource.DeepCopy()
+	// Tests that the component descriptor exists for root items.
+	resource.Spec.Resource.ReferencePath = nil
+
+	t.Log("setting up component version")
+	cv := DefaultComponent.DeepCopy()
+	cd := DefaultComponentDescriptor.DeepCopy()
+	cv.Status.ComponentDescriptor = v1alpha1.Reference{
+		Name:    resource.Spec.Resource.Name,
+		Version: resource.Spec.Resource.Version,
+		ComponentDescriptorRef: meta.NamespacedObjectReference{
+			Name:      cd.Name,
+			Namespace: cd.Namespace,
+		},
+	}
+
+	client := env.FakeKubeClient(WithObjets(cv, resource, cd))
+	t.Log("priming fake cache")
+	cache := &cachefakes.FakeCache{}
+	cache.PushDataReturns("", errors.New("nope"))
+
+	t.Log("priming fake ocm client")
+	ocmClient := &fakes.MockFetcher{}
+	ocmClient.GetResourceReturns(nil, "nil", errors.New("nope"))
+
+	rr := ResourceReconciler{
+		Scheme:    env.scheme,
+		Client:    client,
+		OCMClient: ocmClient,
+		Cache:     cache,
+	}
+
+	t.Log("calling reconcile on resource controller")
+	_, err := rr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: resource.Namespace,
+			Name:      resource.Name,
+		},
+	})
+	assert.EqualError(t, err, "failed to get resource: nope")
+	t.Log("verifying updated resource object status")
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      resource.Name,
+		Namespace: resource.Namespace,
+	}, resource)
+
+	require.NoError(t, err)
+	assert.True(t, conditions.IsFalse(resource, meta.ReadyCondition))
 }
 
 func TestResourceShouldReconcile(t *testing.T) {
