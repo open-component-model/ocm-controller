@@ -63,7 +63,6 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.indexBy("ComponentDescriptor", "ConfigRef")); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deliveryv1alpha1.Configuration{}).
 		Watches(
@@ -78,7 +77,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var (
 		retErr error
-		result = &ctrl.Result{}
+		result ctrl.Result
 	)
 	log := log.FromContext(ctx).WithName("configuration-controller")
 
@@ -90,6 +89,28 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		retErr = fmt.Errorf("failed to get configuration object: %w", err)
 		return ctrl.Result{}, retErr
 	}
+	cv := types.NamespacedName{
+		Name:      obj.Spec.ComponentVersionRef.Name,
+		Namespace: obj.Spec.ComponentVersionRef.Namespace,
+	}
+
+	componentVersion := &v1alpha1.ComponentVersion{}
+	if err := r.Get(ctx, cv, componentVersion); err != nil {
+		retErr = fmt.Errorf("failed to get component object: %w", err)
+		return result, retErr
+	}
+
+	run, err := r.shouldReconcile(ctx, componentVersion, obj)
+	if err != nil {
+		retErr = fmt.Errorf("failed to check if controller should reconcile: %w", err)
+		return result, retErr
+	}
+
+	if !run {
+		log.Info("component version already reconciled", "version", componentVersion.Status.ReconciledVersion)
+		result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		return result, retErr
+	}
 
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
@@ -99,6 +120,11 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
+		// Patching has not been set up, or the controller errored earlier.
+		if patchHelper == nil {
+			return
+		}
+
 		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
 		}
@@ -141,11 +167,43 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	log.Info("reconciling configuration")
 
-	*result, retErr = r.reconcile(ctx, obj)
-	return *result, retErr
+	result, retErr = r.reconcile(ctx, componentVersion, obj)
+	return result, retErr
 }
 
-func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Configuration) (ctrl.Result, error) {
+// shouldReconcile deals with the following cases:
+// - if the last applied component version does NOT match the ReconciledVersion reconciliation should _PROCEED_
+// If the component version are the same, we deal with two further cases:
+//   - the snapshot that the reconciliation would produce is not found yet; the reconciliation should _PROCEED_
+//   - the snapshot IS found, but it's not Ready yet ( this could be caused by transient error ) and needs a potential
+//     update; the reconciliation should _PROCEED_
+//
+// If neither of these cases match, the reconciliation should _STOP_ and requeue the object.
+func (r *ConfigurationReconciler) shouldReconcile(ctx context.Context, cv *v1alpha1.ComponentVersion, obj *v1alpha1.Configuration) (bool, error) {
+	// If there is a mismatch between the observed generation of a component version, we trigger
+	// a reconcile. There is either a new version available or a dependent component version
+	// finished its reconcile process.
+	if obj.Status.LastAppliedComponentVersion != cv.Status.ReconciledVersion {
+		return true, nil
+	}
+
+	// If there is no mismatch, we check if we are already done with our snapshot.
+	snapshot := &v1alpha1.Snapshot{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Name:      obj.Spec.SnapshotTemplate.Name,
+		Namespace: obj.Namespace,
+	}, snapshot); err != nil {
+		if apierrors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, fmt.Errorf("failed to get snapshot for localization object: %w", err)
+	}
+
+	// If there is no ready condition, we should return true to trigger a reconcile loop.
+	return conditions.IsFalse(snapshot, meta.ReadyCondition), nil
+}
+
+func (r *ConfigurationReconciler) reconcile(ctx context.Context, cv *v1alpha1.ComponentVersion, obj *deliveryv1alpha1.Configuration) (ctrl.Result, error) {
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
 
 	if obj.Generation != obj.Status.ObservedGeneration {
@@ -160,10 +218,12 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		Cache:     r.Cache,
 	}
 
-	digest, err := mutationLooper.ReconcileMutationObject(ctx, obj.Spec, obj)
+	digest, err := mutationLooper.ReconcileMutationObject(ctx, cv, obj.Spec, obj)
 	if err != nil {
-		err = fmt.Errorf("could not reconcile mutation object: %w", err)
-		conditions.MarkStalled(obj, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		}
+		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
 		return ctrl.Result{}, err
 	}
@@ -175,12 +235,13 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		obj.Status.LatestConfigVersion = fmt.Sprintf("%s:%s", obj.Spec.ConfigRef.Resource.ResourceRef.Name, obj.Spec.ConfigRef.Resource.ResourceRef.Version)
 	}
 	obj.Status.ObservedGeneration = obj.GetGeneration()
+	obj.Status.LastAppliedComponentVersion = cv.Status.ReconciledVersion
 
 	// Remove any stale Ready condition, most likely False, set above. Its value
 	// is derived from the overall result of the reconciliation in the deferred
 	// block at the very end.
 	conditions.Delete(obj, meta.ReadyCondition)
-	
+
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 

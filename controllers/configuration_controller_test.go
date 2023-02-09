@@ -74,6 +74,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			name: "with snapshot as a source",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -126,6 +127,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			name: "with resource as a source",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -164,6 +166,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			expectError: "either sourceRef or resourceRef should be defined, but both are empty",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -196,6 +199,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			expectError: "failed to fetch resource data from snapshot: failed to fetch data: boo",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -246,6 +250,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			expectError: "failed to fetch resource data from resource ref: failed to fetch resource from resource ref: boo",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -281,6 +286,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			expectError: "failed to get resource: boo",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -319,6 +325,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			expectError: "configurator error: error while doing cascade with: processing template adjustments: unresolved nodes:\n\t(( nope ))\tin template adjustments\tadjustments.[0].value\t(adjustments.name:subst-0.value)\t*'nope' not found",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -381,6 +388,7 @@ configuration:
 			expectError: "no such file or directory",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -443,6 +451,7 @@ configuration:
 			expectError: "failed to unmarshal content",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -482,6 +491,7 @@ configuration:
 			expectError: "failed to push blob to local registry: boo",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
 					Version: "v0.0.1",
@@ -596,6 +606,9 @@ configuration:
 			source := tt.source(snapshot)
 			configuration := DefaultConfiguration.DeepCopy()
 			configuration.Spec.Source = source
+			// This part is testing that even though the generation matches, the snapshots aren't there yet
+			// so they should be created.
+			configuration.Status.LastAppliedComponentVersion = cv.Status.ReconciledVersion
 
 			objs := []client.Object{cv, resource, cd, configuration}
 
@@ -637,6 +650,14 @@ configuration:
 
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
+
+				err = client.Get(context.Background(), types.NamespacedName{
+					Namespace: configuration.Namespace,
+					Name:      configuration.Name,
+				}, configuration)
+				require.NoError(t, err)
+
+				assert.True(t, conditions.IsFalse(configuration, meta.ReadyCondition))
 			} else {
 				require.NoError(t, err)
 				t.Log("check if target snapshot has been created and cache was called")
@@ -680,6 +701,114 @@ configuration:
 				require.NoError(t, err)
 
 				assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
+			}
+		})
+	}
+}
+
+func TestConfigurationShouldReconcile(t *testing.T) {
+	testcase := []struct {
+		name             string
+		errStr           string
+		snapshot         func(name, namespace string) *v1alpha1.Snapshot
+		componentVersion func() *v1alpha1.ComponentVersion
+	}{
+		{
+			name: "should not reconcile in case of matching generation and existing snapshot with ready state",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec:   v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{},
+				}
+				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+				return snapshot
+			},
+		},
+		{
+			name:   "should reconcile if snapshot is not ready",
+			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec:   v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{},
+				}
+				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+				return snapshot
+			},
+		},
+		{
+			name:   "should reconcile if component version doesn't match",
+			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.2"
+				return cv
+			},
+			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
+				return nil
+			},
+		},
+	}
+
+	for i, tt := range testcase {
+		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
+			// We don't set a source because it shouldn't get that far.
+			configuration := DefaultConfiguration.DeepCopy()
+			configuration.Status.LastAppliedComponentVersion = "v0.0.1"
+			configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
+				Name: "name",
+			}
+			snapshot := tt.snapshot(configuration.Spec.SnapshotTemplate.Name, configuration.Namespace)
+			cv := tt.componentVersion()
+
+			objs := []client.Object{cv, configuration}
+			if snapshot != nil {
+				objs = append(objs, snapshot)
+			}
+			client := env.FakeKubeClient(WithObjets(objs...))
+			cache := &cachefakes.FakeCache{}
+			fakeOcm := &fakes.MockFetcher{}
+
+			cr := ConfigurationReconciler{
+				Client:    client,
+				Scheme:    env.scheme,
+				OCMClient: fakeOcm,
+				Cache:     cache,
+			}
+
+			result, err := cr.Reconcile(context.Background(), ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: configuration.Namespace,
+					Name:      configuration.Name,
+				},
+			})
+
+			if tt.errStr == "" {
+				require.NoError(t, err)
+				assert.Equal(t, ctrl.Result{RequeueAfter: configuration.GetRequeueAfter()}, result)
+				assert.True(t, cache.FetchDataByDigestWasNotCalled())
+				assert.True(t, cache.PushDataWasNotCalled())
+				assert.True(t, fakeOcm.GetResourceWasNotCalled())
+			} else {
+				assert.EqualError(t, err, tt.errStr)
 			}
 		})
 	}

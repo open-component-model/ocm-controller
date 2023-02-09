@@ -69,114 +69,122 @@ func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var (
 		retErr error
-		result = &ctrl.Result{}
+		result ctrl.Result
 	)
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	log.Info("starting ocm component loop")
 
-	component := &v1alpha1.ComponentVersion{}
-	if err := r.Client.Get(ctx, req.NamespacedName, component); err != nil {
+	obj := &v1alpha1.ComponentVersion{}
+	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			return *result, nil
+			return result, nil
 		}
 		retErr = fmt.Errorf("failed to get component object: %w", err)
-		return *result, retErr
+		return result, retErr
 	}
 
-	patchHelper, err := patch.NewHelper(component, r.Client)
+	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		retErr = errors.Join(retErr, err)
-		return *result, retErr
+		return result, retErr
 	}
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if condition := conditions.Get(component, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
-			conditions.Delete(component, meta.ReconcilingCondition)
+		// Patching has not been set up, or the controller errored earlier.
+		if patchHelper == nil {
+			return
+		}
+
+		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
+			conditions.Delete(obj, meta.ReconcilingCondition)
 		}
 
 		// Check if it's a successful reconciliation.
 		// We don't set Requeue in case of error, so we can safely check for Requeue.
-		if result.RequeueAfter == component.GetRequeueAfter() && !result.Requeue && retErr == nil {
+		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && retErr == nil {
 			// Remove the reconciling condition if it's set.
-			conditions.Delete(component, meta.ReconcilingCondition)
+			conditions.Delete(obj, meta.ReconcilingCondition)
 
 			// Set the return err as the ready failure message if the resource is not ready, but also not reconciling or stalled.
-			if ready := conditions.Get(component, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(component) {
-				retErr = errors.New(conditions.GetMessage(component, meta.ReadyCondition))
+			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
+				retErr = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
 			}
 		}
 
 		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
 		// indicate that reconciliation will be retried.
-		if conditions.IsReconciling(component) {
-			reconciling := conditions.Get(component, meta.ReconcilingCondition)
+		if conditions.IsReconciling(obj) {
+			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
 			reconciling.Reason = meta.ProgressingWithRetryReason
-			conditions.Set(component, reconciling)
+			conditions.Set(obj, reconciling)
 		}
 
 		// If not reconciling or stalled than mark Ready=True
-		if !conditions.IsReconciling(component) &&
-			!conditions.IsStalled(component) &&
+		if !conditions.IsReconciling(obj) &&
+			!conditions.IsStalled(obj) &&
 			retErr == nil &&
-			result.RequeueAfter == component.GetRequeueAfter() {
-			conditions.MarkTrue(component, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
+			result.RequeueAfter == obj.GetRequeueAfter() {
+			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
 		}
 		// Set status observed generation option if the component is stalled or ready.
-		if conditions.IsStalled(component) || conditions.IsReady(component) {
-			component.Status.ObservedGeneration = component.Generation
+		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
+			obj.Status.ObservedGeneration = obj.Generation
 		}
 
 		// Update the object.
-		if err := patchHelper.Patch(ctx, component); err != nil {
+		if err := patchHelper.Patch(ctx, obj); err != nil {
 			retErr = errors.Join(retErr, err)
 		}
 	}()
 
 	//TODO@souleb: reduce logging verbosity, use events instead. This will be easier to use logs
 	// for debugging and events for monitoring
-	log.V(4).Info("found component", "component", component)
+	log.V(4).Info("found component", "component", obj)
 
 	// reconcile the version before calling reconcile func
-	update, version, err := r.checkVersion(ctx, component)
+	update, version, err := r.checkVersion(ctx, obj)
 	if err != nil {
 		retErr = fmt.Errorf("failed to check version: %w", err)
-		return *result, retErr
+		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
+		return result, retErr
 	}
 
 	if !update {
-		log.V(4).Info("no new version which satisfies the semver constraint detected")
-		result = &ctrl.Result{
-			RequeueAfter: component.GetRequeueAfter(),
+		result = ctrl.Result{
+			RequeueAfter: obj.GetRequeueAfter(),
 		}
-		return *result, nil
+		return result, nil
 	}
 
 	log.Info("running verification of component")
-	ok, err := r.OCMClient.VerifyComponent(ctx, component, version)
+	ok, err := r.OCMClient.VerifyComponent(ctx, obj, version)
 	if err != nil {
+		log.Error(err, "failed to verify component", "component", klog.KObj(obj))
 		err := fmt.Errorf("failed to verify component: %w", err)
-		conditions.MarkStalled(component, v1alpha1.VerificationFailedReason, err.Error())
-		conditions.MarkFalse(component, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
-		retErr = err
-		return *result, retErr
+		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
+		result, retErr = ctrl.Result{}, nil
+		return result, retErr
 	}
 
 	if !ok {
 		err := fmt.Errorf("attempted to verify component, but the digest didn't match")
-		conditions.MarkStalled(component, v1alpha1.VerificationFailedReason, err.Error())
-		conditions.MarkFalse(component, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
-		retErr = err
-		return *result, retErr
+		log.Error(err, "invalid digest for component version", "component", klog.KObj(obj))
+		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
+		result, retErr = ctrl.Result{}, nil
+		return result, retErr
 	}
 
 	// Remove stalled condition if set. If verification was successful we want to continue with the reconciliation.
-	conditions.Delete(component, meta.StalledCondition)
+	conditions.Delete(obj, meta.StalledCondition)
 
 	// update the result for the defer call to have the latest information
-	*result, retErr = r.reconcile(ctx, component, version)
-	return *result, retErr
+	result, retErr = r.reconcile(ctx, obj, version)
+	return result, retErr
 }
 
 func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
@@ -212,6 +220,7 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	}
 
 	if latestSemver.Equal(current) {
+		log.Info("latest version already reconciled")
 		return false, "", nil
 	}
 

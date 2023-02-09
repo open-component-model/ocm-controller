@@ -704,3 +704,111 @@ localization:
 		})
 	}
 }
+
+func TestLocalizationShouldReconcile(t *testing.T) {
+	testcase := []struct {
+		name             string
+		errStr           string
+		snapshot         func(name, namespace string) *v1alpha1.Snapshot
+		componentVersion func() *v1alpha1.ComponentVersion
+	}{
+		{
+			name: "should not reconcile in case of matching generation and existing snapshot with ready state",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec:   v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{},
+				}
+				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+				return snapshot
+			},
+		},
+		{
+			name:   "should reconcile if snapshot is not ready",
+			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec:   v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{},
+				}
+				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+				return snapshot
+			},
+		},
+		{
+			name:   "should reconcile if component version doesn't match",
+			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.2"
+				return cv
+			},
+			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
+				return nil
+			},
+		},
+	}
+
+	for i, tt := range testcase {
+		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
+			// We don't set a source because it shouldn't get that far.
+			localization := DefaultLocalization.DeepCopy()
+			localization.Status.LastAppliedComponentVersion = "v0.0.1"
+			localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
+				Name: "name",
+			}
+			snapshot := tt.snapshot(localization.Spec.SnapshotTemplate.Name, localization.Namespace)
+			cv := tt.componentVersion()
+
+			objs := []client.Object{cv, localization}
+			if snapshot != nil {
+				objs = append(objs, snapshot)
+			}
+			client := env.FakeKubeClient(WithObjets(objs...))
+			cache := &cachefakes.FakeCache{}
+			fakeOcm := &fakes.MockFetcher{}
+
+			rr := LocalizationReconciler{
+				Client:    client,
+				Scheme:    env.scheme,
+				OCMClient: fakeOcm,
+				Cache:     cache,
+			}
+
+			result, err := rr.Reconcile(context.Background(), ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: localization.Namespace,
+					Name:      localization.Name,
+				},
+			})
+
+			if tt.errStr == "" {
+				require.NoError(t, err)
+				assert.Equal(t, ctrl.Result{RequeueAfter: localization.GetRequeueAfter()}, result)
+				assert.True(t, cache.FetchDataByDigestWasNotCalled())
+				assert.True(t, cache.PushDataWasNotCalled())
+				assert.True(t, fakeOcm.GetResourceWasNotCalled())
+			} else {
+				assert.EqualError(t, err, tt.errStr)
+			}
+		})
+	}
+}

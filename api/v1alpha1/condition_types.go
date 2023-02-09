@@ -39,6 +39,12 @@ const (
 	// CreateOrUpdateSnapshotFailedReason is used when the snapshot cannot be created or updated.
 	CreateOrUpdateSnapshotFailedReason = "CreateOrUpdateSnapshotFailed"
 
+	// CreateOrUpdateOCIRepositoryFailedReason is used when the OCIRepository cannot be created or updated.
+	CreateOrUpdateOCIRepositoryFailedReason = "CreateOrUpdateOCIRepositoryFailed"
+
+	// CreateRepositoryNameReason is used when the generating a new repository name fails.
+	CreateRepositoryNameReason = "CreateRepositoryNameFailed"
+
 	// PatchSnapshotFailedReason is used when the snapshot cannot be patched.
 	PatchSnapshotFailedReason = "PatchSnapshotFailed"
 

@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	"github.com/open-component-model/ocm/pkg/spiff"
 	"github.com/open-component-model/ocm/pkg/utils"
@@ -47,27 +46,12 @@ type MutationReconcileLooper struct {
 	Cache     cache.Cache
 }
 
-func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, spec v1alpha1.MutationSpec, obj client.Object) (string, error) {
+func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, componentVersion *v1alpha1.ComponentVersion, spec v1alpha1.MutationSpec, obj client.Object) (string, error) {
 	log := log.FromContext(ctx)
 	var (
 		resourceData []byte
 		err          error
 	)
-
-	cv := types.NamespacedName{
-		Name:      spec.ComponentVersionRef.Name,
-		Namespace: spec.ComponentVersionRef.Namespace,
-	}
-
-	componentVersion := &v1alpha1.ComponentVersion{}
-	if err := m.Client.Get(ctx, cv, componentVersion); err != nil {
-		if apierrors.IsNotFound(err) {
-			return "", nil
-		}
-
-		return "",
-			fmt.Errorf("failed to get component object: %w", err)
-	}
 
 	if spec.Source.SourceRef == nil && spec.Source.ResourceRef == nil {
 		return "",
@@ -168,7 +152,7 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := m.Client.Get(ctx, spec.GetSourceSnapshotKey(), srcSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("snapshot not found", "snapshot", spec.GetSourceSnapshotKey())
+			log.Info("snapshot doesn't exist yet", "snapshot", spec.GetSourceSnapshotKey())
 			return nil, err
 		}
 		return nil,

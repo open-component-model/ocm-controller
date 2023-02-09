@@ -314,6 +314,11 @@ spec:
                   - type
                   type: object
                 type: array
+              lastAppliedComponentVersion:
+                description: LastAppliedComponentVersion tracks the last applied component
+                  version. If there is a change we fire off a reconcile loop to get
+                  that new version.
+                type: string
               latestConfigVersion:
                 type: string
               latestSnapshotDigest:

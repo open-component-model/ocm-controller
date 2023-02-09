@@ -75,6 +75,10 @@ func (m *MockFetcher) GetResourceCallingArgumentsOnCall(i int) []any {
 	return m.getResourceCalledWith[i]
 }
 
+func (m *MockFetcher) GetResourceWasNotCalled() bool {
+	return len(m.getResourceCalledWith) == 0
+}
+
 func (m *MockFetcher) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
 	m.getComponentVersionCalledWith = append(m.getComponentVersionCalledWith, []any{obj, name, version})
 	return m.getComponentVersionMap[name], m.getComponentVersionErr
@@ -92,6 +96,10 @@ func (m *MockFetcher) GetComponentVersionCallingArgumentsOnCall(i int) []any {
 	return m.getComponentVersionCalledWith[i]
 }
 
+func (m *MockFetcher) GetComponentVersionWasNotCalled() bool {
+	return len(m.getComponentVersionCalledWith) == 0
+}
+
 func (m *MockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
 	m.verifyComponentCalledWith = append(m.verifyComponentCalledWith, []any{obj, version})
 	return m.verifyComponentVerified, m.verifyComponentErr
@@ -104,6 +112,10 @@ func (m *MockFetcher) VerifyComponentReturns(verified bool, err error) {
 
 func (m *MockFetcher) VerifyComponentCallingArgumentsOnCall(i int) []any {
 	return m.verifyComponentCalledWith[i]
+}
+
+func (m *MockFetcher) VerifyComponentWasNotCalled() bool {
+	return len(m.verifyComponentCalledWith) == 0
 }
 
 func (m *MockFetcher) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
@@ -120,6 +132,10 @@ func (m *MockFetcher) GetLatestComponentVersionCallingArgumentsOnCall(i int) []a
 	return m.getLatestComponentVersionCalledWith[i]
 }
 
+func (m *MockFetcher) GetLatestComponentVersionWasNotCalled() bool {
+	return len(m.getLatestComponentVersionCalledWith) == 0
+}
+
 func (m *MockFetcher) ListComponentVersions(ocmCtx ocm.Context, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
 	m.listComponentVersionsCalledWith = append(m.listComponentVersionsCalledWith, []any{obj})
 	return m.listComponentVersionsVersions, m.listComponentVersionsErr
@@ -132,4 +148,8 @@ func (m *MockFetcher) ListComponentVersionsReturns(versions []ocmctrl.Version, e
 
 func (m *MockFetcher) ListComponentVersionsCallingArgumentsOnCall(i int) []any {
 	return m.listComponentVersionsCalledWith[i]
+}
+
+func (m *MockFetcher) ListComponentVersionsWasNotCalled() bool {
+	return len(m.listComponentVersionsCalledWith) == 0
 }

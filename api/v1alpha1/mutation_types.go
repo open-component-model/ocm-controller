@@ -83,6 +83,11 @@ type MutationStatus struct {
 	LatestSnapshotDigest string `json:"latestSnapshotDigest,omitempty"`
 
 	LatestConfigVersion string `json:"latestConfigVersion,omitempty"`
+
+	// LastAppliedComponentVersion tracks the last applied component version. If there is a change
+	// we fire off a reconcile loop to get that new version.
+	// +optional
+	LastAppliedComponentVersion string `json:"lastAppliedComponentVersion,omitempty"`
 }
 
 type ConfigReference struct {

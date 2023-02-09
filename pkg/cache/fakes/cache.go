@@ -38,6 +38,10 @@ func (f *FakeCache) IsCachedCallingArgumentsOnCall(i int) []any {
 	return f.isCachedCalledWith[i]
 }
 
+func (f *FakeCache) IsCachedWasNotCalled() bool {
+	return len(f.isCachedCalledWith) == 0
+}
+
 func (f *FakeCache) PushData(ctx context.Context, data io.ReadCloser, name, tag string) (string, error) {
 	content, err := io.ReadAll(data)
 	if err != nil {
@@ -56,6 +60,10 @@ func (f *FakeCache) PushDataCallingArgumentsOnCall(i int) []any {
 	return f.pushDataCalledWith[i]
 }
 
+func (f *FakeCache) PushDataWasNotCalled() bool {
+	return len(f.pushDataCalledWith) == 0
+}
+
 func (f *FakeCache) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, error) {
 	f.fetchDataByIdentityCalledWith = append(f.fetchDataByIdentityCalledWith, []any{name, tag})
 	return f.fetchDataByIdentityReader, f.fetchDataByIdentityDigest, f.fetchDataByIdentityErr
@@ -70,6 +78,10 @@ func (f *FakeCache) FetchDataByIdentityCallingArgumentsOnCall(i int) []any {
 	return f.fetchDataByIdentityCalledWith[i]
 }
 
+func (f *FakeCache) FetchDataByIdentityWasNotCalled() bool {
+	return len(f.fetchDataByIdentityCalledWith) == 0
+}
+
 func (f *FakeCache) FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error) {
 	f.fetchDataByDigestCalledWith = append(f.fetchDataByDigestCalledWith, []any{name, digest})
 	return f.fetchDataByDigestReader, f.fetchDataByDigestErr
@@ -82,6 +94,10 @@ func (f *FakeCache) FetchDataByDigestReturns(reader io.ReadCloser, err error) {
 
 func (f *FakeCache) FetchDataByDigestCallingArgumentsOnCall(i int) []any {
 	return f.fetchDataByDigestCalledWith[i]
+}
+
+func (f *FakeCache) FetchDataByDigestWasNotCalled() bool {
+	return len(f.fetchDataByDigestCalledWith) == 0
 }
 
 var _ cache.Cache = &FakeCache{}

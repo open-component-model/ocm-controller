@@ -57,6 +57,11 @@ type ResourceStatus struct {
 
 	// +optional
 	LastAppliedResourceVersion string `json:"lastAppliedResourceVersion,omitempty"`
+
+	// LastAppliedComponentVersion tracks the last applied component version. If there is a change
+	// we fire off a reconcile loop to get that new version.
+	// +optional
+	LastAppliedComponentVersion string `json:"lastAppliedComponentVersion,omitempty"`
 }
 
 //+kubebuilder:object:root=true
