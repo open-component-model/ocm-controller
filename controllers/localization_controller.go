@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -103,6 +104,11 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	run, err := r.shouldReconcile(ctx, componentVersion, obj)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("source snapshot not yet available; skip reconcile for object", "object", klog.KObj(obj))
+			result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+			return result, retErr
+		}
 		retErr = fmt.Errorf("failed to check if controller should reconcile: %w", err)
 		return result, retErr
 	}
@@ -180,12 +186,30 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 //     update; the reconciliation should _PROCEED_
 //
 // If neither of these cases match, the reconciliation should _STOP_ and requeue the object.
+// For mutating objects, we include two other checks. These objects can have a Source object defined as a Snapshot.
+// We also want to track the condition of those source objects. If the last seen digest or tag of those Snapshots
+// changed, we should reconcile and see if there is anything new we need to apply.
 func (r *LocalizationReconciler) shouldReconcile(ctx context.Context, cv *v1alpha1.ComponentVersion, obj *v1alpha1.Localization) (bool, error) {
 	// If there is a mismatch between the observed generation of a component version, we trigger
 	// a reconcile. There is either a new version available or a dependent component version
 	// finished its reconcile process.
 	if obj.Status.LastAppliedComponentVersion != cv.Status.ReconciledVersion {
 		return true, nil
+	}
+
+	// if source is a snapshot, check on its status
+	if obj.Spec.Source.SourceRef != nil {
+		snapshot := &v1alpha1.Snapshot{}
+		if err := r.Get(ctx, types.NamespacedName{
+			Namespace: obj.Spec.Source.SourceRef.Namespace,
+			Name:      obj.Spec.Source.SourceRef.Name,
+		}, snapshot); err != nil {
+			return false, err
+		}
+
+		if obj.Status.LastAppliedSourceDigest != snapshot.Status.LastReconciledDigest || obj.Status.LastAppliedSourceTag != snapshot.Status.LastReconciledTag {
+			return true, nil
+		}
 	}
 
 	// If there is no mismatch, we check if we are already done with our snapshot.
@@ -234,6 +258,21 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Com
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 	obj.Status.LastAppliedComponentVersion = cv.Status.ReconciledVersion
 
+	if obj.Spec.Source.SourceRef != nil {
+		// For now, we only support setting last digest from Snapshot type source objects.
+		if obj.Spec.Source.SourceRef.Kind == "Snapshot" {
+			snapshot := &v1alpha1.Snapshot{}
+			if err := r.Get(ctx, types.NamespacedName{
+				Namespace: obj.Spec.Source.SourceRef.Namespace,
+				Name:      obj.Spec.Source.SourceRef.Name,
+			}, snapshot); err != nil {
+				return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
+			}
+
+			obj.Status.LastAppliedSourceDigest = snapshot.Status.LastReconciledDigest
+			obj.Status.LastAppliedSourceTag = snapshot.Status.LastReconciledTag
+		}
+	}
 	// Remove any stale Ready condition, most likely False, set above. Its value
 	// is derived from the overall result of the reconciliation in the deferred
 	// block at the very end.
