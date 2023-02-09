@@ -199,16 +199,21 @@ func (r *LocalizationReconciler) shouldReconcile(ctx context.Context, cv *v1alph
 
 	// if source is a snapshot, check on its status
 	if obj.Spec.Source.SourceRef != nil {
-		snapshot := &v1alpha1.Snapshot{}
-		if err := r.Get(ctx, types.NamespacedName{
-			Namespace: obj.Spec.Source.SourceRef.Namespace,
-			Name:      obj.Spec.Source.SourceRef.Name,
-		}, snapshot); err != nil {
-			return false, err
-		}
+		switch obj.Spec.Source.SourceRef.Kind {
+		case "Snapshot":
+			snapshot := &v1alpha1.Snapshot{}
+			if err := r.Get(ctx, types.NamespacedName{
+				Namespace: obj.Spec.Source.SourceRef.Namespace,
+				Name:      obj.Spec.Source.SourceRef.Name,
+			}, snapshot); err != nil {
+				return false, err
+			}
 
-		if obj.Status.LastAppliedSourceDigest != snapshot.Status.LastReconciledDigest || obj.Status.LastAppliedSourceTag != snapshot.Status.LastReconciledTag {
-			return true, nil
+			if obj.Status.LastAppliedSourceDigest != snapshot.Status.LastReconciledDigest || obj.Status.LastAppliedSourceTag != snapshot.Status.LastReconciledTag {
+				return true, nil
+			}
+		default:
+			return false, errors.New(fmt.Sprintf("kind not supported for source object: %s", obj.Spec.Source.SourceRef.Kind))
 		}
 	}
 
@@ -260,7 +265,8 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Com
 
 	if obj.Spec.Source.SourceRef != nil {
 		// For now, we only support setting last digest from Snapshot type source objects.
-		if obj.Spec.Source.SourceRef.Kind == "Snapshot" {
+		switch obj.Spec.Source.SourceRef.Kind {
+		case "Snapshot":
 			snapshot := &v1alpha1.Snapshot{}
 			if err := r.Get(ctx, types.NamespacedName{
 				Namespace: obj.Spec.Source.SourceRef.Namespace,
@@ -271,6 +277,8 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Com
 
 			obj.Status.LastAppliedSourceDigest = snapshot.Status.LastReconciledDigest
 			obj.Status.LastAppliedSourceTag = snapshot.Status.LastReconciledTag
+		default:
+			return ctrl.Result{}, fmt.Errorf("kind not supported for source object: %s", obj.Spec.Source.SourceRef.Kind)
 		}
 	}
 	// Remove any stale Ready condition, most likely False, set above. Its value
