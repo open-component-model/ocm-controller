@@ -314,12 +314,11 @@ spec:
                   - type
                   type: object
                 type: array
-              lastObservedComponentVersionGeneration:
-                description: LastObservedComponentVersionGeneration defines the generation
-                  of the last reconciled component version for this mutation object.
-                  If there is a mismatch, we trigger a reconcile loop.
-                format: int64
-                type: integer
+              lastAppliedComponentVersion:
+                description: LastAppliedComponentVersion tracks the last applied component
+                  version. If there is a change we fire off a reconcile loop to get
+                  that new version.
+                type: string
               latestConfigVersion:
                 type: string
               latestSnapshotDigest:

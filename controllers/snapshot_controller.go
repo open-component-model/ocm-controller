@@ -18,7 +18,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -66,11 +65,6 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		retErr = fmt.Errorf("failed to get component object: %w", err)
 		return ctrl.Result{}, retErr
-	}
-
-	if conditions.IsTrue(obj, meta.ReadyCondition) || conditions.IsFalse(obj, meta.ReconcilingCondition) {
-		log.Info("snapshot has already been reconciled", "snapshot", klog.KObj(obj))
-		return ctrl.Result{}, nil
 	}
 
 	patchHelper, err := patch.NewHelper(obj, r.Client)
