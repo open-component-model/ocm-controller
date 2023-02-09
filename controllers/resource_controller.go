@@ -92,7 +92,7 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if !run {
-		log.Info("component version already reconciled")
+		log.Info("component version already reconciled", "version", componentVersion.Status.ReconciledVersion)
 		result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		return result, retErr
 	}

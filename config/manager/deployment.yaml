@@ -29,7 +29,7 @@ spec:
         - --oci-registry-addr=registry.ocm-system.svc.cluster.local:5000
         image: open-component-model/ocm-controller
         name: manager
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         env:
         - name: POD_NAMESPACE
           valueFrom:
