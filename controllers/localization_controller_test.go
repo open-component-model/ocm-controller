@@ -711,6 +711,7 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 		errStr           string
 		snapshot         func(name, namespace string) *v1alpha1.Snapshot
 		componentVersion func() *v1alpha1.ComponentVersion
+		localization     func() *v1alpha1.Localization
 	}{
 		{
 			name: "should not reconcile in case of matching generation and existing snapshot with ready state",
@@ -730,6 +731,14 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 				}
 				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 				return snapshot
+			},
+			localization: func() *v1alpha1.Localization {
+				localization := DefaultLocalization.DeepCopy()
+				localization.Status.LastAppliedComponentVersion = "v0.0.1"
+				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
+					Name: "name",
+				}
+				return localization
 			},
 		},
 		{
@@ -752,6 +761,14 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 				return snapshot
 			},
+			localization: func() *v1alpha1.Localization {
+				localization := DefaultLocalization.DeepCopy()
+				localization.Status.LastAppliedComponentVersion = "v0.0.1"
+				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
+					Name: "name",
+				}
+				return localization
+			},
 		},
 		{
 			name:   "should reconcile if component version doesn't match",
@@ -764,17 +781,76 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
 				return nil
 			},
+			localization: func() *v1alpha1.Localization {
+				localization := DefaultLocalization.DeepCopy()
+				localization.Status.LastAppliedComponentVersion = "v0.0.1"
+				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
+					Name: "name",
+				}
+				return localization
+			},
+		},
+		{
+			name:   "should reconcile if change was detected in source snapshot",
+			errStr: "failed to reconcile mutation object: failed to fetch resource data from snapshot: failed to fetch data: unexpected number of calls; not enough return values have been configured; call count 0",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
+				return nil
+			},
+			localization: func() *v1alpha1.Localization {
+				localization := DefaultLocalization.DeepCopy()
+				localization.Status.LastAppliedComponentVersion = "v0.0.1"
+				localization.Status.LastAppliedSourceDigest = "not-last-reconciled-digest"
+				localization.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
+					Kind:      "Snapshot",
+					Name:      "source-snapshot",
+					Namespace: localization.Namespace,
+				}
+				return localization
+			},
+		},
+		{
+			name: "should not reconcile if source snapshot has the same digest",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec:   v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{},
+				}
+				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+				return snapshot
+			},
+			localization: func() *v1alpha1.Localization {
+				localization := DefaultLocalization.DeepCopy()
+				localization.Status.LastAppliedComponentVersion = "v0.0.1"
+				localization.Status.LastAppliedSourceDigest = "last-reconciled-digest"
+				localization.Status.LastAppliedSourceTag = "latest"
+				localization.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
+					Kind:      "Snapshot",
+					Name:      "source-snapshot",
+					Namespace: localization.Namespace,
+				}
+				return localization
+			},
 		},
 	}
 
 	for i, tt := range testcase {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			// We don't set a source because it shouldn't get that far.
-			localization := DefaultLocalization.DeepCopy()
-			localization.Status.LastAppliedComponentVersion = "v0.0.1"
-			localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-				Name: "name",
-			}
+			localization := tt.localization()
 			snapshot := tt.snapshot(localization.Spec.SnapshotTemplate.Name, localization.Namespace)
 			cv := tt.componentVersion()
 
@@ -782,6 +858,21 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			if snapshot != nil {
 				objs = append(objs, snapshot)
 			}
+
+			if localization.Spec.Source.SourceRef != nil {
+				sourceSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "source-snapshot",
+						Namespace: localization.Namespace,
+					},
+					Status: v1alpha1.SnapshotStatus{
+						LastReconciledDigest: "last-reconciled-digest",
+						LastReconciledTag:    "latest",
+					},
+				}
+				objs = append(objs, sourceSnapshot)
+			}
+
 			client := env.FakeKubeClient(WithObjets(objs...))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}

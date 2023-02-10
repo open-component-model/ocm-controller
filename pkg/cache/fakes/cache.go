@@ -8,6 +8,12 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 )
 
+// fetchDataByDigestReturnValues defines the values returned by fetchDataByDigest.
+type fetchDataByDigestReturnValues struct {
+	reader io.ReadCloser
+	err    error
+}
+
 type FakeCache struct {
 	isCachedBool                  bool
 	isCachedErr                   error
@@ -19,8 +25,8 @@ type FakeCache struct {
 	fetchDataByIdentityDigest     string
 	fetchDataByIdentityErr        error
 	fetchDataByIdentityCalledWith [][]any
-	fetchDataByDigestReader       io.ReadCloser
-	fetchDataByDigestErr          error
+	fetchDataByDigestCallCount    int
+	fetchDataByDigestReturns      map[int]fetchDataByDigestReturnValues
 	fetchDataByDigestCalledWith   [][]any
 }
 
@@ -83,13 +89,33 @@ func (f *FakeCache) FetchDataByIdentityWasNotCalled() bool {
 }
 
 func (f *FakeCache) FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error) {
+	if _, ok := f.fetchDataByDigestReturns[f.fetchDataByDigestCallCount]; !ok {
+		return nil, fmt.Errorf("unexpected number of calls; not enough return values have been configured; call count %d", f.fetchDataByDigestCallCount)
+	}
 	f.fetchDataByDigestCalledWith = append(f.fetchDataByDigestCalledWith, []any{name, digest})
-	return f.fetchDataByDigestReader, f.fetchDataByDigestErr
+	result := f.fetchDataByDigestReturns[f.fetchDataByDigestCallCount]
+	f.fetchDataByDigestCallCount++
+	return result.reader, result.err
 }
 
 func (f *FakeCache) FetchDataByDigestReturns(reader io.ReadCloser, err error) {
-	f.fetchDataByDigestReader = reader
-	f.fetchDataByDigestErr = err
+	if f.fetchDataByDigestReturns == nil {
+		f.fetchDataByDigestReturns = make(map[int]fetchDataByDigestReturnValues)
+	}
+	f.fetchDataByDigestReturns[0] = fetchDataByDigestReturnValues{
+		reader: reader,
+		err:    err,
+	}
+}
+
+func (f *FakeCache) FetchDataByDigestReturnsOnCall(n int, reader io.ReadCloser, err error) {
+	if f.fetchDataByDigestReturns == nil {
+		f.fetchDataByDigestReturns = make(map[int]fetchDataByDigestReturnValues)
+	}
+	f.fetchDataByDigestReturns[n] = fetchDataByDigestReturnValues{
+		reader: reader,
+		err:    err,
+	}
 }
 
 func (f *FakeCache) FetchDataByDigestCallingArgumentsOnCall(i int) []any {
