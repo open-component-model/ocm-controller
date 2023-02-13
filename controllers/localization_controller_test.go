@@ -836,7 +836,6 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 				localization := DefaultLocalization.DeepCopy()
 				localization.Status.LastAppliedComponentVersion = "v0.0.1"
 				localization.Status.LastAppliedSourceDigest = "last-reconciled-digest"
-				localization.Status.LastAppliedSourceTag = "latest"
 				localization.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
 					Kind:      "Snapshot",
 					Name:      "source-snapshot",

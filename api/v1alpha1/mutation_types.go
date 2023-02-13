@@ -94,10 +94,15 @@ type MutationStatus struct {
 	// +optional
 	LastAppliedSourceDigest string `json:"lastAppliedSourceDigest,omitempty"`
 
-	// LastAppliedSourceTag defines the last seen source tag that has been encountered
+	// LastAppliedConfigSourceDigest defines the last seen config source digest that has been encountered
 	// by this object. Only applicable if Source is a SourceRef.
 	// +optional
-	LastAppliedSourceTag string `json:"lastAppliedSourceTag,omitempty"`
+	LastAppliedConfigSourceDigest string `json:"lastAppliedConfigSourceDigest,omitempty"`
+
+	// LastAppliedPatchMergeSourceDigest defines the last seen patch merge source digest that has been encountered
+	// by this object. Only applicable if Source is a SourceRef.
+	// +optional
+	LastAppliedPatchMergeSourceDigest string `json:"lastAppliedPatchMergeSourceDigest,omitempty"`
 }
 
 type ConfigReference struct {

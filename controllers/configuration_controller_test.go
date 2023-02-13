@@ -15,6 +15,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/source-controller/api/v1beta2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/stretchr/testify/assert"
@@ -827,8 +828,10 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 						Name:      name,
 						Namespace: namespace,
 					},
-					Spec:   v1alpha1.SnapshotSpec{},
-					Status: v1alpha1.SnapshotStatus{},
+					Spec: v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{
+						LastReconciledDigest: "last-reconciled-digest",
+					},
 				}
 				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 				return snapshot
@@ -837,7 +840,6 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 				configuration := DefaultConfiguration.DeepCopy()
 				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
 				configuration.Status.LastAppliedSourceDigest = "last-reconciled-digest"
-				configuration.Status.LastAppliedSourceTag = "latest"
 				configuration.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
 					Kind:      "Snapshot",
 					Name:      "source-snapshot",
@@ -908,6 +910,10 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 func createGitRepository(name, namespace, artifactURL, checksum string) *sourcev1.GitRepository {
 	updatedTime := time.Now()
 	return &sourcev1.GitRepository{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "GitRepository",
+			APIVersion: v1beta2.GroupVersion.String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

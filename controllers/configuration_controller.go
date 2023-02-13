@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/runtime/patch"
+	"github.com/fluxcd/source-controller/api/v1beta2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -103,11 +103,6 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	run, err := r.shouldReconcile(ctx, componentVersion, obj)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Info("source snapshot not yet available; skip reconcile for object", "object", klog.KObj(obj))
-			result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-			return result, retErr
-		}
 		retErr = fmt.Errorf("failed to check if controller should reconcile: %w", err)
 		return result, retErr
 	}
@@ -198,21 +193,42 @@ func (r *ConfigurationReconciler) shouldReconcile(ctx context.Context, cv *v1alp
 
 	// if source is a snapshot, check on its status
 	if obj.Spec.Source.SourceRef != nil {
-		switch obj.Spec.Source.SourceRef.Kind {
-		case "Snapshot":
-			snapshot := &v1alpha1.Snapshot{}
-			if err := r.Get(ctx, types.NamespacedName{
-				Namespace: obj.Spec.Source.SourceRef.Namespace,
-				Name:      obj.Spec.Source.SourceRef.Name,
-			}, snapshot); err != nil {
-				return false, err
+		d, err := r.getDigestFromSource(ctx, obj.Spec.Source.SourceRef)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
 			}
+			return false, err
+		}
 
-			if obj.Status.LastAppliedSourceDigest != snapshot.Status.LastReconciledDigest || obj.Status.LastAppliedSourceTag != snapshot.Status.LastReconciledTag {
-				return true, nil
-			}
-		default:
-			return false, fmt.Errorf("kind not supported for source object: %s", obj.Spec.Source.SourceRef.Kind)
+		if obj.Status.LastAppliedSourceDigest != d {
+			return true, nil
+		}
+	}
+
+	if obj.Spec.ConfigRef != nil && obj.Spec.ConfigRef.Resource.SourceRef != nil {
+		d, err := r.getDigestFromSource(ctx, obj.Spec.ConfigRef.Resource.SourceRef)
+		if err != nil {
+			return false, err
+		}
+
+		if obj.Status.LastAppliedConfigSourceDigest != d {
+			return true, nil
+		}
+	}
+
+	if obj.Spec.PatchStrategicMerge != nil {
+		d, err := r.getDigestFromSource(ctx, &meta.NamespacedObjectKindReference{
+			Kind:      obj.Spec.PatchStrategicMerge.Source.SourceRef.Kind,
+			Name:      obj.Spec.PatchStrategicMerge.Source.SourceRef.Name,
+			Namespace: obj.Spec.PatchStrategicMerge.Source.SourceRef.Namespace,
+		})
+		if err != nil {
+			return false, err
+		}
+
+		if obj.Status.LastAppliedPatchMergeSourceDigest != d {
+			return true, nil
 		}
 	}
 
@@ -267,22 +283,29 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Co
 	obj.Status.LastAppliedComponentVersion = cv.Status.ReconciledVersion
 
 	if obj.Spec.Source.SourceRef != nil {
-		// For now, we only support setting last digest from Snapshot type source objects.
-		switch obj.Spec.Source.SourceRef.Kind {
-		case "Snapshot":
-			snapshot := &v1alpha1.Snapshot{}
-			if err := r.Get(ctx, types.NamespacedName{
-				Namespace: obj.Spec.Source.SourceRef.Namespace,
-				Name:      obj.Spec.Source.SourceRef.Name,
-			}, snapshot); err != nil {
-				return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, err
-			}
-
-			obj.Status.LastAppliedSourceDigest = snapshot.Status.LastReconciledDigest
-			obj.Status.LastAppliedSourceTag = snapshot.Status.LastReconciledTag
-		default:
-			return ctrl.Result{}, fmt.Errorf("kind not supported for source object: %s", obj.Spec.Source.SourceRef.Kind)
+		d, err := r.getDigestFromSource(ctx, obj.Spec.Source.SourceRef)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get digest from source: %w", err)
 		}
+		obj.Status.LastAppliedSourceDigest = d
+	}
+	if obj.Spec.ConfigRef != nil && obj.Spec.ConfigRef.Resource.SourceRef != nil {
+		d, err := r.getDigestFromSource(ctx, obj.Spec.ConfigRef.Resource.SourceRef)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get digest from config source: %w", err)
+		}
+		obj.Status.LastAppliedConfigSourceDigest = d
+	}
+	if obj.Spec.PatchStrategicMerge != nil {
+		d, err := r.getDigestFromSource(ctx, &meta.NamespacedObjectKindReference{
+			Kind:      obj.Spec.PatchStrategicMerge.Source.SourceRef.Kind,
+			Name:      obj.Spec.PatchStrategicMerge.Source.SourceRef.Name,
+			Namespace: obj.Spec.PatchStrategicMerge.Source.SourceRef.Namespace,
+		})
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get digest from patch merge source: %w", err)
+		}
+		obj.Status.LastAppliedPatchMergeSourceDigest = d
 	}
 
 	// Remove any stale Ready condition, most likely False, set above. Its value
@@ -291,6 +314,51 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Co
 	conditions.Delete(obj, meta.ReadyCondition)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+}
+
+func (r *ConfigurationReconciler) getDigestFromSource(ctx context.Context, sourceRef *meta.NamespacedObjectKindReference) (string, error) {
+	switch sourceRef.Kind {
+	case "Snapshot":
+		snapshot := &v1alpha1.Snapshot{}
+		if err := r.Get(ctx, types.NamespacedName{
+			Namespace: sourceRef.Namespace,
+			Name:      sourceRef.Name,
+		}, snapshot); err != nil {
+			return "", err
+		}
+
+		return snapshot.Status.LastReconciledDigest, nil
+	case "OCIRepository", "GitRepository", "Bucket":
+		return r.getArtifactChecksum(ctx, sourceRef)
+	default:
+		return "", fmt.Errorf("kind not supported for source object: %s", sourceRef.Kind)
+	}
+}
+
+func (r *ConfigurationReconciler) getArtifactChecksum(ctx context.Context, sourceRef *meta.NamespacedObjectKindReference) (string, error) {
+	var source client.Object
+
+	switch sourceRef.Kind {
+	case v1beta2.OCIRepositoryKind:
+		source = &v1beta2.OCIRepository{}
+	case v1beta2.GitRepositoryKind:
+		source = &v1beta2.GitRepository{}
+	case v1beta2.BucketKind:
+		source = &v1beta2.Bucket{}
+	}
+	if err := r.Get(ctx, types.NamespacedName{
+		Namespace: sourceRef.Namespace,
+		Name:      sourceRef.Name,
+	}, source); err != nil {
+		return "", err
+	}
+
+	obj, ok := source.(v1beta2.Source)
+	if !ok {
+		return "", fmt.Errorf("not a source: %v", obj)
+	}
+
+	return obj.GetArtifact().Checksum, nil
 }
 
 func (r *ConfigurationReconciler) requestsForRevisionChangeOf(indexKey string) func(obj client.Object) []reconcile.Request {
