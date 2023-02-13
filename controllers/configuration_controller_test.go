@@ -711,9 +711,8 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
 		errStr           string
-		snapshot         func(name, namespace string) *v1alpha1.Snapshot
 		componentVersion func() *v1alpha1.ComponentVersion
-		configuration    func() *v1alpha1.Configuration
+		configuration    func(objs *[]client.Object) *v1alpha1.Configuration
 	}{
 		{
 			name: "should not reconcile in case of matching generation and existing snapshot with ready state",
@@ -722,24 +721,22 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
-			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
-				snapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec:   v1alpha1.SnapshotSpec{},
-					Status: v1alpha1.SnapshotStatus{},
-				}
-				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
-				return snapshot
-			},
-			configuration: func() *v1alpha1.Configuration {
+			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
 				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
 				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
 					Name: "name",
 				}
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      configuration.Spec.SnapshotTemplate.Name,
+						Namespace: configuration.Namespace,
+					},
+					Spec:   v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{},
+				}
+				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+				*objs = append(*objs, configuration, snapshot)
 				return configuration
 			},
 		},
@@ -751,24 +748,23 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
-			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
-				snapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec:   v1alpha1.SnapshotSpec{},
-					Status: v1alpha1.SnapshotStatus{},
-				}
-				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
-				return snapshot
-			},
-			configuration: func() *v1alpha1.Configuration {
+			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
 				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
 				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
 					Name: "name",
 				}
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      configuration.Spec.SnapshotTemplate.Name,
+						Namespace: configuration.Namespace,
+					},
+					Spec:   v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{},
+				}
+				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+
+				*objs = append(*objs, configuration, snapshot)
 				return configuration
 			},
 		},
@@ -780,15 +776,13 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 				cv.Status.ReconciledVersion = "v0.0.2"
 				return cv
 			},
-			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
-				return nil
-			},
-			configuration: func() *v1alpha1.Configuration {
+			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
 				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
 				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
 					Name: "name",
 				}
+				*objs = append(*objs, configuration)
 				return configuration
 			},
 		},
@@ -800,10 +794,7 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
-			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
-				return nil
-			},
-			configuration: func() *v1alpha1.Configuration {
+			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
 				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
 				configuration.Status.LastAppliedSourceDigest = "not-last-reconciled-digest"
@@ -812,57 +803,6 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 					Name:      "source-snapshot",
 					Namespace: configuration.Namespace,
 				}
-				return configuration
-			},
-		},
-		{
-			name: "should not reconcile if source snapshot has the same digest",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-				return cv
-			},
-			snapshot: func(name, namespace string) *v1alpha1.Snapshot {
-				snapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec: v1alpha1.SnapshotSpec{},
-					Status: v1alpha1.SnapshotStatus{
-						LastReconciledDigest: "last-reconciled-digest",
-					},
-				}
-				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
-				return snapshot
-			},
-			configuration: func() *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Status.LastAppliedSourceDigest = "last-reconciled-digest"
-				configuration.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
-					Kind:      "Snapshot",
-					Name:      "source-snapshot",
-					Namespace: configuration.Namespace,
-				}
-				return configuration
-			},
-		},
-	}
-
-	for i, tt := range testcase {
-		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
-			// We don't set a source because it shouldn't get that far.
-			configuration := tt.configuration()
-			snapshot := tt.snapshot(configuration.Spec.SnapshotTemplate.Name, configuration.Namespace)
-			cv := tt.componentVersion()
-
-			objs := []client.Object{cv, configuration}
-			if snapshot != nil {
-				objs = append(objs, snapshot)
-			}
-
-			if configuration.Spec.Source.SourceRef != nil {
 				sourceSnapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "source-snapshot",
@@ -873,9 +813,172 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 						LastReconciledTag:    "latest",
 					},
 				}
-				objs = append(objs, sourceSnapshot)
-			}
+				*objs = append(*objs, configuration, sourceSnapshot)
+				return configuration
+			},
+		},
+		{
+			name: "should not reconcile if source snapshot has the same digest",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
+				configuration := DefaultConfiguration.DeepCopy()
+				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
+				configuration.Status.LastAppliedSourceDigest = "last-reconciled-digest"
+				configuration.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
+					Kind:      "Snapshot",
+					Name:      "source-snapshot",
+					Namespace: configuration.Namespace,
+				}
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      configuration.Spec.SnapshotTemplate.Name,
+						Namespace: configuration.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{
+						LastReconciledDigest: "last-reconciled-digest",
+					},
+				}
+				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+				sourceSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "source-snapshot",
+						Namespace: configuration.Namespace,
+					},
+					Status: v1alpha1.SnapshotStatus{
+						LastReconciledDigest: "last-reconciled-digest",
+						LastReconciledTag:    "latest",
+					},
+				}
+				*objs = append(*objs, configuration, snapshot, sourceSnapshot)
+				return configuration
+			},
+		},
+		{
+			name: "should not reconcile if there is no difference in config source",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
+				configuration := DefaultConfiguration.DeepCopy()
+				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
+				configuration.Status.LastAppliedConfigSourceDigest = "last-reconciled-digest"
+				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
+					Name: "test",
+				}
+				configuration.Spec.ConfigRef.Resource = v1alpha1.Source{
+					SourceRef: &meta.NamespacedObjectKindReference{
+						Kind:      "Snapshot",
+						Name:      "config-snapshot",
+						Namespace: configuration.Namespace,
+					},
+				}
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      configuration.Spec.SnapshotTemplate.Name,
+						Namespace: configuration.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{},
+					Status: v1alpha1.SnapshotStatus{
+						LastReconciledDigest: "last-reconciled-digest",
+					},
+				}
+				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+				configSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "config-snapshot",
+						Namespace: configuration.Namespace,
+					},
+					Status: v1alpha1.SnapshotStatus{
+						LastReconciledDigest: "last-reconciled-digest",
+						LastReconciledTag:    "latest",
+					},
+				}
+				*objs = append(*objs, configuration, configSnapshot, snapshot)
+				return configuration
+			},
+		},
+		{
+			name:   "should reconcile if there is a difference in config source",
+			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
+				configuration := DefaultConfiguration.DeepCopy()
+				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
+				configuration.Status.LastAppliedConfigSourceDigest = "last-reconciled-digest"
+				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
+					Name: "test",
+				}
+				configuration.Spec.ConfigRef.Resource = v1alpha1.Source{
+					SourceRef: &meta.NamespacedObjectKindReference{
+						Kind:      "Snapshot",
+						Name:      "config-snapshot",
+						Namespace: configuration.Namespace,
+					},
+				}
+				configSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "config-snapshot",
+						Namespace: configuration.Namespace,
+					},
+					Status: v1alpha1.SnapshotStatus{
+						LastReconciledDigest: "not-last-reconciled-digest",
+						LastReconciledTag:    "latest",
+					},
+				}
+				*objs = append(*objs, configuration, configSnapshot)
+				return configuration
+			},
+		},
+		{
+			name:   "should reconcile if there is a difference in patch merge object",
+			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				return cv
+			},
+			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
+				configuration := DefaultConfiguration.DeepCopy()
+				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
+				configuration.Status.LastAppliedPatchMergeSourceDigest = "last-reconciled-digest"
+				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
+					Name: "test",
+				}
+				configuration.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
+					Source: v1alpha1.PatchStrategicMergeSource{
+						SourceRef: v1alpha1.PatchStrategicMergeSourceRef{
+							Kind:      "GitRepository",
+							Name:      "git-test",
+							Namespace: configuration.Namespace,
+						},
+					},
+				}
+				gitrepo := createGitRepository("git-test", configuration.Namespace, "url", "last-reconciled-digest")
+				*objs = append(*objs, configuration, gitrepo)
+				return configuration
+			},
+		},
+	}
 
+	for i, tt := range testcase {
+		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
+			// We don't set a source because it shouldn't get that far.
+			var objs []client.Object
+			configuration := tt.configuration(&objs)
+			cv := tt.componentVersion()
+			objs = append(objs, cv)
+			v1beta2.AddToScheme(env.scheme)
 			client := env.FakeKubeClient(WithObjets(objs...))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
