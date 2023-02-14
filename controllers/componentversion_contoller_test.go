@@ -181,6 +181,10 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 	}
 }
 
+func TestComponentVersionEvent(t *testing.T) {
+
+}
+
 type mockComponent struct {
 	descriptor *ocmdesc.ComponentDescriptor
 	ocm.ComponentVersionAccess

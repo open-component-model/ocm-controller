@@ -10,12 +10,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/source-controller/api/v1beta2"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -26,6 +27,8 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	//+kubebuilder:scaffold:imports
 )
+
+const controllerName = "ocm-controller"
 
 var (
 	scheme   = runtime.NewScheme()
@@ -41,11 +44,13 @@ func init() {
 
 func main() {
 	var metricsAddr string
+	var eventsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
 	var ociRegistryAddr string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -79,10 +84,17 @@ func main() {
 	cache := oci.NewClient(ociRegistryAddr)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
 
+	var eventsRecorder *events.Recorder
+	if eventsRecorder, err = events.NewRecorder(mgr, ctrl.Log, eventsAddr, controllerName); err != nil {
+		setupLog.Error(err, "unable to create event recorder")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.ComponentVersionReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		OCMClient: ocmClient,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: eventsRecorder,
+		OCMClient:     ocmClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentVersion")
 		os.Exit(1)
@@ -91,6 +103,7 @@ func main() {
 	if err = (&controllers.SnapshotReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
+		EventRecorder:       eventsRecorder,
 		RegistryServiceName: ociRegistryAddr,
 		Cache:               cache,
 	}).SetupWithManager(mgr); err != nil {
@@ -99,10 +112,11 @@ func main() {
 	}
 
 	if err = (&controllers.ResourceReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		OCMClient: ocmClient,
-		Cache:     cache,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: eventsRecorder,
+		OCMClient:     ocmClient,
+		Cache:         cache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
 		os.Exit(1)
@@ -111,6 +125,7 @@ func main() {
 	if err = (&controllers.LocalizationReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
+		EventRecorder:     eventsRecorder,
 		ReconcileInterval: time.Hour,
 		RetryInterval:     time.Minute,
 		OCMClient:         ocmClient,
@@ -122,6 +137,7 @@ func main() {
 	if err = (&controllers.ConfigurationReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
+		EventRecorder:     eventsRecorder,
 		ReconcileInterval: time.Hour,
 		RetryInterval:     time.Minute,
 		OCMClient:         ocmClient,

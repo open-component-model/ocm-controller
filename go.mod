@@ -87,6 +87,7 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.1.0 // indirect
+	github.com/fluxcd/pkg/apis/event v0.3.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v0.8.0 // indirect
 	github.com/fvbommel/sortorder v1.0.2 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
