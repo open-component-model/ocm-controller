@@ -19,8 +19,13 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
+release:
+  extra_files:
+    - glob: output/install.yaml
 checksum:
   name_template: 'checksums.txt'
+  extra_files:
+    - glob: output/install.yaml
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:

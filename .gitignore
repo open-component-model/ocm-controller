@@ -26,3 +26,4 @@ testbin/*
 
 # goreleaser resources
 dist/
+output/

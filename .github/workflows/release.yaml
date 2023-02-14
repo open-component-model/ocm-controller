@@ -90,6 +90,10 @@ jobs:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Generate manifests
+      run: |
+        mkdir -p output
+        kustomize build ./config/default > ./output/install.yaml
     - name: Run goreleaser
       uses: goreleaser/goreleaser-action@v4
       with:
