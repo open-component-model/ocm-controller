@@ -88,6 +88,21 @@ type MutationStatus struct {
 	// we fire off a reconcile loop to get that new version.
 	// +optional
 	LastAppliedComponentVersion string `json:"lastAppliedComponentVersion,omitempty"`
+
+	// LastAppliedSourceDigest defines the last seen source digest that has been encountered
+	// by this object. Only applicable if Source is a SourceRef.
+	// +optional
+	LastAppliedSourceDigest string `json:"lastAppliedSourceDigest,omitempty"`
+
+	// LastAppliedConfigSourceDigest defines the last seen config source digest that has been encountered
+	// by this object. Only applicable if Source is a SourceRef.
+	// +optional
+	LastAppliedConfigSourceDigest string `json:"lastAppliedConfigSourceDigest,omitempty"`
+
+	// LastAppliedPatchMergeSourceDigest defines the last seen patch merge source digest that has been encountered
+	// by this object. Only applicable if Source is a SourceRef.
+	// +optional
+	LastAppliedPatchMergeSourceDigest string `json:"lastAppliedPatchMergeSourceDigest,omitempty"`
 }
 
 type ConfigReference struct {

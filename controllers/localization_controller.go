@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/runtime/patch"
+	"github.com/fluxcd/source-controller/api/v1beta2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -108,7 +109,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if !run {
-		log.Info("component version already reconciled", "version", componentVersion.Status.ReconciledVersion)
+		log.Info("no reconciling needed, requeuing", "component-version", componentVersion.Status.ReconciledVersion)
 		result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		return result, retErr
 	}
@@ -180,12 +181,56 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 //     update; the reconciliation should _PROCEED_
 //
 // If neither of these cases match, the reconciliation should _STOP_ and requeue the object.
+// For mutating objects, we include two other checks. These objects can have a Source object defined as a Snapshot.
+// We also want to track the condition of those source objects. If the last seen digest or tag of those Snapshots
+// changed, we should reconcile and see if there is anything new we need to apply.
 func (r *LocalizationReconciler) shouldReconcile(ctx context.Context, cv *v1alpha1.ComponentVersion, obj *v1alpha1.Localization) (bool, error) {
 	// If there is a mismatch between the observed generation of a component version, we trigger
 	// a reconcile. There is either a new version available or a dependent component version
 	// finished its reconcile process.
 	if obj.Status.LastAppliedComponentVersion != cv.Status.ReconciledVersion {
 		return true, nil
+	}
+
+	// if source is a snapshot, check on its status
+	if obj.Spec.Source.SourceRef != nil {
+		d, err := r.getDigestFromSource(ctx, obj.Spec.Source.SourceRef)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		}
+
+		if obj.Status.LastAppliedSourceDigest != d {
+			return true, nil
+		}
+	}
+
+	if obj.Spec.ConfigRef != nil && obj.Spec.ConfigRef.Resource.SourceRef != nil {
+		d, err := r.getDigestFromSource(ctx, obj.Spec.ConfigRef.Resource.SourceRef)
+		if err != nil {
+			return false, err
+		}
+
+		if obj.Status.LastAppliedConfigSourceDigest != d {
+			return true, nil
+		}
+	}
+
+	if obj.Spec.PatchStrategicMerge != nil {
+		d, err := r.getDigestFromSource(ctx, &meta.NamespacedObjectKindReference{
+			Kind:      obj.Spec.PatchStrategicMerge.Source.SourceRef.Kind,
+			Name:      obj.Spec.PatchStrategicMerge.Source.SourceRef.Name,
+			Namespace: obj.Spec.PatchStrategicMerge.Source.SourceRef.Namespace,
+		})
+		if err != nil {
+			return false, err
+		}
+
+		if obj.Status.LastAppliedPatchMergeSourceDigest != d {
+			return true, nil
+		}
 	}
 
 	// If there is no mismatch, we check if we are already done with our snapshot.
@@ -234,12 +279,83 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Com
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 	obj.Status.LastAppliedComponentVersion = cv.Status.ReconciledVersion
 
+	if obj.Spec.Source.SourceRef != nil {
+		d, err := r.getDigestFromSource(ctx, obj.Spec.Source.SourceRef)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get digest from source: %w", err)
+		}
+		obj.Status.LastAppliedSourceDigest = d
+	}
+	if obj.Spec.ConfigRef != nil && obj.Spec.ConfigRef.Resource.SourceRef != nil {
+		d, err := r.getDigestFromSource(ctx, obj.Spec.ConfigRef.Resource.SourceRef)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get digest from config source: %w", err)
+		}
+		obj.Status.LastAppliedConfigSourceDigest = d
+	}
+	if obj.Spec.PatchStrategicMerge != nil {
+		d, err := r.getDigestFromSource(ctx, &meta.NamespacedObjectKindReference{
+			Kind:      obj.Spec.PatchStrategicMerge.Source.SourceRef.Kind,
+			Name:      obj.Spec.PatchStrategicMerge.Source.SourceRef.Name,
+			Namespace: obj.Spec.PatchStrategicMerge.Source.SourceRef.Namespace,
+		})
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get digest from patch merge source: %w", err)
+		}
+		obj.Status.LastAppliedPatchMergeSourceDigest = d
+	}
+
 	// Remove any stale Ready condition, most likely False, set above. Its value
 	// is derived from the overall result of the reconciliation in the deferred
 	// block at the very end.
 	conditions.Delete(obj, meta.ReadyCondition)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+}
+
+func (r *LocalizationReconciler) getDigestFromSource(ctx context.Context, sourceRef *meta.NamespacedObjectKindReference) (string, error) {
+	switch sourceRef.Kind {
+	case "Snapshot":
+		snapshot := &v1alpha1.Snapshot{}
+		if err := r.Get(ctx, types.NamespacedName{
+			Namespace: sourceRef.Namespace,
+			Name:      sourceRef.Name,
+		}, snapshot); err != nil {
+			return "", err
+		}
+
+		return snapshot.Status.LastReconciledDigest, nil
+	case "OCIRepository", "GitRepository", "Bucket":
+		return r.getArtifactChecksum(ctx, sourceRef)
+	default:
+		return "", fmt.Errorf("kind not supported for source object: %s", sourceRef.Kind)
+	}
+}
+
+func (r *LocalizationReconciler) getArtifactChecksum(ctx context.Context, sourceRef *meta.NamespacedObjectKindReference) (string, error) {
+	var source client.Object
+
+	switch sourceRef.Kind {
+	case v1beta2.OCIRepositoryKind:
+		source = &v1beta2.OCIRepository{}
+	case v1beta2.GitRepositoryKind:
+		source = &v1beta2.GitRepository{}
+	case v1beta2.BucketKind:
+		source = &v1beta2.Bucket{}
+	}
+	if err := r.Get(ctx, types.NamespacedName{
+		Namespace: sourceRef.Namespace,
+		Name:      sourceRef.Name,
+	}, source); err != nil {
+		return "", err
+	}
+
+	obj, ok := source.(v1beta2.Source)
+	if !ok {
+		return "", fmt.Errorf("not a source: %v", obj)
+	}
+
+	return obj.GetArtifact().Checksum, nil
 }
 
 func (r *LocalizationReconciler) requestsForRevisionChangeOf(indexKey string) func(obj client.Object) []reconcile.Request {

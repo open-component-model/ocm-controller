@@ -319,6 +319,21 @@ spec:
                   version. If there is a change we fire off a reconcile loop to get
                   that new version.
                 type: string
+              lastAppliedConfigSourceDigest:
+                description: LastAppliedConfigSourceDigest defines the last seen config
+                  source digest that has been encountered by this object. Only applicable
+                  if Source is a SourceRef.
+                type: string
+              lastAppliedPatchMergeSourceDigest:
+                description: LastAppliedPatchMergeSourceDigest defines the last seen
+                  patch merge source digest that has been encountered by this object.
+                  Only applicable if Source is a SourceRef.
+                type: string
+              lastAppliedSourceDigest:
+                description: LastAppliedSourceDigest defines the last seen source
+                  digest that has been encountered by this object. Only applicable
+                  if Source is a SourceRef.
+                type: string
               latestConfigVersion:
                 type: string
               latestSnapshotDigest:
