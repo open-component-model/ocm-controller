@@ -627,10 +627,9 @@ configuration:
 				gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
 				configuration = tt.patchStrategicMerge(configuration, gitRepo, "sites/eu-west-1/deployment.yaml")
 				objs = append(objs, gitRepo)
-				sourcev1.AddToScheme(env.scheme)
 			}
 
-			client := env.FakeKubeClient(WithObjets(objs...))
+			client := env.FakeKubeClient(WithObjets(objs...), WithAddToScheme(sourcev1.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
 			tt.mock(cache, fakeOcm)
@@ -973,13 +972,11 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 
 	for i, tt := range testcase {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
-			// We don't set a source because it shouldn't get that far.
 			var objs []client.Object
 			configuration := tt.configuration(&objs)
 			cv := tt.componentVersion()
 			objs = append(objs, cv)
-			v1beta2.AddToScheme(env.scheme)
-			client := env.FakeKubeClient(WithObjets(objs...))
+			client := env.FakeKubeClient(WithObjets(objs...), WithAddToScheme(v1beta2.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
 
