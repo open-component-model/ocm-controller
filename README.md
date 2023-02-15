@@ -71,10 +71,10 @@ spec:
 Apply the `Resource`:
 
 ```bash
-kubectl apply -f component_version.yaml
+kubectl apply -f resource.yaml
 ```
 
-Create a Flux `Kustomization` to apply the `Resource`:
+Create a Flux `Kustomization` to apply the `Resource` and save it to a file named `resource_kustomization.yaml`:
 
 ```yaml
 # resource_kustomization.yaml
@@ -92,6 +92,12 @@ spec:
     kind: OCIRepository
     name: podinfo
     namespace: ocm-system
+```
+
+Apply the `Kustomization`:
+
+```
+kubectl apply -f resource_kustomization.yaml
 ```
 
 View the deployment spinning up:
