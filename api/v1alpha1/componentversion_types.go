@@ -23,8 +23,10 @@ type Repository struct {
 	//TODO@souleb: do we need a scheme for the url?
 	// add description for each field
 	// Do we need a type field? (e.g. oci, git, s3, etc.)
-	URL       string    `json:"url"`
-	SecretRef SecretRef `json:"secretRef"`
+	URL string `json:"url"`
+
+	// +optional
+	SecretRef *SecretRef `json:"secretRef,omitempty"`
 }
 
 // SecretRefValue clearly denotes that the requested option is a Secret.

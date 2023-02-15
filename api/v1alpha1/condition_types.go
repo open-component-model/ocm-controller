@@ -6,6 +6,9 @@
 package v1alpha1
 
 const (
+	// CheckVersionFailedReason is used when the controller failed to check for new versions
+	CheckVersionFailedReason = "CheckVersionFailedReason"
+
 	// VerificationFailedReason is used when the signature verification of a component failed.
 	VerificationFailedReason = "ComponentVerificationFailed"
 

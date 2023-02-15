@@ -148,14 +148,18 @@ func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.Componen
 	log := log.FromContext(ctx)
 
 	octx := ocm.ForContext(ctx)
+
 	// configure registry credentials
-	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
-		log.V(4).Error(err, "failed to find credentials")
-		// ignore not found errors for now
-		if !apierrors.IsNotFound(err) {
-			return nil, fmt.Errorf("failed to configure credentials for component: %w", err)
+	if obj.Spec.Repository.SecretRef != nil {
+		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
+			log.V(4).Error(err, "failed to find credentials")
+			// ignore not found errors for now
+			if !apierrors.IsNotFound(err) {
+				return nil, fmt.Errorf("failed to configure credentials for component: %w", err)
+			}
 		}
 	}
+
 	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Repository.URL, nil))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
@@ -176,11 +180,13 @@ func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVer
 	octx := ocm.ForContext(ctx)
 
 	// configure registry credentials
-	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
-		log.V(4).Error(err, "failed to find credentials")
-		// ignore not found errors for now
-		if !apierrors.IsNotFound(err) {
-			return false, fmt.Errorf("failed to configure credentials for component: %w", err)
+	if obj.Spec.Repository.SecretRef != nil {
+		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
+			log.V(4).Error(err, "failed to find credentials")
+			// ignore not found errors for now
+			if !apierrors.IsNotFound(err) {
+				return false, fmt.Errorf("failed to configure credentials for component: %w", err)
+			}
 		}
 	}
 
@@ -267,11 +273,13 @@ func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.Co
 	octx := ocm.ForContext(ctx)
 
 	// configure registry credentials
-	if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
-		log.V(4).Error(err, "failed to find credentials")
-		// ignore not found errors for now
-		if !apierrors.IsNotFound(err) {
-			return "", fmt.Errorf("failed to configure credentials for component: %w", err)
+	if obj.Spec.Repository.SecretRef != nil {
+		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Repository.URL, obj.Spec.Repository.SecretRef.Name, obj.Namespace); err != nil {
+			log.V(4).Error(err, "failed to find credentials")
+			// ignore not found errors for now
+			if !apierrors.IsNotFound(err) {
+				return "", fmt.Errorf("failed to configure credentials for component: %w", err)
+			}
 		}
 	}
 
