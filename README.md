@@ -2,7 +2,7 @@
 
 [![REUSE status](https://api.reuse.software/badge/github.com/open-component-model/ocm-controller)](https://api.reuse.software/info/github.com/open-component-model/ocm-controller)
 
-This is the main repository for `ocm-controller`. The `ocm-controller` is designed to enable the automated deployment of software using the Open Component Model and Flux.
+This is the main repository for `ocm-controller`. The `ocm-controller` is designed to enable the automated deployment of software using the [Open Component Model](https://ocm.software) and Flux.
 
 It has the following features:
 - Resolves [`ComponentDescriptor`](https://github.com/open-component-model/ocm-spec/blob/main/doc/glossary.md#component-descriptor) metadata for a particular [component version](https://github.com/open-component-model/ocm-spec/blob/main/doc/glossary.md#component-version)
