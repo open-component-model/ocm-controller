@@ -69,7 +69,6 @@ spec:
                       git, s3, etc.)'
                     type: string
                 required:
-                - secretRef
                 - url
                 type: object
               verify:

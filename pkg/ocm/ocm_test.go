@@ -263,7 +263,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 			},
 			Repository: v1alpha1.Repository{
 				URL: env.repositoryURL,
-				SecretRef: v1alpha1.SecretRef{
+				SecretRef: &v1alpha1.SecretRef{
 					Name: secretName,
 				},
 			},

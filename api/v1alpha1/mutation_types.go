@@ -116,6 +116,7 @@ type ConfigReference struct {
 type ResourceRef struct {
 	// +required
 	Name string `json:"name"`
+
 	// +optional
 	Version string `json:"version,omitempty"`
 
