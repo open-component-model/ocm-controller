@@ -51,6 +51,8 @@ type LocalizationReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=localizations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=localizations/finalizers,verbs=update
 
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	snapshotSourceKey := ".metadata.snapshot.source"

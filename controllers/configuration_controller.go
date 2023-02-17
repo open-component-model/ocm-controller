@@ -51,6 +51,7 @@ type ConfigurationReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations/finalizers,verbs=update
 
 //+kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=gitrepositories;buckets;ocirepositories,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {

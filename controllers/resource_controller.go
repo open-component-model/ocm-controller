@@ -41,9 +41,11 @@ type ResourceReconciler struct {
 	Cache     cache.Cache
 }
 
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=delivery.ocm.software,resources=resources/finalizers,verbs=update
+// +kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=delivery.ocm.software,resources=resources/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=delivery.ocm.software,resources=resources/finalizers,verbs=update
+
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {

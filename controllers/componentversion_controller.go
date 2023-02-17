@@ -52,6 +52,7 @@ type ComponentVersionReconciler struct {
 //+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;create;update;patch;delete
 
 // +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
