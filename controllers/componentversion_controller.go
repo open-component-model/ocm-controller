@@ -11,10 +11,13 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
+
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -113,6 +116,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			// Set the return err as the ready failure message if the resource is not ready, but also not reconciling or stalled.
 			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
 				retErr = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
+				r.event(obj, eventv1.EventSeverityError, retErr.Error())
 			}
 		}
 
@@ -122,6 +126,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
 			reconciling.Reason = meta.ProgressingWithRetryReason
 			conditions.Set(obj, reconciling)
+			r.event(obj, eventv1.EventSeverityInfo, fmt.Sprintf("Reconciliation did not succeed, retrying in %s", obj.GetRequeueAfter()))
 		}
 
 		// If not reconciling or stalled than mark Ready=True
@@ -134,6 +139,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// Set status observed generation option if the component is stalled or ready.
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
+			r.event(obj, eventv1.EventSeverityInfo, fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()))
 		}
 
 		// Update the object.
@@ -152,6 +158,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		retErr = fmt.Errorf("failed to check version: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.CheckVersionFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CheckVersionFailedReason, err.Error())
+		r.event(obj, eventv1.EventSeverityError, retErr.Error())
 		return result, retErr
 	}
 
@@ -167,6 +174,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		log.Error(err, "failed to verify component", "component", klog.KObj(obj))
 		err := fmt.Errorf("failed to verify component: %w", err)
+		r.event(obj, eventv1.EventSeverityError, fmt.Sprintf("%s, retrying in %s", err.Error(), obj.GetRequeueAfter()))
 		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
 		result, retErr = ctrl.Result{}, nil
@@ -176,6 +184,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if !ok {
 		err := fmt.Errorf("attempted to verify component, but the digest didn't match")
 		log.Error(err, "invalid digest for component version", "component", klog.KObj(obj))
+		r.event(obj, eventv1.EventSeverityError, fmt.Sprintf("%s, retrying in %s", err.Error(), obj.GetRequeueAfter()))
 		conditions.MarkStalled(obj, v1alpha1.VerificationFailedReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, err.Error())
 		result, retErr = ctrl.Result{}, nil
@@ -187,6 +196,9 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// update the result for the defer call to have the latest information
 	result, retErr = r.reconcile(ctx, obj, version)
+	if retErr != nil {
+		r.event(obj, eventv1.EventSeverityError, fmt.Sprintf("Reconciliation failed: %s, retrying in %s", retErr.Error(), obj.GetRequeueAfter()))
+	}
 	return result, retErr
 }
 
@@ -223,17 +235,19 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	}
 
 	if latestSemver.Equal(current) {
-		log.Info("latest version already reconciled")
+		log.V(4).Info("Latest version already reconciled", "version", latestSemver)
 		return false, "", nil
 	}
 
 	// compare given constraint and latest available version
 	valid, errs := constraint.Validate(latestSemver)
 	if !valid || len(errs) > 0 {
-		log.Info("version constraint check failed with the following problems", "errors", errs, "version", current)
+		log.Info("Version constraint check failed with the following problems", "errors", errs, "version", current)
+		r.event(obj, eventv1.EventSeverityError, "Version constraint check failed, continuing without update")
 		return false, "", nil
 	}
 
+	r.event(obj, eventv1.EventSeverityInfo, fmt.Sprintf("Version check succeeded, found latest version: %s", latest))
 	return true, latest, nil
 }
 
@@ -427,4 +441,22 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(ctx context.Conte
 	log.V(4).Info(fmt.Sprintf("%s(ed) descriptor", op), "descriptor", klog.KObj(descriptor))
 
 	return descriptor, nil
+}
+
+func (r *ComponentVersionReconciler) event(obj *v1alpha1.ComponentVersion, severity, msg string) {
+	metadata := map[string]string{
+		v1alpha1.GroupVersion.Group + "/component_version": obj.Status.ComponentDescriptor.Name + ":" + obj.Status.ReconciledVersion,
+	}
+
+	reason := severity
+	if r := conditions.GetReason(obj, meta.ReadyCondition); r != "" {
+		reason = r
+	}
+
+	eventType := corev1.EventTypeNormal
+	if severity == eventv1.EventSeverityError {
+		eventType = corev1.EventTypeWarning
+	}
+
+	r.EventRecorder.AnnotatedEventf(obj, metadata, eventType, reason, msg)
 }
