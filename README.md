@@ -159,7 +159,7 @@ a controller's reconcile loop.
 To use tilt, simply install it into your respective environment and run `tilt up` then hit `<space>` to enter tilt's
 ui. You should see ocm-controller starting up.
 
-For additional configuration take a look the the `tilt-settings.yaml.example` file. Use this file to fine-tune what
+For additional configuration take a look at the `tilt-settings.yaml.example` file. Use this file to fine-tune what
 tilt can configure. For example, to set up `flux` to bootstrap your cluster automatically, add the following settings:
 
 ```yaml
