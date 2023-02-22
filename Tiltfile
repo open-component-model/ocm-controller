@@ -91,23 +91,36 @@ k8s_yaml(kustomize('config/default'))
 # Create Secrets
 create_secrets()
 
-# build the main controller and inject it into the tilt registry
-# bug with build with restart binary: https://github.com/tilt-dev/tilt/issues/6047
-# load('ext://restart_process', 'docker_build_with_restart')
-# docker_build_with_restart(
-#     'ghcr.io/open-component-model/ocm-controller',
-#     '.',
-#     entrypoint = '/workspace/manager',
-#     live_update = [
-#         sync('./bin', '/workspace'),
-#     ],
-# )
+load('ext://restart_process', 'docker_build_with_restart')
 
-docker_build(
-    'ghcr.io/open-component-model/ocm-controller',
-    context = '.',
-    dockerfile = 'Dockerfile',
-    live_update = [
-        sync('./bin', '/workspace'),
+# enable hot reloading by doing the following:
+# - locally build the whole project
+# - create a docker imagine using tilt's hot-swap wrapper
+# - push that contains to the local tilt registry
+# Upon finishing that, rebuilding now should not rebuild the whole image
+# but just rebuild the binary and push it into the container and restart
+# the process.
+local_resource(
+    'manager',
+    'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/manager ./',
+    deps = [
+        "main.go",
+        "go.mod",
+        "go.sum",
+        "api",
+        "controllers",
     ],
 )
+
+# Build the docker image for our controller. We use a specific Dockerfile
+# since tilt can't run on a scratch container.
+docker_build_with_restart(
+    'ghcr.io/open-component-model/ocm-controller',
+    '.',
+    dockerfile = 'tilt.dockerfile',
+    entrypoint = '/manager',
+    live_update = [
+        sync('./bin/manager', '/manager'),
+    ],
+)
+
