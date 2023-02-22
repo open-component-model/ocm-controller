@@ -128,8 +128,8 @@ func (f *FakeCache) FetchDataByDigestWasNotCalled() bool {
 	return len(f.fetchDataByDigestCalledWith) == 0
 }
 
-func (f *FakeCache) DeleteData(ctx context.Context, name, tag string) error {
-	f.deleteDataCalledWith = append(f.deleteDataCalledWith, []any{name, tag})
+func (f *FakeCache) DeleteData(ctx context.Context, name, digest string) error {
+	f.deleteDataCalledWith = append(f.deleteDataCalledWith, []any{name, digest})
 	return f.deleteDataErr
 }
 

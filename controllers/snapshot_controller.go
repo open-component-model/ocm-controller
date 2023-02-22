@@ -175,15 +175,8 @@ func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *d
 		return fmt.Errorf("failed to construct name: %w", err)
 	}
 
-	cached, err := r.Cache.IsCached(ctx, name, obj.Status.LastReconciledTag)
-	if err != nil {
-		return fmt.Errorf("failed to check if data is cached: %w", err)
-	}
-
-	if cached {
-		if err := r.Cache.DeleteData(ctx, name, obj.Status.LastReconciledTag); err != nil {
-			return fmt.Errorf("failed to remove cached data: %w", err)
-		}
+	if err := r.Cache.DeleteData(ctx, name, obj.Spec.Digest); err != nil {
+		return fmt.Errorf("failed to remove cached data: %w", err)
 	}
 
 	controllerutil.RemoveFinalizer(obj, snapshotFinalizer)

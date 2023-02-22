@@ -176,15 +176,25 @@ func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 }
 
 // DeleteData removes a specific tag from the cache.
-func (c *Client) DeleteData(ctx context.Context, name, tag string) error {
+func (c *Client) DeleteData(ctx context.Context, name, digest string) error {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
-	reference, err := ociname.ParseReference(fmt.Sprintf("%s:%s", repositoryName, tag))
+	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
-		return fmt.Errorf("failed to parse repository and tag name: %w", err)
+		return fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	if err := remote.Delete(reference); err != nil {
-		return fmt.Errorf("failed to remove image reference: %w", err)
+	return repo.deleteDigest(digest)
+}
+
+func (r *Repository) deleteDigest(digest string) error {
+	ref, err := ociname.NewDigest(fmt.Sprintf("%s@%s", r.Repository, digest))
+	if err != nil {
+		return fmt.Errorf("failed to parse reference: %w", err)
+	}
+	// fetch manifest
+	// Get performs a digest verification
+	if err := remote.Delete(ref, r.remoteOpts...); err != nil {
+		return fmt.Errorf("failed to delete ref '%s': %w", ref, err)
 	}
 
 	return nil
