@@ -92,6 +92,7 @@ func main() {
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
 		RegistryServiceName: ociRegistryAddr,
+		Cache:               cache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Snapshot")
 		os.Exit(1)

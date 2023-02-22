@@ -142,6 +142,7 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.
 	return reader, digest.String(), nil
 }
 
+// FetchDataByDigest returns a reader for a given digest.
 func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 
@@ -160,6 +161,7 @@ func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io
 	return reader, nil
 }
 
+// IsCached returns whether a certain tag with a given name exists in cache.
 func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	reference, err := ociname.ParseReference(fmt.Sprintf("%s:%s", repositoryName, tag))
@@ -171,6 +173,21 @@ func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// DeleteData removes a specific tag from the cache.
+func (c *Client) DeleteData(ctx context.Context, name, tag string) error {
+	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
+	reference, err := ociname.ParseReference(fmt.Sprintf("%s:%s", repositoryName, tag))
+	if err != nil {
+		return fmt.Errorf("failed to parse repository and tag name: %w", err)
+	}
+
+	if err := remote.Delete(reference); err != nil {
+		return fmt.Errorf("failed to remove image reference: %w", err)
+	}
+
+	return nil
 }
 
 // fetchBlob fetches a blob from the repository.

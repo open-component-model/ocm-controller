@@ -15,6 +15,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,11 +32,17 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
+const (
+	snapshotFinalizer = "finalizers.snapshot.ocm.software"
+)
+
 // SnapshotReconciler reconciles a Snapshot object
 type SnapshotReconciler struct {
 	client.Client
 	Scheme              *runtime.Scheme
 	RegistryServiceName string
+
+	Cache cache.Cache
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots,verbs=get;list;watch;create;update;patch;delete
@@ -68,11 +75,26 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, retErr
 	}
 
+	if obj.GetDeletionTimestamp() != nil {
+		if !controllerutil.ContainsFinalizer(obj, snapshotFinalizer) {
+			return ctrl.Result{}, nil
+		}
+
+		if err := r.reconcileDeleteSnapshot(ctx, obj); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to remove finalizer: %w", err)
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		retErr = errors.Join(retErr, err)
 		return ctrl.Result{}, retErr
 	}
+
+	// AddFinalizer is not present already.
+	controllerutil.AddFinalizer(obj, snapshotFinalizer)
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
@@ -139,4 +161,32 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log.Info("snapshot successfully reconciled", "snapshot", klog.KObj(obj))
 
 	return ctrl.Result{}, nil
+}
+
+// reconcileDeleteSnapshot removes the cached data that the snapshot was associated with if it exists.
+func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *deliveryv1alpha1.Snapshot) error {
+	patchHelper, err := patch.NewHelper(obj, r.Client)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile delete: %w", err)
+	}
+
+	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
+	if err != nil {
+		return fmt.Errorf("failed to construct name: %w", err)
+	}
+
+	cached, err := r.Cache.IsCached(ctx, name, obj.Status.LastReconciledTag)
+	if err != nil {
+		return fmt.Errorf("failed to check if data is cached: %w", err)
+	}
+
+	if cached {
+		if err := r.Cache.DeleteData(ctx, name, obj.Status.LastReconciledTag); err != nil {
+			return fmt.Errorf("failed to remove cached data: %w", err)
+		}
+	}
+
+	controllerutil.RemoveFinalizer(obj, snapshotFinalizer)
+
+	return patchHelper.Patch(ctx, obj)
 }
