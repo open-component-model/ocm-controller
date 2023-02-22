@@ -149,6 +149,28 @@ A Kubernetes resource that manages a Flux compatible single layer OCI image. Ena
 
 To run the test suite use `make test`.
 
+## Local Testing
+
+`ocm-controller` has a `Tiltfile` which can be used for rapid development. [tilt](https://tilt.dev/) is a convenient
+little tool to spin up a controller and do some extra setup in the process conditionally. It will also keep updating
+the environment via a process that is called [control loop](https://docs.tilt.dev/controlloop.html); it's similar to
+a controller's reconcile loop.
+
+To use tilt, simply install it into your respective environment and run `tilt up` then hit `<space>` to enter tilt's
+ui. You should see ocm-controller starting up.
+
+For additional configuration take a look the the `tilt-settings.yaml.example` file. Use this file to fine-tune what
+tilt can configure. For example, to set up `flux` to bootstrap your cluster automatically, add the following settings:
+
+```yaml
+flux:
+  enabled: true
+  bootstrap: true
+  owner: <github-user>
+  repository: <name of the flux repository>
+  path: <path to flux configuration>
+```
+
 ## Licensing
 
 Copyright 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
