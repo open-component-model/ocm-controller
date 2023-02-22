@@ -75,8 +75,6 @@ def create_secrets():
     }))
 
 
-
-
 # set up the development environment
 
 # check if flux is needed
@@ -86,7 +84,7 @@ bootstrap_or_install_flux()
 install_unpacker()
 
 # Deploy: tell tilt what files to deploy from
-k8s_yaml(kustomize('config/default'))
+k8s_yaml(kustomize('config/tilt'))
 
 # Create Secrets
 create_secrets()
@@ -96,10 +94,9 @@ load('ext://restart_process', 'docker_build_with_restart')
 # enable hot reloading by doing the following:
 # - locally build the whole project
 # - create a docker imagine using tilt's hot-swap wrapper
-# - push that contains to the local tilt registry
-# Upon finishing that, rebuilding now should not rebuild the whole image
-# but just rebuild the binary and push it into the container and restart
-# the process.
+# - push that container to the local tilt registry
+# Once done, rebuilding now should be a lot faster since only the relevant
+# binary is rebuilt and the hot swat wrapper takes care of the rest.
 local_resource(
     'manager',
     'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/manager ./',
@@ -109,6 +106,7 @@ local_resource(
         "go.sum",
         "api",
         "controllers",
+        "pkg",
     ],
 )
 
@@ -118,9 +116,12 @@ docker_build_with_restart(
     'ghcr.io/open-component-model/ocm-controller',
     '.',
     dockerfile = 'tilt.dockerfile',
-    entrypoint = '/manager',
+    entrypoint = '/bin/manager',
+    only=[
+      './bin',
+    ],
     live_update = [
-        sync('./bin/manager', '/manager'),
+        sync('./bin', '/bin'),
     ],
 )
 
