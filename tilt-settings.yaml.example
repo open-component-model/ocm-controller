@@ -1,0 +1,6 @@
+flux:
+  enabled: true
+  bootstrap: true
+  owner: skarlso
+  repository: ocm-flux-example
+  path: ./03-podify/clusters/kind
