@@ -83,8 +83,21 @@ bootstrap_or_install_flux()
 # check if installing unpacker is needed
 install_unpacker()
 
-# Deploy: tell tilt what files to deploy from
-k8s_yaml(kustomize('config/tilt'))
+# Use kustomize to build the install yaml files
+install = kustomize('config/default')
+
+# Update the root security group. Tilt requires root access to update the
+# running process.
+objects = decode_yaml_stream(install)
+for o in objects:
+    if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'ocm-controller':
+        o['spec']['template']['spec']['securityContext']['runAsNonRoot'] = False
+        break
+
+updated_install = encode_yaml_stream(objects)
+
+# Apply the updated yaml to the cluster.
+k8s_yaml(updated_install)
 
 # Create Secrets
 create_secrets()
