@@ -75,8 +75,6 @@ def create_secrets():
     }))
 
 
-
-
 # set up the development environment
 
 # check if flux is needed
@@ -85,29 +83,58 @@ bootstrap_or_install_flux()
 # check if installing unpacker is needed
 install_unpacker()
 
-# Deploy: tell tilt what files to deploy from
-k8s_yaml(kustomize('config/default'))
+# Use kustomize to build the install yaml files
+install = kustomize('config/default')
+
+# Update the root security group. Tilt requires root access to update the
+# running process.
+objects = decode_yaml_stream(install)
+for o in objects:
+    if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'ocm-controller':
+        o['spec']['template']['spec']['securityContext']['runAsNonRoot'] = False
+        break
+
+updated_install = encode_yaml_stream(objects)
+
+# Apply the updated yaml to the cluster.
+k8s_yaml(updated_install)
 
 # Create Secrets
 create_secrets()
 
-# build the main controller and inject it into the tilt registry
-# bug with build with restart binary: https://github.com/tilt-dev/tilt/issues/6047
-# load('ext://restart_process', 'docker_build_with_restart')
-# docker_build_with_restart(
-#     'ghcr.io/open-component-model/ocm-controller',
-#     '.',
-#     entrypoint = '/workspace/manager',
-#     live_update = [
-#         sync('./bin', '/workspace'),
-#     ],
-# )
+load('ext://restart_process', 'docker_build_with_restart')
 
-docker_build(
-    'ghcr.io/open-component-model/ocm-controller',
-    context = '.',
-    dockerfile = 'Dockerfile',
-    live_update = [
-        sync('./bin', '/workspace'),
+# enable hot reloading by doing the following:
+# - locally build the whole project
+# - create a docker imagine using tilt's hot-swap wrapper
+# - push that container to the local tilt registry
+# Once done, rebuilding now should be a lot faster since only the relevant
+# binary is rebuilt and the hot swat wrapper takes care of the rest.
+local_resource(
+    'manager',
+    'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/manager ./',
+    deps = [
+        "main.go",
+        "go.mod",
+        "go.sum",
+        "api",
+        "controllers",
+        "pkg",
     ],
 )
+
+# Build the docker image for our controller. We use a specific Dockerfile
+# since tilt can't run on a scratch container.
+docker_build_with_restart(
+    'ghcr.io/open-component-model/ocm-controller',
+    '.',
+    dockerfile = 'tilt.dockerfile',
+    entrypoint = '/bin/manager',
+    only=[
+      './bin',
+    ],
+    live_update = [
+        sync('./bin', '/bin'),
+    ],
+)
+
