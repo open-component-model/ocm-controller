@@ -1,5 +1,5 @@
 FROM alpine
-WORKDIR /bin
-COPY ./bin/manager /bin/manager
+WORKDIR /
+COPY ./bin/manager /manager
 
-ENTRYPOINT ["/bin/manager"]
+ENTRYPOINT ["/manager"]

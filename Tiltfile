@@ -26,6 +26,7 @@ settings = {
         "email": os.getenv("GITHUB_EMAIL", ""),
         "user": os.getenv("GITHUB_USER", ""),
     },
+    "forward_registry": False,
 }
 
 # global settings
@@ -125,16 +126,20 @@ local_resource(
 
 # Build the docker image for our controller. We use a specific Dockerfile
 # since tilt can't run on a scratch container.
+# `only` here is important, otherwise, the container will get updated
+# on _any_ file change. We only want to monitor the binary.
 docker_build_with_restart(
     'ghcr.io/open-component-model/ocm-controller',
     '.',
     dockerfile = 'tilt.dockerfile',
-    entrypoint = '/bin/manager',
+    entrypoint = ['/manager'],
     only=[
       './bin',
     ],
     live_update = [
-        sync('./bin', '/bin'),
+        sync('./bin/manager', '/manager'),
     ],
 )
 
+if settings.get('forward_registry'):
+    k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards=5000)
