@@ -4,3 +4,6 @@ flux:
   owner: skarlso
   repository: ocm-flux-example
   path: ./03-podify/clusters/kind
+verification_keys:
+  alice: "alice=./rsa.pub"
+  root: "root=<absolute-path>/rsa.pub"

@@ -27,3 +27,5 @@ testbin/*
 # goreleaser resources
 dist/
 output/
+
+tilt-settings.yaml
