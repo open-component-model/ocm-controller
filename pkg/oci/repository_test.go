@@ -202,3 +202,66 @@ func TestClient_FetchPush(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_DeleteData(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.NoError(t, err)
+
+	addr := strings.TrimPrefix(testServer.URL, "http://")
+	testCases := []struct {
+		name     string
+		blob     []byte
+		expected []byte
+		resource v1alpha1.ResourceRef
+		objects  []client.Object
+		push     bool
+	}{
+		{
+			name:     "image",
+			blob:     []byte("image"),
+			expected: []byte("image"),
+			resource: v1alpha1.ResourceRef{
+				Name:    "test-resource-1",
+				Version: "v0.0.1",
+			},
+			push: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := NewWithT(t)
+			c := NewClient(addr)
+			obj := &v1alpha1.ComponentVersion{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-name",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.ComponentVersionSpec{
+					Component: "github.com/skarlso/root",
+					Version: v1alpha1.Version{
+						Semver: "v0.0.1",
+					},
+				},
+				Status: v1alpha1.ComponentVersionStatus{
+					ReconciledVersion: "v0.0.1",
+				},
+			}
+			identity := v1alpha1.Identity{
+				v1alpha1.ComponentVersionKey: obj.Status.ReconciledVersion,
+				v1alpha1.ComponentNameKey:    obj.Spec.Component,
+				v1alpha1.ResourceNameKey:     tc.resource.Name,
+				v1alpha1.ResourceVersionKey:  tc.resource.Version,
+			}
+			name, err := identity.Hash()
+			g.Expect(err).NotTo(HaveOccurred())
+			_, err = c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), name, tc.resource.Version)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(c.DeleteData(context.Background(), name, tc.resource.Version)).To(Succeed())
+			exists, err := c.IsCached(context.Background(), name, tc.resource.Version)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(exists).To(BeFalse())
+		})
+	}
+}

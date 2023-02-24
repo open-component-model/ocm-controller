@@ -28,6 +28,8 @@ type FakeCache struct {
 	fetchDataByDigestCallCount    int
 	fetchDataByDigestReturns      map[int]fetchDataByDigestReturnValues
 	fetchDataByDigestCalledWith   [][]any
+	deleteDataErr                 error
+	deleteDataCalledWith          [][]any
 }
 
 func (f *FakeCache) IsCached(ctx context.Context, name, tag string) (bool, error) {
@@ -124,6 +126,23 @@ func (f *FakeCache) FetchDataByDigestCallingArgumentsOnCall(i int) []any {
 
 func (f *FakeCache) FetchDataByDigestWasNotCalled() bool {
 	return len(f.fetchDataByDigestCalledWith) == 0
+}
+
+func (f *FakeCache) DeleteData(ctx context.Context, name, digest string) error {
+	f.deleteDataCalledWith = append(f.deleteDataCalledWith, []any{name, digest})
+	return f.deleteDataErr
+}
+
+func (f *FakeCache) DeleteDataReturns(err error) {
+	f.deleteDataErr = err
+}
+
+func (f *FakeCache) DeleteDataCallingArgumentsOnCall(i int) []any {
+	return f.deleteDataCalledWith[i]
+}
+
+func (f *FakeCache) DeleteDataWasNotCalled() bool {
+	return len(f.deleteDataCalledWith) == 0
 }
 
 var _ cache.Cache = &FakeCache{}

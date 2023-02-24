@@ -142,6 +142,7 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.
 	return reader, digest.String(), nil
 }
 
+// FetchDataByDigest returns a reader for a given digest.
 func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 
@@ -160,6 +161,7 @@ func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io
 	return reader, nil
 }
 
+// IsCached returns whether a certain tag with a given name exists in cache.
 func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	reference, err := ociname.ParseReference(fmt.Sprintf("%s:%s", repositoryName, tag))
@@ -171,6 +173,42 @@ func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// DeleteData removes a specific tag from the cache.
+func (c *Client) DeleteData(ctx context.Context, name, tag string) error {
+	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
+	repo, err := NewRepository(repositoryName, WithInsecure())
+	if err != nil {
+		return fmt.Errorf("failed create new repository: %w", err)
+	}
+
+	return repo.deleteTag(tag)
+}
+
+// deleteTag fetches the latest digest for a tag. This will delete the whole Manifest.
+// This is done because docker registry doesn't technically support deleting a single Tag.
+// But since we have a 1:1 relationship between a tag and a manifest, it's safe to delete
+// the complete manifest.
+func (r *Repository) deleteTag(tag string) error {
+	ref, err := ociname.NewTag(fmt.Sprintf("%s:%s", r.Repository, tag))
+	if err != nil {
+		return fmt.Errorf("failed to parse reference: %w", err)
+	}
+	desc, err := remote.Head(ref, r.remoteOpts...)
+	if err != nil {
+		return fmt.Errorf("failed to fetch head for reference: %w", err)
+	}
+
+	deleteRef, err := parseReference(desc.Digest.String(), r)
+	if err != nil {
+		return fmt.Errorf("failed to construct reference for calculated digest: %w", err)
+	}
+
+	if err := remote.Delete(deleteRef, r.remoteOpts...); err != nil {
+		return fmt.Errorf("failed to delete ref '%s': %w", ref, err)
+	}
+	return nil
 }
 
 // fetchBlob fetches a blob from the repository.

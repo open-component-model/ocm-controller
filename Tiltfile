@@ -27,6 +27,7 @@ settings = {
         "user": os.getenv("GITHUB_USER", ""),
     },
     "forward_registry": False,
+    "verification_keys": {},
 }
 
 # global settings
@@ -35,7 +36,7 @@ settings.update(read_yaml(
     tilt_file,
     default = {},
 ))
-load('ext://secret', 'secret_yaml_registry', 'secret_from_dict')
+load('ext://secret', 'secret_yaml_registry', 'secret_from_dict', 'secret_create_generic')
 
 
 def bootstrap_or_install_flux():
@@ -76,6 +77,14 @@ def create_secrets():
     }))
 
 
+def create_verification_keys():
+    keys = settings.get("verification_keys")
+    if not keys:
+        return
+
+    for key, value in keys.items():
+        secret_create_generic(key, 'ocm-system', from_file=value)
+
 # set up the development environment
 
 # check if flux is needed
@@ -102,6 +111,7 @@ k8s_yaml(updated_install)
 
 # Create Secrets
 create_secrets()
+create_verification_keys()
 
 load('ext://restart_process', 'docker_build_with_restart')
 
