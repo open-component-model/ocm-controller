@@ -9,13 +9,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -177,12 +177,23 @@ func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *d
 	}
 
 	if err := r.Cache.DeleteData(ctx, name, obj.Spec.Tag); err != nil {
-		if !strings.Contains(err.Error(), "MANIFEST_UNKNOWN") {
-			return fmt.Errorf("failed to remove cached data: %w", err)
+		var terr *transport.Error
+		if !errors.As(err, &terr) || !containsManifestNotFoundError(terr.Errors) {
+			return fmt.Errorf("failed to delete data: %w", err)
 		}
 	}
 
 	controllerutil.RemoveFinalizer(obj, snapshotFinalizer)
 
 	return patchHelper.Patch(ctx, obj)
+}
+
+func containsManifestNotFoundError(errors []transport.Diagnostic) bool {
+	for _, e := range errors {
+		if e.Code == transport.ManifestUnknownErrorCode {
+			return true
+		}
+	}
+
+	return false
 }
