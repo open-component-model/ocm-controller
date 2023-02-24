@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -175,8 +176,10 @@ func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *d
 		return fmt.Errorf("failed to construct name: %w", err)
 	}
 
-	if err := r.Cache.DeleteData(ctx, name, obj.Spec.Digest); err != nil {
-		return fmt.Errorf("failed to remove cached data: %w", err)
+	if err := r.Cache.DeleteData(ctx, name, obj.Spec.Tag); err != nil {
+		if !strings.Contains(err.Error(), "MANIFEST_UNKNOWN") {
+			return fmt.Errorf("failed to remove cached data: %w", err)
+		}
 	}
 
 	controllerutil.RemoveFinalizer(obj, snapshotFinalizer)

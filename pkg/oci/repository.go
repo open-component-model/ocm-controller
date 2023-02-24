@@ -176,27 +176,38 @@ func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 }
 
 // DeleteData removes a specific tag from the cache.
-func (c *Client) DeleteData(ctx context.Context, name, digest string) error {
+func (c *Client) DeleteData(ctx context.Context, name, tag string) error {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	repo, err := NewRepository(repositoryName, WithInsecure())
 	if err != nil {
 		return fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	return repo.deleteDigest(digest)
+	return repo.deleteTag(tag)
 }
 
-func (r *Repository) deleteDigest(digest string) error {
-	ref, err := ociname.NewDigest(fmt.Sprintf("%s@%s", r.Repository, digest))
+// deleteTag fetches the latest digest for a tag. This will delete the whole Manifest.
+// This is done because docker registry doesn't technically support deleting a single Tag.
+// But since we have a 1:1 relationship between a tag and a manifest, it's safe to delete
+// the complete manifest.
+func (r *Repository) deleteTag(tag string) error {
+	ref, err := ociname.NewTag(fmt.Sprintf("%s:%s", r.Repository, tag))
 	if err != nil {
 		return fmt.Errorf("failed to parse reference: %w", err)
 	}
-	// fetch manifest
-	// Get performs a digest verification
-	if err := remote.Delete(ref, r.remoteOpts...); err != nil {
-		return fmt.Errorf("failed to delete ref '%s': %w", ref, err)
+	desc, err := remote.Head(ref, r.remoteOpts...)
+	if err != nil {
+		return fmt.Errorf("failed to fetch head for reference: %w", err)
 	}
 
+	deleteRef, err := parseReference(desc.Digest.String(), r)
+	if err != nil {
+		return fmt.Errorf("failed to construct reference for calculated digest: %w", err)
+	}
+
+	if err := remote.Delete(deleteRef, r.remoteOpts...); err != nil {
+		return fmt.Errorf("failed to delete ref '%s': %w", ref, err)
+	}
 	return nil
 }
 

@@ -54,7 +54,12 @@ func getConfig(addr string) (*configuration.Configuration, error) {
 	config := &configuration.Configuration{}
 	config.HTTP.Addr = addr
 	config.HTTP.DrainTimeout = time.Duration(10) * time.Second
-	config.Storage = map[string]configuration.Parameters{"inmemory": map[string]interface{}{}}
+	config.Storage = map[string]configuration.Parameters{
+		"inmemory": map[string]interface{}{},
+		"delete": map[string]interface{}{
+			"enabled": true,
+		},
+	}
 	config.HTTP.DrainTimeout = time.Duration(10) * time.Second
 	return config, nil
 }

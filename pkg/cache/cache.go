@@ -11,5 +11,5 @@ type Cache interface {
 	PushData(ctx context.Context, data io.ReadCloser, name, tag string) (string, error)
 	FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, error)
 	FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error)
-	DeleteData(ctx context.Context, name, digest string) error
+	DeleteData(ctx context.Context, name, tag string) error
 }
