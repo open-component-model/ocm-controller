@@ -10,7 +10,6 @@ import (
 )
 
 func New(recorder kuberecorder.EventRecorder, obj conditions.Getter, severity, msg string, metadata map[string]string) {
-
 	if metadata == nil {
 		metadata = map[string]string{}
 	}

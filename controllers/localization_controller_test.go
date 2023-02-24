@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -17,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -603,13 +605,15 @@ localization:
 			client := env.FakeKubeClient(WithObjets(objs...))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
+			recorder := record.NewFakeRecorder(32)
 			tt.mock(cache, fakeOcm)
 
 			lr := LocalizationReconciler{
-				Client:    client,
-				Scheme:    env.scheme,
-				OCMClient: fakeOcm,
-				Cache:     cache,
+				Client:        client,
+				Scheme:        env.scheme,
+				OCMClient:     fakeOcm,
+				EventRecorder: recorder,
+				Cache:         cache,
 			}
 
 			_, err := lr.Reconcile(context.Background(), ctrl.Request{
@@ -692,6 +696,16 @@ localization:
 				require.NoError(t, err)
 
 				assert.True(t, conditions.IsTrue(localization, meta.ReadyCondition))
+
+				close(recorder.Events)
+				event := ""
+				for e := range recorder.Events {
+					if strings.Contains(e, "Reconciliation finished, next run in") {
+						event = e
+						break
+					}
+				}
+				assert.Contains(t, event, "Reconciliation finished, next run in")
 			}
 		})
 	}
@@ -975,10 +989,11 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			fakeOcm := &fakes.MockFetcher{}
 
 			rr := LocalizationReconciler{
-				Client:    client,
-				Scheme:    env.scheme,
-				OCMClient: fakeOcm,
-				Cache:     cache,
+				Client:        client,
+				Scheme:        env.scheme,
+				OCMClient:     fakeOcm,
+				EventRecorder: record.NewFakeRecorder(32),
+				Cache:         cache,
 			}
 
 			result, err := rr.Reconcile(context.Background(), ctrl.Request{
