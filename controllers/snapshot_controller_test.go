@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	apierror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -39,10 +41,13 @@ func TestSnapshotReconciler(t *testing.T) {
 	}
 	client := env.FakeKubeClient(WithObjets(snapshot))
 	fakeCache := &fakes.FakeCache{}
+	recorder := record.NewFakeRecorder(32)
+
 	sr := SnapshotReconciler{
 		Client:              client,
 		Scheme:              env.scheme,
 		RegistryServiceName: "127.0.0.1:5000",
+		EventRecorder:       recorder,
 		Cache:               fakeCache,
 	}
 	result, err := sr.Reconcile(context.Background(), ctrl.Request{
@@ -59,6 +64,16 @@ func TestSnapshotReconciler(t *testing.T) {
 	assert.Equal(t, "digest-1", snapshot.Status.LastReconciledDigest)
 	assert.Equal(t, "1234", snapshot.Status.LastReconciledTag)
 	assert.Equal(t, "http://127.0.0.1:5000/sha-16038726184537443379", snapshot.Status.RepositoryURL)
+
+	close(recorder.Events)
+	event := ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "Reconciliation finished") {
+			event = e
+			break
+		}
+	}
+	assert.Contains(t, event, "Reconciliation finished")
 }
 
 func TestSnapshotReconcilerDelete(t *testing.T) {
@@ -84,10 +99,13 @@ func TestSnapshotReconcilerDelete(t *testing.T) {
 	controllerutil.AddFinalizer(snapshot, snapshotFinalizer)
 	client := env.FakeKubeClient(WithObjets(snapshot))
 	fakeCache := &fakes.FakeCache{}
+	recorder := record.NewFakeRecorder(32)
+
 	sr := SnapshotReconciler{
 		Client:              client,
 		Scheme:              env.scheme,
 		RegistryServiceName: "127.0.0.1:5000",
+		EventRecorder:       recorder,
 		Cache:               fakeCache,
 	}
 	result, err := sr.Reconcile(context.Background(), ctrl.Request{
@@ -126,10 +144,13 @@ func TestSnapshotReconcilerDeleteFails(t *testing.T) {
 	client := env.FakeKubeClient(WithObjets(snapshot))
 	fakeCache := &fakes.FakeCache{}
 	fakeCache.DeleteDataReturns(errors.New("nope"))
+	recorder := record.NewFakeRecorder(32)
+
 	sr := SnapshotReconciler{
 		Client:              client,
 		Scheme:              env.scheme,
 		RegistryServiceName: "127.0.0.1:5000",
+		EventRecorder:       recorder,
 		Cache:               fakeCache,
 	}
 	_, err := sr.Reconcile(context.Background(), ctrl.Request{
@@ -177,10 +198,13 @@ func TestSnapshotReconcilerDeleteFailsWithManifestNotFound(t *testing.T) {
 		StatusCode: 0,
 		Request:    nil,
 	})
+	recorder := record.NewFakeRecorder(32)
+
 	sr := SnapshotReconciler{
 		Client:              client,
 		Scheme:              env.scheme,
 		RegistryServiceName: "127.0.0.1:5000",
+		EventRecorder:       recorder,
 		Cache:               fakeCache,
 	}
 	_, err := sr.Reconcile(context.Background(), ctrl.Request{
