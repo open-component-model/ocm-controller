@@ -20,6 +20,9 @@ settings = {
         "enabled": False,
         "path": "",
     },
+    "debug": {
+        "enabled": False,
+    },
     "create_secrets": {
         "enable": True,
         "token": os.getenv("GITHUB_TOKEN", ""),
@@ -102,6 +105,8 @@ objects = decode_yaml_stream(install)
 for o in objects:
     if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'ocm-controller':
         o['spec']['template']['spec']['securityContext']['runAsNonRoot'] = False
+        if settings.get('debug').get('enabled'):
+            o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
         break
 
 updated_install = encode_yaml_stream(objects)
@@ -121,9 +126,13 @@ load('ext://restart_process', 'docker_build_with_restart')
 # - push that container to the local tilt registry
 # Once done, rebuilding now should be a lot faster since only the relevant
 # binary is rebuilt and the hot swat wrapper takes care of the rest.
+gcflags = ''
+if settings.get('debug').get('enabled'):
+    gcflags = '-N -l'
+
 local_resource(
     'manager',
-    'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/manager ./',
+    "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags '{gcflags}' -o bin/manager ./".format(gcflags=gcflags),
     deps = [
         "main.go",
         "go.mod",
@@ -138,11 +147,23 @@ local_resource(
 # since tilt can't run on a scratch container.
 # `only` here is important, otherwise, the container will get updated
 # on _any_ file change. We only want to monitor the binary.
+# If debugging is enabled, we switch to a different docker file using
+# the delve port.
+entrypoint = ['/manager']
+dockerfile = 'tilt.dockerfile'
+if settings.get('debug').get('enabled'):
+    k8s_resource('ocm-controller', port_forwards=[
+        port_forward(30000, 30000, 'debugger'),
+    ])
+    entrypoint = ['/dlv', '--listen=:30000', '--api-version=2', '--continue=true', '--accept-multiclient=true', '--headless=true', 'exec', '/manager', '--']
+    dockerfile = 'tilt.debug.dockerfile'
+
+
 docker_build_with_restart(
     'ghcr.io/open-component-model/ocm-controller',
     '.',
-    dockerfile = 'tilt.dockerfile',
-    entrypoint = ['/manager'],
+    dockerfile = dockerfile,
+    entrypoint = entrypoint,
     only=[
       './bin',
     ],
@@ -151,5 +172,7 @@ docker_build_with_restart(
     ],
 )
 
+
 if settings.get('forward_registry'):
     k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards=5000)
+
