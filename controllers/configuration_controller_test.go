@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -632,13 +634,15 @@ configuration:
 			client := env.FakeKubeClient(WithObjets(objs...), WithAddToScheme(sourcev1.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
+			recorder := record.NewFakeRecorder(32)
 			tt.mock(cache, fakeOcm)
 
 			cr := ConfigurationReconciler{
-				Client:    client,
-				Scheme:    env.scheme,
-				OCMClient: fakeOcm,
-				Cache:     cache,
+				Client:        client,
+				Scheme:        env.scheme,
+				OCMClient:     fakeOcm,
+				EventRecorder: recorder,
+				Cache:         cache,
 			}
 
 			_, err := cr.Reconcile(context.Background(), ctrl.Request{
@@ -701,6 +705,16 @@ configuration:
 				require.NoError(t, err)
 
 				assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
+
+				close(recorder.Events)
+				event := ""
+				for e := range recorder.Events {
+					if strings.Contains(e, "Reconciliation finished, next run in") {
+						event = e
+						break
+					}
+				}
+				assert.Contains(t, event, "Reconciliation finished, next run in")
 			}
 		})
 	}
@@ -981,10 +995,11 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			fakeOcm := &fakes.MockFetcher{}
 
 			cr := ConfigurationReconciler{
-				Client:    client,
-				Scheme:    env.scheme,
-				OCMClient: fakeOcm,
-				Cache:     cache,
+				Client:        client,
+				Scheme:        env.scheme,
+				OCMClient:     fakeOcm,
+				EventRecorder: record.NewFakeRecorder(32),
+				Cache:         cache,
 			}
 
 			result, err := cr.Reconcile(context.Background(), ctrl.Request{

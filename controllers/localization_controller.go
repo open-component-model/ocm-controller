@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,18 +28,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // LocalizationReconciler reconciles a Localization object
 type LocalizationReconciler struct {
 	client.Client
-	Scheme            *runtime.Scheme
+	Scheme *runtime.Scheme
+	kuberecorder.EventRecorder
 	ReconcileInterval time.Duration
 	RetryInterval     time.Duration
 	OCMClient         ocm.FetchVerifier
@@ -48,6 +52,8 @@ type LocalizationReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=localizations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=localizations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=localizations/finalizers,verbs=update
+
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -140,6 +146,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
 			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
 				retErr = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
+				event.New(r.EventRecorder, obj, eventv1.EventSeverityError, retErr.Error(), nil)
 			}
 		}
 
@@ -155,11 +162,14 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
 			retErr == nil && result.RequeueAfter == obj.GetRequeueAfter() {
 			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
+			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation succeeded", nil)
 		}
 
 		// Set status observed generation option if the object is stalled or ready.
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
+			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
+				map[string]string{v1alpha1.GroupVersion.Group + "/localization/snapshot_digest": obj.Status.LatestSnapshotDigest})
 		}
 
 		if err := patchHelper.Patch(ctx, obj); err != nil {
@@ -271,6 +281,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Com
 		}
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
+		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 		return ctrl.Result{}, err
 	}
 

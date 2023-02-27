@@ -16,6 +16,7 @@ require (
 	github.com/containers/image/v5 v5.21.1
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
+	github.com/fluxcd/pkg/apis/event v0.3.0
 	github.com/fluxcd/pkg/apis/meta v0.19.0
 	github.com/fluxcd/pkg/http/fetch v0.3.0
 	github.com/fluxcd/pkg/kustomize v0.13.0

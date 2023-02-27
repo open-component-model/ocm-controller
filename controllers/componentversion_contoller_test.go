@@ -7,6 +7,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -16,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
@@ -75,11 +77,16 @@ func TestComponentVersionReconcile(t *testing.T) {
 	fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
 	fakeOcm.VerifyComponentReturns(true, nil)
 	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+	recorder := &record.FakeRecorder{
+		Events:        make(chan string, 32),
+		IncludeObject: true,
+	}
 
 	cvr := ComponentVersionReconciler{
-		Scheme:    env.scheme,
-		Client:    client,
-		OCMClient: fakeOcm,
+		Scheme:        env.scheme,
+		Client:        client,
+		EventRecorder: recorder,
+		OCMClient:     fakeOcm,
 	}
 	_, err := cvr.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{
@@ -99,17 +106,33 @@ func TestComponentVersionReconcile(t *testing.T) {
 	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
 	assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
+
+	close(recorder.Events)
+	event := ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "Reconciliation finished, next run in") {
+			event = e
+			break
+		}
+	}
+	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "kind=ComponentVersion")
 }
 
 func TestComponentVersionReconcileFailure(t *testing.T) {
 	cv := DefaultComponent.DeepCopy()
 	client := env.FakeKubeClient(WithObjets(cv))
+	recorder := &record.FakeRecorder{
+		Events:        make(chan string, 32),
+		IncludeObject: true,
+	}
 
 	fakeOcm := &fakes.MockFetcher{}
 	cvr := ComponentVersionReconciler{
-		Scheme:    env.scheme,
-		Client:    client,
-		OCMClient: fakeOcm,
+		Scheme:        env.scheme,
+		Client:        client,
+		EventRecorder: recorder,
+		OCMClient:     fakeOcm,
 	}
 	_, err := cvr.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{
@@ -128,6 +151,18 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 
 	assert.True(t, conditions.IsFalse(cv, meta.ReadyCondition))
 	assert.True(t, conditions.IsTrue(cv, meta.StalledCondition))
+
+	close(recorder.Events)
+	found, event := false, ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "failed to check version") {
+			found, event = true, e
+			break
+		}
+	}
+	assert.True(t, found)
+	assert.Contains(t, event, "failed to check version: failed to parse latest version: Invalid Semantic Version")
+	assert.Contains(t, event, "kind=ComponentVersion")
 }
 
 func TestComponentVersionSemverCheck(t *testing.T) {
@@ -136,15 +171,19 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 		givenVersion      string
 		latestVersion     string
 		reconciledVersion string
+		isLatest          bool
+		constraintFailed  bool
 		expectedUpdate    bool
 		expectedErr       string
 	}{
 		{
-			description:       "current reconciled version satisfies given semver constraint",
+			description:       "current reconciled version is latest and satisfies given semver constraint",
 			givenVersion:      ">=0.0.2",
 			reconciledVersion: "0.0.3",
+			isLatest:          true,
+			constraintFailed:  false,
 			expectedUpdate:    false,
-			latestVersion:     "0.0.1",
+			latestVersion:     "0.0.3",
 		},
 		{
 			description:       "given version requires component update",
@@ -155,9 +194,11 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 		},
 		{
 			description:       "latest available version does not satisfy given semver constraint",
-			givenVersion:      "=0.0.2",
+			givenVersion:      "=0.0.3",
 			reconciledVersion: "0.0.1",
-			latestVersion:     "0.0.1",
+			latestVersion:     "0.0.2",
+			isLatest:          false,
+			constraintFailed:  true,
 			expectedUpdate:    false,
 		},
 	}
@@ -169,14 +210,29 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			fakeClient := env.FakeKubeClient(WithObjets(obj))
 			fakeOcm := &fakes.MockFetcher{}
 			fakeOcm.GetLatestComponentVersionReturns(tt.latestVersion, nil)
+			recorder := &record.FakeRecorder{
+				Events: make(chan string, 32),
+			}
+
 			cvr := ComponentVersionReconciler{
-				Scheme:    env.scheme,
-				Client:    fakeClient,
-				OCMClient: fakeOcm,
+				Scheme:        env.scheme,
+				Client:        fakeClient,
+				EventRecorder: recorder,
+				OCMClient:     fakeOcm,
 			}
 			update, _, err := cvr.checkVersion(context.Background(), obj)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedUpdate, update)
+
+			close(recorder.Events)
+			for e := range recorder.Events {
+				switch {
+				case tt.expectedUpdate:
+					assert.Contains(t, e, "Version check succeeded, found latest")
+				case tt.constraintFailed:
+					assert.Contains(t, e, "Version constraint check failed, continuing without update")
+				}
+			}
 		})
 	}
 }

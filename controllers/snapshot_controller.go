@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"time"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
@@ -20,6 +21,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -30,6 +32,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
@@ -40,7 +43,8 @@ const (
 // SnapshotReconciler reconciles a Snapshot object
 type SnapshotReconciler struct {
 	client.Client
-	Scheme              *runtime.Scheme
+	Scheme *runtime.Scheme
+	kuberecorder.EventRecorder
 	RegistryServiceName string
 
 	Cache cache.Cache
@@ -51,6 +55,7 @@ type SnapshotReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots/finalizers,verbs=update
 
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -107,6 +112,8 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		// Set status observed generation option if the object is stalled or ready.
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
+			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation finished",
+				map[string]string{v1alpha1.GroupVersion.Group + "/snapshot/digest": obj.Status.LastReconciledDigest})
 		}
 
 		if err := patchHelper.Patch(ctx, obj); err != nil {
@@ -117,6 +124,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateRepositoryNameReason, err.Error())
+		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 		return ctrl.Result{}, fmt.Errorf("failed to construct name: %w", err)
 	}
 
@@ -147,9 +155,11 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return nil
 		})
 		if err != nil {
-			log.Error(err, "failed to create or update oci repository")
+			msg := "failed to create or update oci repository"
+			log.Error(err, msg)
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
+			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 			retErr = nil
 			return ctrl.Result{}, nil
 		}
@@ -158,7 +168,9 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	obj.Status.LastReconciledDigest = obj.Spec.Digest
 	obj.Status.LastReconciledTag = obj.Spec.Tag
 	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, name)
-	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", obj.Name)
+	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
+	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg)
+	event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, msg, nil)
 	log.Info("snapshot successfully reconciled", "snapshot", klog.KObj(obj))
 
 	return ctrl.Result{}, nil

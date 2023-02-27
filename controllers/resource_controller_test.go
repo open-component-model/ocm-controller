@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -48,12 +50,14 @@ func TestResourceReconciler(t *testing.T) {
 	t.Log("priming fake ocm client")
 	ocmClient := &fakes.MockFetcher{}
 	ocmClient.GetResourceReturns(io.NopCloser(bytes.NewBuffer([]byte("content"))), "digest", nil)
+	recorder := record.NewFakeRecorder(32)
 
 	rr := ResourceReconciler{
-		Scheme:    env.scheme,
-		Client:    client,
-		OCMClient: ocmClient,
-		Cache:     cache,
+		Scheme:        env.scheme,
+		Client:        client,
+		OCMClient:     ocmClient,
+		EventRecorder: recorder,
+		Cache:         cache,
 	}
 
 	t.Log("calling reconcile on resource controller")
@@ -89,6 +93,16 @@ func TestResourceReconciler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "sha-18322151501422808564", hash)
 	assert.True(t, conditions.IsTrue(resource, meta.ReadyCondition))
+
+	close(recorder.Events)
+	event := ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "Reconciliation finished, next run in") {
+			event = e
+			break
+		}
+	}
+	assert.Contains(t, event, "Reconciliation finished, next run in")
 }
 
 func TestResourceReconcilerFailed(t *testing.T) {
@@ -119,10 +133,11 @@ func TestResourceReconcilerFailed(t *testing.T) {
 	ocmClient.GetResourceReturns(nil, "nil", errors.New("nope"))
 
 	rr := ResourceReconciler{
-		Scheme:    env.scheme,
-		Client:    client,
-		OCMClient: ocmClient,
-		Cache:     cache,
+		Scheme:        env.scheme,
+		Client:        client,
+		OCMClient:     ocmClient,
+		EventRecorder: record.NewFakeRecorder(32),
+		Cache:         cache,
 	}
 
 	t.Log("calling reconcile on resource controller")
@@ -222,10 +237,11 @@ func TestResourceShouldReconcile(t *testing.T) {
 			fakeOcm := &fakes.MockFetcher{}
 
 			rr := ResourceReconciler{
-				Client:    client,
-				Scheme:    env.scheme,
-				OCMClient: fakeOcm,
-				Cache:     cache,
+				Client:        client,
+				Scheme:        env.scheme,
+				OCMClient:     fakeOcm,
+				EventRecorder: record.NewFakeRecorder(32),
+				Cache:         cache,
 			}
 
 			result, err := rr.Reconcile(context.Background(), ctrl.Request{
