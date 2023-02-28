@@ -141,7 +141,7 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 			Namespace: cv.Namespace,
 		},
 	})
-	assert.EqualError(t, err, "failed to check version: failed to parse reconciled version: Invalid Semantic Version")
+	assert.EqualError(t, err, "failed to check version: failed to parse latest version: Invalid Semantic Version")
 
 	t.Log("verifying updated object status")
 	err = client.Get(context.Background(), types.NamespacedName{
@@ -162,7 +162,7 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 		}
 	}
 	assert.True(t, found)
-	assert.Contains(t, event, "failed to check version: failed to parse reconciled version: Invalid Semantic Version")
+	assert.Contains(t, event, "failed to check version: failed to parse latest version: Invalid Semantic Version")
 	assert.Contains(t, event, "kind=ComponentVersion")
 }
 
