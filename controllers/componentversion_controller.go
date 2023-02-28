@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -207,13 +207,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
-	// get given semver constraint
-	constraint, err := semver.NewConstraint(obj.Spec.Version.Semver)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to parse given semver constraint: %w", err)
-	}
-
-	// get current reconciled version
 	reconciledVersion := "0.0.0"
 	if obj.Status.ReconciledVersion != "" {
 		reconciledVersion = obj.Status.ReconciledVersion
@@ -224,8 +217,20 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	}
 	log.V(4).Info("current reconciled version is", "reconciled", current.String())
 
-	// get latest available component version
-	latest, err := r.OCMClient.GetLatestComponentVersion(ctx, obj)
+	// Check if the constraint can be parsed as a specific version. If yes, we just set that as version. This can then
+	// be used as a downgrade option.
+	if concrete, err := semver.NewVersion(obj.Spec.Version.Semver); err == nil {
+		if !concrete.Equal(current) {
+			return true, concrete.Original(), nil
+		}
+
+		return false, "", nil
+	}
+
+	// If not, we'll list all version UP-TO the constraint and use the max. But we will not update
+	// if the new version is below the current. This is to avoid forced downgrades if the
+	// remote deleted a version.
+	latest, err := r.OCMClient.GetLatestValidComponentVersion(ctx, obj)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to get latest component version: %w", err)
 	}
@@ -236,16 +241,8 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 		return false, "", fmt.Errorf("failed to parse latest version: %w", err)
 	}
 
-	if latestSemver.Equal(current) {
-		log.V(4).Info("Latest version already reconciled", "version", latestSemver)
-		return false, "", nil
-	}
-
-	// compare given constraint and latest available version
-	valid, errs := constraint.Validate(latestSemver)
-	if !valid || len(errs) > 0 {
-		log.Info("Version constraint check failed with the following problems", "errors", errs, "version", current)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, "Version constraint check failed, continuing without update", nil)
+	if latestSemver.Equal(current) || current.GreaterThan(latestSemver) {
+		log.V(4).Info("Latest reconciled version equal to or greater than newest version", "version", latestSemver)
 		return false, "", nil
 	}
 

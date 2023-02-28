@@ -118,7 +118,7 @@ func (m *MockFetcher) VerifyComponentWasNotCalled() bool {
 	return len(m.verifyComponentCalledWith) == 0
 }
 
-func (m *MockFetcher) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
+func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
 	m.getComponentVersionCalledWith = append(m.getComponentVersionCalledWith, []any{obj})
 	return m.getLatestComponentVersionVersion, m.getLatestComponentVersionErr
 }
