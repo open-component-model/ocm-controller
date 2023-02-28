@@ -92,7 +92,8 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
-		retErr = errors.Join(retErr, err)
+		//retErr = errors.Join(retErr, err)
+		retErr = errors.New(err.Error())
 		return result, retErr
 	}
 
@@ -146,7 +147,8 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		// Update the object.
 		if err := patchHelper.Patch(ctx, obj); err != nil {
-			retErr = errors.Join(retErr, err)
+			//retErr = errors.Join(retErr, err)
+			retErr = errors.New(err.Error())
 		}
 	}()
 

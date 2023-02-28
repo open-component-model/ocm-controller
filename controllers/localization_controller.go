@@ -122,7 +122,8 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
-		retErr = errors.Join(retErr, err)
+		//retErr = errors.Join(retErr, err)
+		retErr = errors.New(err.Error())
 		return result, retErr
 	}
 
@@ -173,7 +174,8 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		if err := patchHelper.Patch(ctx, obj); err != nil {
-			retErr = errors.Join(retErr, err)
+			//retErr = errors.Join(retErr, err)
+			retErr = errors.New(err.Error())
 		}
 	}()
 

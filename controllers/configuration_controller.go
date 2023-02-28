@@ -120,7 +120,8 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
-		retErr = errors.Join(retErr, err)
+		//retErr = errors.Join(retErr, err)
+		retErr = errors.New(err.Error())
 		return ctrl.Result{}, retErr
 	}
 
@@ -171,7 +172,8 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 
 		if err := patchHelper.Patch(ctx, obj); err != nil {
-			retErr = errors.Join(retErr, err)
+			//retErr = errors.Join(retErr, err)
+			retErr = errors.New(err.Error())
 		}
 	}()
 
