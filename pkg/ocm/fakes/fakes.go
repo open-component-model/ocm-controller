@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/go-logr/logr"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -136,7 +137,7 @@ func (m *MockFetcher) GetLatestComponentVersionWasNotCalled() bool {
 	return len(m.getLatestComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) ListComponentVersions(ocmCtx ocm.Context, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
+func (m *MockFetcher) ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
 	m.listComponentVersionsCalledWith = append(m.listComponentVersionsCalledWith, []any{obj})
 	return m.listComponentVersionsVersions, m.listComponentVersionsErr
 }

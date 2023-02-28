@@ -207,26 +207,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
-	reconciledVersion := "0.0.0"
-	if obj.Status.ReconciledVersion != "" {
-		reconciledVersion = obj.Status.ReconciledVersion
-	}
-	current, err := semver.NewVersion(reconciledVersion)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to parse reconciled version: %w", err)
-	}
-	log.V(4).Info("current reconciled version is", "reconciled", current.String())
-
-	// Check if the constraint can be parsed as a specific version. If yes, we just set that as version. This can then
-	// be used as a downgrade option.
-	if concrete, err := semver.NewVersion(obj.Spec.Version.Semver); err == nil {
-		if !concrete.Equal(current) {
-			return true, concrete.Original(), nil
-		}
-
-		return false, "", nil
-	}
-
 	// If not, we'll list all version UP-TO the constraint and use the max. But we will not update
 	// if the new version is below the current. This is to avoid forced downgrades if the
 	// remote deleted a version.
@@ -240,6 +220,16 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	if err != nil {
 		return false, "", fmt.Errorf("failed to parse latest version: %w", err)
 	}
+
+	reconciledVersion := "0.0.0"
+	if obj.Status.ReconciledVersion != "" {
+		reconciledVersion = obj.Status.ReconciledVersion
+	}
+	current, err := semver.NewVersion(reconciledVersion)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to parse reconciled version: %w", err)
+	}
+	log.V(4).Info("current reconciled version is", "reconciled", current.String())
 
 	if latestSemver.Equal(current) || current.GreaterThan(latestSemver) {
 		log.V(4).Info("Latest reconciled version equal to or greater than newest version", "version", latestSemver)

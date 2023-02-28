@@ -152,7 +152,8 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 				}
 			},
 			setupComponents: func(name string) error {
-				for _, v := range []string{"v0.0.5"} {
+				// v0.0.1 should not be chosen.
+				for _, v := range []string{"v0.0.1", "v0.0.5"} {
 					if err := env.AddComponentVersionToRepository(Component{
 						Name:    name,
 						Version: v,
