@@ -214,7 +214,7 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	if err != nil {
 		return false, "", fmt.Errorf("failed to get latest component version: %w", err)
 	}
-	log.V(4).Info("got newest version from component", "version", latest)
+	log.V(4).Info("got latest version of component", "version", latest)
 
 	latestSemver, err := semver.NewVersion(latest)
 	if err != nil {
@@ -232,7 +232,7 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	log.V(4).Info("current reconciled version is", "reconciled", current.String())
 
 	if latestSemver.Equal(current) || current.GreaterThan(latestSemver) {
-		log.V(4).Info("Latest reconciled version equal to or greater than newest version", "version", latestSemver)
+		log.V(4).Info("Reconciled version equal to or greater than newest available version", "version", latestSemver)
 		return false, "", nil
 	}
 
