@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
+	"github.com/go-logr/logr"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,8 +41,8 @@ type Verifier interface {
 type Fetcher interface {
 	GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error)
 	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
-	GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
-	ListComponentVersions(ctx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
+	GetLatestValidComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error)
+	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 }
 
 // FetchVerifier can fetch and verify components.
@@ -267,7 +268,8 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 	return nil, errors.New("public key not found")
 }
 
-func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
+// GetLatestValidComponentVersion gets the latest version that still matches the constraint.
+func (c *Client) GetLatestValidComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
 	log := log.FromContext(ctx)
 
 	octx := ocm.ForContext(ctx)
@@ -283,7 +285,7 @@ func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.Co
 		}
 	}
 
-	versions, err := c.ListComponentVersions(octx, obj)
+	versions, err := c.ListComponentVersions(log, octx, obj)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component versions: %w", err)
 	}
@@ -296,7 +298,18 @@ func (c *Client) GetLatestComponentVersion(ctx context.Context, obj *v1alpha1.Co
 		return versions[i].Semver.GreaterThan(versions[j].Semver)
 	})
 
-	return versions[0].Version, nil
+	constraint, err := semver.NewConstraint(obj.Spec.Version.Semver)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse constraint version: %w", err)
+	}
+
+	for _, v := range versions {
+		if valid, _ := constraint.Validate(v.Semver); valid {
+			return v.Version, nil
+		}
+	}
+
+	return "", fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Version.Semver)
 }
 
 // Version has two values to be able to sort a list but still return the actual Version.
@@ -306,7 +319,7 @@ type Version struct {
 	Version string
 }
 
-func (c *Client) ListComponentVersions(octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error) {
+func (c *Client) ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error) {
 	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Repository.URL, nil))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
@@ -329,7 +342,9 @@ func (c *Client) ListComponentVersions(octx ocm.Context, obj *v1alpha1.Component
 	for _, v := range versions {
 		parsed, err := semver.NewVersion(v)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse Version '%s': %w", v, err)
+			logger.Error(err, "ignoring version as it was invalid semver", "version", v)
+			// ignore versions that are invalid semver.
+			continue
 		}
 		result = append(result, Version{
 			Semver:  parsed,

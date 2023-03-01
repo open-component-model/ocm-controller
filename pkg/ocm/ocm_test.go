@@ -125,37 +125,159 @@ func TestClient_GetComponentVersion(t *testing.T) {
 	assert.Equal(t, cv.Spec.Component, cva.GetName())
 }
 
-func TestClient_GetLatestComponentVersion(t *testing.T) {
-	fakeKubeClient := env.FakeKubeClient()
-	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"))
-	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/skarlso/ocm-demo-index"
-
-	err := env.AddComponentVersionToRepository(Component{
-		Name:    component,
-		Version: "v0.0.5",
-	})
-	require.NoError(t, err)
-
-	cv := &v1alpha1.ComponentVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-name",
-			Namespace: "default",
+func TestClient_GetLatestValidComponentVersion(t *testing.T) {
+	testCases := []struct {
+		name             string
+		componentVersion func(name string) *v1alpha1.ComponentVersion
+		setupComponents  func(name string) error
+		expectedVersion  string
+	}{
+		{
+			name: "semver constraint works for greater versions",
+			componentVersion: func(name string) *v1alpha1.ComponentVersion {
+				return &v1alpha1.ComponentVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentVersionSpec{
+						Component: name,
+						Version: v1alpha1.Version{
+							Semver: ">v0.0.1",
+						},
+						Repository: v1alpha1.Repository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
+			},
+			setupComponents: func(name string) error {
+				// v0.0.1 should not be chosen.
+				for _, v := range []string{"v0.0.1", "v0.0.5"} {
+					if err := env.AddComponentVersionToRepository(Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			expectedVersion: "v0.0.5",
 		},
-		Spec: v1alpha1.ComponentVersionSpec{
-			Component: component,
-			Version: v1alpha1.Version{
-				Semver: ">v0.0.1",
+		{
+			name: "semver is a concrete match with multiple versions",
+			componentVersion: func(name string) *v1alpha1.ComponentVersion {
+				return &v1alpha1.ComponentVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentVersionSpec{
+						Component: name,
+						Version: v1alpha1.Version{
+							Semver: "v0.0.1",
+						},
+						Repository: v1alpha1.Repository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
 			},
-			Repository: v1alpha1.Repository{
-				URL: env.repositoryURL,
+			setupComponents: func(name string) error {
+				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
+					if err := env.AddComponentVersionToRepository(Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
 			},
+			expectedVersion: "v0.0.1",
+		},
+		{
+			name: "semver is in between available versions should return the one that's still matching instead of the latest available",
+			componentVersion: func(name string) *v1alpha1.ComponentVersion {
+				return &v1alpha1.ComponentVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentVersionSpec{
+						Component: name,
+						Version: v1alpha1.Version{
+							Semver: "<=v0.0.2",
+						},
+						Repository: v1alpha1.Repository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
+			},
+			setupComponents: func(name string) error {
+				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
+					if err := env.AddComponentVersionToRepository(Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			expectedVersion: "v0.0.2",
+		},
+		{
+			name: "using = should still work as expected",
+			componentVersion: func(name string) *v1alpha1.ComponentVersion {
+				return &v1alpha1.ComponentVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentVersionSpec{
+						Component: name,
+						Version: v1alpha1.Version{
+							Semver: "=v0.0.1",
+						},
+						Repository: v1alpha1.Repository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
+			},
+			setupComponents: func(name string) error {
+				for _, v := range []string{"v0.0.1", "v0.0.2"} {
+					if err := env.AddComponentVersionToRepository(Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			expectedVersion: "v0.0.1",
 		},
 	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeKubeClient := env.FakeKubeClient()
+			cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"))
+			ocmClient := NewClient(fakeKubeClient, cache)
+			component := "github.com/skarlso/ocm-demo-index"
 
-	latest, err := ocmClient.GetLatestComponentVersion(context.Background(), cv)
-	assert.NoError(t, err)
-	assert.Equal(t, "v0.0.5", latest)
+			err := tt.setupComponents(component)
+			require.NoError(t, err)
+			cv := tt.componentVersion(component)
+
+			latest, err := ocmClient.GetLatestValidComponentVersion(context.Background(), cv)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedVersion, latest)
+		})
+	}
 }
 
 func TestClient_VerifyComponent(t *testing.T) {

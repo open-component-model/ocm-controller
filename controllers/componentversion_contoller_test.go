@@ -121,6 +121,7 @@ func TestComponentVersionReconcile(t *testing.T) {
 
 func TestComponentVersionReconcileFailure(t *testing.T) {
 	cv := DefaultComponent.DeepCopy()
+	cv.Status.ReconciledVersion = "invalid"
 	client := env.FakeKubeClient(WithObjets(cv))
 	recorder := &record.FakeRecorder{
 		Events:        make(chan string, 32),
@@ -171,8 +172,6 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 		givenVersion      string
 		latestVersion     string
 		reconciledVersion string
-		isLatest          bool
-		constraintFailed  bool
 		expectedUpdate    bool
 		expectedErr       string
 	}{
@@ -180,8 +179,6 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			description:       "current reconciled version is latest and satisfies given semver constraint",
 			givenVersion:      ">=0.0.2",
 			reconciledVersion: "0.0.3",
-			isLatest:          true,
-			constraintFailed:  false,
 			expectedUpdate:    false,
 			latestVersion:     "0.0.3",
 		},
@@ -193,12 +190,24 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			expectedUpdate:    true,
 		},
 		{
-			description:       "latest available version does not satisfy given semver constraint",
+			description:       "if given version is a specific version it should use that even if reconciled version is greater",
+			givenVersion:      "0.0.3",
+			reconciledVersion: "0.0.4",
+			latestVersion:     "0.0.6",
+			expectedUpdate:    true,
+		},
+		{
+			description:       "equaling a version should return that specific version and will trigger an update",
 			givenVersion:      "=0.0.3",
-			reconciledVersion: "0.0.1",
+			reconciledVersion: "0.0.2",
+			latestVersion:     "0.0.3",
+			expectedUpdate:    true,
+		},
+		{
+			description:       "missing latest version should not force a downgrade",
+			givenVersion:      "<=0.0.3",
+			reconciledVersion: "0.0.3",
 			latestVersion:     "0.0.2",
-			isLatest:          false,
-			constraintFailed:  true,
 			expectedUpdate:    false,
 		},
 	}
@@ -229,8 +238,6 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 				switch {
 				case tt.expectedUpdate:
 					assert.Contains(t, e, "Version check succeeded, found latest")
-				case tt.constraintFailed:
-					assert.Contains(t, e, "Version constraint check failed, continuing without update")
 				}
 			}
 		})
