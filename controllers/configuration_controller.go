@@ -167,7 +167,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
-				map[string]string{v1alpha1.GroupVersion.Group + "/configuration/snapshot_digest": obj.Status.LatestSnapshotDigest})
+				map[string]string{v1alpha1.GroupVersion.Group + "/configuration_digest": obj.Status.LatestSnapshotDigest})
 		}
 
 		if err := patchHelper.Patch(ctx, obj); err != nil {

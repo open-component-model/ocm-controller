@@ -113,7 +113,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation finished",
-				map[string]string{v1alpha1.GroupVersion.Group + "/snapshot/digest": obj.Status.LastReconciledDigest})
+				map[string]string{v1alpha1.GroupVersion.Group + "/snapshot_digest": obj.Status.LastReconciledDigest})
 		}
 
 		if err := patchHelper.Patch(ctx, obj); err != nil {
@@ -170,7 +170,6 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, name)
 	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
 	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg)
-	event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, msg, nil)
 	log.Info("snapshot successfully reconciled", "snapshot", klog.KObj(obj))
 
 	return ctrl.Result{}, nil

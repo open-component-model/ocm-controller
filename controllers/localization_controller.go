@@ -169,7 +169,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
-				map[string]string{v1alpha1.GroupVersion.Group + "/localization/snapshot_digest": obj.Status.LatestSnapshotDigest})
+				map[string]string{v1alpha1.GroupVersion.Group + "/localization_digest": obj.Status.LatestSnapshotDigest})
 		}
 
 		if err := patchHelper.Patch(ctx, obj); err != nil {
