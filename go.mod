@@ -5,10 +5,6 @@ go 1.20
 // Something requires the naming package. :( Which was an experimental package and has been removed.
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.0
 
-replace github.com/spf13/cobra => github.com/mandelsoft/cobra v1.5.1-0.20221030110806-c236cde1e2bd
-
-replace github.com/spf13/pflag => github.com/mandelsoft/pflag v0.0.0-20221103113840-a15b5f7fa89e
-
 require (
 	cuelang.org/go v0.4.3
 	github.com/Masterminds/semver v1.5.0
