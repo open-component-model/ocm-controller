@@ -12,6 +12,8 @@ spec:
     kind: Snapshot
     listKind: SnapshotList
     plural: snapshots
+    shortNames:
+    - cs
     singular: snapshot
   scope: Namespaced
   versions:

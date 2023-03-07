@@ -12,6 +12,8 @@ spec:
     kind: Configuration
     listKind: ConfigurationList
     plural: configurations
+    shortNames:
+    - cf
     singular: configuration
   scope: Namespaced
   versions:

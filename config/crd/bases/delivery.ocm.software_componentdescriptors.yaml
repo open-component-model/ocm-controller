@@ -12,6 +12,8 @@ spec:
     kind: ComponentDescriptor
     listKind: ComponentDescriptorList
     plural: componentdescriptors
+    shortNames:
+    - cd
     singular: componentdescriptor
   scope: Namespaced
   versions:

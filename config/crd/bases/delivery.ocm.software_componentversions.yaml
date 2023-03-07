@@ -12,6 +12,8 @@ spec:
     kind: ComponentVersion
     listKind: ComponentVersionList
     plural: componentversions
+    shortNames:
+    - cv
     singular: componentversion
   scope: Namespaced
   versions:

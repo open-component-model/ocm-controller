@@ -140,6 +140,7 @@ func (in ComponentVersion) LookupReferenceForIdentity(key ocmdesc.IdentitySelect
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=cv
 
 // ComponentVersion is the Schema for the ComponentVersions API
 type ComponentVersion struct {
