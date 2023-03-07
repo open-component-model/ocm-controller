@@ -75,6 +75,7 @@ func (i *Identity) Hash() (string, error) {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=cs
 
 // Snapshot is the Schema for the snapshots API
 type Snapshot struct {

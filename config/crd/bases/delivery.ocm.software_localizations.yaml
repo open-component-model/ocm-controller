@@ -12,6 +12,8 @@ spec:
     kind: Localization
     listKind: LocalizationList
     plural: localizations
+    shortNames:
+    - cl
     singular: localization
   scope: Namespaced
   versions:

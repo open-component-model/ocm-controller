@@ -13,6 +13,7 @@ import (
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=cf
 
 // Configuration is the Schema for the configurations API
 type Configuration struct {

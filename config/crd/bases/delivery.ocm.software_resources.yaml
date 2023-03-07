@@ -12,6 +12,8 @@ spec:
     kind: Resource
     listKind: ResourceList
     plural: resources
+    shortNames:
+    - cr
     singular: resource
   scope: Namespaced
   versions:

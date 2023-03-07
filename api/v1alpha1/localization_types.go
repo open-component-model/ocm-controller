@@ -13,6 +13,7 @@ import (
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=cl
 
 // Localization is the Schema for the localizations API
 type Localization struct {

@@ -21,6 +21,7 @@ type ComponentDescriptorSpec struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:resource:shortName=cd
 //+kubebuilder:subresource:status
 
 // ComponentDescriptor is the Schema for the componentdescriptors API
