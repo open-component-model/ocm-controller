@@ -13,7 +13,7 @@ spec:
     listKind: ResourceList
     plural: resources
     shortNames:
-    - cr
+    - cre
     singular: resource
   scope: Namespaced
   versions:
