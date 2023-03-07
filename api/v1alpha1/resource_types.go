@@ -66,7 +66,7 @@ type ResourceStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:resource:shortName=cr
+//+kubebuilder:resource:shortName=cre
 
 // Resource is the Schema for the resources API
 type Resource struct {
