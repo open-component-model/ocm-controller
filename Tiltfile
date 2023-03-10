@@ -73,11 +73,11 @@ def create_secrets():
         'docker-username': opts.get('user'),
         'docker-email': opts.get('email'),
         'docker-password': opts.get('token'),
-    }))
+    }), allow_duplicates = True)
     k8s_yaml(secret_from_dict("creds", "ocm-system", inputs = {
         'username' : opts.get('user'),
         'password' : opts.get('token'),
-    }))
+    }), allow_duplicates = True)
 
 
 def create_verification_keys():
@@ -112,7 +112,7 @@ for o in objects:
 updated_install = encode_yaml_stream(objects)
 
 # Apply the updated yaml to the cluster.
-k8s_yaml(updated_install)
+k8s_yaml(updated_install, allow_duplicates = False)
 
 # Create Secrets
 create_secrets()
@@ -131,7 +131,7 @@ if settings.get('debug').get('enabled'):
     gcflags = '-N -l'
 
 local_resource(
-    'manager',
+    'ocm-controller-binary',
     "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags '{gcflags}' -o bin/manager ./".format(gcflags=gcflags),
     deps = [
         "main.go",
@@ -174,5 +174,5 @@ docker_build_with_restart(
 
 
 if settings.get('forward_registry'):
-    k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards=5000)
+    k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards='5000:5000')
 
