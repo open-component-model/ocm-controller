@@ -174,5 +174,5 @@ docker_build_with_restart(
 
 
 if settings.get('forward_registry'):
-    k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards=5000)
+    k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards='5000:5000')
 
