@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package controllers
 
 import (
@@ -17,45 +21,17 @@ import (
 func (m *MutationReconcileLooper) generateSubstRules(ctx context.Context, cv *v1alpha1.ComponentVersion, spec v1alpha1.MutationSpec) (localize.Substitutions, v1alpha1.Identity, error) {
 	log := log.FromContext(ctx)
 
-	config := &configdata.ConfigData{}
 	resourceRef := spec.ConfigRef.Resource.ResourceRef
 	if resourceRef == nil {
 		return nil, nil, fmt.Errorf("resource ref is empty for config ref")
 	}
 
-	reader, _, err := m.OCMClient.GetResource(ctx, cv, *resourceRef)
+	config, componentDescriptor, err := m.fetchComponentDescriptorAndConfigData(ctx, cv, *resourceRef, spec)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get resource: %w", err)
-	}
-	defer reader.Close()
-
-	// This content might be Tarred up by OCM.
-	uncompressed, _, err := compression.AutoDecompress(reader)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to auto decompress: %w", err)
-	}
-	defer uncompressed.Close()
-
-	content, err := io.ReadAll(uncompressed)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read blob: %w", err)
-	}
-
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
-		return nil, nil,
-			fmt.Errorf("failed to unmarshal content: %w", err)
+		return nil, nil, fmt.Errorf("failed to get component descriptor: %w", err)
 	}
 
 	log.Info("preparing localization substitutions")
-
-	componentDescriptor, err := component.GetComponentDescriptor(ctx, m.Client, spec.ConfigRef.Resource.ResourceRef.ReferencePath, cv.Status.ComponentDescriptor)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get component descriptor from version")
-	}
-
-	if componentDescriptor == nil {
-		return nil, nil, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", spec.ConfigRef.Resource.ResourceRef.ReferencePath)
-	}
 
 	var rules localize.Substitutions
 	if spec.Values != nil {
@@ -85,4 +61,76 @@ func (m *MutationReconcileLooper) generateSubstRules(ctx context.Context, cv *v1
 	}
 
 	return rules, identity, err
+}
+
+func (m *MutationReconcileLooper) generateSubstRulesForSingleFile(ctx context.Context, cv *v1alpha1.ComponentVersion, spec v1alpha1.MutationSpec) (localize.ValueMappings, v1alpha1.Identity, error) {
+
+	resourceRef := spec.ConfigRef.Resource.ResourceRef
+	if resourceRef == nil {
+		return nil, nil, fmt.Errorf("resource ref is empty for config ref")
+	}
+
+	config, componentDescriptor, err := m.fetchComponentDescriptorAndConfigData(ctx, cv, *resourceRef, spec)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get component descriptor: %w", err)
+	}
+
+	rules, err := m.createSingleFileLocalizationRules(ctx, *componentDescriptor, *config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create localization rules: %w", err)
+	}
+
+	version := resourceRef.Version
+	if version == "" {
+		version = "latest"
+	}
+
+	// Create a new Identity for the modified resource. We use the obj.ResourceVersion as TAG to
+	// find it later on.
+	identity := v1alpha1.Identity{
+		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
+		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
+		v1alpha1.ResourceNameKey:     resourceRef.Name,
+		v1alpha1.ResourceVersionKey:  version,
+	}
+
+	return rules, identity, err
+}
+
+func (m *MutationReconcileLooper) fetchComponentDescriptorAndConfigData(ctx context.Context, cv *v1alpha1.ComponentVersion, resourceRef v1alpha1.ResourceRef, spec v1alpha1.MutationSpec) (*configdata.ConfigData, *v1alpha1.ComponentDescriptor, error) {
+
+	reader, _, err := m.OCMClient.GetResource(ctx, cv, resourceRef)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get resource: %w", err)
+	}
+	defer reader.Close()
+
+	// This content might be Tarred up by OCM.
+	uncompressed, _, err := compression.AutoDecompress(reader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
+
+	content, err := io.ReadAll(uncompressed)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read blob: %w", err)
+	}
+
+	config := &configdata.ConfigData{}
+	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(content, config); err != nil {
+		return nil, nil,
+			fmt.Errorf("failed to unmarshal content: %w", err)
+	}
+
+	componentDescriptor, err := component.GetComponentDescriptor(ctx, m.Client, spec.ConfigRef.Resource.ResourceRef.ReferencePath, cv.Status.ComponentDescriptor)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get component descriptor from version")
+	}
+
+	if componentDescriptor == nil {
+		return nil, nil, fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", spec.ConfigRef.Resource.ResourceRef.ReferencePath)
+	}
+
+	return config, componentDescriptor, nil
 }

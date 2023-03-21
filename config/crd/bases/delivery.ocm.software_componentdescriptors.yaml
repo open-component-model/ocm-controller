@@ -86,8 +86,7 @@ spec:
                             type: boolean
                           value:
                             description: Value is the json/yaml data of the label
-                            format: byte
-                            type: string
+                            x-kubernetes-preserve-unknown-fields: true
                           version:
                             description: Version is the optional specification version
                               of the attribute value
@@ -162,8 +161,7 @@ spec:
                             type: boolean
                           value:
                             description: Value is the json/yaml data of the label
-                            format: byte
-                            type: string
+                            x-kubernetes-preserve-unknown-fields: true
                           version:
                             description: Version is the optional specification version
                               of the attribute value
@@ -208,8 +206,7 @@ spec:
                                 value:
                                   description: Value is the json/yaml data of the
                                     label
-                                  format: byte
-                                  type: string
+                                  x-kubernetes-preserve-unknown-fields: true
                                 version:
                                   description: Version is the optional specification
                                     version of the attribute value
@@ -271,8 +268,7 @@ spec:
                             type: boolean
                           value:
                             description: Value is the json/yaml data of the label
-                            format: byte
-                            type: string
+                            x-kubernetes-preserve-unknown-fields: true
                           version:
                             description: Version is the optional specification version
                               of the attribute value

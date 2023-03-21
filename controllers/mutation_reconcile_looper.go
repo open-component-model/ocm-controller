@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package controllers
 
 import (
@@ -84,31 +88,66 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, c
 		if err != nil {
 			return "", fmt.Errorf("fs error: %w", err)
 		}
-		defer vfs.Cleanup(virtualFS)
+		defer func() {
+			if err := vfs.Cleanup(virtualFS); err != nil {
+				log.Error(err, "failed to cleanup virtual file system")
+			}
+		}()
 
-		if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
-			return "", fmt.Errorf("extract tar error: %w", err)
-		}
+		if isTar(resourceData) {
+			if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
+				return "", fmt.Errorf("extract tar error: %w", err)
+			}
+			fi, err := virtualFS.Stat("/")
+			if err != nil {
+				return "", fmt.Errorf("fs error: %w", err)
+			}
 
-		fi, err := virtualFS.Stat("/")
-		if err != nil {
-			return "", fmt.Errorf("fs error: %w", err)
-		}
+			sourceDir = filepath.Join(os.TempDir(), fi.Name())
 
-		sourceDir = filepath.Join(os.TempDir(), fi.Name())
+			var rules localize.Substitutions
+			rules, identity, err = m.generateSubstRules(ctx, componentVersion, spec)
+			if err != nil {
+				return "", err
+			}
 
-		var rules localize.Substitutions
-		rules, identity, err = m.generateSubstRules(ctx, componentVersion, spec)
-		if err != nil {
-			return "", err
-		}
+			if len(rules) == 0 {
+				log.Info("no rules generated from the available config data; the generate snapshot will have no modifications")
+			}
 
-		if len(rules) == 0 {
-			log.Info("no rules generated from the available config data; the generate snapshot will have no modifications")
-		}
+			if err := localize.Substitute(rules, virtualFS); err != nil {
+				return "", fmt.Errorf("localization substitution failed: %w", err)
+			}
+		} else {
+			tmpDir, err := os.MkdirTemp("", "single-file-localization-")
+			if err != nil {
+				err = fmt.Errorf("tmp dir error: %w", err)
+				return "", err
+			}
 
-		if err := localize.Substitute(rules, virtualFS); err != nil {
-			return "", fmt.Errorf("localization substitution failed: %w", err)
+			defer os.RemoveAll(tmpDir)
+
+			sourceDir = tmpDir
+
+			var rules localize.ValueMappings
+			rules, identity, err = m.generateSubstRulesForSingleFile(ctx, componentVersion, spec)
+			if err != nil {
+				return "", err
+			}
+
+			if len(rules) == 0 {
+				log.Info("no rules generated from the available config data; the generate snapshot will have no modifications")
+			}
+
+			values, err := localize.SubstituteMappingsForData(rules, resourceData)
+			if err != nil {
+				return "", fmt.Errorf("localization substitution failed: %w", err)
+			}
+
+			var fileMod os.FileMode = 0o600
+			if err := os.WriteFile(filepath.Join(sourceDir, "output.yaml"), values, fileMod); err != nil {
+				return "", fmt.Errorf("failed to create output for values: %w", err)
+			}
 		}
 	}
 
@@ -282,10 +321,83 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx con
 
 	return localizations, nil
 }
+
+func (m *MutationReconcileLooper) createSingleFileLocalizationRules(ctx context.Context, componentDescriptor v1alpha1.ComponentDescriptor, config configdata.ConfigData) (localize.ValueMappings, error) {
+	var localizations localize.ValueMappings
+	for _, l := range config.Localization {
+		if l.Mapping != nil {
+			if len(componentDescriptor.GetOwnerReferences()) != 1 {
+				return nil, errors.New("component descriptor has no owner component version")
+			}
+			parentKey := types.NamespacedName{
+				Name:      componentDescriptor.GetOwnerReferences()[0].Name,
+				Namespace: componentDescriptor.GetNamespace(),
+			}
+			parent := &v1alpha1.ComponentVersion{}
+			if err := m.Client.Get(ctx, parentKey, parent); err != nil {
+				return nil, err
+			}
+			res, err := m.compileMapping(ctx, parent, l.Mapping.Transform)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile mapping: %w", err)
+			}
+			if err := localizations.Add("custom", l.Mapping.Path, res); err != nil {
+				return nil, fmt.Errorf("failed to add identifier: %w", err)
+			}
+			continue
+		}
+
+		lr := componentDescriptor.GetResource(l.Resource.Name)
+		if lr == nil {
+			continue
+		}
+
+		access, err := GetImageReference(lr)
+		if err != nil {
+			return nil,
+				fmt.Errorf("failed to get image access: %w", err)
+		}
+
+		ref, err := name.ParseReference(access)
+		if err != nil {
+			return nil,
+				fmt.Errorf("failed to parse access reference: %w", err)
+		}
+
+		if l.Registry != "" {
+			if err := localizations.Add("registry", l.Registry, ref.Context().Registry.Name()); err != nil {
+				return nil, fmt.Errorf("failed to add registry: %w", err)
+			}
+		}
+
+		if l.Repository != "" {
+			if err := localizations.Add("repository", l.Repository, ref.Context().RepositoryStr()); err != nil {
+				return nil, fmt.Errorf("failed to add repository: %w", err)
+			}
+		}
+
+		if l.Image != "" {
+			if err := localizations.Add("image", l.Image, ref.Name()); err != nil {
+				return nil, fmt.Errorf("failed to add image ref name: %w", err)
+			}
+		}
+
+		if l.Tag != "" {
+			if err := localizations.Add("tag", l.Tag, ref.Identifier()); err != nil {
+				return nil, fmt.Errorf("failed to add identifier: %w", err)
+			}
+		}
+	}
+
+	return localizations, nil
+}
+
 func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(spec v1alpha1.MutationSpec, config configdata.ConfigData) (localize.Substitutions, error) {
 	var rules localize.Substitutions
 	for i, l := range config.Configuration.Rules {
-		rules.Add(fmt.Sprintf("subst-%d", i), l.File, l.Path, l.Value)
+		if err := rules.Add(fmt.Sprintf("subst-%d", i), l.File, l.Path, l.Value); err != nil {
+			return nil, fmt.Errorf("failed to add rule: %w", err)
+		}
 	}
 
 	defaults, err := json.Marshal(config.Configuration.Defaults)
@@ -298,16 +410,16 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 		return nil, fmt.Errorf("failed to marshal spec values: %w", err)
 	}
 
-	schema, err := json.Marshal(config.Configuration.Schema)
+	schema, err := json.Marshal(config.Configuration.Schema) //nolint:staticcheck // ignore
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal configuration schema: %w", err)
 	}
 
-	configSubstitions, err := m.configurator(rules, defaults, values, schema)
+	configSubstitutions, err := m.configurator(rules, defaults, values, schema)
 	if err != nil {
 		return nil, fmt.Errorf("configurator error: %w", err)
 	}
-	return configSubstitions, nil
+	return configSubstitutions, nil
 }
 
 func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
@@ -329,13 +441,7 @@ func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, de
 		}
 	}
 
-	// configure adjustments
-	list := []any{}
-	for _, e := range subst {
-		list = append(list, e)
-	}
-
-	templ["adjustments"] = list
+	templ["adjustments"] = subst
 
 	templateBytes, err := ocmruntime.DefaultJSONEncoding.Marshal(templ)
 	if err != nil {

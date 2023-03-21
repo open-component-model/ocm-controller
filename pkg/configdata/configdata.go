@@ -25,17 +25,21 @@ type ConfigurationSpec struct {
 type ConfigRule struct {
 	Value string `json:"value"`
 	Path  string `json:"path"`
-	File  string `json:"file"`
+	// File in case of a data stream is an optional value.
+	// +optional
+	File string `json:"file,omitempty"`
 }
 
 type LocalizationRule struct {
-	Resource   ResourceItem `json:"resource"`
-	File       string       `json:"file"`
-	Registry   string       `json:"registry,omitempty"`
-	Mapping    *Mapping     `json:"mapping,omitempty"`
-	Repository string       `json:"repository,omitempty"`
-	Image      string       `json:"image,omitempty"`
-	Tag        string       `json:"tag,omitempty"`
+	Resource ResourceItem `json:"resource"`
+	// File in case of a plain data stream is an optional value.
+	// +optional
+	File       string   `json:"file,omitempty"`
+	Registry   string   `json:"registry,omitempty"`
+	Mapping    *Mapping `json:"mapping,omitempty"`
+	Repository string   `json:"repository,omitempty"`
+	Image      string   `json:"image,omitempty"`
+	Tag        string   `json:"tag,omitempty"`
 }
 
 type Mapping struct {

@@ -65,8 +65,20 @@ localization:
         out: json.Marshal(values)
 `)
 
+var singleFilelocalizationConfigData = []byte(`kind: ConfigData
+metadata:
+  name: test-config-data
+  namespace: default
+localization:
+- file: deploy.yaml
+  image: spec.template.spec.containers[0].image
+  resource:
+    name: introspect-image
+`)
+
 type testCase struct {
 	name                string
+	localizationAsserts func(t *testing.T, data any)
 	mock                func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher)
 	componentVersion    func() *v1alpha1.ComponentVersion
 	componentDescriptor func(owner client.Object) *v1alpha1.ComponentDescriptor
@@ -78,7 +90,8 @@ type testCase struct {
 func TestLocalizationReconciler(t *testing.T) {
 	testCases := []testCase{
 		{
-			name: "with snapshot as a source",
+			name:                "with snapshot as a source",
+			localizationAsserts: defaultLocalizationAssert,
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -133,7 +146,8 @@ func TestLocalizationReconciler(t *testing.T) {
 			},
 		},
 		{
-			name: "with resource as a source",
+			name:                "with resource as a source",
+			localizationAsserts: defaultLocalizationAssert,
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -419,8 +433,17 @@ func TestLocalizationReconciler(t *testing.T) {
 			},
 		},
 		{
-			name:        "the returned content is not a tar file",
-			expectError: "extract tar error: unexpected EOF",
+			name: "the returned content is not a tar file it will fall back to single file localization rules",
+			localizationAsserts: func(t *testing.T, data any) {
+				t.Helper()
+
+				assert.Contains(
+					t,
+					data.(string),
+					"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+					"the image should have been altered during localization",
+				)
+			},
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -452,8 +475,18 @@ func TestLocalizationReconciler(t *testing.T) {
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				fakeOcm.GetResourceReturnsOnCall(0, io.NopCloser(bytes.NewBuffer([]byte("I am not a tar file"))), nil)
-				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				fakeOcm.GetResourceReturnsOnCall(0, io.NopCloser(bytes.NewBuffer([]byte(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  template:
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/stefanprodan/podinfo:6.2.3
+`))), nil)
+				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(singleFilelocalizationConfigData)), nil)
 			},
 		},
 		{
@@ -647,47 +680,8 @@ localization:
 
 				t.Log("extracting the passed in data and checking if the localization worked")
 				require.NoError(t, err)
-				assert.Contains(
-					t,
-					data.(string),
-					"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
-					"the image should have been altered during localization",
-				)
 
-				assert.Contains(
-					t,
-					data.(string),
-					"registry: ghcr.io",
-					"the registry should have been altered during localization",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"repository: mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
-					"the repository should have been altered during localization",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
-					"the reference should have been altered during localization",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"version: v0.0.1",
-					"the labels should have been added via the localization mapping",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"name: introspect-image-sha256-1.0.0",
-					"the custome resource spec.values should have been updated via the localization mapping",
-				)
+				tt.localizationAsserts(t, data)
 
 				err = client.Get(context.Background(), types.NamespacedName{
 					Namespace: localization.Namespace,
@@ -709,6 +703,59 @@ localization:
 			}
 		})
 	}
+}
+
+func defaultLocalizationAssert(t *testing.T, data any) {
+	t.Helper()
+
+	assert.Contains(
+		t,
+		data.(string),
+		"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+		"the image should have been altered during localization",
+	)
+
+	assert.Contains(
+		t,
+		data.(string),
+		"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+		"the image should have been altered during localization",
+	)
+
+	assert.Contains(
+		t,
+		data.(string),
+		"registry: ghcr.io",
+		"the registry should have been altered during localization",
+	)
+
+	assert.Contains(
+		t,
+		data.(string),
+		"repository: mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
+		"the repository should have been altered during localization",
+	)
+
+	assert.Contains(
+		t,
+		data.(string),
+		"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+		"the reference should have been altered during localization",
+	)
+
+	assert.Contains(
+		t,
+		data.(string),
+		"version: v0.0.1",
+		"the labels should have been added via the localization mapping",
+	)
+
+	assert.Contains(
+		t,
+		data.(string),
+		"name: introspect-image-sha256-1.0.0",
+		"the custome resource spec.values should have been updated via the localization mapping",
+	)
 }
 
 func TestLocalizationShouldReconcile(t *testing.T) {
