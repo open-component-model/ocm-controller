@@ -6,12 +6,21 @@ package controllers
 
 import (
 	"archive/tar"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+// isTar checks if a given content is a tar archive or not.
+func isTar(content []byte) bool {
+	tr := tar.NewReader(bytes.NewBuffer(content))
+	_, err := tr.Next()
+
+	return err == nil
+}
 
 // buildTar is a modified version of https://github.com/fluxcd/pkg/blob/2ee90dd5b2ec033f44881f160e29584cceda8f37/oci/client/build.go
 func buildTar(artifactPath, sourceDir string) error {
