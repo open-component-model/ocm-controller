@@ -13,8 +13,11 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/controllers/sources/helm"
+	"github.com/open-component-model/ocm-controller/controllers/sources/oci"
 	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,6 +80,142 @@ func TestSnapshotReconciler(t *testing.T) {
 			break
 		}
 	}
+	assert.Contains(t, event, "Reconciliation finished")
+}
+
+func TestSnapshotReconcilerWithFluxSourceOciRepository(t *testing.T) {
+	snapshot := &v1alpha1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-snapshot",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.SnapshotSpec{
+			Identity: v1alpha1.Identity{
+				v1alpha1.ComponentNameKey:    "component-name",
+				v1alpha1.ComponentVersionKey: "v0.0.1",
+				v1alpha1.ResourceNameKey:     "resource-name",
+				v1alpha1.ResourceVersionKey:  "v0.0.5",
+			},
+			Digest:           "digest-1",
+			Tag:              "1234",
+			CreateFluxSource: true,
+		},
+	}
+	client := env.FakeKubeClient(WithObjets(snapshot), WithAddToScheme(v1beta2.AddToScheme))
+	fakeCache := &fakes.FakeCache{}
+	recorder := record.NewFakeRecorder(32)
+
+	source := oci.NewSource(client, env.scheme)
+	sr := SnapshotReconciler{
+		Client:              client,
+		Scheme:              env.scheme,
+		RegistryServiceName: "127.0.0.1:5000",
+		EventRecorder:       recorder,
+		Cache:               fakeCache,
+		SourceCreator:       source,
+	}
+
+	result, err := sr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      snapshot.Name,
+			Namespace: snapshot.Namespace,
+		},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	err = client.Get(context.Background(), types.NamespacedName{Name: snapshot.Name, Namespace: snapshot.Namespace}, snapshot)
+	require.NoError(t, err)
+
+	assert.True(t, conditions.IsTrue(snapshot, meta.ReadyCondition))
+	assert.Equal(t, "digest-1", snapshot.Status.LastReconciledDigest)
+	assert.Equal(t, "1234", snapshot.Status.LastReconciledTag)
+	assert.Equal(t, "http://127.0.0.1:5000/sha-16038726184537443379", snapshot.Status.RepositoryURL)
+
+	ociRepository := &v1beta2.OCIRepository{}
+	err = client.Get(context.Background(), types.NamespacedName{Name: snapshot.Name, Namespace: snapshot.Namespace}, ociRepository)
+	require.NoError(t, err)
+	assert.Equal(t, "oci://127.0.0.1:5000/sha-16038726184537443379", ociRepository.Spec.URL)
+
+	close(recorder.Events)
+	event := ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "Reconciliation finished") {
+			event = e
+			break
+		}
+	}
+
+	assert.Contains(t, event, "Reconciliation finished")
+}
+
+func TestSnapshotReconcilerWithFluxSourceHelmRepository(t *testing.T) {
+	snapshot := &v1alpha1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-snapshot",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.SnapshotSpec{
+			Identity: v1alpha1.Identity{
+				v1alpha1.ComponentNameKey:    "component-name",
+				v1alpha1.ComponentVersionKey: "v0.0.1",
+				v1alpha1.ResourceNameKey:     "resource-name",
+				v1alpha1.ResourceVersionKey:  "v0.0.5",
+			},
+			Digest:           "digest-1",
+			Tag:              "1234",
+			CreateFluxSource: true,
+		},
+	}
+	snapshot.SetContentType("helmChart")
+	client := env.FakeKubeClient(WithObjets(snapshot), WithAddToScheme(v1beta2.AddToScheme))
+	fakeCache := &fakes.FakeCache{}
+	recorder := record.NewFakeRecorder(32)
+
+	source := oci.NewSource(client, env.scheme)
+	helmSource := helm.NewSource(client, env.scheme, source)
+	sr := SnapshotReconciler{
+		Client:              client,
+		Scheme:              env.scheme,
+		RegistryServiceName: "127.0.0.1:5000",
+		EventRecorder:       recorder,
+		Cache:               fakeCache,
+		SourceCreator:       helmSource,
+	}
+
+	result, err := sr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      snapshot.Name,
+			Namespace: snapshot.Namespace,
+		},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	err = client.Get(context.Background(), types.NamespacedName{Name: snapshot.Name, Namespace: snapshot.Namespace}, snapshot)
+	require.NoError(t, err)
+
+	assert.True(t, conditions.IsTrue(snapshot, meta.ReadyCondition))
+	assert.Equal(t, "digest-1", snapshot.Status.LastReconciledDigest)
+	assert.Equal(t, "1234", snapshot.Status.LastReconciledTag)
+	assert.Equal(t, "http://127.0.0.1:5000/sha-16038726184537443379", snapshot.Status.RepositoryURL)
+
+	repository := &v1beta2.HelmRepository{}
+	err = client.Get(context.Background(), types.NamespacedName{Name: snapshot.Name, Namespace: snapshot.Namespace}, repository)
+	require.NoError(t, err)
+	assert.Equal(t, "oci://127.0.0.1:5000/sha-16038726184537443379:1234", repository.Spec.URL)
+
+	close(recorder.Events)
+	event := ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "Reconciliation finished") {
+			event = e
+			break
+		}
+	}
+
 	assert.Contains(t, event, "Reconciliation finished")
 }
 

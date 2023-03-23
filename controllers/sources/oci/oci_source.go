@@ -59,7 +59,7 @@ func (s *Source) CreateSource(ctx context.Context, obj *v1alpha1.Snapshot, regis
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed o create or update obi repository: %w", err)
+		return fmt.Errorf("failed o create or update oci repository: %w", err)
 	}
 
 	return nil

@@ -134,7 +134,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 			retErr = nil
-			return ctrl.Result{}, nil
+			return ctrl.Result{}, fmt.Errorf("failed to create flux source: %w", err)
 		}
 	}
 
