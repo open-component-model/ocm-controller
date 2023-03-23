@@ -286,7 +286,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Com
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 
 		return ctrl.Result{}, err

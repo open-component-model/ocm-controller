@@ -8,17 +8,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
-	"github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
-	"github.com/open-component-model/ocm-controller/pkg/cache"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -31,6 +27,8 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/controllers/sources"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
@@ -46,7 +44,8 @@ type SnapshotReconciler struct {
 	kuberecorder.EventRecorder
 	RegistryServiceName string
 
-	Cache cache.Cache
+	Cache         cache.Cache
+	SourceCreator sources.FluxSource
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots,verbs=get;list;watch;create;update;patch;delete
@@ -128,32 +127,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if obj.Spec.CreateFluxSource {
-		log.Info("reconciling flux oci source for snapshot")
-
-		ociRepoCR := &v1beta2.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: obj.GetNamespace(),
-				Name:      obj.GetName(),
-			},
-		}
-
-		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, ociRepoCR, func() error {
-			if ociRepoCR.ObjectMeta.CreationTimestamp.IsZero() {
-				if err := controllerutil.SetOwnerReference(obj, ociRepoCR, r.Scheme); err != nil {
-					return fmt.Errorf("failed to set owner reference on oci repository source: %w", err)
-				}
-			}
-			ociRepoCR.Spec = v1beta2.OCIRepositorySpec{
-				Interval: metav1.Duration{Duration: time.Hour},
-				Insecure: true,
-				URL:      fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, name),
-				Reference: &v1beta2.OCIRepositoryRef{
-					Tag: obj.Spec.Tag,
-				},
-			}
-			return nil
-		})
-		if err != nil {
+		if err := r.SourceCreator.CreateSource(ctx, obj, r.RegistryServiceName, name, obj.GetContentType()); err != nil {
 			msg := "failed to create or update oci repository"
 			log.Error(err, msg)
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())

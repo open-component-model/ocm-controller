@@ -19,6 +19,7 @@ const (
 	SourceNameKey             = "source-name"
 	SourceNamespaceKey        = "source-namespace"
 	SourceArtifactChecksumKey = "source-artifact-checksum"
+	ContentTypeKey            = "delivery.ocm.software/content-type"
 )
 
 // SnapshotSpec defines the desired state of Snapshot
@@ -93,6 +94,19 @@ func (in Snapshot) GetConditions() []metav1.Condition {
 // SetConditions sets the status conditions on the object.
 func (in *Snapshot) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
+}
+
+// GetContentType returns the snapshot's content type.
+func (in Snapshot) GetContentType() string {
+	return in.Annotations[ContentTypeKey]
+}
+
+// SetContentType is just a convenient wrapper to set annotations on the snapshot regarding its content type.
+func (in *Snapshot) SetContentType(t string) {
+	if in.Annotations == nil {
+		in.Annotations = make(map[string]string)
+	}
+	in.Annotations[ContentTypeKey] = t
 }
 
 // GetStatusConditions returns a pointer to the Status.Conditions slice.

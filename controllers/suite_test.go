@@ -137,6 +137,33 @@ var (
 							Value:                  "6a1c7637a528ab5957ab60edf73b5298a0a03de02a96be0313ee89b22544840c",
 						},
 					},
+					{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
+						Type:     "ociImage",
+						Relation: "local",
+						Access: &ocmruntime.UnstructuredTypedObject{
+							Object: map[string]interface{}{
+								"globalAccess": map[string]interface{}{
+									"digest":    "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+									"mediaType": "application/vnd.docker.distribution.manifest.v2+tar+gzip",
+									"ref":       "ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
+									"size":      29047129,
+									"type":      "ociBlob",
+								},
+								"localReference": "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+								"mediaType":      "application/vnd.docker.distribution.manifest.v2+tar+gzip",
+								"type":           "localBlob",
+							},
+						},
+						Digest: &ocmmetav1.DigestSpec{
+							HashAlgorithm:          "sha256",
+							NormalisationAlgorithm: "ociArtifactDigest/v1",
+							Value:                  "6a1c7637a528ab5957ab60edf73b5298a0a03de02a96be0313ee89b22544840c",
+						},
+					},
 				},
 			},
 			Version: "v0.0.1",

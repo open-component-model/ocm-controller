@@ -57,6 +57,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, c
 	log := log.FromContext(ctx)
 	var (
 		resourceData []byte
+		resourceType string
 		err          error
 	)
 
@@ -66,12 +67,12 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, c
 	}
 
 	if spec.Source.SourceRef != nil {
-		if resourceData, err = m.fetchResourceDataFromSnapshot(ctx, &spec); err != nil {
+		if resourceData, resourceType, err = m.fetchResourceDataFromSnapshot(ctx, &spec); err != nil {
 			return "",
 				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
 		}
 	} else if spec.Source.ResourceRef != nil {
-		if resourceData, err = m.fetchResourceDataFromResource(ctx, &spec, componentVersion); err != nil {
+		if resourceData, resourceType, err = m.fetchResourceDataFromResource(ctx, &spec, componentVersion); err != nil {
 			return "",
 				fmt.Errorf("failed to fetch resource data from resource ref: %w", err)
 		}
@@ -142,7 +143,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, c
 		}
 	}
 
-	return m.writeSnapshot(ctx, spec.SnapshotTemplate, obj, sourceDir, identity)
+	return m.writeSnapshot(ctx, spec.SnapshotTemplate, obj, sourceDir, identity, resourceType)
 }
 
 func (m *MutationReconcileLooper) writeToCache(ctx context.Context, identity v1alpha1.Identity, artifactPath string, version string) (string, error) {
@@ -163,51 +164,64 @@ func (m *MutationReconcileLooper) writeToCache(ctx context.Context, identity v1a
 	return digest, nil
 }
 
-func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Context, spec *v1alpha1.MutationSpec) ([]byte, error) {
+func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Context, spec *v1alpha1.MutationSpec) ([]byte, string, error) {
 	log := log.FromContext(ctx)
 	srcSnapshot := &v1alpha1.Snapshot{}
 	if err := m.Client.Get(ctx, spec.GetSourceSnapshotKey(), srcSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("snapshot doesn't exist yet", "snapshot", spec.GetSourceSnapshotKey())
-			return nil, err
+			return nil, "", err
 		}
-		return nil,
-			fmt.Errorf("failed to get component object: %w", err)
+		return nil, "", fmt.Errorf("failed to get component object: %w", err)
 	}
 
 	if conditions.IsFalse(srcSnapshot, meta.ReadyCondition) {
 		log.Info("snapshot not ready yet", "snapshot", srcSnapshot.Name)
-		return nil, nil
+		return nil, "", nil
 	}
 	log.Info("getting snapshot data from snapshot", "snapshot", srcSnapshot)
 	srcSnapshotData, err := m.getSnapshotBytes(ctx, srcSnapshot)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return srcSnapshotData, nil
+	return srcSnapshotData, srcSnapshot.GetContentType(), nil
 }
 
-func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Context, spec *v1alpha1.MutationSpec, version *v1alpha1.ComponentVersion) ([]byte, error) {
+func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Context, spec *v1alpha1.MutationSpec, version *v1alpha1.ComponentVersion) ([]byte, string, error) {
 	resource, _, err := m.OCMClient.GetResource(ctx, version, *spec.Source.ResourceRef)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch resource from resource ref: %w", err)
 	}
 	defer resource.Close()
 
+	componentDescriptor, err := component.GetComponentDescriptor(ctx, m.Client, spec.Source.ResourceRef.ReferencePath, version.Status.ComponentDescriptor)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get component descriptor from version")
+	}
+
+	if componentDescriptor == nil {
+		return nil, "", fmt.Errorf("component descriptor was empty")
+	}
+
+	resourceObj := componentDescriptor.GetResource(spec.Source.ResourceRef.Name)
+	if resourceObj == nil {
+		return nil, "", fmt.Errorf("failed to find resource with name '%s' in component descriptor '%s'", spec.Source.ResourceRef.Name, componentDescriptor.Name)
+	}
+
 	uncompressed, _, err := compression.AutoDecompress(resource)
 	if err != nil {
-		return nil, fmt.Errorf("failed to auto decompress: %w", err)
+		return nil, "", fmt.Errorf("failed to auto decompress: %w", err)
 	}
 	defer uncompressed.Close()
 
 	// This will be problematic with a 6 Gig large object when it's trying to read it all.
 	content, err := io.ReadAll(uncompressed)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read resource data: %w", err)
+		return nil, "", fmt.Errorf("failed to read resource data: %w", err)
 	}
 
-	return content, nil
+	return content, resourceObj.Type, nil
 }
 
 // This might be problematic if the resource is too large in the snapshot. ReadAll will read it into memory.

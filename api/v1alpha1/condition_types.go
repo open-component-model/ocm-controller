@@ -11,13 +11,13 @@ const (
 	// VerificationFailedReason is used when the signature verification of a component failed.
 	VerificationFailedReason = "ComponentVerificationFailed"
 
-	// ComponentVersionInvalidReason is used when the component version is invalid, or we fail to retreive it.
+	// ComponentVersionInvalidReason is used when the component version is invalid, or we fail to retrieve it.
 	ComponentVersionInvalidReason = "ComponentVersionInvalid"
 
 	// ConvertComponentDescriptorFailedReason is used when the Component Descriptor cannot be converted.
 	ConvertComponentDescriptorFailedReason = "ConvertComponentDescriptorFailed"
 
-	// NameGenerationFailedReason is used when the componentn name could not be generated.
+	// NameGenerationFailedReason is used when the component name could not be generated.
 	NameGenerationFailedReason = "NameGenerationFailed"
 
 	// CreateOrUpdateComponentDescriptorFailedReason is used when the Component Descriptor cannot be created or updated on the resource.
@@ -26,8 +26,8 @@ const (
 	// ParseReferencesFailedReason is used when the resource references cannot be parsed.
 	ParseReferencesFailedReason = "ParseReferencesFailed"
 
-	// ReconcileMuationObjectFailed is used when the mutation object cannot be reconciled.
-	ReconcileMuationObjectFailedReason = "ReconcileMuationObjectFailed"
+	// ReconcileMutationObjectFailedReason is used when the mutation object cannot be reconciled.
+	ReconcileMutationObjectFailedReason = "ReconcileMutationObjectFailed"
 
 	// SourceReasonNotATarArchiveReason is used when the source resource is not a tar archive.
 	SourceReasonNotATarArchiveReason = "SourceReasonNotATarArchive"
@@ -41,6 +41,9 @@ const (
 	// ComponentDescriptorNotFoundReason is used when the component descriptor cannot be found.
 	ComponentDescriptorNotFoundReason = "ComponentDescriptorNotFound"
 
+	// ResourceNotFoundReason is used when the resource cannot be found.
+	ResourceNotFoundReason = "ResourceNotFound"
+
 	// CreateOrUpdateSnapshotFailedReason is used when the snapshot cannot be created or updated.
 	CreateOrUpdateSnapshotFailedReason = "CreateOrUpdateSnapshotFailed"
 
@@ -49,10 +52,4 @@ const (
 
 	// CreateRepositoryNameReason is used when the generating a new repository name fails.
 	CreateRepositoryNameReason = "CreateRepositoryNameFailed"
-
-	// PatchSnapshotFailedReason is used when the snapshot cannot be patched.
-	PatchSnapshotFailedReason = "PatchSnapshotFailed"
-
-	// SnapshotFailedReason is used when the snapshot cannot be created.
-	SnapshotFailedReason = "SnapshotFailed"
 )

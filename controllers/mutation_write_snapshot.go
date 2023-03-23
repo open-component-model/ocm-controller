@@ -21,6 +21,7 @@ func (m *MutationReconcileLooper) writeSnapshot(
 	owner client.Object,
 	sourceDir string,
 	identity v1alpha1.Identity,
+	resourceType string,
 ) (string, error) {
 	artifactPath, err := os.CreateTemp("", "snapshot-artifact-*.tgz")
 	if err != nil {
@@ -43,6 +44,8 @@ func (m *MutationReconcileLooper) writeSnapshot(
 			Namespace: owner.GetNamespace(),
 		},
 	}
+
+	snapshotCR.SetContentType(resourceType)
 
 	_, err = controllerutil.CreateOrUpdate(ctx, m.Client, snapshotCR, func() error {
 		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {

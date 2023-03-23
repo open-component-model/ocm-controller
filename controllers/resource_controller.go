@@ -240,6 +240,16 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, componentVersion *v1
 		return ctrl.Result{}, err
 	}
 
+	resource := componentDescriptor.GetResource(obj.Spec.Resource.Name)
+	if resource == nil {
+		err := fmt.Errorf("couldn't find resource for name '%s' or any root components", obj.Spec.Resource.Name)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ResourceNotFoundReason, err.Error())
+		// Mark stalled because we can't do anything until the resource is available. Likely requires some sort of manual intervention.
+		conditions.MarkStalled(obj, v1alpha1.ResourceNotFoundReason, err.Error())
+		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		return ctrl.Result{}, err
+	}
+
 	conditions.Delete(obj, meta.StalledCondition)
 
 	identity := v1alpha1.Identity{
@@ -252,13 +262,14 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, componentVersion *v1
 		identity[k] = v
 	}
 
-	// How would I use this snapshot from the Localizer?
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
 			Name:      obj.Spec.SnapshotTemplate.Name,
 		},
 	}
+
+	snapshotCR.SetContentType(resource.Type)
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
 		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {

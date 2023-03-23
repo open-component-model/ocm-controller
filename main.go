@@ -11,7 +11,6 @@ import (
 
 	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/source-controller/api/v1beta2"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -22,6 +21,8 @@ import (
 
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/controllers"
+	"github.com/open-component-model/ocm-controller/controllers/sources/helm"
+	ocisource "github.com/open-component-model/ocm-controller/controllers/sources/oci"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	//+kubebuilder:scaffold:imports
@@ -99,12 +100,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	ociSource := ocisource.NewSource(mgr.GetClient(), mgr.GetScheme())
+	helmSource := helm.NewSource(mgr.GetClient(), mgr.GetScheme(), ociSource)
 	if err = (&controllers.SnapshotReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
 		EventRecorder:       eventsRecorder,
 		RegistryServiceName: ociRegistryAddr,
 		Cache:               cache,
+		SourceCreator:       helmSource,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Snapshot")
 		os.Exit(1)
