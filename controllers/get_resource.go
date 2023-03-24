@@ -27,7 +27,16 @@ func GetImageReference(resource *ocmapi.Resource) (string, error) {
 
 	switch resource.Access.Type {
 	case "localBlob":
-		gs, err := accessSpec.(*localblob.AccessSpec).GlobalAccess.Evaluate(ocm.DefaultContext())
+		access, ok := accessSpec.(*localblob.AccessSpec)
+		if !ok {
+			return "", fmt.Errorf("access type was not localBlob: %+v", accessSpec)
+		}
+
+		if access.GlobalAccess == nil {
+			return "", fmt.Errorf("access type doesn't have a global access method that is required for configuration/localization")
+		}
+
+		gs, err := access.GlobalAccess.Evaluate(ocm.DefaultContext())
 		if err != nil {
 			return "", err
 		}

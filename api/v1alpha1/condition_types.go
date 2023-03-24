@@ -1,4 +1,3 @@
-// Copyright 2022.
 // SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -29,6 +28,9 @@ const (
 
 	// ReconcileMuationObjectFailed is used when the mutation object cannot be reconciled.
 	ReconcileMuationObjectFailedReason = "ReconcileMuationObjectFailed"
+
+	// SourceReasonNotATarArchiveReason is used when the source resource is not a tar archive.
+	SourceReasonNotATarArchiveReason = "SourceReasonNotATarArchive"
 
 	// GetResourceFailedReason is used when the resource cannot be retrieved.
 	GetResourceFailedReason = "GetResourceFailed"

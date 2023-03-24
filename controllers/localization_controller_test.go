@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package controllers
 
 import (
@@ -420,7 +424,7 @@ func TestLocalizationReconciler(t *testing.T) {
 		},
 		{
 			name:        "the returned content is not a tar file",
-			expectError: "extract tar error: unexpected EOF",
+			expectError: "source resource is not a tar archive: expected tarred directory content for configuration/localization resources, got plain text",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{

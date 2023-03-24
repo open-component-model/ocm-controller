@@ -1,4 +1,3 @@
-// Copyright 2022.
 // SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -277,6 +276,13 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, cv *v1alpha1.Co
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
+
+		if errors.Is(err, tarError) {
+			err = fmt.Errorf("source resource is not a tar archive: %w", err)
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
+			return ctrl.Result{}, err
+		}
+
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
 		return ctrl.Result{}, err

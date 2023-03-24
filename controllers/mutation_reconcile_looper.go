@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package controllers
 
 import (
@@ -20,7 +24,6 @@ import (
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,6 +32,7 @@ import (
 
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
+	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/open-component-model/ocm/pkg/spiff"
 	"github.com/open-component-model/ocm/pkg/utils"
 
@@ -38,6 +42,9 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
+
+// tarError defines an error that occurs when the resource is not a tar archive.
+var tarError = errors.New("expected tarred directory content for configuration/localization resources, got plain text")
 
 type MutationReconcileLooper struct {
 	Scheme    *runtime.Scheme
@@ -84,7 +91,16 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, c
 		if err != nil {
 			return "", fmt.Errorf("fs error: %w", err)
 		}
-		defer vfs.Cleanup(virtualFS)
+
+		defer func() {
+			if err := vfs.Cleanup(virtualFS); err != nil {
+				log.Error(err, "failed to cleanup virtual filesystem")
+			}
+		}()
+
+		if !isTar(resourceData) {
+			return "", tarError
+		}
 
 		if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {
 			return "", fmt.Errorf("extract tar error: %w", err)
@@ -285,12 +301,14 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx con
 func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(spec v1alpha1.MutationSpec, config configdata.ConfigData) (localize.Substitutions, error) {
 	var rules localize.Substitutions
 	for i, l := range config.Configuration.Rules {
-		rules.Add(fmt.Sprintf("subst-%d", i), l.File, l.Path, l.Value)
+		if err := rules.Add(fmt.Sprintf("subst-%d", i), l.File, l.Path, l.Value); err != nil {
+			return nil, fmt.Errorf("failed to add rule: %w", err)
+		}
 	}
 
 	defaults, err := json.Marshal(config.Configuration.Defaults)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal configuration defaults: %w", err)
+		return nil, fmt.Errorf("failed to marshal configuration defaults: %w", err) //nolint:staticcheck // it's fine
 	}
 
 	values, err := json.Marshal(spec.Values)
@@ -298,16 +316,16 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 		return nil, fmt.Errorf("failed to marshal spec values: %w", err)
 	}
 
-	schema, err := json.Marshal(config.Configuration.Schema)
+	schema, err := json.Marshal(config.Configuration.Schema) //nolint:staticcheck // it's fine
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal configuration schema: %w", err)
 	}
 
-	configSubstitions, err := m.configurator(rules, defaults, values, schema)
+	configSubstitutions, err := m.configurator(rules, defaults, values, schema)
 	if err != nil {
 		return nil, fmt.Errorf("configurator error: %w", err)
 	}
-	return configSubstitions, nil
+	return configSubstitutions, nil
 }
 
 func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
