@@ -43,6 +43,9 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
+// tarError defines an error that occurs when the resource is not a tar archive.
+var tarError = errors.New("expected tarred directory content for configuration/localization resources, got plain text")
+
 type MutationReconcileLooper struct {
 	Scheme    *runtime.Scheme
 	OCMClient ocm.FetchVerifier
@@ -96,7 +99,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, c
 		}()
 
 		if !isTar(resourceData) {
-			return "", fmt.Errorf("expected tarred directory content for configuration/localization resources, got plain text")
+			return "", tarError
 		}
 
 		if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(resourceData)); err != nil {

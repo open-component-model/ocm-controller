@@ -424,7 +424,7 @@ func TestLocalizationReconciler(t *testing.T) {
 		},
 		{
 			name:        "the returned content is not a tar file",
-			expectError: "failed to reconcile mutation object: expected tarred directory content for configuration/localization resources, got plain text",
+			expectError: "source resource is not a tar archive: expected tarred directory content for configuration/localization resources, got plain text",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
