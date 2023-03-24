@@ -93,7 +93,7 @@ var (
 				Version: "1.0.0",
 				ReferencePath: []map[string]string{
 					{
-						"name": "test",
+						"name": "introspect-image",
 					},
 				},
 			},
