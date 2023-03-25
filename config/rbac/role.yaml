@@ -29,6 +29,7 @@ rules:
   - secrets
   - serviceaccounts
   verbs:
+  - create
   - get
   - list
   - watch
@@ -182,6 +183,18 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - source.toolkit.fluxcd.io
+  resources:
+  - helmrepositories
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - source.toolkit.fluxcd.io

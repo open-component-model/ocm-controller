@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/source-controller/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -48,8 +49,10 @@ func (s *Source) CreateSource(ctx context.Context, obj *v1alpha1.Snapshot, regis
 		}
 		ociRepoCR.Spec = v1beta2.OCIRepositorySpec{
 			Interval: metav1.Duration{Duration: time.Hour},
-			Insecure: true,
-			URL:      fmt.Sprintf("oci://%s/%s", registryName, name),
+			CertSecretRef: &meta.LocalObjectReference{
+				Name: "registry-crt",
+			},
+			URL: fmt.Sprintf("oci://%s/%s", registryName, name),
 			Reference: &v1beta2.OCIRepositoryRef{
 				Tag: obj.Spec.Tag,
 			},

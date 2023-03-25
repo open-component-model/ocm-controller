@@ -52,4 +52,6 @@ const (
 
 	// CreateRepositoryNameReason is used when the generating a new repository name fails.
 	CreateRepositoryNameReason = "CreateRepositoryNameFailed"
+
+	CacheCreateOperationFailedReason = "CacheCreateOperationFailed"
 )

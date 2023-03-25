@@ -81,6 +81,6 @@ func TestMain(m *testing.M) {
 }
 
 func generateRandomName(name string) string {
-	rand.Seed(time.Now().UnixNano())
-	return fmt.Sprintf("%s-%d", name, rand.Intn(1000))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return fmt.Sprintf("%s-%d", name, r.Intn(1000))
 }

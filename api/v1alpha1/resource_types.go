@@ -32,6 +32,9 @@ type SnapshotTemplateSpec struct {
 	// +required
 	Name string `json:"name"`
 
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
 	//TODO@souleb: add a description, is that actually used?
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`

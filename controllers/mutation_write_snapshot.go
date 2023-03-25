@@ -59,6 +59,11 @@ func (m *MutationReconcileLooper) writeSnapshot(
 			Digest:           snapshotDigest,
 			Tag:              owner.GetResourceVersion(),
 		}
+
+		if template.Tag != "" {
+			snapshotCR.Spec.DuplicateTagToTag = template.Tag
+		}
+
 		return nil
 	})
 

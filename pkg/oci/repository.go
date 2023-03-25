@@ -6,9 +6,12 @@ package oci
 
 import (
 	"context"
+	"crypto/tls"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 
 	ociname "github.com/google/go-containerregistry/pkg/name"
@@ -26,19 +29,40 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
+//var (
+//	//go:embed certs/tls.key
+//	tlsKey string
+//	//go:embed certs/tls.crt
+//	tlsCrt string
+//)
+
 // Option is a functional option for Repository.
 type Option func(o *options) error
 
 type options struct {
 	// remoteOpts are the options to use when fetching and pushing blobs.
 	remoteOpts []remote.Option
-	insecure   bool
 }
 
-// WithInsecure sets up the registry to use HTTP with --insecure.
-func WithInsecure() Option {
+// WithTransport sets up insecure TLS so the library is forced to use HTTPS.
+func WithTransport() Option {
 	return func(o *options) error {
-		o.insecure = true
+		tlsConfig := &tls.Config{
+			//Certificates: []tls.Certificate{{
+			//	Certificate: [][]byte{[]byte(tlsCrt)},
+			//	PrivateKey:  []byte(tlsKey),
+			//}},
+			// InsecureSkipVerify should be set to true to disable
+			// verification of the server's certificate chain
+			InsecureSkipVerify: true,
+		}
+		// Create a new HTTP transport with the TLS configuration
+		transport := &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}
+
+		o.remoteOpts = append(o.remoteOpts, remote.WithTransport(transport))
+
 		return nil
 	}
 }
@@ -77,21 +101,19 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to make options: %w", err)
 	}
-	repoOpts := make([]ociname.Option, 0)
-	if opt.insecure {
-		repoOpts = append(repoOpts, ociname.Insecure)
-	}
-	repo, err := ociname.NewRepository(repositoryName, repoOpts...)
+
+	repo, err := ociname.NewRepository(repositoryName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Repository name %q: %w", repositoryName, err)
 	}
+
 	return &Repository{repo, opt}, nil
 }
 
 // PushData takes a blob of data and caches it using OCI as a background.
 func (c *Client) PushData(ctx context.Context, data io.ReadCloser, name, tag string) (string, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
-	repo, err := NewRepository(repositoryName, WithInsecure())
+	repo, err := NewRepository(repositoryName, WithTransport())
 	if err != nil {
 		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
@@ -115,7 +137,7 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.
 	logger := log.FromContext(ctx).WithName("cache")
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	logger.V(4).Info("cache hit for data", "name", name, "tag", tag, "repository", repositoryName)
-	repo, err := NewRepository(repositoryName, WithInsecure())
+	repo, err := NewRepository(repositoryName, WithTransport())
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get repository: %w", err)
 	}
@@ -146,7 +168,7 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.
 func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 
-	repo, err := NewRepository(repositoryName, WithInsecure())
+	repo, err := NewRepository(repositoryName, WithTransport())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository: %w", err)
 	}
@@ -169,7 +191,15 @@ func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 		return false, fmt.Errorf("failed to parse repository and tag name: %w", err)
 	}
 
-	if _, err := remote.Head(reference); err != nil {
+	// We don't have the repository context here, so we can't reuse the WithTransport option.
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+
+	if _, err := remote.Head(reference, remote.WithTransport(transport)); err != nil {
 		return false, nil
 	}
 	return true, nil
@@ -178,7 +208,7 @@ func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 // DeleteData removes a specific tag from the cache.
 func (c *Client) DeleteData(ctx context.Context, name, tag string) error {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
-	repo, err := NewRepository(repositoryName, WithInsecure())
+	repo, err := NewRepository(repositoryName, WithTransport())
 	if err != nil {
 		return fmt.Errorf("failed create new repository: %w", err)
 	}
@@ -195,6 +225,7 @@ func (r *Repository) deleteTag(tag string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse reference: %w", err)
 	}
+
 	desc, err := remote.Head(ref, r.remoteOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to fetch head for reference: %w", err)
@@ -217,6 +248,7 @@ func (r *Repository) fetchBlob(digest string) (v1.Layer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse digest %q: %w", digest, err)
 	}
+
 	return remote.Layer(ref, r.remoteOpts...)
 }
 
@@ -401,6 +433,7 @@ func makeOptions(opts ...Option) (options, error) {
 			return options{}, fmt.Errorf("failed to apply option: %w", err)
 		}
 	}
+
 	return opt, nil
 }
 

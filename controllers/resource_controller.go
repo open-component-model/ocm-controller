@@ -216,11 +216,6 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, componentVersion *v1
 	}
 	defer reader.Close()
 
-	version := "latest"
-	if obj.Spec.Resource.Version != "" {
-		version = obj.Spec.Resource.Version
-	}
-
 	// This is important because THIS is the actual component for our resource. If we used ComponentVersion in the
 	// below identity, that would be the top-level component instead of the component that this resource belongs to.
 	componentDescriptor, err := component.GetComponentDescriptor(ctx, r.Client, obj.Spec.Resource.ReferencePath, componentVersion.Status.ComponentDescriptor)
@@ -251,6 +246,11 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, componentVersion *v1
 	}
 
 	conditions.Delete(obj, meta.StalledCondition)
+
+	version := "latest"
+	if obj.Spec.Resource.Version != "" {
+		version = obj.Spec.Resource.Version
+	}
 
 	identity := v1alpha1.Identity{
 		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
@@ -283,6 +283,11 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, componentVersion *v1
 			Digest:           digest,
 			Tag:              version,
 		}
+
+		if obj.Spec.SnapshotTemplate.Tag != "" {
+			snapshotCR.Spec.DuplicateTagToTag = obj.Spec.SnapshotTemplate.Tag
+		}
+
 		return nil
 	})
 	if err != nil {

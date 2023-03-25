@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -53,6 +54,7 @@ type SnapshotReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots/finalizers,verbs=update
 
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=helmrepositories,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // SetupWithManager sets up the controller with the Manager.
@@ -128,19 +130,41 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	if obj.Spec.CreateFluxSource {
 		if err := r.SourceCreator.CreateSource(ctx, obj, r.RegistryServiceName, name, obj.GetContentType()); err != nil {
-			msg := "failed to create or update oci repository"
-			log.Error(err, msg)
+			msg := "failed to create or update source repository object"
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
-			retErr = nil
-			return ctrl.Result{}, fmt.Errorf("failed to create flux source: %w", err)
+			retErr = fmt.Errorf("failed to create flux source: %w", err)
+			return ctrl.Result{}, retErr
+		}
+	}
+
+	if obj.Spec.DuplicateTagToTag != "" {
+		reader, err := r.Cache.FetchDataByDigest(ctx, name, obj.Spec.Digest)
+		if err != nil {
+			msg := "failed to fetch data by digest"
+
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())
+			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+			retErr = fmt.Errorf("failed to fetch resource: %w", err)
+
+			return ctrl.Result{}, retErr
+		}
+
+		if _, err := r.Cache.PushData(ctx, reader, name, obj.Spec.DuplicateTagToTag); err != nil {
+			msg := "failed to push data to new tag " + obj.Spec.DuplicateTagToTag
+
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CacheCreateOperationFailedReason, err.Error())
+			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+			retErr = fmt.Errorf("failed to push data: %w", err)
+
+			return ctrl.Result{}, retErr
 		}
 	}
 
 	obj.Status.LastReconciledDigest = obj.Spec.Digest
 	obj.Status.LastReconciledTag = obj.Spec.Tag
-	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, name)
+	obj.Status.RepositoryURL = fmt.Sprintf("https://%s/%s", r.RegistryServiceName, name)
 	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
 	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg)
 	log.Info("snapshot successfully reconciled", "snapshot", klog.KObj(obj))
@@ -162,9 +186,12 @@ func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *d
 
 	if err := r.Cache.DeleteData(ctx, name, obj.Spec.Tag); err != nil {
 		var terr *transport.Error
-		if !errors.As(err, &terr) || !containsManifestNotFoundError(terr.Errors) {
-			return fmt.Errorf("failed to delete data: %w", err)
+		if errors.As(err, &terr) && containsManifestNotFoundError(terr.Errors) || strings.Contains(err.Error(), "404 Not Found") {
+			controllerutil.RemoveFinalizer(obj, snapshotFinalizer)
+			return patchHelper.Patch(ctx, obj)
 		}
+
+		return fmt.Errorf("failed to delete data: %w", err)
 	}
 
 	controllerutil.RemoveFinalizer(obj, snapshotFinalizer)
@@ -172,6 +199,7 @@ func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *d
 	return patchHelper.Patch(ctx, obj)
 }
 
+// "error": "failed to remove finalizer: failed to delete data: failed to fetch head for reference: HEAD http://registry.ocm-system.svc.cluster.local:5000/v2/sha-6200481511978943855/manifests/0.1.0: unexpected status code 404 Not Found (HEAD responses have no body, use GET for details)"}
 func containsManifestNotFoundError(errors []transport.Diagnostic) bool {
 	for _, e := range errors {
 		if e.Code == transport.ManifestUnknownErrorCode {

@@ -158,7 +158,6 @@ if settings.get('debug').get('enabled'):
     entrypoint = ['/dlv', '--listen=:30000', '--api-version=2', '--continue=true', '--accept-multiclient=true', '--headless=true', 'exec', '/manager', '--']
     dockerfile = 'tilt.debug.dockerfile'
 
-
 docker_build_with_restart(
     'ghcr.io/open-component-model/ocm-controller',
     '.',
@@ -171,7 +170,6 @@ docker_build_with_restart(
         sync('./bin/manager', '/manager'),
     ],
 )
-
 
 if settings.get('forward_registry'):
     k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards='5000:5000')

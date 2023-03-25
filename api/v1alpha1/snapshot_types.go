@@ -32,6 +32,11 @@ type SnapshotSpec struct {
 	Digest string `json:"digest"`
 
 	Tag string `json:"tag"`
+
+	// DuplicateTagToTag defines a tag to which the current tag can be duplicated.
+	// Useful to define a fallback tag or a specific version in the OCI cache.
+	// +optional
+	DuplicateTagToTag string `json:"duplicateTagToTag,omitempty"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot

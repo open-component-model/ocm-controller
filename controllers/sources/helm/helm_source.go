@@ -61,7 +61,7 @@ func (s *Source) CreateSource(ctx context.Context, obj *v1alpha1.Snapshot, regis
 		}
 		helmRepoCR.Spec = v1beta2.HelmRepositorySpec{
 			Interval: metav1.Duration{Duration: time.Hour},
-			URL:      fmt.Sprintf("oci://%s/%s:%s", registryName, name, obj.Spec.Tag),
+			URL:      fmt.Sprintf("oci://%s/%s", registryName, name),
 			Type:     "oci",
 		}
 

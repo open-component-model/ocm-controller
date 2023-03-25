@@ -41,6 +41,11 @@ spec:
                 type: boolean
               digest:
                 type: string
+              duplicateTagToTag:
+                description: DuplicateTagToTag defines a tag to which the current
+                  tag can be duplicated. Useful to define a fallback tag or a specific
+                  version in the OCI cache.
+                type: string
               identity:
                 additionalProperties:
                   type: string
