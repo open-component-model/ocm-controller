@@ -389,6 +389,10 @@ func (m *MutationReconcileLooper) compileMapping(ctx context.Context, cv *v1alph
 		return nil, err
 	}
 
+	if cd == nil {
+		return nil, fmt.Errorf("component descriptor not found with ref: %+v", cv.Status.ComponentDescriptor.ComponentDescriptorRef)
+	}
+
 	// first create the component descriptor struct
 	root := cueCtx.CompileString("component:{}").FillPath(cue.ParsePath("component"), cueCtx.Encode(cd.Spec))
 
