@@ -10,6 +10,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -191,9 +192,8 @@ var (
 					},
 				},
 			},
-			Values: map[string]string{
-				"message": "this is a new message",
-				"color":   "bittersweet",
+			Values: apiextensionsv1.JSON{
+				Raw: []byte(`{"message": "this is a new message", "color": "bittersweet"}`),
 			},
 			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
 				Name: "test-configuration-modified",

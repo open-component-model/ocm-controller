@@ -235,9 +235,7 @@ spec:
                     type: object
                 type: object
               values:
-                additionalProperties:
-                  type: string
-                type: object
+                x-kubernetes-preserve-unknown-fields: true
             required:
             - componentVersionRef
             - interval

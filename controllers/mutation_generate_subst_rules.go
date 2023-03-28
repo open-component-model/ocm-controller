@@ -62,7 +62,7 @@ func (m *MutationReconcileLooper) generateSubstRules(ctx context.Context, cv *v1
 	}
 
 	var rules localize.Substitutions
-	if spec.Values != nil {
+	if spec.Values.Raw != nil {
 		rules, err = m.createSubstitutionRulesForConfigurationValues(spec, *config)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create configuration values for config '%s': %w", config.Name, err)
