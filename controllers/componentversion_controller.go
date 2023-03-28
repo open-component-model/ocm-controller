@@ -206,9 +206,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
-	// If not, we'll list all version UP-TO the constraint and use the max. But we will not update
-	// if the new version is below the current. This is to avoid forced downgrades if the
-	// remote deleted a version.
 	latest, err := r.OCMClient.GetLatestValidComponentVersion(ctx, obj)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to get latest component version: %w", err)
@@ -230,7 +227,7 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	}
 	log.V(4).Info("current reconciled version is", "reconciled", current.String())
 
-	if latestSemver.Equal(current) || current.GreaterThan(latestSemver) {
+	if latestSemver.Equal(current) || (current.GreaterThan(latestSemver) && !obj.Spec.Version.AllowRollback) {
 		log.V(4).Info("Reconciled version equal to or greater than newest available version", "version", latestSemver)
 		return false, "", nil
 	}
