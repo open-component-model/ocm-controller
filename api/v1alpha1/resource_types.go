@@ -25,6 +25,10 @@ type ResourceSpec struct {
 
 	// +required
 	SnapshotTemplate SnapshotTemplateSpec `json:"snapshotTemplate"`
+
+	// Suspend stops all operations on this object.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // SnapshotTemplateSpec defines the template used to create snapshots

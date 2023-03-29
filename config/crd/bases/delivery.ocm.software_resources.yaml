@@ -96,6 +96,9 @@ spec:
                 required:
                 - name
                 type: object
+              suspend:
+                description: Suspend stops all operations on this object.
+                type: boolean
             required:
             - componentVersionRef
             - interval

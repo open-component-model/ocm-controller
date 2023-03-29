@@ -89,6 +89,11 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return result, retErr
 	}
 
+	if obj.Spec.Suspend {
+		log.Info("component object suspended")
+		return result, nil
+	}
+
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		retErr = errors.Join(retErr, err)

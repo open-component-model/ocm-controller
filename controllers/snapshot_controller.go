@@ -92,6 +92,11 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
+	if obj.Spec.Suspend {
+		log.Info("snapshot object suspended")
+		return ctrl.Result{}, nil
+	}
+
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		retErr = errors.Join(retErr, err)

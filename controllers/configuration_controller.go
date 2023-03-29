@@ -94,6 +94,12 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		retErr = fmt.Errorf("failed to get configuration object: %w", err)
 		return ctrl.Result{}, retErr
 	}
+
+	if obj.Spec.Suspend {
+		log.Info("configuration object suspended")
+		return result, nil
+	}
+
 	cv := types.NamespacedName{
 		Name:      obj.Spec.ComponentVersionRef.Name,
 		Namespace: obj.Spec.ComponentVersionRef.Namespace,

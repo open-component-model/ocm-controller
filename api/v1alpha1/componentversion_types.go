@@ -73,6 +73,10 @@ type ComponentVersionSpec struct {
 
 	// +optional
 	References ReferencesConfig `json:"references,omitempty"`
+
+	// Suspend stops all operations on this component version object.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 type ReferencesConfig struct {

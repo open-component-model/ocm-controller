@@ -31,6 +31,10 @@ type SnapshotSpec struct {
 	Digest string `json:"digest"`
 
 	Tag string `json:"tag"`
+
+	// Suspend stops all operations on this object.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // SnapshotStatus defines the observed state of Snapshot
