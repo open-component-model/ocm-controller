@@ -80,6 +80,10 @@ func (c *Client) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion,
 		return nil, "", fmt.Errorf("failed to find component descriptor for reference: %w", err)
 	}
 
+	if cd == nil {
+		return nil, "", fmt.Errorf("component descriptor not found for reference path: %+v", resource.ReferencePath)
+	}
+
 	identity := v1alpha1.Identity{
 		v1alpha1.ComponentNameKey:    cd.Name,
 		v1alpha1.ComponentVersionKey: cd.Spec.Version,
