@@ -311,17 +311,12 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 		return nil, fmt.Errorf("failed to marshal configuration defaults: %w", err) //nolint:staticcheck // it's fine
 	}
 
-	values, err := json.Marshal(spec.Values)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal spec values: %w", err)
-	}
-
 	schema, err := json.Marshal(config.Configuration.Schema) //nolint:staticcheck // it's fine
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal configuration schema: %w", err)
 	}
 
-	configSubstitutions, err := m.configurator(rules, defaults, values, schema)
+	configSubstitutions, err := m.configurator(rules, defaults, spec.Values.Raw, schema)
 	if err != nil {
 		return nil, fmt.Errorf("configurator error: %w", err)
 	}

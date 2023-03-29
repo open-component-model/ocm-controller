@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -30,7 +31,7 @@ type MutationSpec struct {
 	SnapshotTemplate SnapshotTemplateSpec `json:"snapshotTemplate"`
 
 	// +optional
-	Values map[string]string `json:"values,omitempty"`
+	Values apiextensionsv1.JSON `json:"values,omitempty"`
 
 	// +optional
 	PatchStrategicMerge *PatchStrategicMerge `json:"patchStrategicMerge,omitempty"`

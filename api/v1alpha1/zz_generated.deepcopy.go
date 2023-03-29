@@ -378,13 +378,7 @@ func (in *MutationSpec) DeepCopyInto(out *MutationSpec) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.SnapshotTemplate.DeepCopyInto(&out.SnapshotTemplate)
-	if in.Values != nil {
-		in, out := &in.Values, &out.Values
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
+	in.Values.DeepCopyInto(&out.Values)
 	if in.PatchStrategicMerge != nil {
 		in, out := &in.PatchStrategicMerge, &out.PatchStrategicMerge
 		*out = new(PatchStrategicMerge)
