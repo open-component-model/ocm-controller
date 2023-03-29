@@ -41,8 +41,10 @@ type Signature struct {
 	PublicKey SecretRefValue `json:"publicKey"`
 }
 
+// Version defines version upgrade / downgrade options.
 type Version struct {
-	Semver string `json:"semver,omitempty"`
+	Semver        string `json:"semver,omitempty"`
+	AllowRollback bool   `json:"allowRollback,omitempty"`
 }
 
 // ComponentVersionSpec defines the desired state of ComponentVersion

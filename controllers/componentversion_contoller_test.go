@@ -174,6 +174,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 		reconciledVersion string
 		expectedUpdate    bool
 		expectedErr       string
+		allowRollback     bool
 	}{
 		{
 			description:       "current reconciled version is latest and satisfies given semver constraint",
@@ -190,13 +191,6 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			expectedUpdate:    true,
 		},
 		{
-			description:       "if given version is a specific version it should use that even if reconciled version is greater",
-			givenVersion:      "0.0.3",
-			reconciledVersion: "0.0.4",
-			latestVersion:     "0.0.6",
-			expectedUpdate:    true,
-		},
-		{
 			description:       "equaling a version should return that specific version and will trigger an update",
 			givenVersion:      "=0.0.3",
 			reconciledVersion: "0.0.2",
@@ -210,11 +204,34 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			latestVersion:     "0.0.2",
 			expectedUpdate:    false,
 		},
+		{
+			description:       "use older version is rollback is enabled",
+			givenVersion:      "<=0.0.3",
+			reconciledVersion: "0.0.3",
+			latestVersion:     "0.0.2",
+			allowRollback:     true,
+			expectedUpdate:    true,
+		},
+		{
+			description:       "don't allow rollback if it isn't enabled",
+			givenVersion:      "0.0.3",
+			reconciledVersion: "0.0.4",
+			latestVersion:     "0.0.3",
+			expectedUpdate:    false,
+		},
+		{
+			description:       "make sure update doesn't occur if allowRollback is disabled but versions match",
+			givenVersion:      ">=0.0.3",
+			reconciledVersion: "0.0.4",
+			latestVersion:     "0.0.4",
+			expectedUpdate:    false,
+		},
 	}
 	for i, tt := range semverTests {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.description), func(t *testing.T) {
 			obj := DefaultComponent.DeepCopy()
 			obj.Spec.Version.Semver = tt.givenVersion
+			obj.Spec.Version.AllowRollback = tt.allowRollback
 			obj.Status.ReconciledVersion = tt.reconciledVersion
 			fakeClient := env.FakeKubeClient(WithObjets(obj))
 			fakeOcm := &fakes.MockFetcher{}
