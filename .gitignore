@@ -29,3 +29,4 @@ dist/
 output/
 
 tilt-settings.yaml
+.envrc

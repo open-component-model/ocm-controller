@@ -68,12 +68,6 @@ def create_secrets():
     if not opts.get("enable"):
         return
 
-    k8s_yaml(secret_yaml_registry("regcred", "ocm-system", flags_dict = {
-        'docker-server': 'ghcr.io',
-        'docker-username': opts.get('user'),
-        'docker-email': opts.get('email'),
-        'docker-password': opts.get('token'),
-    }), allow_duplicates = True)
     k8s_yaml(secret_from_dict("creds", "ocm-system", inputs = {
         'username' : opts.get('user'),
         'password' : opts.get('token'),
