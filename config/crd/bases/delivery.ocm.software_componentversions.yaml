@@ -73,6 +73,10 @@ spec:
                 required:
                 - url
                 type: object
+              suspend:
+                description: Suspend stops all operations on this component version
+                  object.
+                type: boolean
               verify:
                 items:
                   description: Signature defines the details of a signature to use

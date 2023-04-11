@@ -35,6 +35,10 @@ type MutationSpec struct {
 
 	// +optional
 	PatchStrategicMerge *PatchStrategicMerge `json:"patchStrategicMerge,omitempty"`
+
+	// Suspend stops all operations on this object.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
 }
 
 // PatchStrategicMerge contains the source and target details required to perform a strategic merge

@@ -96,6 +96,12 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		retErr = fmt.Errorf("failed to get localization object: %w", err)
 		return result, retErr
 	}
+
+	if obj.Spec.Suspend {
+		log.Info("localization object suspended")
+		return result, nil
+	}
+
 	cv := types.NamespacedName{
 		Name:      obj.Spec.ComponentVersionRef.Name,
 		Namespace: obj.Spec.ComponentVersionRef.Namespace,

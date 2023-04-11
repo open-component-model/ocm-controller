@@ -75,6 +75,11 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return result, retErr
 	}
 
+	if obj.Spec.Suspend {
+		log.Info("resource object suspended")
+		return result, nil
+	}
+
 	cv := types.NamespacedName{
 		Name:      obj.Spec.ComponentVersionRef.Name,
 		Namespace: obj.Spec.ComponentVersionRef.Namespace,

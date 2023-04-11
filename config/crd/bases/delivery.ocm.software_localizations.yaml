@@ -234,6 +234,9 @@ spec:
                     - name
                     type: object
                 type: object
+              suspend:
+                description: Suspend stops all operations on this object.
+                type: boolean
               values:
                 x-kubernetes-preserve-unknown-fields: true
             required:
