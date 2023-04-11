@@ -17,7 +17,7 @@ It has the following features:
 ### Pre-requisites
 - Create a kind cluster: `kind create cluster`
 - Make sure flux is installed in your cluster using: `flux install`
-- Install the controller using: `make install & make deploy`
+- Install the controller using: `ocm controller install`
 
 ---
 
