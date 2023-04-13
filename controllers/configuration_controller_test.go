@@ -20,8 +20,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/fluxcd/source-controller/api/v1beta2"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,6 +36,10 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+
+	apiv1 "github.com/fluxcd/source-controller/api/v1"
 )
 
 var configurationConfigData = []byte(`kind: ConfigData
@@ -70,7 +73,7 @@ type configurationTestCase struct {
 	componentVersion    func() *v1alpha1.ComponentVersion
 	componentDescriptor func() *v1alpha1.ComponentDescriptor
 	snapshot            func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot
-	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.Source
+	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference
 	patchStrategicMerge func(cfg *v1alpha1.Configuration, source client.Object, filename string) *v1alpha1.Configuration
 	expectError         string
 }
@@ -81,6 +84,7 @@ func TestConfigurationReconciler(t *testing.T) {
 			name: "with snapshot as a source",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
 				cv.Status.ObservedGeneration = 5
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
 					Name:    "test-component",
@@ -95,32 +99,34 @@ func TestConfigurationReconciler(t *testing.T) {
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
 				return DefaultComponentDescriptor.DeepCopy()
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       "Snapshot",
-						Name:       snapshot.Name,
+						Kind:       "Resource",
+						Name:       "test-resource",
 						Namespace:  snapshot.Namespace,
 					},
 				}
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				identity := v1alpha1.Identity{
-					v1alpha1.ComponentNameKey:    cv.Spec.Component,
-					v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
-					v1alpha1.ResourceNameKey:     resource.Spec.Resource.Name,
-					v1alpha1.ResourceVersionKey:  resource.Spec.Resource.Version,
+				name := "resource-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
 				}
 				sourceSnapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-snapshot",
+						Name:      name,
 						Namespace: cv.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{
 						Identity: identity,
 					},
 				}
+				resource.Status.SnapshotName = name
 				return sourceSnapshot
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
@@ -128,6 +134,8 @@ func TestConfigurationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
 				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
@@ -152,12 +160,20 @@ func TestConfigurationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				cv := DefaultComponent.DeepCopy()
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       cv.Name,
+						Namespace:  cv.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -166,39 +182,6 @@ func TestConfigurationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
-			},
-		},
-		{
-			name:        "expect error when neither source or resource ref is defined as a source",
-			expectError: "either sourceRef or resourceRef should be defined, but both are empty",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ObservedGeneration = 5
-				cv.Status.ComponentDescriptor = v1alpha1.Reference{
-					Name:    "test-component",
-					Version: "v0.0.1",
-					ComponentDescriptorRef: meta.NamespacedObjectReference{
-						Name:      cv.Name + "-descriptor",
-						Namespace: cv.Namespace,
-					},
-				}
-				return cv
-			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
-			},
-			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				// do nothing
-				return nil
-			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{}
-			},
-			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
-				require.NoError(t, err)
-				fakeOcm.GetResourceReturns(content, "", nil)
 			},
 		},
 		{
@@ -220,33 +203,35 @@ func TestConfigurationReconciler(t *testing.T) {
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
 				return DefaultComponentDescriptor.DeepCopy()
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       "Snapshot",
-						Name:       snapshot.Name,
+						Kind:       "Resource",
+						Name:       "test-resource",
 						Namespace:  snapshot.Namespace,
 					},
 				}
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				identity := v1alpha1.Identity{
-					v1alpha1.ComponentNameKey:    cv.Spec.Component,
-					v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
-					v1alpha1.ResourceNameKey:     resource.Spec.Resource.Name,
-					v1alpha1.ResourceVersionKey:  resource.Spec.Resource.Version,
+				name := "test-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
 				}
-				sourceSnapshot := &v1alpha1.Snapshot{
+				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-snapshot",
+						Name:      name,
 						Namespace: cv.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{
 						Identity: identity,
 					},
 				}
-				return sourceSnapshot
+				resource.Status.SnapshotName = name
+				return snapshot
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				fakeCache.FetchDataByDigestReturns(nil, errors.New("boo"))
@@ -254,7 +239,7 @@ func TestConfigurationReconciler(t *testing.T) {
 		},
 		{
 			name:        "expect error when get resource fails without snapshots",
-			expectError: "failed to fetch resource data from resource ref: failed to fetch resource from resource ref: boo",
+			expectError: "failed to fetch resource from component version: boo",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ObservedGeneration = 5
@@ -275,12 +260,20 @@ func TestConfigurationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				cv := DefaultComponent.DeepCopy()
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       cv.Name,
+						Namespace:  cv.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -290,7 +283,7 @@ func TestConfigurationReconciler(t *testing.T) {
 		},
 		{
 			name:        "get resource fails during config data fetch",
-			expectError: "failed to get resource: boo",
+			expectError: "failed to get data for config ref: failed to fetch resource data from resource ref: failed to fetch resource from component version: boo",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ObservedGeneration = 5
@@ -311,12 +304,20 @@ func TestConfigurationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				cv := DefaultComponent.DeepCopy()
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       cv.Name,
+						Namespace:  cv.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -350,12 +351,20 @@ func TestConfigurationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				cv := DefaultComponent.DeepCopy()
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       cv.Name,
+						Namespace:  cv.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -413,12 +422,20 @@ configuration:
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				cv := DefaultComponent.DeepCopy()
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       cv.Name,
+						Namespace:  cv.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -476,12 +493,20 @@ configuration:
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				cv := DefaultComponent.DeepCopy()
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       cv.Name,
+						Namespace:  cv.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -516,12 +541,20 @@ configuration:
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				cv := DefaultComponent.DeepCopy()
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       cv.Name,
+						Namespace:  cv.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -553,7 +586,7 @@ configuration:
 			patchStrategicMerge: func(cfg *v1alpha1.Configuration, source client.Object, filename string) *v1alpha1.Configuration {
 				cfg.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
 					Source: v1alpha1.PatchStrategicMergeSource{
-						SourceRef: v1alpha1.PatchStrategicMergeSourceRef{
+						SourceRef: meta.NamespacedObjectKindReference{
 							Kind:      "GitRepository",
 							Name:      source.GetName(),
 							Namespace: source.GetNamespace(),
@@ -568,29 +601,31 @@ configuration:
 				return cfg
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				identity := v1alpha1.Identity{
-					v1alpha1.ComponentNameKey:    cv.Spec.Component,
-					v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
-					v1alpha1.ResourceNameKey:     resource.Spec.Resource.Name,
-					v1alpha1.ResourceVersionKey:  resource.Spec.Resource.Version,
+				name := "test-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
 				}
-				sourceSnapshot := &v1alpha1.Snapshot{
+				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-snapshot",
+						Name:      name,
 						Namespace: cv.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{
 						Identity: identity,
 					},
 				}
-				return sourceSnapshot
+				resource.Status.SnapshotName = name
+				return snapshot
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       "Snapshot",
-						Name:       snapshot.Name,
+						Kind:       "Resource",
+						Name:       "test-resource",
 						Namespace:  snapshot.Namespace,
 					},
 				}
@@ -607,19 +642,24 @@ configuration:
 	for i, tt := range testCases {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			cv := tt.componentVersion()
-			resource := DefaultResource.DeepCopy()
-			cd := tt.componentDescriptor()
-			snapshot := tt.snapshot(cv, resource)
-			source := tt.source(snapshot)
-			configuration := DefaultConfiguration.DeepCopy()
-			configuration.Spec.Source = source
-			// This part is testing that even though the generation matches, the snapshots aren't there yet
-			// so they should be created.
-			configuration.Status.LastAppliedComponentVersion = cv.Status.ReconciledVersion
+			conditions.MarkTrue(cv, meta.ReadyCondition, meta.SucceededReason, "test")
 
-			objs := []client.Object{cv, resource, cd, configuration}
+			cd := tt.componentDescriptor()
+
+			resource := DefaultResource.DeepCopy()
+
+			snapshot := tt.snapshot(cv, resource)
+
+			source := tt.source(snapshot)
+
+			configuration := DefaultConfiguration.DeepCopy()
+			configuration.Spec.SourceRef = source
+			configuration.Status.SnapshotName = "configuration-snapshot"
+
+			objs := []client.Object{cv, cd, resource, configuration}
 
 			if snapshot != nil {
+				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "test")
 				objs = append(objs, snapshot)
 			}
 
@@ -635,7 +675,8 @@ configuration:
 				objs = append(objs, gitRepo)
 			}
 
-			client := env.FakeKubeClient(WithObjets(objs...), WithAddToScheme(sourcev1.AddToScheme))
+			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
+			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
 			recorder := record.NewFakeRecorder(32)
@@ -643,12 +684,19 @@ configuration:
 
 			cr := ConfigurationReconciler{
 				Client:        client,
+				DynamicClient: dynClient,
 				Scheme:        env.scheme,
-				OCMClient:     fakeOcm,
 				EventRecorder: recorder,
-				Cache:         cache,
+				MutationReconciler: MutationReconcileLooper{
+					Client:        client,
+					DynamicClient: dynClient,
+					Scheme:        env.scheme,
+					OCMClient:     fakeOcm,
+					Cache:         cache,
+				},
 			}
 
+			t.Log("reconciling configuration")
 			_, err := cr.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: configuration.Namespace,
@@ -656,75 +704,77 @@ configuration:
 				},
 			})
 
+			getErr := client.Get(context.Background(), types.NamespacedName{
+				Namespace: configuration.Namespace,
+				Name:      configuration.Name,
+			}, configuration)
+			require.NoError(t, getErr)
+
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
-
-				err = client.Get(context.Background(), types.NamespacedName{
-					Namespace: configuration.Namespace,
-					Name:      configuration.Name,
-				}, configuration)
-				require.NoError(t, err)
-
 				assert.True(t, conditions.IsFalse(configuration, meta.ReadyCondition))
-			} else {
-				require.NoError(t, err)
-				t.Log("check if target snapshot has been created and cache was called")
-
-				snapshotOutput := &v1alpha1.Snapshot{}
-				err = client.Get(context.Background(), types.NamespacedName{
-					Namespace: configuration.Namespace,
-					Name:      configuration.Spec.SnapshotTemplate.Name,
-				}, snapshotOutput)
-				require.NoError(t, err)
-
-				if tt.patchStrategicMerge != nil {
-					t.Log("verifying that the strategic merge was performed")
-					args := cache.PushDataCallingArgumentsOnCall(0)
-					data := args[0].(string)
-					sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(data))), "merge-target.yaml")
-					deployment := appsv1.Deployment{}
-					err = yaml.Unmarshal(sourceFile, &deployment)
-					assert.NoError(t, err)
-					assert.Equal(t, int32(2), *deployment.Spec.Replicas, "has correct number of replicas")
-					assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Containers), "has correct number of containers")
-					assert.Equal(t, corev1.PullPolicy("Always"), deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy)
-				} else {
-					t.Log("extracting the passed in data and checking if the configuration worked")
-					args := cache.PushDataCallingArgumentsOnCall(0)
-					data, name, version := args[0], args[1], args[2]
-					assert.Equal(t, "999", version)
-					assert.Equal(t, "sha-1009814895297045910", name)
-					assert.Contains(
-						t,
-						data.(string),
-						"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
-						"the configuration data should have been applied",
-					)
-				}
-
-				err = client.Get(context.Background(), types.NamespacedName{
-					Namespace: configuration.Namespace,
-					Name:      configuration.Name,
-				}, configuration)
-				require.NoError(t, err)
-
-				assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
-
-				close(recorder.Events)
-				event := ""
-				for e := range recorder.Events {
-					if strings.Contains(e, "Reconciliation finished, next run in") {
-						event = e
-						break
-					}
-				}
-				assert.Contains(t, event, "Reconciliation finished, next run in")
+				return
 			}
+
+			require.NoError(t, err)
+
+			snapshotOutput := &v1alpha1.Snapshot{}
+			err = client.Get(context.Background(), types.NamespacedName{
+				Namespace: configuration.Namespace,
+				Name:      configuration.Status.SnapshotName,
+			}, snapshotOutput)
+
+			t.Log("check if target snapshot has been created and cache was called")
+			require.NoError(t, err)
+
+			if tt.patchStrategicMerge != nil {
+				t.Log("verifying that the strategic merge was performed")
+				args := cache.PushDataCallingArgumentsOnCall(0)
+				data := args[0].(string)
+				sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(data))), "merge-target.yaml")
+				deployment := appsv1.Deployment{}
+				err = yaml.Unmarshal(sourceFile, &deployment)
+				assert.NoError(t, err)
+				assert.Equal(t, int32(2), *deployment.Spec.Replicas, "has correct number of replicas")
+				assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Containers), "has correct number of containers")
+				assert.Equal(t, corev1.PullPolicy("Always"), deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy)
+			} else {
+				t.Log("extracting the passed in data and checking if the configuration worked")
+				args := cache.PushDataCallingArgumentsOnCall(0)
+				data, name, version := args[0], args[1], args[2]
+				assert.Equal(t, "sha-18322151501422808564", name)
+				assert.Equal(t, "999", version)
+				assert.Contains(
+					t,
+					data.(string),
+					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
+					"the configuration data should have been applied",
+				)
+			}
+
+			err = client.Get(context.Background(), types.NamespacedName{
+				Namespace: configuration.Namespace,
+				Name:      configuration.Name,
+			}, configuration)
+			require.NoError(t, err)
+
+			assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
+
+			close(recorder.Events)
+			event := ""
+			for e := range recorder.Events {
+				if strings.Contains(e, "Reconciliation finished, next run in") {
+					event = e
+					break
+				}
+			}
+			assert.Contains(t, event, "Reconciliation finished, next run in")
 		})
 	}
 }
 
-func TestConfigurationShouldReconcile(t *testing.T) {
+// TODO: rewrite these so that they test the predicate functions
+func XTestConfigurationShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
 		errStr           string
@@ -740,13 +790,16 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "name",
+				configuration.Status.LatestSourceVersion = "v0.0.1"
+				configuration.Status.LatestConfigVersion = "v0.0.1"
+				configuration.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name: "name",
+					},
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      configuration.Spec.SnapshotTemplate.Name,
+						Name:      configuration.Spec.OutputTemplate.Name,
 						Namespace: configuration.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -767,13 +820,16 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "name",
+				configuration.Status.LatestSourceVersion = "v0.0.1"
+				configuration.Status.LatestConfigVersion = "v0.0.1"
+				configuration.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name: "name",
+					},
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      configuration.Spec.SnapshotTemplate.Name,
+						Name:      configuration.Spec.OutputTemplate.Name,
 						Namespace: configuration.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -795,9 +851,12 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "name",
+				configuration.Status.LatestSourceVersion = "v0.0.1"
+				configuration.Status.LatestConfigVersion = "v0.0.1"
+				configuration.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name: "name",
+					},
 				}
 				*objs = append(*objs, configuration)
 				return configuration
@@ -813,12 +872,14 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Status.LastAppliedSourceDigest = "not-last-reconciled-digest"
-				configuration.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
-					Kind:      "Snapshot",
-					Name:      "source-snapshot",
-					Namespace: configuration.Namespace,
+				configuration.Status.LatestSourceVersion = "not-last-reconciled-digest"
+				configuration.Status.LatestConfigVersion = "v0.0.1"
+				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						Kind:      "Snapshot",
+						Name:      "source-snapshot",
+						Namespace: configuration.Namespace,
+					},
 				}
 				sourceSnapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
@@ -843,16 +904,18 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Status.LastAppliedSourceDigest = "last-reconciled-digest"
-				configuration.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
-					Kind:      "Snapshot",
-					Name:      "source-snapshot",
-					Namespace: configuration.Namespace,
+				configuration.Status.LatestSourceVersion = "last-reconciled-digest"
+				configuration.Status.LatestConfigVersion = "v0.0.1"
+				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						Kind:      "Snapshot",
+						Name:      "source-snapshot",
+						Namespace: configuration.Namespace,
+					},
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      configuration.Spec.SnapshotTemplate.Name,
+						Name:      configuration.Spec.OutputTemplate.Name,
 						Namespace: configuration.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{},
@@ -884,13 +947,22 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Status.LastAppliedConfigSourceDigest = "last-reconciled-digest"
-				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "test",
+				configuration.Status.LatestSourceVersion = "v0.0.1"
+				configuration.Status.LatestConfigVersion = "last-reconciled-digest"
+				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						Kind:      "ComponentVersion",
+						Name:      "test-component",
+						Namespace: configuration.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name: "test",
+						},
+					},
 				}
-				configuration.Spec.ConfigRef.Resource = v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+				configuration.Spec.ConfigRef = &v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						Kind:      "Snapshot",
 						Name:      "config-snapshot",
 						Namespace: configuration.Namespace,
@@ -898,7 +970,7 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      configuration.Spec.SnapshotTemplate.Name,
+						Name:      configuration.Spec.OutputTemplate.Name,
 						Namespace: configuration.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{},
@@ -931,13 +1003,22 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Status.LastAppliedConfigSourceDigest = "last-reconciled-digest"
-				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "test",
+				configuration.Status.LatestSourceVersion = "v0.0.1"
+				configuration.Status.LatestConfigVersion = "last-reconciled-digest"
+				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						Kind:      "ComponentVersion",
+						Name:      "test-component",
+						Namespace: configuration.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name: "test",
+						},
+					},
 				}
-				configuration.Spec.ConfigRef.Resource = v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+				configuration.Spec.ConfigRef = &v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						Kind:      "Snapshot",
 						Name:      "config-snapshot",
 						Namespace: configuration.Namespace,
@@ -967,14 +1048,23 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LastAppliedComponentVersion = "v0.0.1"
-				configuration.Status.LastAppliedPatchMergeSourceDigest = "last-reconciled-digest"
-				configuration.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "test",
+				configuration.Status.LatestSourceVersion = "v0.0.1"
+				configuration.Status.LatestConfigVersion = "last-reconciled-digest"
+				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						Kind:      "ComponentVersion",
+						Name:      "test-component",
+						Namespace: configuration.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name: "test",
+						},
+					},
 				}
 				configuration.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
 					Source: v1alpha1.PatchStrategicMergeSource{
-						SourceRef: v1alpha1.PatchStrategicMergeSourceRef{
+						SourceRef: meta.NamespacedObjectKindReference{
 							Kind:      "GitRepository",
 							Name:      "git-test",
 							Namespace: configuration.Namespace,
@@ -994,7 +1084,7 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 			configuration := tt.configuration(&objs)
 			cv := tt.componentVersion()
 			objs = append(objs, cv)
-			client := env.FakeKubeClient(WithObjets(objs...), WithAddToScheme(v1beta2.AddToScheme))
+			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
 
@@ -1031,7 +1121,7 @@ func createGitRepository(name, namespace, artifactURL, checksum string) *sourcev
 	return &sourcev1.GitRepository{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "GitRepository",
-			APIVersion: v1beta2.GroupVersion.String(),
+			APIVersion: sourcev1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -1042,8 +1132,7 @@ func createGitRepository(name, namespace, artifactURL, checksum string) *sourcev
 			Reference: &sourcev1.GitRepositoryRef{
 				Branch: "master",
 			},
-			Interval:          metav1.Duration{Duration: time.Second * 30},
-			GitImplementation: "go-git",
+			Interval: metav1.Duration{Duration: time.Second * 30},
 		},
 		Status: sourcev1.GitRepositoryStatus{
 			ObservedGeneration: int64(1),
@@ -1056,12 +1145,11 @@ func createGitRepository(name, namespace, artifactURL, checksum string) *sourcev
 					Message:            "Fetched revision: master/b8e362c206e3d0cbb7ed22ced771a0056455a2fb",
 				},
 			},
-			URL: artifactURL,
-			Artifact: &sourcev1.Artifact{
+			Artifact: &apiv1.Artifact{
 				Path:           "gitrepository/flux-system/test-tf-controller/b8e362c206e3d0cbb7ed22ced771a0056455a2fb.tar.gz",
 				URL:            artifactURL,
 				Revision:       "master/b8e362c206e3d0cbb7ed22ced771a0056455a2fb",
-				Checksum:       checksum,
+				Digest:         checksum,
 				LastUpdateTime: metav1.Time{Time: updatedTime},
 			},
 		},

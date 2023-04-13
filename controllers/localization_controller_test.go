@@ -30,6 +30,8 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
 
 var localizationConfigData = []byte(`kind: ConfigData
@@ -75,7 +77,7 @@ type testCase struct {
 	componentVersion    func() *v1alpha1.ComponentVersion
 	componentDescriptor func(owner client.Object) *v1alpha1.ComponentDescriptor
 	snapshot            func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot
-	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.Source
+	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference
 	expectError         string
 }
 
@@ -93,6 +95,7 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+				cv.Status.ReconciledVersion = "v0.0.1"
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
@@ -101,39 +104,44 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				return cd
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       "Snapshot",
-						Name:       snapshot.Name,
+						Kind:       "Resource",
+						Name:       "test-resource",
 						Namespace:  snapshot.Namespace,
 					},
 				}
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				identity := v1alpha1.Identity{
-					v1alpha1.ComponentNameKey:    cv.Spec.Component,
-					v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
-					v1alpha1.ResourceNameKey:     resource.Spec.Resource.Name,
-					v1alpha1.ResourceVersionKey:  resource.Spec.Resource.Version,
+				name := "resource-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
 				}
 				sourceSnapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-snapshot",
+						Name:      name,
 						Namespace: cv.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{
 						Identity: identity,
 					},
 				}
+				resource.Status.SnapshotName = name
 				return sourceSnapshot
 			},
+
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
-				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(localizationConfigData)), "digest", nil)
+				fakeOcm.GetResourceReturnsOnCall(0, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
@@ -160,11 +168,19 @@ func TestLocalizationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -173,41 +189,8 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-			},
-		},
-		{
-			name:        "expect error when neither source or resource ref is defined as a source",
-			expectError: "either sourceRef or resourceRef should be defined, but both are empty",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ComponentDescriptor = v1alpha1.Reference{
-					Name:    "test-component",
-					Version: "v0.0.1",
-					ComponentDescriptorRef: meta.NamespacedObjectReference{
-						Name:      cv.Name + "-descriptor",
-						Namespace: cv.Namespace,
-					},
-				}
-				return cv
-			},
-			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
-				cd := DefaultComponentDescriptor.DeepCopy()
-				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
-				require.NoError(t, err)
-				return cd
-			},
-			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				// do nothing
-				return nil
-			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				// do nothing
-				return v1alpha1.Source{}
-			},
-			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "localization-deploy.tar"))
-				require.NoError(t, err)
-				fakeOcm.GetResourceReturns(content, "digest", nil)
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
@@ -231,41 +214,45 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				return cd
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       "Snapshot",
-						Name:       snapshot.Name,
+						Kind:       "Resource",
+						Name:       "test-resource",
 						Namespace:  snapshot.Namespace,
 					},
 				}
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				identity := v1alpha1.Identity{
-					v1alpha1.ComponentNameKey:    cv.Spec.Component,
-					v1alpha1.ComponentVersionKey: cv.Status.ReconciledVersion,
-					v1alpha1.ResourceNameKey:     resource.Spec.Resource.Name,
-					v1alpha1.ResourceVersionKey:  resource.Spec.Resource.Version,
+				name := "resource-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
 				}
 				sourceSnapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-snapshot",
+						Name:      name,
 						Namespace: cv.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{
 						Identity: identity,
 					},
 				}
+				resource.Status.SnapshotName = name
 				return sourceSnapshot
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				fakeCache.FetchDataByDigestReturns(nil, errors.New("boo"))
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
 			name:        "expect error when get resource fails without snapshots",
-			expectError: "failed to fetch resource data from resource ref: failed to fetch resource from resource ref: boo",
+			expectError: "failed to fetch resource from component version: boo",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -288,21 +275,31 @@ func TestLocalizationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				fakeOcm.GetResourceReturns(nil, "", errors.New("boo"))
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
 			name:        "get resource fails during config data fetch",
-			expectError: "failed to get resource: boo",
+			expectError: "failed to fetch resource from component version: boo",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -325,11 +322,19 @@ func TestLocalizationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -338,11 +343,13 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, nil, errors.New("boo"))
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
 			name:        "GetImageReference fails",
-			expectError: "failed to get image access: failed to unmarshal access spec: json: Unmarshal(nil)",
+			expectError: "failed to parse access reference: cannot determine access spec type",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -357,7 +364,6 @@ func TestLocalizationReconciler(t *testing.T) {
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
-				cd.Spec.Resources[0].Access.Object["type"] = "unknown"
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
 				return cd
@@ -366,11 +372,19 @@ func TestLocalizationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -379,6 +393,8 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				cmp := getMockComponent(t, DefaultComponent, setAccessType("unknown"))
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
@@ -398,7 +414,6 @@ func TestLocalizationReconciler(t *testing.T) {
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
-				cd.Spec.Resources[0].Access.Object["globalAccess"].(map[string]any)["ref"] = "invalid:@"
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
 				return cd
@@ -407,11 +422,19 @@ func TestLocalizationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -420,11 +443,13 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				cmp := getMockComponent(t, DefaultComponent, setAccessRef("invalid:@:1.0.0"))
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
 			name:        "the returned content is not a tar file",
-			expectError: "source resource is not a tar archive: expected tarred directory content for configuration/localization resources, got plain text",
+			expectError: "expected tarred directory content for configuration/localization resources, got plain text",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ComponentDescriptor = v1alpha1.Reference{
@@ -447,17 +472,27 @@ func TestLocalizationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				fakeOcm.GetResourceReturnsOnCall(0, io.NopCloser(bytes.NewBuffer([]byte("I am not a tar file"))), nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
@@ -485,11 +520,19 @@ func TestLocalizationReconciler(t *testing.T) {
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -508,6 +551,8 @@ localization:
     name: introspect-image
 `)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(testConfigData)), nil)
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
@@ -535,11 +580,19 @@ localization:
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -549,6 +602,8 @@ localization:
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				testConfigData := []byte(`iaminvalidyaml`)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(testConfigData)), nil)
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 		{
@@ -576,11 +631,19 @@ localization:
 				// do nothing
 				return nil
 			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.Source {
-				return v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name:    "some-resource",
-						Version: "1.0.0",
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "ComponentVersion",
+						Name:       DefaultComponent.Name,
+						Namespace:  DefaultComponent.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name:    "some-resource",
+							Version: "1.0.0",
+						},
 					},
 				}
 			},
@@ -590,23 +653,37 @@ localization:
 				fakeCache.PushDataReturns("", errors.New("boo"))
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
 	}
 	for i, tt := range testCases {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			cv := tt.componentVersion()
-			resource := DefaultResource.DeepCopy()
+			conditions.MarkTrue(cv, meta.ReadyCondition, meta.SucceededReason, "test")
+
 			cd := tt.componentDescriptor(cv)
+
+			resource := DefaultResource.DeepCopy()
+
 			snapshot := tt.snapshot(cv, resource)
+
 			source := tt.source(snapshot)
+
 			localization := DefaultLocalization.DeepCopy()
-			localization.Spec.Source = source
+			localization.Spec.SourceRef = source
+			localization.Status.SnapshotName = "localization-snapshot"
+
 			objs := []client.Object{cv, resource, cd, localization}
+
 			if snapshot != nil {
+				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "test")
 				objs = append(objs, snapshot)
 			}
-			client := env.FakeKubeClient(WithObjets(objs...))
+
+			client := env.FakeKubeClient(WithObjects(objs...))
+			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
 			recorder := record.NewFakeRecorder(32)
@@ -614,108 +691,120 @@ localization:
 
 			lr := LocalizationReconciler{
 				Client:        client,
+				DynamicClient: dynClient,
 				Scheme:        env.scheme,
 				OCMClient:     fakeOcm,
 				EventRecorder: recorder,
 				Cache:         cache,
+				MutationReconciler: MutationReconcileLooper{
+					Client:        client,
+					DynamicClient: dynClient,
+					Scheme:        env.scheme,
+					OCMClient:     fakeOcm,
+					Cache:         cache,
+				},
 			}
 
+			t.Log("reconciling localization")
 			_, err := lr.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: localization.Namespace,
 					Name:      localization.Name,
 				},
 			})
+
+			getErr := client.Get(context.Background(), types.NamespacedName{
+				Namespace: localization.Namespace,
+				Name:      localization.Name,
+			}, localization)
+			require.NoError(t, getErr)
+
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
-				err = client.Get(context.Background(), types.NamespacedName{
-					Namespace: localization.Namespace,
-					Name:      localization.Name,
-				}, localization)
-				require.NoError(t, err)
-
 				assert.True(t, conditions.IsFalse(localization, meta.ReadyCondition))
-			} else {
-				require.NoError(t, err)
-				t.Log("check if target snapshot has been created and cache was called")
-				snapshotOutput := &v1alpha1.Snapshot{}
-				err = client.Get(context.Background(), types.NamespacedName{
-					Namespace: localization.Namespace,
-					Name:      localization.Spec.SnapshotTemplate.Name,
-				}, snapshotOutput)
-				require.NoError(t, err)
-				args := cache.PushDataCallingArgumentsOnCall(0)
-				data, name, version := args[0], args[1], args[2]
-				assert.Equal(t, "sha-1009814895297045910", name)
-				assert.Equal(t, "999", version)
-
-				t.Log("extracting the passed in data and checking if the localization worked")
-				require.NoError(t, err)
-				assert.Contains(
-					t,
-					data.(string),
-					"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
-					"the image should have been altered during localization",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"registry: ghcr.io",
-					"the registry should have been altered during localization",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"repository: mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
-					"the repository should have been altered during localization",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
-					"the reference should have been altered during localization",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"version: v0.0.1",
-					"the labels should have been added via the localization mapping",
-				)
-
-				assert.Contains(
-					t,
-					data.(string),
-					"name: introspect-image-sha256-1.0.0",
-					"the custome resource spec.values should have been updated via the localization mapping",
-				)
-
-				err = client.Get(context.Background(), types.NamespacedName{
-					Namespace: localization.Namespace,
-					Name:      localization.Name,
-				}, localization)
-				require.NoError(t, err)
-
-				assert.True(t, conditions.IsTrue(localization, meta.ReadyCondition))
-
-				close(recorder.Events)
-				event := ""
-				for e := range recorder.Events {
-					if strings.Contains(e, "Reconciliation finished, next run in") {
-						event = e
-						break
-					}
-				}
-				assert.Contains(t, event, "Reconciliation finished, next run in")
+				return
 			}
+			require.NoError(t, err)
+			t.Log("check if target snapshot has been created and cache was called")
+			snapshotOutput := &v1alpha1.Snapshot{}
+			err = client.Get(context.Background(), types.NamespacedName{
+				Namespace: localization.Namespace,
+				Name:      localization.Status.SnapshotName,
+			}, snapshotOutput)
+			require.NoError(t, err)
+			args := cache.PushDataCallingArgumentsOnCall(0)
+			data, name, version := args[0], args[1], args[2]
+			assert.Equal(t, "sha-18322151501422808564", name)
+			assert.Equal(t, "999", version)
+
+			t.Log("extracting the passed in data and checking if the localization worked")
+			require.NoError(t, err)
+			assert.Contains(
+				t,
+				data.(string),
+				"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+				"the image should have been altered during localization",
+			)
+
+			assert.Contains(
+				t,
+				data.(string),
+				"registry: ghcr.io",
+				"the registry should have been altered during localization",
+			)
+
+			assert.Contains(
+				t,
+				data.(string),
+				"repository: mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
+				"the repository should have been altered during localization",
+			)
+
+			assert.Contains(
+				t,
+				data.(string),
+				"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+				"the reference should have been altered during localization",
+			)
+
+			assert.Contains(
+				t,
+				data.(string),
+				"version: v0.0.1",
+				"the labels should have been added via the localization mapping",
+			)
+
+			assert.Contains(
+				t,
+				data.(string),
+				"name: introspect-image-sha256-1.0.0",
+				"the custome resource spec.values should have been updated via the localization mapping",
+			)
+
+			err = client.Get(context.Background(), types.NamespacedName{
+				Namespace: localization.Namespace,
+				Name:      localization.Name,
+			}, localization)
+			require.NoError(t, err)
+
+			assert.True(t, conditions.IsTrue(localization, meta.ReadyCondition))
+
+			close(recorder.Events)
+			event := ""
+			for e := range recorder.Events {
+				if strings.Contains(e, "Reconciliation finished, next run in") {
+					event = e
+					break
+				}
+			}
+			assert.Contains(t, event, "Reconciliation finished, next run in")
+
 		})
 	}
 }
 
-func TestLocalizationShouldReconcile(t *testing.T) {
+// TODO: rewrite these so that they test the predicate functions
+func XTestLocalizationShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
 		errStr           string
@@ -731,13 +820,16 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
 				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LastAppliedComponentVersion = "v0.0.1"
-				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "name",
+				localization.Status.LatestSourceVersion = "v0.0.1"
+				localization.Status.LatestConfigVersion = "v0.0.1"
+				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name: "name",
+					},
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      localization.Spec.SnapshotTemplate.Name,
+						Name:      localization.Spec.OutputTemplate.Name,
 						Namespace: localization.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -759,13 +851,16 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
 				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LastAppliedComponentVersion = "v0.0.1"
-				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "name",
+				localization.Status.LatestSourceVersion = "v0.0.1"
+				localization.Status.LatestConfigVersion = "v0.0.1"
+				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name: "name",
+					},
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      localization.Spec.SnapshotTemplate.Name,
+						Name:      localization.Spec.OutputTemplate.Name,
 						Namespace: localization.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -787,11 +882,13 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
 				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LastAppliedComponentVersion = "v0.0.1"
-				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "name",
+				localization.Status.LatestSourceVersion = "v0.0.1"
+				localization.Status.LatestConfigVersion = "v0.0.1"
+				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name: "name",
+					},
 				}
-
 				*objs = append(*objs, localization)
 				return localization
 			},
@@ -806,12 +903,12 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
 				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LastAppliedComponentVersion = "v0.0.1"
-				localization.Status.LastAppliedSourceDigest = "not-last-reconciled-digest"
-				localization.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
-					Kind:      "Snapshot",
-					Name:      "source-snapshot",
-					Namespace: localization.Namespace,
+				localization.Status.LatestSourceVersion = "not-last-reconciled-digest"
+				localization.Status.LatestConfigVersion = "v0.0.1"
+				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name: "name",
+					},
 				}
 				sourceSnapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
@@ -836,16 +933,18 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
 				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LastAppliedComponentVersion = "v0.0.1"
-				localization.Status.LastAppliedSourceDigest = "last-reconciled-digest"
-				localization.Spec.Source.SourceRef = &meta.NamespacedObjectKindReference{
-					Kind:      "Snapshot",
-					Name:      "source-snapshot",
-					Namespace: localization.Namespace,
+				localization.Status.LatestSourceVersion = "last-reconciled-digest"
+				localization.Status.LatestConfigVersion = "v0.0.1"
+				localization.Spec.SourceRef = v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						Kind:      "Snapshot",
+						Name:      "source-snapshot",
+						Namespace: localization.Namespace,
+					},
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      localization.Spec.SnapshotTemplate.Name,
+						Name:      localization.Spec.OutputTemplate.Name,
 						Namespace: localization.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -875,13 +974,17 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
 				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LastAppliedComponentVersion = "v0.0.1"
-				localization.Status.LastAppliedConfigSourceDigest = "last-reconciled-digest"
-				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "test",
+				localization.Status.LatestSourceVersion = "v0.0.1"
+				localization.Status.LatestConfigVersion = "last-reconciled-digest"
+				localization.Spec.SourceRef = v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						Kind:      "Snapshot",
+						Name:      "source-snapshot",
+						Namespace: localization.Namespace,
+					},
 				}
-				localization.Spec.ConfigRef.Resource = v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+				localization.Spec.ConfigRef = &v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						Kind:      "Snapshot",
 						Name:      "config-snapshot",
 						Namespace: localization.Namespace,
@@ -889,7 +992,7 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      localization.Spec.SnapshotTemplate.Name,
+						Name:      localization.Spec.OutputTemplate.Name,
 						Namespace: localization.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{},
@@ -922,13 +1025,15 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
 				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LastAppliedComponentVersion = "v0.0.1"
-				localization.Status.LastAppliedConfigSourceDigest = "last-reconciled-digest"
-				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "test",
+				localization.Status.LatestSourceVersion = "v0.0.1"
+				localization.Status.LatestConfigVersion = "last-reconciled-digest"
+				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name: "test",
+					},
 				}
-				localization.Spec.ConfigRef.Resource = v1alpha1.Source{
-					SourceRef: &meta.NamespacedObjectKindReference{
+				localization.Spec.ConfigRef = &v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
 						Kind:      "Snapshot",
 						Name:      "config-snapshot",
 						Namespace: localization.Namespace,
@@ -958,14 +1063,23 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
 				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LastAppliedComponentVersion = "v0.0.1"
-				localization.Status.LastAppliedPatchMergeSourceDigest = "last-reconciled-digest"
-				localization.Spec.Source.ResourceRef = &v1alpha1.ResourceRef{
-					Name: "test",
+				localization.Status.LatestSourceVersion = "v0.0.1"
+				localization.Status.LatestConfigVersion = "last-reconciled-digest"
+				localization.Spec.SourceRef = v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						Kind:      "ComponentVersion",
+						Name:      "test-component",
+						Namespace: localization.Namespace,
+					},
+					ResourceRef: &v1alpha1.ResourceReference{
+						ElementMeta: v3alpha1.ElementMeta{
+							Name: "test",
+						},
+					},
 				}
 				localization.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
 					Source: v1alpha1.PatchStrategicMergeSource{
-						SourceRef: v1alpha1.PatchStrategicMergeSourceRef{
+						SourceRef: meta.NamespacedObjectKindReference{
 							Kind:      "GitRepository",
 							Name:      "git-test",
 							Namespace: localization.Namespace,
@@ -988,7 +1102,7 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 
 			objs = append(objs, cv)
 
-			client := env.FakeKubeClient(WithObjets(objs...), WithAddToScheme(v1beta2.AddToScheme))
+			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(v1beta2.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
 

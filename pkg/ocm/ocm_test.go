@@ -25,6 +25,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
 
 func TestClient_GetResource(t *testing.T) {
@@ -56,7 +57,7 @@ func TestClient_GetResource(t *testing.T) {
 			Version: "v0.0.1",
 		},
 	}
-	fakeKubeClient := env.FakeKubeClient(WithObjets(cd))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cd))
 	ocmClient := NewClient(fakeKubeClient, cache)
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
@@ -84,9 +85,12 @@ func TestClient_GetResource(t *testing.T) {
 			},
 		},
 	}
-	resourceRef := v1alpha1.ResourceRef{
-		Name:    "remote-controller-demo",
-		Version: "v0.0.1",
+
+	resourceRef := &v1alpha1.ResourceReference{
+		ElementMeta: v3alpha1.ElementMeta{
+			Name:    "remote-controller-demo",
+			Version: "v0.0.1",
+		},
 	}
 
 	reader, digest, err := ocmClient.GetResource(context.Background(), ocm.New(), cv, resourceRef)
@@ -144,7 +148,7 @@ func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
 			Component: component,
 			Repository: v1alpha1.Repository{
 				URL: env.repositoryURL,
-				SecretRef: &v1alpha1.SecretRef{
+				SecretRef: &corev1.LocalObjectReference{
 					Name: "test-secret",
 				},
 			},
@@ -165,7 +169,7 @@ func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
 	}
 
 	trimmedURL := strings.TrimPrefix(env.repositoryURL, "http://")
-	fakeKubeClient := env.FakeKubeClient(WithObjets(cs, testSecret))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cs, testSecret))
 	cache := oci.NewClient(trimmedURL)
 	ocmClient := NewClient(fakeKubeClient, cache)
 
@@ -238,7 +242,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 		Type: corev1.SecretTypeDockerConfigJson,
 	}
 
-	fakeKubeClient := env.FakeKubeClient(WithObjets(cs, serviceAccount, testSecret))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cs, serviceAccount, testSecret))
 	trimmedURL := strings.TrimPrefix(env.repositoryURL, "http://")
 	cache := oci.NewClient(trimmedURL)
 	ocmClient := NewClient(fakeKubeClient, cache)
@@ -439,7 +443,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 			Signature: publicKey1,
 		},
 	}
-	fakeKubeClient := env.FakeKubeClient(WithObjets(secret))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"))
 	ocmClient := NewClient(fakeKubeClient, cache)
 	component := "github.com/skarlso/ocm-demo-index"
@@ -471,7 +475,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 				{
 					Name: Signature,
 					PublicKey: v1alpha1.SecretRefValue{
-						SecretRef: v1alpha1.SecretRef{
+						SecretRef: corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},
@@ -501,7 +505,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 			Signature: publicKey2,
 		},
 	}
-	fakeKubeClient := env.FakeKubeClient(WithObjets(secret))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"))
 	ocmClient := NewClient(fakeKubeClient, cache)
 	component := "github.com/skarlso/ocm-demo-index"
@@ -528,7 +532,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 			},
 			Repository: v1alpha1.Repository{
 				URL: env.repositoryURL,
-				SecretRef: &v1alpha1.SecretRef{
+				SecretRef: &corev1.LocalObjectReference{
 					Name: secretName,
 				},
 			},
@@ -536,7 +540,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 				{
 					Name: Signature,
 					PublicKey: v1alpha1.SecretRefValue{
-						SecretRef: v1alpha1.SecretRef{
+						SecretRef: corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},

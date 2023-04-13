@@ -9,43 +9,14 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SecretRef is a reference to a secret used to access the OCI repository.
-type SecretRef struct {
-	Name string `json:"name"`
-}
-
-// Repository defines the OCM Repository.
-type Repository struct {
-	//TODO@souleb: do we need a scheme for the url?
-	// add description for each field
-	// Do we need a type field? (e.g. oci, git, s3, etc.)
-	URL string `json:"url"`
-
-	// +optional
-	SecretRef *SecretRef `json:"secretRef,omitempty"`
-}
-
-// SecretRefValue clearly denotes that the requested option is a Secret.
-type SecretRefValue struct {
-	SecretRef SecretRef `json:"secretRef"`
-}
-
-// Signature defines the details of a signature to use for verification.
-type Signature struct {
-	// Name of the signature.
-	Name string `json:"name"`
-	// Key which is used for verification.
-	PublicKey SecretRefValue `json:"publicKey"`
-}
-
-// Version defines version upgrade / downgrade options.
-type Version struct {
-	Semver        string `json:"semver,omitempty"`
-	AllowRollback bool   `json:"allowRollback,omitempty"`
-}
+const (
+	// ComponentVersionKind is the string representation of a ComponentVersion.
+	ComponentVersionKind = "ComponentVersion"
+)
 
 // ComponentVersionSpec defines the desired state of ComponentVersion
 type ComponentVersionSpec struct {
@@ -84,6 +55,40 @@ type ComponentVersionSpec struct {
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+}
+
+// Repository defines the OCM Repository.
+type Repository struct {
+	//TODO@souleb: do we need a scheme for the url?
+	// add description for each field
+	// Do we need a type field? (e.g. oci, git, s3, etc.)
+	URL string `json:"url"`
+
+	// +optional
+	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
+}
+
+// SecretRefValue clearly denotes that the requested option is a Secret.
+type SecretRefValue struct {
+	SecretRef v1.LocalObjectReference `json:"secretRef"`
+}
+
+// Signature defines the details of a signature to use for verification.
+type Signature struct {
+	// Name of the signature.
+	Name string `json:"name"`
+
+	// Key which is used for verification.
+	PublicKey SecretRefValue `json:"publicKey"`
+}
+
+// Version defines version upgrade / downgrade options.
+type Version struct {
+	// +optional
+	Semver string `json:"semver,omitempty"`
+
+	// +optional
+	AllowRollback bool `json:"allowRollback,omitempty"`
 }
 
 type ReferencesConfig struct {
@@ -125,6 +130,11 @@ type ComponentVersionStatus struct {
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
+// GetVersion returns the reconciled version for the component
+func (in *ComponentVersion) GetVersion() string {
+	return in.Status.ReconciledVersion
 }
 
 // GetConditions returns the conditions of the ComponentVersion.

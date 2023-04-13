@@ -9,11 +9,13 @@ import (
 	"os"
 	"time"
 
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/runtime/events"
-	"github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/dynamic"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,7 +39,8 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(deliveryv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(v1beta2.AddToScheme(scheme))
+	utilruntime.Must(sourcev1.AddToScheme(scheme))
+	utilruntime.Must(kustomizev1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -63,7 +66,9 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
@@ -82,6 +87,11 @@ func main() {
 
 	cache := oci.NewClient(ociRegistryAddr)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
+	dynClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to get dynamic config client", "controller", "ocm-controller")
+		os.Exit(1)
+	}
 
 	var eventsRecorder *events.Recorder
 	if eventsRecorder, err = events.NewRecorder(mgr, ctrl.Log, eventsAddr, controllerName); err != nil {
@@ -121,28 +131,52 @@ func main() {
 		os.Exit(1)
 	}
 
+	mutationReconciler := controllers.MutationReconcileLooper{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		OCMClient:     ocmClient,
+		DynamicClient: dynClient,
+		Cache:         cache,
+	}
+
 	if err = (&controllers.LocalizationReconciler{
-		Client:            mgr.GetClient(),
-		Scheme:            mgr.GetScheme(),
-		EventRecorder:     eventsRecorder,
-		ReconcileInterval: time.Hour,
-		RetryInterval:     time.Minute,
-		OCMClient:         ocmClient,
-		Cache:             cache,
+		Client:             mgr.GetClient(),
+		DynamicClient:      dynClient,
+		Scheme:             mgr.GetScheme(),
+		EventRecorder:      eventsRecorder,
+		ReconcileInterval:  time.Hour,
+		RetryInterval:      time.Minute,
+		OCMClient:          ocmClient,
+		Cache:              cache,
+		MutationReconciler: mutationReconciler,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Localization")
 		os.Exit(1)
 	}
 	if err = (&controllers.ConfigurationReconciler{
-		Client:            mgr.GetClient(),
-		Scheme:            mgr.GetScheme(),
-		EventRecorder:     eventsRecorder,
-		ReconcileInterval: time.Hour,
-		RetryInterval:     time.Minute,
-		OCMClient:         ocmClient,
-		Cache:             cache,
+		Client:             mgr.GetClient(),
+		DynamicClient:      dynClient,
+		Scheme:             mgr.GetScheme(),
+		EventRecorder:      eventsRecorder,
+		ReconcileInterval:  time.Hour,
+		RetryInterval:      time.Minute,
+		OCMClient:          ocmClient,
+		Cache:              cache,
+		MutationReconciler: mutationReconciler,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Configuration")
+		os.Exit(1)
+	}
+	if err = (&controllers.FluxDeployerReconciler{
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
+		EventRecorder:       eventsRecorder,
+		ReconcileInterval:   time.Hour,
+		RetryInterval:       time.Minute,
+		DynamicClient:       dynClient,
+		RegistryServiceName: ociRegistryAddr,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "FluxDeployer")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

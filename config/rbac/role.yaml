@@ -98,6 +98,32 @@ rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
+  - fluxdeployers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - fluxdeployers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - fluxdeployers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
   - localizations
   verbs:
   - create
@@ -173,6 +199,18 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - kustomize.toolkit.fluxcd.io
+  resources:
+  - kustomizations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - source.toolkit.fluxcd.io
   resources:

@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta.NamespacedObjectReference) (*v1alpha1.ComponentDescriptor, error) {
@@ -27,7 +28,7 @@ func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta
 	return componentDescriptor, nil
 }
 
-func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []map[string]string, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
+func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []ocmmetav1.Identity, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
 	// Return early if there was no name defined.
 	if len(refPath) == 0 {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
@@ -58,7 +59,7 @@ func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []map[
 	return nil, nil
 }
 
-func referencePathContainsName(name string, refPath []map[string]string) bool {
+func referencePathContainsName(name string, refPath []ocmmetav1.Identity) bool {
 	for _, ref := range refPath {
 		for k, v := range ref {
 			if k == compdesc.SystemIdentityName && name == v {

@@ -46,7 +46,7 @@ func WithInsecure() Option {
 // ResourceOptions contains all parameters necessary to fetch / push resources.
 type ResourceOptions struct {
 	ComponentVersion *v1alpha1.ComponentVersion
-	Resource         v1alpha1.ResourceRef
+	Resource         v1alpha1.ResourceReference
 	Owner            metav1.Object
 	SnapshotName     string
 }

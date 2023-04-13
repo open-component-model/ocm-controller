@@ -15,19 +15,21 @@ import (
 	"github.com/fluxcd/pkg/http/fetch"
 	generator "github.com/fluxcd/pkg/kustomize"
 	"github.com/fluxcd/pkg/tar"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kustypes "sigs.k8s.io/kustomize/api/types"
 )
 
 // the following is influenced by https://github.com/fluxcd/kustomize-controller
-func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context, spec v1alpha1.MutationSpec, resource []byte, tmpDir string) (string, v1alpha1.Identity, error) {
-	source, err := m.getSource(ctx, spec.PatchStrategicMerge.Source.SourceRef)
-	if err != nil {
-		return "", nil, err
-	}
-
+func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context,
+	source sourcev1.Source,
+	resource []byte,
+	tmpDir,
+	sourcePath,
+	targetPath string) (string, ocmmetav1.Identity, error) {
 	workDir, err := securejoin.SecureJoin(tmpDir, "work")
 	if err != nil {
 		return "", nil, err
@@ -49,7 +51,7 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context, spec 
 
 	tarSize := tar.UnlimitedUntarSize
 	fetcher := fetch.NewArchiveFetcher(10, tarSize, tarSize, "")
-	err = fetcher.Fetch(source.GetArtifact().URL, source.GetArtifact().Checksum, workDir)
+	err = fetcher.Fetch(source.GetArtifact().URL, source.GetArtifact().Digest, workDir)
 	if err != nil {
 		return "", nil, err
 	}
@@ -60,10 +62,10 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context, spec 
 			Kind:       kustypes.KustomizationKind,
 		},
 		Resources: []string{
-			spec.PatchStrategicMerge.Source.Path,
+			sourcePath,
 		},
 		PatchesStrategicMerge: []kustypes.PatchStrategicMerge{
-			kustypes.PatchStrategicMerge(spec.PatchStrategicMerge.Target.Path),
+			kustypes.PatchStrategicMerge(targetPath),
 		},
 	}
 
@@ -87,16 +89,16 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context, spec 
 		return "", nil, err
 	}
 
-	targetPath, err := securejoin.SecureJoin(workDir, spec.PatchStrategicMerge.Target.Path)
+	outputPath, err := securejoin.SecureJoin(workDir, targetPath)
 	if err != nil {
 		return "", nil, err
 	}
 
-	if err := os.Remove(targetPath); err != nil {
+	if err := os.Remove(outputPath); err != nil {
 		return "", nil, err
 	}
 
-	patched, err := os.Create(targetPath)
+	patched, err := os.Create(outputPath)
 	if err != nil {
 		return "", nil, err
 	}
@@ -105,15 +107,15 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context, spec 
 		return "", nil, err
 	}
 
-	patched.Close()
-
-	sourceDir := filepath.Dir(targetPath)
-
-	identity := v1alpha1.Identity{
-		v1alpha1.SourceNameKey:             source.(client.Object).GetName(),
-		v1alpha1.SourceNamespaceKey:        source.(client.Object).GetNamespace(),
-		v1alpha1.SourceArtifactChecksumKey: source.GetArtifact().Checksum,
+	if err := patched.Close(); err != nil {
+		return "", nil, err
 	}
 
-	return sourceDir, identity, nil
+	identity := ocmmetav1.Identity{
+		v1alpha1.SourceNameKey:             source.(client.Object).GetName(),
+		v1alpha1.SourceNamespaceKey:        source.(client.Object).GetNamespace(),
+		v1alpha1.SourceArtifactChecksumKey: source.GetArtifact().Digest,
+	}
+
+	return filepath.Dir(outputPath), identity, nil
 }

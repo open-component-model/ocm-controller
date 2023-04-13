@@ -7,7 +7,7 @@ package v1alpha1
 import (
 	"time"
 
-	"github.com/fluxcd/pkg/apis/meta"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -16,36 +16,21 @@ type ResourceSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
+	// SourceRef defines the input source from which the resource
+	// will be retrieved
 	// +required
-	ComponentVersionRef meta.NamespacedObjectReference `json:"componentVersionRef"`
-
-	// Resource names a Source that this Resource watches.
-	// +required
-	Resource ResourceRef `json:"resource"`
+	SourceRef ObjectReference `json:"sourceRef"`
 
 	// +required
-	SnapshotTemplate SnapshotTemplateSpec `json:"snapshotTemplate"`
+	OutputTemplate *SnapshotTemplateSpec `json:"outputTemplate,omitempty"`
 
 	// Suspend stops all operations on this object.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
 }
 
-// SnapshotTemplateSpec defines the template used to create snapshots
-type SnapshotTemplateSpec struct {
-	// +required
-	Name string `json:"name"`
-
-	//TODO@souleb: add a description, is that actually used?
-	// +optional
-	Labels map[string]string `json:"labels,omitempty"`
-
-	// +optional
-	Annotations map[string]string `json:"annotations,omitempty"`
-
-	// +optional
-	CreateFluxSource bool `json:"createFluxSource,omitempty"`
-}
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 
 // ResourceStatus defines the observed state of Resource
 type ResourceStatus struct {
@@ -54,8 +39,6 @@ type ResourceStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
 	// +optional
-	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
-	// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// +optional
@@ -65,6 +48,12 @@ type ResourceStatus struct {
 	// we fire off a reconcile loop to get that new version.
 	// +optional
 	LastAppliedComponentVersion string `json:"lastAppliedComponentVersion,omitempty"`
+
+	// +optional
+	SnapshotName string `json:"snapshotName,omitempty"`
+
+	// +optional
+	LatestSnapshotDigest string `json:"latestSnapshotDigest,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -76,7 +65,9 @@ type Resource struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ResourceSpec   `json:"spec,omitempty"`
+	Spec ResourceSpec `json:"spec,omitempty"`
+
+	// +kubebuilder:default={"observedGeneration":-1}
 	Status ResourceStatus `json:"status,omitempty"`
 }
 
@@ -94,6 +85,21 @@ func (in *Resource) SetConditions(conditions []metav1.Condition) {
 // reconciled again.
 func (in Resource) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
+}
+
+// GetReferencePath returns the component reference path for the resource
+func (in Resource) GetReferencePath() []ocmmetav1.Identity {
+	return in.Spec.SourceRef.ResourceRef.ReferencePath
+}
+
+// GetSnapshotName returns the key for the snapshot produced by the Configuration
+func (in Resource) GetSnapshotDigest() string {
+	return in.Status.LatestSnapshotDigest
+}
+
+// GetSnapshotName returns the key for the snapshot produced by the Configuration
+func (in Resource) GetSnapshotName() string {
+	return in.Status.SnapshotName
 }
 
 //+kubebuilder:object:root=true

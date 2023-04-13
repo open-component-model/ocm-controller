@@ -107,7 +107,7 @@ func TestPopulateReferences(t *testing.T) {
 
 	objs := []client.Object{frontend, backend, cache, database}
 
-	client := env.FakeKubeClient(WithObjets(objs...))
+	client := env.FakeKubeClient(WithObjects(objs...))
 
 	m := &MutationReconcileLooper{
 		Scheme: env.scheme,

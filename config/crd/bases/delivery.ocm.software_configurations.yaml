@@ -38,10 +38,18 @@ spec:
             description: MutationSpec defines a common spec between Localization and
               Configuration.
             properties:
-              componentVersionRef:
-                description: NamespacedObjectReference contains enough information
-                  to locate the referenced Kubernetes resource object in any namespace.
+              configRef:
+                description: ObjectReference defines a resource which may be accessed
+                  via a snapshot or component version
+                minProperties: 1
                 properties:
+                  apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    type: string
                   name:
                     description: Name of the referent.
                     type: string
@@ -49,42 +57,90 @@ spec:
                     description: Namespace of the referent, when not specified it
                       acts as LocalObjectReference.
                     type: string
+                  resourceRef:
+                    properties:
+                      extraIdentity:
+                        additionalProperties:
+                          type: string
+                        description: ExtraIdentity is the identity of an object. An
+                          additional label with key "name" ist not allowed
+                        type: object
+                      labels:
+                        description: Labels defines an optional set of additional
+                          labels describing the object.
+                        items:
+                          description: Label is a label that can be set on objects.
+                          properties:
+                            name:
+                              description: Name is the unique name of the label.
+                              type: string
+                            signing:
+                              description: Signing describes whether the label should
+                                be included into the signature
+                              type: boolean
+                            value:
+                              description: Value is the json/yaml data of the label
+                              x-kubernetes-preserve-unknown-fields: true
+                            version:
+                              description: Version is the optional specification version
+                                of the attribute value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      name:
+                        description: Name is the context unique name of the object.
+                        type: string
+                      referencePath:
+                        items:
+                          additionalProperties:
+                            type: string
+                          description: Identity describes the identity of an object.
+                            Only ascii characters are allowed
+                          type: object
+                        type: array
+                      version:
+                        description: Version is the semver version of the object.
+                        type: string
+                    required:
+                    - name
+                    - version
+                    type: object
+                required:
+                - kind
+                - name
+                type: object
+              interval:
+                type: string
+              outputTemplate:
+                description: SnapshotTemplateSpec defines the template used to create
+                  snapshots
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  labels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  name:
+                    type: string
                 required:
                 - name
                 type: object
-              configRef:
+              patchStrategicMerge:
+                description: PatchStrategicMerge contains the source and target details
+                  required to perform a strategic merge
                 properties:
-                  resource:
-                    description: Source defines a possible incoming format for sources
-                      that this object needs for further configuration/localization
-                      steps.
-                    minProperties: 1
+                  source:
+                    description: PatchStrategicMergeSource contains the details required
+                      to retrieve the source from a Flux source
                     properties:
-                      resourceRef:
-                        description: 'ResourceRef define a resource. TODO: Change
-                          this to ocmmetav1.ResourceReference The ocmmetav1.ResourceReference
-                          can also contain version!'
-                        properties:
-                          extraIdentity:
-                            additionalProperties:
-                              type: string
-                            type: object
-                          name:
-                            type: string
-                          referencePath:
-                            description: 'ReferencePath is a list of references with
-                              identities that include this resource. referencePath:
-                              - name: installer'
-                            items:
-                              additionalProperties:
-                                type: string
-                              type: object
-                            type: array
-                          version:
-                            type: string
-                        required:
-                        - name
-                        type: object
+                      path:
+                        type: string
                       sourceRef:
                         description: NamespacedObjectKindReference contains enough
                           information to locate the typed referenced Kubernetes resource
@@ -108,41 +164,6 @@ spec:
                         - kind
                         - name
                         type: object
-                    type: object
-                required:
-                - resource
-                type: object
-              interval:
-                type: string
-              patchStrategicMerge:
-                description: PatchStrategicMerge contains the source and target details
-                  required to perform a strategic merge
-                properties:
-                  source:
-                    description: PatchStrategicMergeSource contains the details required
-                      to retrieve the source from a Flux source
-                    properties:
-                      path:
-                        type: string
-                      sourceRef:
-                        description: PatchStrategicMergeSourceRef contains the flux
-                          source identity metadata
-                        properties:
-                          kind:
-                            enum:
-                            - OCIRepository
-                            - GitRepository
-                            - Bucket
-                            type: string
-                          name:
-                            type: string
-                          namespace:
-                            type: string
-                        required:
-                        - kind
-                        - name
-                        - namespace
-                        type: object
                     required:
                     - path
                     - sourceRef
@@ -160,79 +181,79 @@ spec:
                 - source
                 - target
                 type: object
-              snapshotTemplate:
-                description: SnapshotTemplateSpec defines the template used to create
-                  snapshots
-                properties:
-                  annotations:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  createFluxSource:
-                    type: boolean
-                  labels:
-                    additionalProperties:
-                      type: string
-                    description: 'TODO@souleb: add a description, is that actually
-                      used?'
-                    type: object
-                  name:
-                    type: string
-                required:
-                - name
-                type: object
-              source:
-                description: Source defines a possible incoming format for sources
-                  that this object needs for further configuration/localization steps.
+              sourceRef:
+                description: ObjectReference defines a resource which may be accessed
+                  via a snapshot or component version
                 minProperties: 1
                 properties:
+                  apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    type: string
+                  name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
+                    type: string
                   resourceRef:
-                    description: 'ResourceRef define a resource. TODO: Change this
-                      to ocmmetav1.ResourceReference The ocmmetav1.ResourceReference
-                      can also contain version!'
                     properties:
                       extraIdentity:
                         additionalProperties:
                           type: string
+                        description: ExtraIdentity is the identity of an object. An
+                          additional label with key "name" ist not allowed
                         type: object
+                      labels:
+                        description: Labels defines an optional set of additional
+                          labels describing the object.
+                        items:
+                          description: Label is a label that can be set on objects.
+                          properties:
+                            name:
+                              description: Name is the unique name of the label.
+                              type: string
+                            signing:
+                              description: Signing describes whether the label should
+                                be included into the signature
+                              type: boolean
+                            value:
+                              description: Value is the json/yaml data of the label
+                              x-kubernetes-preserve-unknown-fields: true
+                            version:
+                              description: Version is the optional specification version
+                                of the attribute value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
                       name:
+                        description: Name is the context unique name of the object.
                         type: string
                       referencePath:
-                        description: 'ReferencePath is a list of references with identities
-                          that include this resource. referencePath: - name: installer'
                         items:
                           additionalProperties:
                             type: string
+                          description: Identity describes the identity of an object.
+                            Only ascii characters are allowed
                           type: object
                         type: array
                       version:
+                        description: Version is the semver version of the object.
                         type: string
                     required:
                     - name
+                    - version
                     type: object
-                  sourceRef:
-                    description: NamespacedObjectKindReference contains enough information
-                      to locate the typed referenced Kubernetes resource object in
-                      any namespace.
-                    properties:
-                      apiVersion:
-                        description: API version of the referent, if not specified
-                          the Kubernetes preferred version will be used.
-                        type: string
-                      kind:
-                        description: Kind of the referent.
-                        type: string
-                      name:
-                        description: Name of the referent.
-                        type: string
-                      namespace:
-                        description: Namespace of the referent, when not specified
-                          it acts as LocalObjectReference.
-                        type: string
-                    required:
-                    - kind
-                    - name
-                    type: object
+                required:
+                - kind
+                - name
                 type: object
               suspend:
                 description: Suspend stops all operations on this object.
@@ -240,12 +261,12 @@ spec:
               values:
                 x-kubernetes-preserve-unknown-fields: true
             required:
-            - componentVersionRef
             - interval
-            - snapshotTemplate
-            - source
+            - sourceRef
             type: object
           status:
+            default:
+              observedGeneration: -1
             description: MutationStatus defines a common status for Localizations
               and Configurations.
             properties:
@@ -317,34 +338,20 @@ spec:
                   - type
                   type: object
                 type: array
-              lastAppliedComponentVersion:
-                description: LastAppliedComponentVersion tracks the last applied component
-                  version. If there is a change we fire off a reconcile loop to get
-                  that new version.
-                type: string
-              lastAppliedConfigSourceDigest:
-                description: LastAppliedConfigSourceDigest defines the last seen config
-                  source digest that has been encountered by this object. Only applicable
-                  if Source is a SourceRef.
-                type: string
-              lastAppliedPatchMergeSourceDigest:
-                description: LastAppliedPatchMergeSourceDigest defines the last seen
-                  patch merge source digest that has been encountered by this object.
-                  Only applicable if Source is a SourceRef.
-                type: string
-              lastAppliedSourceDigest:
-                description: LastAppliedSourceDigest defines the last seen source
-                  digest that has been encountered by this object. Only applicable
-                  if Source is a SourceRef.
-                type: string
               latestConfigVersion:
                 type: string
+              latestPatchSourceVersio:
+                type: string
               latestSnapshotDigest:
+                type: string
+              latestSourceVersion:
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the last reconciled generation.
                 format: int64
                 type: integer
+              snapshotName:
+                type: string
             type: object
         type: object
     served: true

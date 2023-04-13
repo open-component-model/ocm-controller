@@ -37,16 +37,13 @@ spec:
           spec:
             description: SnapshotSpec defines the desired state of Snapshot
             properties:
-              createFluxSource:
-                type: boolean
               digest:
                 type: string
               identity:
                 additionalProperties:
                   type: string
-                description: Identity defines a cache entry. It is used to generate
-                  a hash that is then used by the caching layer to identify an entry.
-                maxProperties: 20
+                description: Identity describes the identity of an object. Only ascii
+                  characters are allowed
                 type: object
               suspend:
                 description: Suspend stops all operations on this object.
