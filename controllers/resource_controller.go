@@ -9,7 +9,11 @@ import (
 	"errors"
 	"fmt"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
+	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,10 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
-	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
-	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/component"
@@ -38,7 +38,7 @@ type ResourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	kuberecorder.EventRecorder
-	OCMClient ocm.FetchVerifier
+	OCMClient ocm.Contract
 	Cache     cache.Cache
 }
 
@@ -212,7 +212,15 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, componentVersion *v1
 
 	conditions.Delete(obj, meta.StalledCondition)
 
-	reader, digest, err := r.OCMClient.GetResource(ctx, componentVersion, obj.Spec.Resource)
+	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, componentVersion)
+	if err != nil {
+		err = fmt.Errorf("failed to create authenticated client: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
+		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		return ctrl.Result{}, err
+	}
+
+	reader, digest, err := r.OCMClient.GetResource(ctx, octx, componentVersion, obj.Spec.Resource)
 	if err != nil {
 		err = fmt.Errorf("failed to get resource: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())

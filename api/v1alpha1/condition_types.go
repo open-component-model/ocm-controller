@@ -5,6 +5,9 @@
 package v1alpha1
 
 const (
+	// AuthenticatedContextCreationFailedReason is used when the controller failed to create an authenticated context.
+	AuthenticatedContextCreationFailedReason = "AuthenticatedContextCreationFailed"
+
 	// CheckVersionFailedReason is used when the controller failed to check for new versions
 	CheckVersionFailedReason = "CheckVersionFailedReason"
 

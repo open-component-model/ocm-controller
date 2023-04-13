@@ -19,6 +19,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
+	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
@@ -85,7 +89,7 @@ func TestClient_GetResource(t *testing.T) {
 		Version: "v0.0.1",
 	}
 
-	reader, digest, err := ocmClient.GetResource(context.Background(), cv, resourceRef)
+	reader, digest, err := ocmClient.GetResource(context.Background(), ocm.New(), cv, resourceRef)
 	assert.NoError(t, err)
 	content, err := io.ReadAll(reader)
 	require.NoError(t, err)
@@ -124,9 +128,70 @@ func TestClient_GetComponentVersion(t *testing.T) {
 		},
 	}
 
-	cva, err := ocmClient.GetComponentVersion(context.Background(), cv, component, "v0.0.1")
+	cva, err := ocmClient.GetComponentVersion(context.Background(), ocm.New(), cv, component, "v0.0.1")
 	assert.NoError(t, err)
 	assert.Equal(t, cv.Spec.Component, cva.GetName())
+}
+
+func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
+	component := "github.com/skarlso/ocm-demo-index"
+	cs := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: component,
+			Repository: v1alpha1.Repository{
+				URL: env.repositoryURL,
+				SecretRef: &v1alpha1.SecretRef{
+					Name: "test-secret",
+				},
+			},
+		},
+	}
+
+	testSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"token":    []byte("token"),
+			"username": []byte("username"),
+			"password": []byte("password"),
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+	}
+
+	trimmedURL := strings.TrimPrefix(env.repositoryURL, "http://")
+	fakeKubeClient := env.FakeKubeClient(WithObjets(cs, testSecret))
+	cache := oci.NewClient(trimmedURL)
+	ocmClient := NewClient(fakeKubeClient, cache)
+
+	err := env.AddComponentVersionToRepository(Component{
+		Name:    component,
+		Version: "v0.0.1",
+	})
+	require.NoError(t, err)
+
+	octx, err := ocmClient.CreateAuthenticatedOCMContext(context.Background(), cs)
+	require.NoError(t, err)
+
+	id := cpi.ConsumerIdentity{
+		identity.ID_TYPE:       identity.CONSUMER_TYPE,
+		identity.ID_HOSTNAME:   trimmedURL,
+		identity.ID_PATHPREFIX: "skarlso",
+	}
+
+	creds, err := octx.CredentialsContext().GetCredentialsForConsumer(id)
+	require.NoError(t, err)
+	consumer, err := creds.Credentials(nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "password", consumer.Properties()["password"])
+	assert.Equal(t, "token", consumer.Properties()["token"])
+	assert.Equal(t, "username", consumer.Properties()["username"])
 }
 
 func TestClient_GetLatestValidComponentVersion(t *testing.T) {
@@ -277,7 +342,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			require.NoError(t, err)
 			cv := tt.componentVersion(component)
 
-			latest, err := ocmClient.GetLatestValidComponentVersion(context.Background(), cv)
+			latest, err := ocmClient.GetLatestValidComponentVersion(context.Background(), ocm.New(), cv)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedVersion, latest)
 		})
@@ -341,7 +406,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifyComponent(context.Background(), cv, "v0.0.1")
+	verified, err := ocmClient.VerifyComponent(context.Background(), ocm.New(), cv, "v0.0.1")
 	assert.NoError(t, err)
 	assert.True(t, verified, "verified should have been true, but it did not")
 }
@@ -406,7 +471,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifyComponent(context.Background(), cv, "v0.0.1")
+	verified, err := ocmClient.VerifyComponent(context.Background(), ocm.New(), cv, "v0.0.1")
 	require.Error(t, err)
 	assert.False(t, verified, "verified should have been false, but it did not")
 }
