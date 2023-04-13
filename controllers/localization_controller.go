@@ -44,7 +44,7 @@ type LocalizationReconciler struct {
 	kuberecorder.EventRecorder
 	ReconcileInterval time.Duration
 	RetryInterval     time.Duration
-	OCMClient         ocm.FetchVerifier
+	OCMClient         ocm.Contract
 	Cache             cache.Cache
 }
 

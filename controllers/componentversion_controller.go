@@ -14,7 +14,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
-
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +43,7 @@ type ComponentVersionReconciler struct {
 	Scheme *runtime.Scheme
 	kuberecorder.EventRecorder
 
-	OCMClient ocmclient.FetchVerifier
+	OCMClient ocmclient.Contract
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions;componentdescriptors,verbs=get;list;watch;create;update;patch;delete
@@ -158,8 +157,17 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// for debugging and events for monitoring
 	log.V(4).Info("found component", "component", obj)
 
+	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, obj)
+	if err != nil {
+		retErr = fmt.Errorf("failed to create authenticated context: %w", err)
+		conditions.MarkStalled(obj, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
+		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, retErr.Error(), nil)
+		return result, retErr
+	}
+
 	// reconcile the version before calling reconcile func
-	update, version, err := r.checkVersion(ctx, obj)
+	update, version, err := r.checkVersion(ctx, octx, obj)
 	if err != nil {
 		retErr = fmt.Errorf("failed to check version: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.CheckVersionFailedReason, err.Error())
@@ -176,7 +184,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	log.Info("running verification of component")
-	ok, err := r.OCMClient.VerifyComponent(ctx, obj, version)
+	ok, err := r.OCMClient.VerifyComponent(ctx, octx, obj, version)
 	if err != nil {
 		log.Error(err, "failed to verify component", "component", klog.KObj(obj))
 		err := fmt.Errorf("failed to verify component: %w", err)
@@ -201,17 +209,17 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	conditions.Delete(obj, meta.StalledCondition)
 
 	// update the result for the defer call to have the latest information
-	result, retErr = r.reconcile(ctx, obj, version)
+	result, retErr = r.reconcile(ctx, octx, obj, version)
 	if retErr != nil {
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, fmt.Sprintf("Reconciliation failed: %s, retrying in %s", retErr.Error(), obj.GetRequeueAfter()), nil)
 	}
 	return result, retErr
 }
 
-func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
+func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
-	latest, err := r.OCMClient.GetLatestValidComponentVersion(ctx, obj)
+	latest, err := r.OCMClient.GetLatestValidComponentVersion(ctx, octx, obj)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to get latest component version: %w", err)
 	}
@@ -241,7 +249,7 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, obj *v1al
 	return true, latest, nil
 }
 
-func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (ctrl.Result, error) {
+func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
@@ -252,7 +260,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
 	}
 
-	cv, err := r.OCMClient.GetComponentVersion(ctx, obj, obj.Spec.Component, version)
+	cv, err := r.OCMClient.GetComponentVersion(ctx, octx, obj, obj.Spec.Component, version)
 	if err != nil {
 		err = fmt.Errorf("failed to get component version: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.ComponentVersionInvalidReason, err.Error())
@@ -323,7 +331,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 	}
 
 	if obj.Spec.References.Expand {
-		componentDescriptor.References, err = r.parseReferences(ctx, obj, cv.GetDescriptor().References)
+		componentDescriptor.References, err = r.parseReferences(ctx, octx, obj, cv.GetDescriptor().References)
 		if err != nil {
 			err = fmt.Errorf("failed to parse references: %w", err)
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ParseReferencesFailedReason, err.Error())
@@ -347,10 +355,10 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, obj *v1alpha
 
 // parseReferences takes a list of references to embedded components and constructs a dependency tree out of them.
 // It recursively calls itself, constructing a tree of referenced components. For each referenced component a ComponentDescriptor custom resource will be created.
-func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, parent *v1alpha1.ComponentVersion, references ocmdesc.References) ([]v1alpha1.Reference, error) {
+func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, octx ocm.Context, parent *v1alpha1.ComponentVersion, references ocmdesc.References) ([]v1alpha1.Reference, error) {
 	result := make([]v1alpha1.Reference, 0)
 	for _, ref := range references {
-		reference, err := r.constructComponentDescriptorsForReference(ctx, parent, ref)
+		reference, err := r.constructComponentDescriptorsForReference(ctx, octx, parent, ref)
 		if err != nil {
 			return nil, fmt.Errorf("failed to construct component descriptor: %w", err)
 		}
@@ -359,9 +367,9 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, parent
 	return result, nil
 }
 
-func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(ctx context.Context, parent *v1alpha1.ComponentVersion, ref ocmdesc.ComponentReference) (*v1alpha1.Reference, error) {
+func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(ctx context.Context, octx ocm.Context, parent *v1alpha1.ComponentVersion, ref ocmdesc.ComponentReference) (*v1alpha1.Reference, error) {
 	// get component version
-	rcv, err := r.OCMClient.GetComponentVersion(ctx, parent, ref.ComponentName, ref.Version)
+	rcv, err := r.OCMClient.GetComponentVersion(ctx, octx, parent, ref.ComponentName, ref.Version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get component version: %w", err)
 	}
@@ -384,7 +392,7 @@ func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(c
 
 	if len(rcv.GetDescriptor().References) > 0 {
 		// recursively call parseReference on the embedded references in the new descriptor.
-		out, err := r.parseReferences(ctx, parent, rcv.GetDescriptor().References)
+		out, err := r.parseReferences(ctx, nil, parent, rcv.GetDescriptor().References)
 		if err != nil {
 			return nil, err
 		}

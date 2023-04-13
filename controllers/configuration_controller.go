@@ -44,7 +44,7 @@ type ConfigurationReconciler struct {
 	ReconcileInterval time.Duration
 	RetryInterval     time.Duration
 	Cache             cache.Cache
-	OCMClient         ocm.FetchVerifier
+	OCMClient         ocm.Contract
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=configurations,verbs=get;list;watch;create;update;patch;delete

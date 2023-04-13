@@ -45,7 +45,13 @@ type MockFetcher struct {
 	listComponentVersionsCalledWith     [][]any
 }
 
-func (m *MockFetcher) GetResource(ctx context.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error) {
+var _ ocmctrl.Contract = &MockFetcher{}
+
+func (m *MockFetcher) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error) {
+	return ocm.New(), nil
+}
+
+func (m *MockFetcher) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error) {
 	if _, ok := m.getResourceReturns[m.getResourceCallCount]; !ok {
 		return nil, "", fmt.Errorf("unexpected number of calls; not enough return values have been configured; call count %d", m.getResourceCallCount)
 	}
@@ -84,7 +90,7 @@ func (m *MockFetcher) GetResourceWasNotCalled() bool {
 	return len(m.getResourceCalledWith) == 0
 }
 
-func (m *MockFetcher) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
+func (m *MockFetcher) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
 	m.getComponentVersionCalledWith = append(m.getComponentVersionCalledWith, []any{obj, name, version})
 	return m.getComponentVersionMap[name], m.getComponentVersionErr
 }
@@ -105,7 +111,7 @@ func (m *MockFetcher) GetComponentVersionWasNotCalled() bool {
 	return len(m.getComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
+func (m *MockFetcher) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
 	m.verifyComponentCalledWith = append(m.verifyComponentCalledWith, []any{obj, version})
 	return m.verifyComponentVerified, m.verifyComponentErr
 }
@@ -123,7 +129,7 @@ func (m *MockFetcher) VerifyComponentWasNotCalled() bool {
 	return len(m.verifyComponentCalledWith) == 0
 }
 
-func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, obj *v1alpha1.ComponentVersion) (string, error) {
+func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error) {
 	m.getComponentVersionCalledWith = append(m.getComponentVersionCalledWith, []any{obj})
 	return m.getLatestComponentVersionVersion, m.getLatestComponentVersionErr
 }

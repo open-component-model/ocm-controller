@@ -246,7 +246,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 				EventRecorder: recorder,
 				OCMClient:     fakeOcm,
 			}
-			update, _, err := cvr.checkVersion(context.Background(), obj)
+			update, _, err := cvr.checkVersion(context.Background(), nil, obj)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedUpdate, update)
 

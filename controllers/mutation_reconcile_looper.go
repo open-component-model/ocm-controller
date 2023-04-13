@@ -30,7 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	ocmctx "github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/open-component-model/ocm/pkg/spiff"
@@ -48,7 +49,7 @@ var tarError = errors.New("expected tarred directory content for configuration/l
 
 type MutationReconcileLooper struct {
 	Scheme    *runtime.Scheme
-	OCMClient ocm.FetchVerifier
+	OCMClient ocm.Contract
 	Client    client.Client
 	Cache     cache.Cache
 }
@@ -65,13 +66,18 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, c
 			fmt.Errorf("either sourceRef or resourceRef should be defined, but both are empty")
 	}
 
+	octx, err := m.OCMClient.CreateAuthenticatedOCMContext(ctx, componentVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to create authenticated client: %w", err)
+	}
+
 	if spec.Source.SourceRef != nil {
 		if resourceData, err = m.fetchResourceDataFromSnapshot(ctx, &spec); err != nil {
 			return "",
 				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
 		}
 	} else if spec.Source.ResourceRef != nil {
-		if resourceData, err = m.fetchResourceDataFromResource(ctx, &spec, componentVersion); err != nil {
+		if resourceData, err = m.fetchResourceDataFromResource(ctx, octx, &spec, componentVersion); err != nil {
 			return "",
 				fmt.Errorf("failed to fetch resource data from resource ref: %w", err)
 		}
@@ -114,7 +120,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, c
 		sourceDir = filepath.Join(os.TempDir(), fi.Name())
 
 		var rules localize.Substitutions
-		rules, identity, err = m.generateSubstRules(ctx, componentVersion, spec)
+		rules, identity, err = m.generateSubstRules(ctx, octx, componentVersion, spec)
 		if err != nil {
 			return "", err
 		}
@@ -188,8 +194,8 @@ func (m *MutationReconcileLooper) fetchResourceDataFromSnapshot(ctx context.Cont
 	return srcSnapshotData, nil
 }
 
-func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Context, spec *v1alpha1.MutationSpec, version *v1alpha1.ComponentVersion) ([]byte, error) {
-	resource, _, err := m.OCMClient.GetResource(ctx, version, *spec.Source.ResourceRef)
+func (m *MutationReconcileLooper) fetchResourceDataFromResource(ctx context.Context, octx ocmctx.Context, spec *v1alpha1.MutationSpec, version *v1alpha1.ComponentVersion) ([]byte, error) {
+	resource, _, err := m.OCMClient.GetResource(ctx, octx, version, *spec.Source.ResourceRef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch resource from resource ref: %w", err)
 	}
@@ -449,7 +455,7 @@ func (m *MutationReconcileLooper) populateReferences(ctx context.Context, src cu
 			return src, err
 		}
 
-		refCDRef, err := component.ConstructUniqueName(refName, refVersion, v1.Identity{})
+		refCDRef, err := component.ConstructUniqueName(refName, refVersion, ocmmetav1.Identity{})
 		if err != nil {
 			return src, err
 		}

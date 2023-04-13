@@ -13,12 +13,13 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/component"
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func (m *MutationReconcileLooper) generateSubstRules(ctx context.Context, cv *v1alpha1.ComponentVersion, spec v1alpha1.MutationSpec) (localize.Substitutions, v1alpha1.Identity, error) {
+func (m *MutationReconcileLooper) generateSubstRules(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, spec v1alpha1.MutationSpec) (localize.Substitutions, v1alpha1.Identity, error) {
 	log := log.FromContext(ctx)
 
 	config := &configdata.ConfigData{}
@@ -27,7 +28,7 @@ func (m *MutationReconcileLooper) generateSubstRules(ctx context.Context, cv *v1
 		return nil, nil, fmt.Errorf("resource ref is empty for config ref")
 	}
 
-	reader, _, err := m.OCMClient.GetResource(ctx, cv, *resourceRef)
+	reader, _, err := m.OCMClient.GetResource(ctx, octx, cv, *resourceRef)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get resource: %w", err)
 	}
