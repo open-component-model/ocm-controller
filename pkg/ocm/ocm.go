@@ -14,9 +14,11 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
@@ -30,6 +32,8 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/component"
 )
+
+const dockerConfigKey = ".dockerconfigjson"
 
 // Contract defines a subset of capabilities from the OCM library.
 type Contract interface {
@@ -60,6 +64,12 @@ func NewClient(client client.Client, cache cache.Cache) *Client {
 func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error) {
 	octx := ocm.New()
 
+	if obj.Spec.ServiceAccountName != "" {
+		if err := c.configureServiceAccountAccess(ctx, octx, obj.Spec.ServiceAccountName, obj.Namespace); err != nil {
+			return nil, fmt.Errorf("failed to configure service account access: %w", err)
+		}
+	}
+
 	if err := c.configureAccessCredentials(ctx, octx, obj.Spec.Repository, obj.Namespace); err != nil {
 		return nil, fmt.Errorf("failed to configure credentials for source: %w", err)
 	}
@@ -84,6 +94,45 @@ func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Cont
 	}
 
 	logger.V(4).Info("credentials configured")
+
+	return nil
+}
+
+func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Context, serviceAccountName, namespace string) error {
+	logger := log.FromContext(ctx)
+
+	logger.V(4).Info("configuring service account credentials")
+	account := &corev1.ServiceAccount{}
+	if err := c.client.Get(ctx, types.NamespacedName{
+		Name:      serviceAccountName,
+		Namespace: namespace,
+	}, account); err != nil {
+		return fmt.Errorf("failed to fetch service account: %w", err)
+	}
+
+	logger.V(4).Info("got service account", "name", account.GetName())
+
+	for _, imagePullSecret := range account.ImagePullSecrets {
+		secret := &corev1.Secret{}
+
+		if err := c.client.Get(ctx, types.NamespacedName{
+			Name:      imagePullSecret.Name,
+			Namespace: namespace,
+		}, secret); err != nil {
+			return fmt.Errorf("failed to get image pull secret: %w", err)
+		}
+
+		data, ok := secret.Data[dockerConfigKey]
+		if !ok {
+			return fmt.Errorf("failed to find .dockerconfigjson in secret %s", secret.Name)
+		}
+
+		repository := dockerconfig.NewRepositorySpecForConfig(data, true)
+
+		if _, err := octx.CredentialsContext().RepositoryForSpec(repository); err != nil {
+			return fmt.Errorf("failed to configure credentials for repository: %w", err)
+		}
+	}
 
 	return nil
 }

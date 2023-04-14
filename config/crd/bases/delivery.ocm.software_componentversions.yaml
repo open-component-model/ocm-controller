@@ -73,6 +73,12 @@ spec:
                 required:
                 - url
                 type: object
+              serviceAccountName:
+                description: ServiceAccountName can be used to configure access to
+                  both destination and source repositories. If service account is
+                  defined, it's usually redundant to define access to either source
+                  or destination, but it is still allowed to do so. https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account
+                type: string
               suspend:
                 description: Suspend stops all operations on this component version
                   object.
