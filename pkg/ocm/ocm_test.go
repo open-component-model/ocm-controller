@@ -133,7 +133,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 	assert.Equal(t, cv.Spec.Component, cva.GetName())
 }
 
-func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
+func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
 	component := "github.com/skarlso/ocm-demo-index"
 	cs := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
@@ -192,6 +192,80 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 	assert.Equal(t, "password", consumer.Properties()["password"])
 	assert.Equal(t, "token", consumer.Properties()["token"])
 	assert.Equal(t, "username", consumer.Properties()["username"])
+}
+
+func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
+	cs := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: "github.com/skarlso/ocm-demo-index",
+			Repository: v1alpha1.Repository{
+				URL: env.repositoryURL,
+			},
+			ServiceAccountName: "test-service-account",
+		},
+	}
+	serviceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service-account",
+			Namespace: "default",
+		},
+		ImagePullSecrets: []corev1.LocalObjectReference{
+			{
+				Name: "test-name-secret",
+			},
+		},
+	}
+	testSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name-secret",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			".dockerconfigjson": []byte(`{
+  "auths": {
+    "ghcr.io": {
+      "username": "skarlso",
+      "password": "password",
+      "auth": "c2thcmxzbzpwYXNzd29yZAo="
+    }
+  }
+}`),
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+	}
+
+	fakeKubeClient := env.FakeKubeClient(WithObjets(cs, serviceAccount, testSecret))
+	trimmedURL := strings.TrimPrefix(env.repositoryURL, "http://")
+	cache := oci.NewClient(trimmedURL)
+	ocmClient := NewClient(fakeKubeClient, cache)
+	component := "github.com/skarlso/ocm-demo-index"
+
+	err := env.AddComponentVersionToRepository(Component{
+		Name:    component,
+		Version: "v0.0.1",
+	})
+	require.NoError(t, err)
+
+	octx, err := ocmClient.CreateAuthenticatedOCMContext(context.Background(), cs)
+	require.NoError(t, err)
+
+	id := cpi.ConsumerIdentity{
+		identity.ID_TYPE:       identity.CONSUMER_TYPE,
+		identity.ID_HOSTNAME:   "ghcr.io",
+		identity.ID_PATHPREFIX: "skarlso",
+	}
+	creds, err := octx.CredentialsContext().GetCredentialsForConsumer(id)
+	require.NoError(t, err)
+	consumer, err := creds.Credentials(nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "password", consumer.Properties()["password"])
+	assert.Equal(t, "skarlso", consumer.Properties()["username"])
+	assert.Equal(t, "ghcr.io", consumer.Properties()["serverAddress"])
 }
 
 func TestClient_GetLatestValidComponentVersion(t *testing.T) {
