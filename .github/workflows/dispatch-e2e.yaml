@@ -1,0 +1,23 @@
+name: dispatch e2e test event
+
+on:
+  push:
+      branches:
+      - main
+
+jobs:
+  dispatch-event:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@v1
+        with:
+          app_id: ${{ secrets.OCMBOT_APP_ID }}
+          private_key: ${{ secrets.OCMBOT_PRIV_KEY }}
+      - name: Dispatch e2e test trigger
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          repository: open-component-model/MPAS
+          event-type: component.controlplane.mpas.updated
