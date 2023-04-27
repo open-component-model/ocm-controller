@@ -106,7 +106,7 @@ for o in objects:
 updated_install = encode_yaml_stream(objects)
 
 # Apply the updated yaml to the cluster.
-k8s_yaml(updated_install, allow_duplicates = False)
+k8s_yaml(updated_install, allow_duplicates = True)
 
 # Create Secrets
 create_secrets()
