@@ -57,27 +57,23 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var (
-		retErr error
-		result ctrl.Result
-	)
-
+func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	log := log.FromContext(ctx).WithName("resource-controller")
 
 	log.Info("starting resource reconcile loop")
 	obj := &v1alpha1.Resource{}
-	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
+	if err = r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			return result, nil
+			return ctrl.Result{}, nil
 		}
-		retErr = fmt.Errorf("failed to get resource object: %w", err)
-		return result, retErr
+
+		return ctrl.Result{}, fmt.Errorf("failed to get resource object: %w", err)
 	}
 
 	if obj.Spec.Suspend {
 		log.Info("resource object suspended")
-		return result, nil
+
+		return ctrl.Result{}, nil
 	}
 
 	cv := types.NamespacedName{
@@ -86,32 +82,32 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	componentVersion := &v1alpha1.ComponentVersion{}
-	if err := r.Get(ctx, cv, componentVersion); err != nil {
+	if err = r.Get(ctx, cv, componentVersion); err != nil {
 		log.Error(err, "failed to get component version", "component", cv)
 		err = fmt.Errorf("failed to get component version: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.ComponentVersionInvalidReason, err.Error())
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ComponentVersionInvalidReason, err.Error())
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
-		result, retErr = ctrl.Result{}, nil
-		return result, retErr
+
+		return ctrl.Result{}, nil
 	}
 
-	run, err := r.shouldReconcile(ctx, componentVersion, obj)
+	var run bool
+	run, err = r.shouldReconcile(ctx, componentVersion, obj)
 	if err != nil {
-		retErr = fmt.Errorf("failed to check if controller should reconcile: %w", err)
-		return result, retErr
+		return ctrl.Result{}, fmt.Errorf("failed to check if controller should reconcile: %w", err)
 	}
 
 	if !run {
 		log.Info("component version already reconciled", "version", componentVersion.Status.ReconciledVersion)
-		result, retErr = ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-		return result, retErr
+
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
-	patchHelper, err := patch.NewHelper(obj, r.Client)
+	var patchHelper *patch.Helper
+	patchHelper, err = patch.NewHelper(obj, r.Client)
 	if err != nil {
-		retErr = errors.Join(retErr, err)
-		return result, retErr
+		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
 	// Always attempt to patch the object and status after each reconciliation.
@@ -127,13 +123,13 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 		// Check if it's a successful reconciliation.
 		// We don't set Requeue in case of error, so we can safely check for Requeue.
-		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && retErr == nil {
+		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && err == nil {
 			// Remove the reconciling condition if it's set.
 			conditions.Delete(obj, meta.ReconcilingCondition)
 
 			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
 			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
-				retErr = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
+				err = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
 			}
 		}
 
@@ -147,7 +143,7 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 		// If not reconciling or stalled than mark Ready=True
 		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
-			retErr == nil && result.RequeueAfter == obj.GetRequeueAfter() {
+			err == nil && result.RequeueAfter == obj.GetRequeueAfter() {
 			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation success", nil)
 		}
@@ -159,15 +155,14 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				map[string]string{v1alpha1.GroupVersion.Group + "/resource_version": obj.Status.LastAppliedResourceVersion})
 		}
 
-		if err := patchHelper.Patch(ctx, obj); err != nil {
-			retErr = errors.Join(retErr, err)
+		if perr := patchHelper.Patch(ctx, obj); perr != nil {
+			err = errors.Join(err, perr)
 		}
 	}()
 
 	log.Info("found resource", "resource", obj)
 
-	result, retErr = r.reconcile(ctx, componentVersion, obj)
-	return result, retErr
+	return r.reconcile(ctx, componentVersion, obj)
 }
 
 // shouldReconcile deals with the following cases:
@@ -250,7 +245,8 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, componentVersion *v1
 		// Mark stalled because we can't do anything until the component descriptor is available. Likely requires some sort of manual intervention.
 		conditions.MarkStalled(obj, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
-		return ctrl.Result{}, err
+
+		return ctrl.Result{}, nil
 	}
 
 	conditions.Delete(obj, meta.StalledCondition)

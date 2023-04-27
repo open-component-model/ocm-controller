@@ -65,19 +65,18 @@ func (r *SnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var retErr error
+func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	log := log.FromContext(ctx).WithName("snapshot-reconcile")
 
 	log.Info("reconciling snapshot")
 
 	obj := &v1alpha1.Snapshot{}
-	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
+	if err = r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		retErr = fmt.Errorf("failed to get component object: %w", err)
-		return ctrl.Result{}, retErr
+
+		return ctrl.Result{}, fmt.Errorf("failed to get component object: %w", err)
 	}
 
 	if obj.GetDeletionTimestamp() != nil {
@@ -85,7 +84,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, nil
 		}
 
-		if err := r.reconcileDeleteSnapshot(ctx, obj); err != nil {
+		if err = r.reconcileDeleteSnapshot(ctx, obj); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to remove finalizer: %w", err)
 		}
 
@@ -97,10 +96,10 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	patchHelper, err := patch.NewHelper(obj, r.Client)
+	var patchHelper *patch.Helper
+	patchHelper, err = patch.NewHelper(obj, r.Client)
 	if err != nil {
-		retErr = errors.Join(retErr, err)
-		return ctrl.Result{}, retErr
+		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
 	}
 
 	// AddFinalizer is not present already.
@@ -120,8 +119,8 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				map[string]string{v1alpha1.GroupVersion.Group + "/snapshot_digest": obj.Status.LastReconciledDigest})
 		}
 
-		if err := patchHelper.Patch(ctx, obj); err != nil {
-			retErr = errors.Join(retErr, err)
+		if perr := patchHelper.Patch(ctx, obj); perr != nil {
+			err = errors.Join(err, perr)
 		}
 	}()
 
@@ -129,6 +128,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateRepositoryNameReason, err.Error())
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+
 		return ctrl.Result{}, fmt.Errorf("failed to construct name: %w", err)
 	}
 
@@ -164,7 +164,8 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
-			retErr = nil
+
+			// the `nil` here overwrites the returned error, so it will be empty even if it wasn't before
 			return ctrl.Result{}, nil
 		}
 	}
