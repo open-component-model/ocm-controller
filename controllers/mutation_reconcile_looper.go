@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -54,11 +55,12 @@ var errTar = errors.New("expected tarred directory content for configuration/loc
 
 // MutationReconcileLooper holds dependencies required to reconcile a mutation object.
 type MutationReconcileLooper struct {
-	Scheme        *runtime.Scheme
-	OCMClient     ocm.Contract
-	Client        client.Client
-	Cache         cache.Cache
-	DynamicClient dynamic.Interface
+	Scheme         *runtime.Scheme
+	OCMClient      ocm.Contract
+	Client         client.Client
+	Cache          cache.Cache
+	DynamicClient  dynamic.Interface
+	SnapshotWriter snapshot.Writer
 }
 
 // ReconcileMutationObject reconciles mutation objects and writes a snapshot to the cache.
@@ -154,7 +156,8 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 
 	defer os.RemoveAll(sourceDir)
 
-	return m.writeSnapshot(ctx, obj, sourceDir, snapshotID)
+	_, err = m.SnapshotWriter.Write(ctx, obj, sourceDir, snapshotID)
+	return err
 }
 
 func (m *MutationReconcileLooper) configure(ctx context.Context, data []byte, configObj []byte, configValues *apiextensionsv1.JSON) (string, error) {
