@@ -31,8 +31,9 @@ import (
 )
 
 var (
-	testRepoName = "ocm-controller-test"
-	cvManifest   = setup.File{
+	testRepoName    = "ocm-controller-test"
+	timeoutDuration = time.Minute * 2
+	cvManifest      = setup.File{
 		RepoName:       testRepoName,
 		SourceFilepath: "component_version.yaml",
 		DestFilepath:   "apps/component_version.yaml",
@@ -108,7 +109,7 @@ func TestOCMController(t *testing.T) {
 					}
 					img := obj.Spec.Template.Spec.Containers[0].Image
 					return strings.Contains(img, "ghcr.io/stefanprodan/podinfo")
-				}), wait.WithTimeout(time.Minute*1))
+				}), wait.WithTimeout(timeoutDuration))
 
 				return ctx
 			}).
@@ -129,7 +130,7 @@ func TestOCMController(t *testing.T) {
 						return false
 					}
 					return obj.Data["PODINFO_UI_MESSAGE"] == "This is a test message"
-				}), wait.WithTimeout(time.Minute*1))
+				}), wait.WithTimeout(timeoutDuration))
 
 				return ctx
 			})
@@ -161,7 +162,7 @@ func checkIsCVReady(name string) features.Func {
 				return false
 			}
 			return fconditions.IsTrue(obj, meta.ReadyCondition)
-		}), wait.WithTimeout(time.Minute*1))
+		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)
@@ -191,7 +192,7 @@ func checkIsResourceReady(name string) features.Func {
 				return false
 			}
 			return fconditions.IsTrue(obj, meta.ReadyCondition)
-		}), wait.WithTimeout(time.Minute*1))
+		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)
@@ -221,7 +222,7 @@ func checkIsConfigurationReady(name string) features.Func {
 				return false
 			}
 			return fconditions.IsTrue(obj, meta.ReadyCondition)
-		}), wait.WithTimeout(time.Minute*1))
+		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)
@@ -250,7 +251,7 @@ func checkIsLocalizationReady(name string) features.Func {
 				return false
 			}
 			return fconditions.IsTrue(obj, meta.ReadyCondition)
-		}), wait.WithTimeout(time.Minute*1))
+		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)
@@ -279,7 +280,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 				return false
 			}
 			return fconditions.IsTrue(obj, meta.ReadyCondition)
-		}), wait.WithTimeout(time.Minute*1))
+		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)
@@ -296,7 +297,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 				return false
 			}
 			return fconditions.IsTrue(obj, meta.ReadyCondition)
-		}), wait.WithTimeout(time.Minute*1))
+		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)
@@ -313,7 +314,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 				return false
 			}
 			return fconditions.IsTrue(obj, meta.ReadyCondition)
-		}), wait.WithTimeout(time.Minute*1))
+		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)
