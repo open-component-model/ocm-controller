@@ -17,8 +17,6 @@ permissions:
 jobs:
   kind-linux:
     runs-on: ubuntu-latest
-    env:
-      GOPRIVATE: github.com/open-component-model/ocm-e2e-framework
     steps:
       - name: Checkout
         uses: actions/checkout@v3
