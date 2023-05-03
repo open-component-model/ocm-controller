@@ -17,13 +17,26 @@ permissions:
 jobs:
   kind-linux:
     runs-on: ubuntu-latest
+    env:
+      GOPRIVATE: github.com/open-component-model/ocm-e2e-framework
     steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@v1
+        with:
+          app_id: ${{ secrets.OCMBOT_APP_ID }}
+          private_key: ${{ secrets.OCMBOT_PRIV_KEY }}
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
           go-version-file: '${{ github.workspace }}/go.mod'
+      - name: Configure private module access
+        run: |
+          git config --global \
+            url.https://${{ steps.generate_token.outputs.token }}@github.com/.insteadOf \
+            https://github.com/
       - name: Restore Go cache
         uses: actions/cache@v3
         with:
