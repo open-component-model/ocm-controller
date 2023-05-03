@@ -54,18 +54,17 @@ Create a `Resource` for the `deployment` resource:
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Resource
 metadata:
-  name: deployment
+  name: podinfo-deployment
   namespace: ocm-system
 spec:
   interval: 10m0s
-  componentVersionRef:
+  sourceRef:
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: ComponentVersion
     name: podinfo
     namespace: ocm-system
-  resource:
-    name: deployment
-  snapshotTemplate:
-    name: podinfo
-    createFluxSource: true
+    resourceRef:
+      name: deployment
 ```
 
 Apply the `Resource`:
@@ -74,30 +73,31 @@ Apply the `Resource`:
 kubectl apply -f resource.yaml
 ```
 
-Create a Flux `Kustomization` to apply the `Resource` and save it to a file named `resource_kustomization.yaml`:
+Create a `FluxDeployer` to apply the `Resource` and save it to a file named `deployer.yaml`:
 
 ```yaml
-# resource_kustomization.yaml
-apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
-kind: Kustomization
+# deployer.yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: FluxDeployer
 metadata:
   name: podinfo
   namespace: ocm-system
 spec:
-  interval: 10m0s
-  path: ./
-  prune: true
-  targetNamespace: default
   sourceRef:
-    kind: OCIRepository
-    name: podinfo
-    namespace: ocm-system
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: Resource
+    name: podinfo-deployment
+  kustomizationTemplate:
+    interval: 10m0s
+    path: ./
+    prune: true
+    targetNamespace: default
 ```
 
-Apply the `Kustomization`:
+Apply the `FluxDeployer`:
 
 ```
-kubectl apply -f resource_kustomization.yaml
+kubectl apply -f deployer.yaml
 ```
 
 View the deployment spinning up:
@@ -118,7 +118,7 @@ The following diagram illustrates the flow:
   graph TD;
       ComponentVersion --> Resource --> Snapshot;
       OCIRepository --> Snapshot;
-      subgraph flux;
+      subgraph "Flux Deployer";
           OCIRepository --> Kustomization --> Deployment;
     end
 ```
@@ -134,12 +134,16 @@ Retrieves a `ComponentVersion` from an OCM repository. Handles authentication wi
 Makes a resource available within the cluster as a snapshot.
 
 ### Localization
-<!-- TODO: add a dedicated doc on Localization -->
+
 Localizes a resource using the specified configuration resource.
 
 ### Configuration
-<!-- TODO: add a dedicated doc on Localization -->
+
 Configures a resource using the specified configuration resource.
+
+### Flux Deployer
+
+Applies a resource to the cluster using Flux Kustomization controller.
 
 ### Snapshot
 

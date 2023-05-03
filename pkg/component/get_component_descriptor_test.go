@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 func TestGetNestedComponentDescriptor(t *testing.T) {
@@ -78,20 +79,18 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 	t.Run("with reference path", func(t *testing.T) {
 		loc := &v1alpha1.Localization{
 			Spec: v1alpha1.MutationSpec{
-				ConfigRef: &v1alpha1.ConfigReference{
-					Resource: v1alpha1.Source{
-						ResourceRef: &v1alpha1.ResourceRef{
-							ReferencePath: []map[string]string{
-								{
-									"name": "nested-twice-second",
-								},
+				ConfigRef: &v1alpha1.ObjectReference{
+					ResourceRef: &v1alpha1.ResourceReference{
+						ReferencePath: []ocmmetav1.Identity{
+							{
+								"name": "nested-twice-second",
 							},
 						},
 					},
 				},
 			},
 		}
-		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.Resource.ResourceRef.ReferencePath, obj.Status.ComponentDescriptor)
+		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.ResourceRef.ReferencePath, obj.Status.ComponentDescriptor)
 		assert.NoError(t, err)
 		assert.Equal(t, componentName, comp.Name)
 	})
@@ -99,14 +98,12 @@ func TestGetNestedComponentDescriptor(t *testing.T) {
 	t.Run("without reference path", func(t *testing.T) {
 		loc := &v1alpha1.Localization{
 			Spec: v1alpha1.MutationSpec{
-				ConfigRef: &v1alpha1.ConfigReference{
-					Resource: v1alpha1.Source{
-						ResourceRef: &v1alpha1.ResourceRef{},
-					},
+				ConfigRef: &v1alpha1.ObjectReference{
+					ResourceRef: &v1alpha1.ResourceReference{},
 				},
 			},
 		}
-		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.Resource.ResourceRef.ReferencePath, obj.Status.ComponentDescriptor)
+		comp, err := GetComponentDescriptor(context.Background(), client, loc.Spec.ConfigRef.ResourceRef.ReferencePath, obj.Status.ComponentDescriptor)
 		assert.NoError(t, err)
 		assert.Equal(t, notNestedName, comp.Name)
 	})

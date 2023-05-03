@@ -13,6 +13,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/go-logr/logr"
+	"github.com/mitchellh/hashstructure/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,7 +39,7 @@ const dockerConfigKey = ".dockerconfigjson"
 // Contract defines a subset of capabilities from the OCM library.
 type Contract interface {
 	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error)
-	GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error)
+	GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error)
 	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
 	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
@@ -138,11 +139,11 @@ func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Con
 }
 
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
-func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error) {
+func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error) {
 	logger := log.FromContext(ctx).WithName("ocm")
 	version := "latest"
-	if resource.Version != "" {
-		version = resource.Version
+	if resource.ElementMeta.Version != "" {
+		version = resource.ElementMeta.Version
 	}
 
 	cd, err := component.GetComponentDescriptor(ctx, c.client, resource.ReferencePath, cv.Status.ComponentDescriptor)
@@ -154,14 +155,14 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		return nil, "", fmt.Errorf("component descriptor not found for reference path: %+v", resource.ReferencePath)
 	}
 
-	identity := v1alpha1.Identity{
+	identity := ocmmetav1.Identity{
 		v1alpha1.ComponentNameKey:    cd.Name,
 		v1alpha1.ComponentVersionKey: cd.Spec.Version,
-		v1alpha1.ResourceNameKey:     resource.Name,
+		v1alpha1.ResourceNameKey:     resource.ElementMeta.Name,
 		v1alpha1.ResourceVersionKey:  version,
 	}
 	// Add extra identity.
-	for k, v := range resource.ExtraIdentity {
+	for k, v := range resource.ElementMeta.ExtraIdentity {
 		identity[k] = v
 	}
 	name, err := ConstructRepositoryName(identity)
@@ -392,11 +393,21 @@ func (c *Client) ListComponentVersions(logger logr.Logger, octx ocm.Context, obj
 }
 
 // ConstructRepositoryName hashes the name and passes it back.
-func ConstructRepositoryName(identity v1alpha1.Identity) (string, error) {
-	repositoryName, err := identity.Hash()
+func ConstructRepositoryName(identity ocmmetav1.Identity) (string, error) {
+	repositoryName, err := HashIdentity(identity)
 	if err != nil {
 		return "", fmt.Errorf("failed to create hash for identity: %w", err)
 	}
 
 	return repositoryName, nil
+}
+
+// HashIdentity returns the string hash of an ocm identity
+func HashIdentity(id ocmmetav1.Identity) (string, error) {
+	hash, err := hashstructure.Hash(id, hashstructure.FormatV2, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash identity: %w", err)
+	}
+
+	return fmt.Sprintf("sha-%d", hash), nil
 }

@@ -57,13 +57,13 @@ spec:
                 description: Repository defines the OCM Repository.
                 properties:
                   secretRef:
-                    description: SecretRef is a reference to a secret used to access
-                      the OCI repository.
+                    description: LocalObjectReference contains enough information
+                      to let you locate the referenced object inside the same namespace.
                     properties:
                       name:
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          TODO: Add other useful fields. apiVersion, kind, uid?'
                         type: string
-                    required:
-                    - name
                     type: object
                   url:
                     description: 'TODO@souleb: do we need a scheme for the url? add
@@ -95,13 +95,14 @@ spec:
                       description: Key which is used for verification.
                       properties:
                         secretRef:
-                          description: SecretRef is a reference to a secret used to
-                            access the OCI repository.
+                          description: LocalObjectReference contains enough information
+                            to let you locate the referenced object inside the same
+                            namespace.
                           properties:
                             name:
+                              description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                TODO: Add other useful fields. apiVersion, kind, uid?'
                               type: string
-                          required:
-                          - name
                           type: object
                       required:
                       - secretRef

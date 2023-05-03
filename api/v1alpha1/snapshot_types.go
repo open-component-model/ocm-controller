@@ -5,13 +5,14 @@
 package v1alpha1
 
 import (
-	"fmt"
-
-	"github.com/mitchellh/hashstructure/v2"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
+	// SnapshotKind is the string representation of a Snapshot.
+	SnapshotKind = "Snapshot"
+
 	ComponentNameKey          = "component-name"
 	ComponentVersionKey       = "component-version"
 	ResourceNameKey           = "resource-name"
@@ -21,12 +22,16 @@ const (
 	SourceArtifactChecksumKey = "source-artifact-checksum"
 )
 
+// SnapshotProducer defines any object which produces a snapshot
+// +k8s:deepcopy-gen=false
+type SnapshotProducer interface {
+	GetSnapshotDigest() string
+	GetSnapshotName() string
+}
+
 // SnapshotSpec defines the desired state of Snapshot
 type SnapshotSpec struct {
-	Identity Identity `json:"identity"`
-
-	// +optional
-	CreateFluxSource bool `json:"createFluxSource,omitempty"`
+	Identity ocmmetav1.Identity `json:"identity"`
 
 	Digest string `json:"digest"`
 
@@ -61,19 +66,29 @@ type SnapshotStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
-// Identity defines a cache entry. It is used to generate a hash that is then used by the
-// caching layer to identify an entry.
-// +kubebuilder:validation:MaxProperties=20
-type Identity map[string]string
+// GetComponentVersion returns the component version for the snapshot
+func (in Snapshot) GetComponentVersion() string {
+	return in.Spec.Identity[ComponentVersionKey]
+}
 
-// Hash calculates the hash of an identity
-func (i *Identity) Hash() (string, error) {
-	hash, err := hashstructure.Hash(i, hashstructure.FormatV2, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to hash identity: %w", err)
-	}
+// GetComponentResourceVersion returns the resource version for the snapshot
+func (in Snapshot) GetComponentResourceVersion() string {
+	return in.Spec.Identity[ResourceVersionKey]
+}
 
-	return fmt.Sprintf("sha-%d", hash), nil
+// GetDigest returns the last reconciled digest for the snapshot
+func (in Snapshot) GetDigest() string {
+	return in.Status.LastReconciledDigest
+}
+
+// GetConditions returns the status conditions of the object.
+func (in Snapshot) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the status conditions on the object.
+func (in *Snapshot) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
 }
 
 //+kubebuilder:object:root=true
@@ -87,22 +102,6 @@ type Snapshot struct {
 
 	Spec   SnapshotSpec   `json:"spec,omitempty"`
 	Status SnapshotStatus `json:"status,omitempty"`
-}
-
-// GetConditions returns the status conditions of the object.
-func (in Snapshot) GetConditions() []metav1.Condition {
-	return in.Status.Conditions
-}
-
-// SetConditions sets the status conditions on the object.
-func (in *Snapshot) SetConditions(conditions []metav1.Condition) {
-	in.Status.Conditions = conditions
-}
-
-// GetStatusConditions returns a pointer to the Status.Conditions slice.
-// Deprecated: use GetConditions instead.
-func (in *Snapshot) GetStatusConditions() *[]metav1.Condition {
-	return &in.Status.Conditions
 }
 
 //+kubebuilder:object:root=true

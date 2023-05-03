@@ -37,45 +37,9 @@ spec:
           spec:
             description: ResourceSpec defines the desired state of Resource
             properties:
-              componentVersionRef:
-                description: NamespacedObjectReference contains enough information
-                  to locate the referenced Kubernetes resource object in any namespace.
-                properties:
-                  name:
-                    description: Name of the referent.
-                    type: string
-                  namespace:
-                    description: Namespace of the referent, when not specified it
-                      acts as LocalObjectReference.
-                    type: string
-                required:
-                - name
-                type: object
               interval:
                 type: string
-              resource:
-                description: Resource names a Source that this Resource watches.
-                properties:
-                  extraIdentity:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  name:
-                    type: string
-                  referencePath:
-                    description: 'ReferencePath is a list of references with identities
-                      that include this resource. referencePath: - name: installer'
-                    items:
-                      additionalProperties:
-                        type: string
-                      type: object
-                    type: array
-                  version:
-                    type: string
-                required:
-                - name
-                type: object
-              snapshotTemplate:
+              outputTemplate:
                 description: SnapshotTemplateSpec defines the template used to create
                   snapshots
                 properties:
@@ -83,29 +47,99 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
-                  createFluxSource:
-                    type: boolean
                   labels:
                     additionalProperties:
                       type: string
-                    description: 'TODO@souleb: add a description, is that actually
-                      used?'
                     type: object
                   name:
                     type: string
                 required:
                 - name
                 type: object
+              sourceRef:
+                description: SourceRef defines the input source from which the resource
+                  will be retrieved
+                minProperties: 1
+                properties:
+                  apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    type: string
+                  name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
+                    type: string
+                  resourceRef:
+                    properties:
+                      extraIdentity:
+                        additionalProperties:
+                          type: string
+                        description: ExtraIdentity is the identity of an object. An
+                          additional label with key "name" ist not allowed
+                        type: object
+                      labels:
+                        description: Labels defines an optional set of additional
+                          labels describing the object.
+                        items:
+                          description: Label is a label that can be set on objects.
+                          properties:
+                            name:
+                              description: Name is the unique name of the label.
+                              type: string
+                            signing:
+                              description: Signing describes whether the label should
+                                be included into the signature
+                              type: boolean
+                            value:
+                              description: Value is the json/yaml data of the label
+                              x-kubernetes-preserve-unknown-fields: true
+                            version:
+                              description: Version is the optional specification version
+                                of the attribute value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      name:
+                        description: Name is the context unique name of the object.
+                        type: string
+                      referencePath:
+                        items:
+                          additionalProperties:
+                            type: string
+                          description: Identity describes the identity of an object.
+                            Only ascii characters are allowed
+                          type: object
+                        type: array
+                      version:
+                        description: Version is the semver version of the object.
+                        type: string
+                    required:
+                    - name
+                    - version
+                    type: object
+                required:
+                - kind
+                - name
+                type: object
               suspend:
                 description: Suspend stops all operations on this object.
                 type: boolean
             required:
-            - componentVersionRef
             - interval
-            - resource
-            - snapshotTemplate
+            - sourceRef
             type: object
           status:
+            default:
+              observedGeneration: -1
             description: ResourceStatus defines the observed state of Resource
             properties:
               conditions:
@@ -183,10 +217,14 @@ spec:
                 type: string
               lastAppliedResourceVersion:
                 type: string
+              latestSnapshotDigest:
+                type: string
               observedGeneration:
                 description: ObservedGeneration is the last reconciled generation.
                 format: int64
                 type: integer
+              snapshotName:
+                type: string
             type: object
         type: object
     served: true

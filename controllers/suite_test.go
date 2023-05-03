@@ -9,18 +9,22 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 )
 
 type testEnv struct {
@@ -43,7 +47,7 @@ func WithAddToScheme(addToScheme func(s *runtime.Scheme) error) FakeKubeClientOp
 }
 
 // WithObjects provides an option to set objects for the fake client.
-func WithObjets(obj ...client.Object) FakeKubeClientOption {
+func WithObjects(obj ...client.Object) FakeKubeClientOption {
 	return func(testEnv *testEnv) {
 		testEnv.obj = obj
 	}
@@ -55,6 +59,18 @@ func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
 		o(t)
 	}
 	return fake.NewClientBuilder().WithScheme(t.scheme).WithObjects(t.obj...).Build()
+}
+
+// FakeKubeClient creates a fake kube client with some defaults and optional arguments.
+func (t *testEnv) FakeDynamicKubeClient(opts ...FakeKubeClientOption) *fakedynamic.FakeDynamicClient {
+	for _, o := range opts {
+		o(t)
+	}
+	var objs []runtime.Object
+	for _, t := range t.obj {
+		objs = append(objs, t)
+	}
+	return fakedynamic.NewSimpleDynamicClient(t.scheme, objs...)
 }
 
 var (
@@ -85,21 +101,23 @@ var (
 		},
 		Spec: v1alpha1.ResourceSpec{
 			Interval: metav1.Duration{Duration: 10 * time.Minute},
-			ComponentVersionRef: meta.NamespacedObjectReference{
-				Name:      "test-component",
-				Namespace: "default",
-			},
-			Resource: v1alpha1.ResourceRef{
-				Name:    "introspect-image",
-				Version: "1.0.0",
-				ReferencePath: []map[string]string{
-					{
-						"name": "test",
+			SourceRef: v1alpha1.ObjectReference{
+				NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+					Kind:      v1alpha1.ComponentVersionKind,
+					Name:      "test-component",
+					Namespace: "default",
+				},
+				ResourceRef: &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name:    "introspect-image",
+						Version: "1.0.0",
+					},
+					ReferencePath: []ocmmetav1.Identity{
+						{
+							"name": "test",
+						},
 					},
 				},
-			},
-			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
-				Name: "snapshot-test-name",
 			},
 		},
 	}
@@ -146,61 +164,129 @@ var (
 	}
 
 	DefaultLocalization = &v1alpha1.Localization{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "Localization",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-localization",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.MutationSpec{
 			Interval: metav1.Duration{},
-			ComponentVersionRef: meta.NamespacedObjectReference{
-				Name:      DefaultComponent.Name,
-				Namespace: DefaultComponent.Namespace,
-			},
-			ConfigRef: &v1alpha1.ConfigReference{
-				Resource: v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name: DefaultResource.Name,
+			ConfigRef: &v1alpha1.ObjectReference{
+				NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+					Kind:      v1alpha1.ComponentVersionKind,
+					Name:      DefaultComponent.Name,
+					Namespace: DefaultComponent.Namespace,
+				},
+				ResourceRef: &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name:    "introspect-image",
+						Version: "1.0.0",
 					},
 				},
 			},
-			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
+			OutputTemplate: &v1alpha1.SnapshotTemplateSpec{
 				Name: "test-localization-modified",
 			},
 		},
 	}
 	DefaultConfiguration = &v1alpha1.Configuration{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "Localization",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-configuration",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.MutationSpec{
 			Interval: metav1.Duration{},
-			ComponentVersionRef: meta.NamespacedObjectReference{
-				Name:      DefaultComponent.Name,
-				Namespace: DefaultComponent.Namespace,
-			},
-			ConfigRef: &v1alpha1.ConfigReference{
-				Resource: v1alpha1.Source{
-					ResourceRef: &v1alpha1.ResourceRef{
-						Name: DefaultResource.Name,
+			ConfigRef: &v1alpha1.ObjectReference{
+				NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+					Kind:      v1alpha1.ComponentVersionKind,
+					Name:      DefaultComponent.Name,
+					Namespace: DefaultComponent.Namespace,
+				},
+				ResourceRef: &v1alpha1.ResourceReference{
+					ElementMeta: v3alpha1.ElementMeta{
+						Name:    "introspect-image",
+						Version: "1.0.0",
+					},
+					ReferencePath: []ocmmetav1.Identity{
+						{
+							"name": "test",
+						},
 					},
 				},
 			},
-			Values: apiextensionsv1.JSON{
+			Values: &apiextensionsv1.JSON{
 				Raw: []byte(`{"message": "this is a new message", "color": "bittersweet"}`),
-			},
-			SnapshotTemplate: v1alpha1.SnapshotTemplateSpec{
-				Name: "test-configuration-modified",
 			},
 		},
 	}
 )
+
+type mockAccessOption func(map[string]any) error
+
+func setAccessType(t string) mockAccessOption {
+	return func(m map[string]any) error {
+		m["type"] = t
+		return nil
+	}
+}
+
+func setAccessRef(t string) mockAccessOption {
+	return func(m map[string]any) error {
+		m["globalAccess"].(map[string]any)["ref"] = t
+		return nil
+	}
+}
+
+func getMockComponent(t *testing.T, cv *v1alpha1.ComponentVersion, opts ...mockAccessOption) *mockComponent {
+	accObj := map[string]any{
+		"globalAccess": map[string]any{
+			"digest":    "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+			"mediaType": "application/vnd.docker.distribution.manifest.v2+tar+gzip",
+			"ref":       "ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
+			"size":      29047129,
+			"type":      "ociBlob",
+		},
+		"localReference": "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+		"mediaType":      "application/vnd.docker.distribution.manifest.v2+tar+gzip",
+		"type":           "localBlob",
+	}
+
+	for _, f := range opts {
+		f(accObj)
+	}
+
+	acc, err := ocmruntime.ToUnstructuredVersionedTypedObject(
+		ocmruntime.UnstructuredTypedObject{
+			Object: accObj,
+		},
+	)
+	require.NoError(t, err)
+
+	cmp := &mockComponent{
+		t: t,
+		descriptor: &ocmdesc.ComponentDescriptor{
+			ComponentSpec: ocmdesc.ComponentSpec{
+				ObjectMeta: v1.ObjectMeta{
+					Name:    cv.Spec.Component,
+					Version: cv.Spec.Version.Semver,
+				},
+				Resources: []ocmdesc.Resource{
+					{
+						ResourceMeta: ocmdesc.ResourceMeta{
+							ElementMeta: ocmdesc.ElementMeta{
+								Name:    "introspect-image",
+								Version: "1.0.0",
+							},
+							Type:     "ociImage",
+							Relation: "local",
+						},
+						Access: acc,
+					},
+				},
+			},
+		},
+	}
+	return cmp
+}
 
 var env *testEnv
 

@@ -8,17 +8,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
-	"github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kuberecorder "k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -53,7 +50,6 @@ type SnapshotReconciler struct {
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots/finalizers,verbs=update
 
-// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // SetupWithManager sets up the controller with the Manager.
@@ -130,44 +126,6 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 
 		return ctrl.Result{}, fmt.Errorf("failed to construct name: %w", err)
-	}
-
-	if obj.Spec.CreateFluxSource {
-		log.Info("reconciling flux oci source for snapshot")
-
-		ociRepoCR := &v1beta2.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: obj.GetNamespace(),
-				Name:      obj.GetName(),
-			},
-		}
-
-		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, ociRepoCR, func() error {
-			if ociRepoCR.ObjectMeta.CreationTimestamp.IsZero() {
-				if err := controllerutil.SetOwnerReference(obj, ociRepoCR, r.Scheme); err != nil {
-					return fmt.Errorf("failed to set owner reference on oci repository source: %w", err)
-				}
-			}
-			ociRepoCR.Spec = v1beta2.OCIRepositorySpec{
-				Interval: metav1.Duration{Duration: time.Hour},
-				Insecure: true,
-				URL:      fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, name),
-				Reference: &v1beta2.OCIRepositoryRef{
-					Tag: obj.Spec.Tag,
-				},
-			}
-			return nil
-		})
-		if err != nil {
-			msg := "failed to create or update oci repository"
-			log.Error(err, msg)
-			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
-			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
-
-			// the `nil` here overwrites the returned error, so it will be empty even if it wasn't before
-			return ctrl.Result{}, nil
-		}
 	}
 
 	obj.Status.LastReconciledDigest = obj.Spec.Digest

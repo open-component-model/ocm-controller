@@ -51,7 +51,7 @@ func (m *MockFetcher) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1
 	return ocm.New(), nil
 }
 
-func (m *MockFetcher) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource v1alpha1.ResourceRef) (io.ReadCloser, string, error) {
+func (m *MockFetcher) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error) {
 	if _, ok := m.getResourceReturns[m.getResourceCallCount]; !ok {
 		return nil, "", fmt.Errorf("unexpected number of calls; not enough return values have been configured; call count %d", m.getResourceCallCount)
 	}

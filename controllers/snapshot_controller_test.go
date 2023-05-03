@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierror "k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +34,7 @@ func TestSnapshotReconciler(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SnapshotSpec{
-			Identity: v1alpha1.Identity{
+			Identity: ocmmetav1.Identity{
 				v1alpha1.ComponentNameKey:    "component-name",
 				v1alpha1.ComponentVersionKey: "v0.0.1",
 				v1alpha1.ResourceNameKey:     "resource-name",
@@ -43,7 +44,7 @@ func TestSnapshotReconciler(t *testing.T) {
 			Tag:    "1234",
 		},
 	}
-	client := env.FakeKubeClient(WithObjets(snapshot))
+	client := env.FakeKubeClient(WithObjects(snapshot))
 	fakeCache := &fakes.FakeCache{}
 	recorder := record.NewFakeRecorder(32)
 
@@ -90,7 +91,7 @@ func TestSnapshotReconcilerDelete(t *testing.T) {
 			},
 		},
 		Spec: v1alpha1.SnapshotSpec{
-			Identity: v1alpha1.Identity{
+			Identity: ocmmetav1.Identity{
 				v1alpha1.ComponentNameKey:    "component-name",
 				v1alpha1.ComponentVersionKey: "v0.0.1",
 				v1alpha1.ResourceNameKey:     "resource-name",
@@ -101,7 +102,7 @@ func TestSnapshotReconcilerDelete(t *testing.T) {
 		},
 	}
 	controllerutil.AddFinalizer(snapshot, snapshotFinalizer)
-	client := env.FakeKubeClient(WithObjets(snapshot))
+	client := env.FakeKubeClient(WithObjects(snapshot))
 	fakeCache := &fakes.FakeCache{}
 	recorder := record.NewFakeRecorder(32)
 
@@ -134,7 +135,7 @@ func TestSnapshotReconcilerDeleteFails(t *testing.T) {
 			},
 		},
 		Spec: v1alpha1.SnapshotSpec{
-			Identity: v1alpha1.Identity{
+			Identity: ocmmetav1.Identity{
 				v1alpha1.ComponentNameKey:    "component-name",
 				v1alpha1.ComponentVersionKey: "v0.0.1",
 				v1alpha1.ResourceNameKey:     "resource-name",
@@ -145,7 +146,7 @@ func TestSnapshotReconcilerDeleteFails(t *testing.T) {
 		},
 	}
 	controllerutil.AddFinalizer(snapshot, snapshotFinalizer)
-	client := env.FakeKubeClient(WithObjets(snapshot))
+	client := env.FakeKubeClient(WithObjects(snapshot))
 	fakeCache := &fakes.FakeCache{}
 	fakeCache.DeleteDataReturns(errors.New("nope"))
 	recorder := record.NewFakeRecorder(32)
@@ -180,7 +181,7 @@ func TestSnapshotReconcilerDeleteFailsWithManifestNotFound(t *testing.T) {
 			},
 		},
 		Spec: v1alpha1.SnapshotSpec{
-			Identity: v1alpha1.Identity{
+			Identity: ocmmetav1.Identity{
 				v1alpha1.ComponentNameKey:    "component-name",
 				v1alpha1.ComponentVersionKey: "v0.0.1",
 				v1alpha1.ResourceNameKey:     "resource-name",
@@ -191,7 +192,7 @@ func TestSnapshotReconcilerDeleteFailsWithManifestNotFound(t *testing.T) {
 		},
 	}
 	controllerutil.AddFinalizer(snapshot, snapshotFinalizer)
-	client := env.FakeKubeClient(WithObjets(snapshot))
+	client := env.FakeKubeClient(WithObjects(snapshot))
 	fakeCache := &fakes.FakeCache{}
 	fakeCache.DeleteDataReturns(&transport.Error{
 		Errors: []transport.Diagnostic{

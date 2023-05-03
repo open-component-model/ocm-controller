@@ -1,0 +1,13 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: FluxDeployer
+metadata:
+  name: monolith
+  namespace: ocm-system
+spec:
+  sourceRef:
+    kind: Localization
+    name: monolith
+  kustomizationTemplate:
+    interval: 1m0s
+    path: ./
+    prune: true

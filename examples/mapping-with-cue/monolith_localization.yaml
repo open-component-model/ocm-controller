@@ -4,16 +4,13 @@ metadata:
   name: deployment
 spec:
   interval: 10m0s
-  componentVersionRef:
+  sourceRef:
+    kind: ComponentVersion
     name: monolith
-    namespace: ocm-system
-  source:
     resourceRef:
       name: deployment
   configRef:
-    resource:
-      resourceRef:
-        name: config
-  snapshotTemplate:
-    name: localized-deployment
-    createFluxSource: true
+    kind: ComponentVersion
+    name: monolith
+    resourceRef:
+      name: config

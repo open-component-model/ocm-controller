@@ -65,7 +65,7 @@ func WithAddToScheme(addToScheme func(s *runtime.Scheme) error) FakeKubeClientOp
 }
 
 // WithObjects provides an option to set objects for the fake client.
-func WithObjets(obj ...client.Object) FakeKubeClientOption {
+func WithObjects(obj ...client.Object) FakeKubeClientOption {
 	return func(testEnv *testEnv) {
 		testEnv.obj = obj
 	}

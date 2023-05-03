@@ -16,7 +16,7 @@ permissions:
   contents: read # for actions/checkout to fetch code
 
 jobs:
-  test-linux:
+  run-test-suite:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

@@ -1,0 +1,12 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: FluxDeployer
+metadata:
+  labels:
+    app.kubernetes.io/name: fluxdeployer
+    app.kubernetes.io/instance: fluxdeployer-sample
+    app.kubernetes.io/part-of: ocm-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: ocm-controller
+  name: fluxdeployer-sample
+spec:
+  # TODO(user): Add fields here

@@ -50,6 +50,9 @@ const (
 	// CreateOrUpdateOCIRepositoryFailedReason is used when the OCIRepository cannot be created or updated.
 	CreateOrUpdateOCIRepositoryFailedReason = "CreateOrUpdateOCIRepositoryFailed"
 
+	// CreateOrUpdateKustomizationFailedReason is used when the Kustomization cannot be created or updated.
+	CreateOrUpdateKustomizationFailedReason = "CreateOrUpdateKustomizationFailed"
+
 	// CreateRepositoryNameReason is used when the generating a new repository name fails.
 	CreateRepositoryNameReason = "CreateRepositoryNameFailed"
 
