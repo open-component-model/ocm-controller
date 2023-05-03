@@ -13,11 +13,24 @@ spec:
     listKind: LocalizationList
     plural: localizations
     shortNames:
-    - cl
+    - lz
     singular: localization
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .status.latestSourceVersion
+      name: Source Version
+      type: string
+    - jsonPath: .status.latestConfigVersion
+      name: Config Version
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Localization is the Schema for the localizations API

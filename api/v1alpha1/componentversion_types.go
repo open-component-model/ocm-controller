@@ -117,19 +117,21 @@ type Reference struct {
 
 // ComponentVersionStatus defines the observed state of ComponentVersion
 type ComponentVersionStatus struct {
-	ComponentDescriptor Reference `json:"componentDescriptor,omitempty"`
-
-	ReconciledVersion string `json:"reconciledVersion,omitempty"`
-	Verified          bool   `json:"verified,omitempty"`
-
-	// +optional
-	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
-	// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// +optional
+	ComponentDescriptor Reference `json:"componentDescriptor,omitempty"`
+
+	// +optional
+	ReconciledVersion string `json:"reconciledVersion,omitempty"`
+
+	// +optional
+	Verified bool `json:"verified,omitempty"`
 }
 
 // GetVersion returns the reconciled version for the component
@@ -161,8 +163,12 @@ func (in ComponentVersion) LookupReferenceForIdentity(key ocmdesc.IdentitySelect
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
 //+kubebuilder:resource:shortName=cv
+//+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+//+kubebuilder:printcolumn:name="Version",type="string",JSONPath=".status.reconciledVersion",description=""
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 
 // ComponentVersion is the Schema for the ComponentVersions API
 type ComponentVersion struct {
