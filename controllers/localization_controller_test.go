@@ -30,6 +30,7 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
+	ocmsnapshot "github.com/open-component-model/ocm-controller/pkg/snapshot"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
@@ -687,6 +688,7 @@ localization:
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
 			recorder := record.NewFakeRecorder(32)
+			snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
 			tt.mock(cache, fakeOcm)
 
 			lr := LocalizationReconciler{
@@ -697,11 +699,12 @@ localization:
 				EventRecorder: recorder,
 				Cache:         cache,
 				MutationReconciler: MutationReconcileLooper{
-					Client:        client,
-					DynamicClient: dynClient,
-					Scheme:        env.scheme,
-					OCMClient:     fakeOcm,
-					Cache:         cache,
+					Client:         client,
+					DynamicClient:  dynClient,
+					Scheme:         env.scheme,
+					OCMClient:      fakeOcm,
+					Cache:          cache,
+					SnapshotWriter: snapshotWriter,
 				},
 			}
 
