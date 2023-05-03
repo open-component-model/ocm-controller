@@ -15,7 +15,7 @@ permissions:
   contents: read # for actions/checkout to fetch code
 
 jobs:
-  kind-linux:
+  run-e2e-suite:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

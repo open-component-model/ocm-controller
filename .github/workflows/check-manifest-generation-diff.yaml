@@ -4,7 +4,7 @@ on:
   pull_request: {}
 
 jobs:
-  check:
+  diff-check-manifests:
     name: Check for diff
     runs-on: ubuntu-latest
     steps:
