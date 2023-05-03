@@ -19,7 +19,7 @@ import (
 // Writer creates a snapshot using an artifact path as location for the snapshot
 // data.
 type Writer interface {
-	Write(ctx context.Context, owner client.Object, sourceDir string, identity ocmmetav1.Identity) (string, error)
+	Write(ctx context.Context, owner v1alpha1.MutationObject, sourceDir string, identity ocmmetav1.Identity) (string, error)
 }
 
 // OCIWriter writes snapshot data into the cluster-local OCI cache.
@@ -38,17 +38,11 @@ func NewOCIWriter(client client.Client, cache cache.Cache, scheme *runtime.Schem
 	}
 }
 
-func (w *OCIWriter) Write(ctx context.Context, template v1alpha1.SnapshotTemplateSpec, owner client.Object, sourceDir string, identity ocmmetav1.Identity) (digest string, err error) {
+func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.MutationObject, sourceDir string, identity ocmmetav1.Identity) (digest string, err error) {
 	artifactPath, err := os.CreateTemp("", "snapshot-artifact-*.tgz")
 	if err != nil {
 		return "", fmt.Errorf("fs error: %w", err)
 	}
-
-	defer func() {
-		if removeErr := os.Remove(artifactPath.Name()); removeErr != nil {
-			err = errors.Join(err, removeErr)
-		}
-	}()
 
 	if err := buildTar(artifactPath.Name(), sourceDir); err != nil {
 		return "", fmt.Errorf("build tar error: %w", err)
@@ -60,8 +54,11 @@ func (w *OCIWriter) Write(ctx context.Context, template v1alpha1.SnapshotTemplat
 	}
 
 	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
+		if closeErr := file.Close(); closeErr != nil && !errors.Is(closeErr, os.ErrClosed) {
 			err = errors.Join(err, closeErr)
+		}
+		if removeErr := os.Remove(artifactPath.Name()); removeErr != nil {
+			err = errors.Join(err, removeErr)
 		}
 	}()
 
@@ -77,7 +74,7 @@ func (w *OCIWriter) Write(ctx context.Context, template v1alpha1.SnapshotTemplat
 
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      template.Name,
+			Name:      owner.GetSnapshotName(),
 			Namespace: owner.GetNamespace(),
 		},
 	}

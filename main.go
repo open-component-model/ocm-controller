@@ -26,6 +26,7 @@ import (
 	"github.com/open-component-model/ocm-controller/controllers"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -87,6 +88,7 @@ func main() {
 
 	cache := oci.NewClient(ociRegistryAddr)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
+	snapshotWriter := snapshot.NewOCIWriter(mgr.GetClient(), cache, mgr.GetScheme())
 	dynClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		setupLog.Error(err, "unable to get dynamic config client", "controller", "ocm-controller")
@@ -132,11 +134,12 @@ func main() {
 	}
 
 	mutationReconciler := controllers.MutationReconcileLooper{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		OCMClient:     ocmClient,
-		DynamicClient: dynClient,
-		Cache:         cache,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		OCMClient:      ocmClient,
+		DynamicClient:  dynClient,
+		Cache:          cache,
+		SnapshotWriter: snapshotWriter,
 	}
 
 	if err = (&controllers.LocalizationReconciler{

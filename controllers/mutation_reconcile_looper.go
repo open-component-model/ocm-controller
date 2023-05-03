@@ -157,7 +157,10 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 	defer os.RemoveAll(sourceDir)
 
 	_, err = m.SnapshotWriter.Write(ctx, obj, sourceDir, snapshotID)
-	return err
+	if err != nil {
+		return fmt.Errorf("error writing snapshot: %w", err)
+	}
+	return nil
 }
 
 func (m *MutationReconcileLooper) configure(ctx context.Context, data []byte, configObj []byte, configValues *apiextensionsv1.JSON) (string, error) {
@@ -236,26 +239,6 @@ func (m *MutationReconcileLooper) localize(ctx context.Context, cv *v1alpha1.Com
 	}
 
 	return sourceDir, nil
-}
-
-func (m *MutationReconcileLooper) writeToCache(ctx context.Context, identity ocmmetav1.Identity, artifactPath string, version string) (string, error) {
-	file, err := os.Open(artifactPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open created archive: %w", err)
-	}
-	defer file.Close()
-
-	name, err := ocm.ConstructRepositoryName(identity)
-	if err != nil {
-		return "", fmt.Errorf("failed to construct name: %w", err)
-	}
-
-	digest, err := m.Cache.PushData(ctx, file, name, version)
-	if err != nil {
-		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
-	}
-
-	return digest, nil
 }
 
 func (m *MutationReconcileLooper) fetchDataFromObjectReference(ctx context.Context, obj *v1alpha1.ObjectReference) ([]byte, error) {
