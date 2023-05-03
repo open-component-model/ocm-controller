@@ -871,6 +871,8 @@ github.com/open-component-model/ocm-controllers-sdk v0.0.6 h1:EriZ9IhYfVyPfvvglL
 github.com/open-component-model/ocm-controllers-sdk v0.0.6/go.mod h1:npwcEnReNGiZ8DAJ5WEpcmenGWqHhMUHbN0040oS/CM=
 github.com/open-component-model/ocm-e2e-framework v0.1.0 h1:nvfcGyaUNwEFIE8bMLti9vR+HApCCNm/JsR6Af4sNLE=
 github.com/open-component-model/ocm-e2e-framework v0.1.0/go.mod h1:mjMfRjdh6kLPI3kWKUh9jgWNZllFlPIVEymHlBpPZ+Y=
+github.com/open-component-model/ocm-e2e-framework v0.3.1 h1:WxpNFfZ/718vk8Pj60ps4wlNbqLUZbt0q+16R/ZDfMA=
+github.com/open-component-model/ocm-e2e-framework v0.3.1/go.mod h1:mjMfRjdh6kLPI3kWKUh9jgWNZllFlPIVEymHlBpPZ+Y=
 github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v0.0.0-20180430190053-c9281466c8b2/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v1.0.0-rc1/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=

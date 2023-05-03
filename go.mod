@@ -28,7 +28,7 @@ require (
 	github.com/onsi/gomega v1.27.6
 	github.com/open-component-model/ocm v0.3.0-rc.1.0.20230408161516-7bac90d616ab
 	github.com/open-component-model/ocm-controllers-sdk v0.0.6
-	github.com/open-component-model/ocm-e2e-framework v0.1.0
+	github.com/open-component-model/ocm-e2e-framework v0.3.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc2
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
