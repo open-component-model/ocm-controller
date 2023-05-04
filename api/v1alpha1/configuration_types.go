@@ -12,7 +12,11 @@ import (
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:resource:shortName=cf
+//+kubebuilder:resource:shortName=cfg
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+//+kubebuilder:printcolumn:name="Source Version",type="string",JSONPath=".status.latestSourceVersion",description=""
+//+kubebuilder:printcolumn:name="Config Version",type="string",JSONPath=".status.latestConfigVersion",description=""
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 
 // Configuration is the Schema for the configurations API
 type Configuration struct {

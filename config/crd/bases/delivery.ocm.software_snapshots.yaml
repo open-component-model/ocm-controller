@@ -13,11 +13,18 @@ spec:
     listKind: SnapshotList
     plural: snapshots
     shortNames:
-    - cs
+    - snap
     singular: snapshot
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].message
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Snapshot is the Schema for the snapshots API

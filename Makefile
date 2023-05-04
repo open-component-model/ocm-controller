@@ -11,6 +11,7 @@ REG_TAG ?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.1
 
+GOTESTSUM ?= $(LOCALBIN)/gotestsum
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -23,6 +24,11 @@ endif
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
 
 .PHONY: all
 all: build
@@ -71,8 +77,8 @@ test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
-e2e:
-	go test -v -count=1 -tags e2e ./e2e
+e2e: test-summary-tool ## Runs e2e tests
+	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e
 
 ##@ Build
 
@@ -143,10 +149,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 
 ##@ Build Dependencies
 
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
+
 
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
@@ -172,6 +175,10 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: test-summary-tool 
+test-summary-tool: ## Download gotestsum locally if necessary.
+	GOBIN=$(LOCALBIN) go install gotest.tools/gotestsum@${TAG}
 
 .PHONY: generate-license
 generate-license:

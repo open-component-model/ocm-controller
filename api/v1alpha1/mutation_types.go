@@ -76,9 +76,6 @@ func (in MutationSpec) GetRequeueAfter() time.Duration {
 	return in.Interval.Duration
 }
 
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
-// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
-
 // MutationStatus defines a common status for Localizations and Configurations.
 type MutationStatus struct {
 	// ObservedGeneration is the last reconciled generation.

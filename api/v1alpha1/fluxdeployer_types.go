@@ -19,10 +19,6 @@ type FluxDeployerSpec struct {
 	KustomizationTemplate kustomizev1.KustomizationSpec `json:"kustomizationTemplate"`
 }
 
-// +kubebuilder:resource:shortName=fd
-// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
-// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
-
 // FluxDeployerStatus defines the observed state of FluxDeployer
 type FluxDeployerStatus struct {
 	// ObservedGeneration is the last reconciled generation.
@@ -51,6 +47,9 @@ func (in *FluxDeployer) SetConditions(conditions []metav1.Condition) {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=fd
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 
 // FluxDeployer is the Schema for the fluxdeployers API
 type FluxDeployer struct {

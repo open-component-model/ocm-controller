@@ -45,8 +45,6 @@ type SnapshotSpec struct {
 // SnapshotStatus defines the observed state of Snapshot
 type SnapshotStatus struct {
 	// +optional
-	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
-	// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// Digest is calculated by the caching layer.
@@ -91,9 +89,11 @@ func (in *Snapshot) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:shortName=cs
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=snap
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 
 // Snapshot is the Schema for the snapshots API
 type Snapshot struct {

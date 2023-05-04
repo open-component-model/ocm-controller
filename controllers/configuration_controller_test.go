@@ -36,6 +36,7 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
+	ocmsnapshot "github.com/open-component-model/ocm-controller/pkg/snapshot"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
@@ -678,6 +679,7 @@ configuration:
 			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
 			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
 			cache := &cachefakes.FakeCache{}
+			snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
 			fakeOcm := &fakes.MockFetcher{}
 			recorder := record.NewFakeRecorder(32)
 			tt.mock(cache, fakeOcm)
@@ -688,11 +690,12 @@ configuration:
 				Scheme:        env.scheme,
 				EventRecorder: recorder,
 				MutationReconciler: MutationReconcileLooper{
-					Client:        client,
-					DynamicClient: dynClient,
-					Scheme:        env.scheme,
-					OCMClient:     fakeOcm,
-					Cache:         cache,
+					Client:         client,
+					DynamicClient:  dynClient,
+					Scheme:         env.scheme,
+					OCMClient:      fakeOcm,
+					Cache:          cache,
+					SnapshotWriter: snapshotWriter,
 				},
 			}
 

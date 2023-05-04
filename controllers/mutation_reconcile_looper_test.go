@@ -10,15 +10,18 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/component"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/component"
+	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 )
 
 type componentGenerator struct {
@@ -109,9 +112,11 @@ func TestPopulateReferences(t *testing.T) {
 
 	client := env.FakeKubeClient(WithObjects(objs...))
 
+	ociWriter := snapshot.NewOCIWriter(client, nil, env.scheme)
 	m := &MutationReconcileLooper{
-		Scheme: env.scheme,
-		Client: client,
+		Scheme:         env.scheme,
+		Client:         client,
+		SnapshotWriter: ociWriter,
 	}
 
 	root := cueCtx.CompileString("component:{}").FillPath(cue.ParsePath("component"), cueCtx.Encode(frontend.Spec))
