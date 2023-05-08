@@ -19,7 +19,7 @@ import (
 // Writer creates a snapshot using an artifact path as location for the snapshot
 // data.
 type Writer interface {
-	Write(ctx context.Context, owner v1alpha1.MutationObject, sourceDir string, identity ocmmetav1.Identity) (string, error)
+	Write(ctx context.Context, owner v1alpha1.SnapshotWriter, sourceDir string, identity ocmmetav1.Identity) (string, error)
 }
 
 // OCIWriter writes snapshot data into the cluster-local OCI cache.
@@ -38,7 +38,7 @@ func NewOCIWriter(client client.Client, cache cache.Cache, scheme *runtime.Schem
 	}
 }
 
-func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.MutationObject, sourceDir string, identity ocmmetav1.Identity) (digest string, err error) {
+func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, sourceDir string, identity ocmmetav1.Identity) (digest string, err error) {
 	artifactPath, err := os.CreateTemp("", "snapshot-artifact-*.tgz")
 	if err != nil {
 		return "", fmt.Errorf("fs error: %w", err)
