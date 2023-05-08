@@ -17,10 +17,9 @@ limitations under the License.
 package controllers
 
 import (
+	v1 "github.com/fluxcd/source-controller/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 )
 
 type SourceRevisionChangePredicate struct {
@@ -32,12 +31,12 @@ func (SourceRevisionChangePredicate) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	oldSource, ok := e.ObjectOld.(sourcev1.Source)
+	oldSource, ok := e.ObjectOld.(v1.Source)
 	if !ok {
 		return false
 	}
 
-	newSource, ok := e.ObjectNew.(sourcev1.Source)
+	newSource, ok := e.ObjectNew.(v1.Source)
 	if !ok {
 		return false
 	}

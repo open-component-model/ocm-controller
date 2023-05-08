@@ -251,7 +251,7 @@ func getMockComponent(t *testing.T, cv *v1alpha1.ComponentVersion, opts ...mockA
 	}
 
 	for _, f := range opts {
-		f(accObj)
+		require.NoError(t, f(accObj))
 	}
 
 	acc, err := ocmruntime.ToUnstructuredVersionedTypedObject(
