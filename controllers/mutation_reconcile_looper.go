@@ -156,10 +156,10 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 
 	defer os.RemoveAll(sourceDir)
 
-	_, err = m.SnapshotWriter.Write(ctx, obj, sourceDir, snapshotID)
-	if err != nil {
+	if _, err = m.SnapshotWriter.Write(ctx, obj, sourceDir, snapshotID); err != nil {
 		return fmt.Errorf("error writing snapshot: %w", err)
 	}
+
 	return nil
 }
 
@@ -399,8 +399,9 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx con
 			case *localblob.AccessSpec:
 				if x.GlobalAccess == nil {
 					refErr = errors.New("cannot determine image digest")
+				} else {
+					accSpec, refErr = octx.AccessSpecForSpec(x.GlobalAccess)
 				}
-				accSpec, refErr = octx.AccessSpecForSpec(x.GlobalAccess)
 			default:
 				refErr = errors.New("cannot determine access spec type")
 			}

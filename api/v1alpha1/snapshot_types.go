@@ -7,6 +7,7 @@ package v1alpha1
 import (
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -22,9 +23,10 @@ const (
 	SourceArtifactChecksumKey = "source-artifact-checksum"
 )
 
-// SnapshotProducer defines any object which produces a snapshot
+// SnapshotWriter defines any object which produces a snapshot
 // +k8s:deepcopy-gen=false
-type SnapshotProducer interface {
+type SnapshotWriter interface {
+	client.Object
 	GetSnapshotDigest() string
 	GetSnapshotName() string
 }
