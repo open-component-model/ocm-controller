@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/go-logr/logr"
 	"github.com/mitchellh/hashstructure/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -205,7 +206,15 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	}
 	defer reader.Close()
 
-	digest, err := c.cache.PushData(ctx, reader, name, version)
+	decompressedReader, decompressed, err := compression.AutoDecompress(reader)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to autodecompress content: %w", err)
+	}
+	if decompressed {
+		logger.V(4).Info("resource data was automatically decompressed")
+	}
+
+	digest, err := c.cache.PushData(ctx, decompressedReader, name, version)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to cache blob: %w", err)
 	}
