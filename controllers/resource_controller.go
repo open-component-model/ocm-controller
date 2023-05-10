@@ -206,6 +206,11 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	}
 	defer reader.Close()
 
+	// for each resolver
+	// - get the wasm binary
+	// - get the resource
+	// - download the resource
+
 	version := "latest"
 	if obj.Spec.SourceRef.GetVersion() != "" {
 		version = obj.Spec.SourceRef.GetVersion()

@@ -49,23 +49,24 @@ spec:
             properties:
               interval:
                 type: string
-              outputTemplate:
-                description: SnapshotTemplateSpec defines the template used to create
-                  snapshots
-                properties:
-                  annotations:
-                    additionalProperties:
+              resolvers:
+                description: Resolvers
+                items:
+                  description: Resolver defines a component containing a wasm binary
+                    that can be used to resolve artifact references
+                  properties:
+                    component:
                       type: string
-                    type: object
-                  labels:
-                    additionalProperties:
+                    name:
                       type: string
-                    type: object
-                  name:
-                    type: string
-                required:
-                - name
-                type: object
+                    registry:
+                      default: ghcr.io/open-component-model
+                      type: string
+                  required:
+                  - component
+                  - name
+                  type: object
+                type: array
               sourceRef:
                 description: SourceRef defines the input source from which the resource
                   will be retrieved
@@ -143,9 +144,6 @@ spec:
               suspend:
                 description: Suspend stops all operations on this object.
                 type: boolean
-            required:
-            - interval
-            - sourceRef
             type: object
           status:
             default:

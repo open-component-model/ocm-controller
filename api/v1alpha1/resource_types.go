@@ -14,19 +14,33 @@ import (
 // ResourceSpec defines the desired state of Resource
 type ResourceSpec struct {
 	// +required
-	Interval metav1.Duration `json:"interval"`
+	Interval metav1.Duration `json:"interval,omitempty"`
 
 	// SourceRef defines the input source from which the resource
 	// will be retrieved
 	// +required
-	SourceRef ObjectReference `json:"sourceRef"`
+	SourceRef ObjectReference `json:"sourceRef,omitempty"`
 
-	// +required
-	OutputTemplate *SnapshotTemplateSpec `json:"outputTemplate,omitempty"`
+	// Resolvers
+	Resolvers []Resolver `json:"resolvers,omitempty"`
 
 	// Suspend stops all operations on this object.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
+}
+
+// Resolver defines a component containing a wasm binary that
+// can be used to resolve artifact references
+type Resolver struct {
+	// +required
+	Name string `json:"name"`
+
+	// +required
+	Component string `json:"component"`
+
+	// +optional
+	// +kubebuilder:default="ghcr.io/open-component-model"
+	Registry string `json:"registry,omitempty"`
 }
 
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
