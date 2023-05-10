@@ -77,8 +77,12 @@ test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
-e2e: test-summary-tool ## Runs e2e tests
-	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e
+e2e: test-summary-tool ## Runs e2e tests -count=1
+	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e 
+
+.PHONY: e2e-verbose
+e2e-verbose: test-summary-tool ## Runs e2e tests -count=0
+	$(GOTESTSUM) --format testname -- -v -tags=e2e ./e2e 
 
 ##@ Build
 

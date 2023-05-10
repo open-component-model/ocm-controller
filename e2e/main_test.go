@@ -33,6 +33,7 @@ import (
 var (
 	testRepoName    = "ocm-controller-test"
 	timeoutDuration = time.Minute * 2
+	longerTimeoutDuration = time.Minute * 5
 	cvManifest      = setup.File{
 		RepoName:       testRepoName,
 		SourceFilepath: "component_version.yaml",
@@ -315,6 +316,75 @@ func checkIsFluxDeployerReady(name string) features.Func {
 			}
 			return fconditions.IsTrue(obj, meta.ReadyCondition)
 		}), wait.WithTimeout(timeoutDuration))
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return ctx
+	}
+}
+
+func TestHappyPath(t *testing.T) {
+	t.Log("running ocm-controller happy path tests")
+
+	management := features.New("Configure Management Repository").
+		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
+		Setup(setup.AddScheme(sourcev1.AddToScheme)).
+		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
+		Setup(setup.AddGitRepository(testRepoName)).
+		Setup(setup.AddFluxSyncForRepo(testRepoName, "projects/", namespace)).
+		Assess("project flux resources have been created", checkFluxResourcesReady(testRepoName)).
+		Setup(setup.CreateNamespace(namespace))
+
+	setupComponent := createTestComponentVersion(t)
+
+	testEnv.Test(t,
+		setupComponent.Feature(),
+		management.Feature(),
+	)
+}
+
+func checkFluxResourcesReady(name string) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Helper()
+
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fail()
+		}
+
+		t.Logf("checking if GitRepository object %s is ready...", name)
+		gr := &sourcev1.GitRepository{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "flux-system"},
+		}
+
+		err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
+			obj, ok := object.(*sourcev1.GitRepository)
+			if !ok {
+				return false
+			}
+
+			return fconditions.IsTrue(obj, meta.ReadyCondition)
+		}), wait.WithTimeout(longerTimeoutDuration))
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("checking if Kustomization object %s is ready...", name)
+		kust := &kustomizev1.Kustomization{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "flux-system"},
+		}
+
+		err = wait.For(conditions.New(client.Resources()).ResourceMatch(kust, func(object k8s.Object) bool {
+			obj, ok := object.(*kustomizev1.Kustomization)
+			if !ok {
+				return false
+			}
+
+			return fconditions.IsTrue(obj, meta.ReadyCondition)
+		}), wait.WithTimeout(longerTimeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)

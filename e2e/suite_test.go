@@ -9,6 +9,7 @@ package e2e
 import (
 	"os"
 	"testing"
+	"time"
 
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -28,7 +29,7 @@ func TestMain(m *testing.M) {
 
 	cfg, _ := envconf.NewFromFlags()
 	testEnv = env.NewWithConfig(cfg)
-	kindClusterName = envconf.RandomName("ocm-ctrl-e2e", 32)
+	kindClusterName = envconf.RandomName("ocm-ctrl-e2e"+time.Now().Format("2006-01-02-15-04-05"), 32)
 	namespace = "ocm-system"
 
 	stopChannelRegistry := make(chan struct{}, 1)
@@ -43,14 +44,29 @@ func TestMain(m *testing.M) {
 		shared.ForwardPortForAppName("registry", 5000, stopChannelRegistry),
 		shared.ForwardPortForAppName("gitea", 3000, stopChannelGitea),
 	)
+	// testEnv.AfterEachTest(
+	// 	shared.RemoveGitServer(namespace),
+	// 	shared.ShutdownPortForward(stopChannelRegistry),
+	// 	shared.ShutdownPortForward(stopChannelGitea),
+	// 	envfuncs.DeleteNamespace(namespace),
+	// 	envfuncs.DestroyKindCluster(kindClusterName),	)
 
-	testEnv.Finish(
-		shared.RemoveGitServer(namespace),
-		shared.ShutdownPortForward(stopChannelRegistry),
-		shared.ShutdownPortForward(stopChannelGitea),
-		envfuncs.DeleteNamespace(namespace),
-		envfuncs.DestroyKindCluster(kindClusterName),
-	)
+	// testEnv.AfterEachTest(func(ctx context.Context, cfg *envconf.Config, t *testing.T)  {
+	// 	shared.RemoveGitServer(namespace),
+	// 	shared.ShutdownPortForward(stopChannelRegistry),
+	// 	shared.ShutdownPortForward(stopChannelGitea),
+	// 	envfuncs.DeleteNamespace(namespace),
+	// 	envfuncs.DestroyKindCluster(kindClusterName),
+	// })
+	// // The deletion uses the typical c.Resources() object.
+	// cfg.Client().Resources().Delete(ctx,&nsObj)
 
+	// testEnv.Finish(
+	// 	shared.RemoveGitServer(namespace),
+	// 	shared.ShutdownPortForward(stopChannelRegistry),
+	// 	shared.ShutdownPortForward(stopChannelGitea),
+	// 	envfuncs.DeleteNamespace(namespace),
+	// 	envfuncs.DestroyKindCluster(kindClusterName),
+	// )
 	os.Exit(testEnv.Run(m))
 }
