@@ -52,7 +52,7 @@ spec:
               resolvers:
                 description: Resolvers
                 items:
-                  description: Resolver defines a component containing a wasm binary
+                  description: Middleware defines a component containing a wasm binary
                     that can be used to resolve artifact references
                   properties:
                     component:
@@ -60,8 +60,10 @@ spec:
                     name:
                       type: string
                     registry:
-                      default: ghcr.io/open-component-model
+                      default: ghcr.io/phoban01
                       type: string
+                    values:
+                      x-kubernetes-preserve-unknown-fields: true
                   required:
                   - component
                   - name

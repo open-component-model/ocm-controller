@@ -6,20 +6,29 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
+	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/mandelsoft/vfs/pkg/projectionfs"
+	"github.com/tetratelabs/wazero"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
+	"k8s.io/kubectl/pkg/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,7 +45,19 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
+	"github.com/open-component-model/ocm/pkg/common"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartifact"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/download/handlers/dirtree"
+
+	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	"github.com/wapc/wapc-go"
+	wazeroEngine "github.com/wapc/wapc-go/engines/wazero"
+
+	"github.com/tetratelabs/wazero"
+	"github.com/wapc/wapc-go"
 )
 
 // ResourceReconciler reconciles a Resource object
@@ -183,33 +204,120 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	conditions.Delete(obj, meta.StalledCondition)
 
-	var componentVersion v1alpha1.ComponentVersion
-	if err := r.Get(ctx, obj.Spec.SourceRef.GetObjectKey(), &componentVersion); err != nil {
+	var componentVersion *v1alpha1.ComponentVersion
+	if err := r.Get(ctx, obj.Spec.SourceRef.GetObjectKey(), componentVersion); err != nil {
 		err = fmt.Errorf("failed to get component version: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 		return ctrl.Result{}, err
 	}
 
-	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, &componentVersion)
+	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, componentVersion)
 	if err != nil {
 		err = fmt.Errorf("failed to create authenticated client: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
 	}
 
-	reader, digest, err := r.OCMClient.GetResource(ctx, octx, &componentVersion, obj.Spec.SourceRef.ResourceRef)
+	cv, err := r.OCMClient.GetComponentVersion(ctx, octx, componentVersion)
 	if err != nil {
-		err = fmt.Errorf("failed to get resource: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 		return ctrl.Result{}, err
 	}
-	defer reader.Close()
 
-	// for each resolver
-	// - get the wasm binary
-	// - get the resource
-	// - download the resource
+	res, err := cv.GetResource(ocmmetav1.NewIdentity(obj.Spec.SourceRef.ResourceRef.Name))
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	dir, err := os.MkdirTemp("", "wasm-tmp-")
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	defer os.RemoveAll(dir)
+
+	tmpfs, err := projectionfs.New(osfs.New(), dir)
+	if err != nil {
+		os.Remove(dir)
+	}
+
+	_, _, err = dirtree.New().Download(common.NewPrinter(os.Stdout), res, "", tmpfs)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, e error) error {
+		if d.IsDir() {
+			return nil
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		decode := scheme.Codecs.UniversalDeserializer().Decode
+		obj, _, err := decode(data, nil, nil)
+		b, err := json.Marshal(obj)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(p, b, fs.ModeType)
+	})
+
+	engine := wazeroEngine.Engine()
+
+	for _, md := range obj.Spec.Middleware {
+		repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(md.Registry, nil))
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		defer repo.Close()
+
+		component := strings.Split(md.Component, ":")
+		middlewareCV, err := repo.LookupComponentVersion(component[0], component[1])
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		defer cv.Close()
+
+		res, err := middlewareCV.GetResource(ocmmetav1.NewIdentity(md.Name))
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		meth, err := res.AccessMethod()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		data, err := meth.Get()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		module, err := engine.New(ctx, makeHost(cv, dir), data, &wapc.ModuleConfig{
+			Logger: wapc.PrintlnLogger,
+			Stdout: os.Stdout,
+			Stderr: os.Stderr,
+		})
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		defer module.Close(ctx)
+
+		module.(*wazeroEngine.Module).WithConfig(func(config wazero.ModuleConfig) wazero.ModuleConfig {
+			conf := wazero.NewFSConfig().WithDirMount(dir, "/data")
+			return config.WithFSConfig(conf).WithSysWalltime()
+		})
+
+		instance, err := module.Instantiate(ctx)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		defer instance.Close(ctx)
+
+		_, err = instance.Invoke(ctx, "handler", md.Values)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	version := "latest"
 	if obj.Spec.SourceRef.GetVersion() != "" {
@@ -324,4 +432,61 @@ func (r *ResourceReconciler) findObjects(key string) func(client.Object) []recon
 
 		return requests
 	}
+}
+
+func makeHost(cv ocm.ComponentVersionAccess, dir string) func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
+	return func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
+		if binding != "ocm.software" {
+			return nil, errors.New("unrecognised binding")
+		}
+		switch namespace {
+		case "get":
+			switch operation {
+			case "resource":
+				res, err := cv.GetResource(ocmmetav1.NewIdentity(string(payload)))
+				if err != nil {
+					return nil, err
+				}
+
+				ref, err := getReference(cv.GetContext(), res)
+				if err != nil {
+					return nil, err
+				}
+
+				return []byte(ref), nil
+			}
+		}
+		return nil, errors.New("unrecognised namespace")
+	}
+}
+
+func getReference(octx ocm.Context, res ocm.ResourceAccess) (string, error) {
+	accSpec, err := res.Access()
+	if err != nil {
+		return "", err
+	}
+
+	var (
+		ref    string
+		refErr error
+	)
+
+	for ref == "" && refErr == nil {
+		switch x := accSpec.(type) {
+		case *ociartifact.AccessSpec:
+			ref = x.ImageReference
+		case *ociblob.AccessSpec:
+			ref = fmt.Sprintf("%s@%s", x.Reference, x.Digest)
+		case *localblob.AccessSpec:
+			if x.GlobalAccess == nil {
+				refErr = errors.New("cannot determine image digest")
+			} else {
+				accSpec, refErr = octx.AccessSpecForSpec(x.GlobalAccess)
+			}
+		default:
+			refErr = errors.New("cannot determine access spec type")
+		}
+	}
+
+	return ref, nil
 }

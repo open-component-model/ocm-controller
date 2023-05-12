@@ -8,6 +8,7 @@ import (
 	"time"
 
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -21,17 +22,17 @@ type ResourceSpec struct {
 	// +required
 	SourceRef ObjectReference `json:"sourceRef,omitempty"`
 
-	// Resolvers
-	Resolvers []Resolver `json:"resolvers,omitempty"`
+	// Middleware
+	Middleware []Middleware `json:"resolvers,omitempty"`
 
 	// Suspend stops all operations on this object.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
 }
 
-// Resolver defines a component containing a wasm binary that
+// Middleware defines a component containing a wasm binary that
 // can be used to resolve artifact references
-type Resolver struct {
+type Middleware struct {
 	// +required
 	Name string `json:"name"`
 
@@ -39,8 +40,11 @@ type Resolver struct {
 	Component string `json:"component"`
 
 	// +optional
-	// +kubebuilder:default="ghcr.io/open-component-model"
+	// +kubebuilder:default="ghcr.io/phoban01"
 	Registry string `json:"registry,omitempty"`
+
+	// +optional
+	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
