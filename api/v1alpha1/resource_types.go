@@ -23,7 +23,7 @@ type ResourceSpec struct {
 	SourceRef ObjectReference `json:"sourceRef,omitempty"`
 
 	// Middleware
-	Middleware []Middleware `json:"resolvers,omitempty"`
+	Middleware []Middleware `json:"middleware,omitempty"`
 
 	// Suspend stops all operations on this object.
 	// +optional

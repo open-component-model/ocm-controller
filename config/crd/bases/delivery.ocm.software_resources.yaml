@@ -49,8 +49,8 @@ spec:
             properties:
               interval:
                 type: string
-              resolvers:
-                description: Resolvers
+              middleware:
+                description: Middleware
                 items:
                   description: Middleware defines a component containing a wasm binary
                     that can be used to resolve artifact references

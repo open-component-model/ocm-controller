@@ -123,11 +123,12 @@ func main() {
 	}
 
 	if err = (&controllers.ResourceReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		EventRecorder: eventsRecorder,
-		OCMClient:     ocmClient,
-		Cache:         cache,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		EventRecorder:  eventsRecorder,
+		OCMClient:      ocmClient,
+		Cache:          cache,
+		SnapshotWriter: snapshotWriter,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Resource")
 		os.Exit(1)
