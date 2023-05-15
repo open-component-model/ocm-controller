@@ -156,7 +156,7 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	// if the snapshot name has not been generated then
 	// generate, patch the status and requeue
 	if obj.GetSnapshotName() == "" {
-		name, err := snapshot.GetSnapshotNameForObject(obj.GetName(), obj)
+		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -243,15 +243,14 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		identity[k] = v
 	}
 
-	snapshotName, err := snapshot.GetSnapshotNameForObject(obj.GetName(), obj)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to generate snapshotname: %w", err)
+	if obj.GetSnapshotName() == "" {
+		return ctrl.Result{}, fmt.Errorf("snapshot name should not be empty")
 	}
 
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
-			Name:      snapshotName,
+			Name:      obj.GetSnapshotName(),
 		},
 	}
 
@@ -280,7 +279,6 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	obj.Status.LastAppliedResourceVersion = obj.Spec.SourceRef.GetVersion()
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
-	obj.Status.SnapshotName = snapshotName
 
 	logger.Info("successfully reconciled resource", "name", obj.GetName())
 

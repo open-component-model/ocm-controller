@@ -10,14 +10,12 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // MutationObject defines any object which produces a snapshot
 // +k8s:deepcopy-gen=false
 type MutationObject interface {
-	client.Object
-	SnapshotProducer
+	SnapshotWriter
 	GetSpec() *MutationSpec
 	GetStatus() *MutationStatus
 }

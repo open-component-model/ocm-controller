@@ -207,7 +207,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Info("source ref object is not ready with error", "error", err)
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
-	if ready != true {
+	if !ready {
 		logger.Info("source ref object is not ready", "source", obj.Spec.SourceRef.GetNamespacedName())
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
@@ -218,7 +218,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			logger.Info("config ref object is not ready with error", "error", err)
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
-		if ready != true {
+		if !ready {
 			logger.Info("config ref object is not ready", "source", obj.Spec.SourceRef.GetNamespacedName())
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
@@ -231,7 +231,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
-		if ready != true {
+		if !ready {
 			ref := obj.Spec.PatchStrategicMerge.Source.SourceRef
 			logger.Info("patch git repository object is not ready",
 				"gitrepository", (types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}).String())
@@ -242,7 +242,7 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// if the snapshot name has not been generated then
 	// generate, patch the status and requeue
 	if obj.GetSnapshotName() == "" {
-		name, err := snapshot.GetSnapshotNameForObject(obj.GetName(), obj)
+		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
 			return ctrl.Result{}, err
 		}
