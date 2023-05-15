@@ -233,4 +233,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
+//replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
