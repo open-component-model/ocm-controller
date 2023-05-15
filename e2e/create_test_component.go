@@ -11,10 +11,18 @@ import (
 	"github.com/open-component-model/ocm-e2e-framework/shared/steps/setup"
 )
 
+var (
+	basePath                     = "testdata/testOCIRegistryComponents"
+	podinfoComponentName         = "mpas.ocm.software/podinfo"
+	podinfoBackendComponentName  = "mpas.ocm.software/podinfo/backend"
+	podinfoFrontendComponentName = "mpas.ocm.software/podinfo/frontend"
+	redisComponentName           = "mpas.ocm.software/redis"
+)
+
 func createTestComponentVersion(t *testing.T) *features.FeatureBuilder {
 	t.Helper()
 
-	return features.New("Setup OCM component for testing").
+	return features.New("Add components to component-version").
 		Setup(setup.AddComponentVersions(podinfo(t))).
 		Setup(setup.AddComponentVersions(podinfoBackend(t))).
 		Setup(setup.AddComponentVersions(podinfoFrontend(t))).
@@ -24,14 +32,14 @@ func createTestComponentVersion(t *testing.T) *features.FeatureBuilder {
 func podinfo(t *testing.T) setup.Component {
 	t.Helper()
 
-	content, err := os.ReadFile(filepath.Join("testdata", "product_description.yaml"))
+	content, err := os.ReadFile(filepath.Join(basePath, "product_description.yaml"))
 	if err != nil {
 		t.Fatal("failed to read setup file: %w", err)
 	}
 
 	return setup.Component{
 		Component: shared.Component{
-			Name:    "mpas.ocm.software/podinfo",
+			Name:    podinfoComponentName,
 			Version: "1.0.0",
 		},
 		Repository: "podinfo",
@@ -44,17 +52,17 @@ func podinfo(t *testing.T) setup.Component {
 			shared.ComponentVersionRef(shared.ComponentRef{
 				Name:          "backend",
 				Version:       "1.0.0",
-				ComponentName: "mpas.ocm.software/podinfo/backend",
+				ComponentName: podinfoBackendComponentName,
 			}),
 			shared.ComponentVersionRef(shared.ComponentRef{
 				Name:          "frontend",
 				Version:       "1.0.0",
-				ComponentName: "mpas.ocm.software/podinfo/frontend",
+				ComponentName: podinfoFrontendComponentName,
 			}),
 			shared.ComponentVersionRef(shared.ComponentRef{
 				Name:          "redis",
 				Version:       "1.0.0",
-				ComponentName: "mpas.ocm.software/podinfo/redis",
+				ComponentName: redisComponentName,
 			}),
 		},
 	}
@@ -63,29 +71,29 @@ func podinfo(t *testing.T) setup.Component {
 func podinfoBackend(t *testing.T) setup.Component {
 	t.Helper()
 
-	configContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "backend", "config.yaml"))
+	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "config.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
 	}
 
-	readmeContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "backend", "README.md"))
+	readmeContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "README.md"))
 	if err != nil {
 		t.Fatal("failed to read readme file: %w", err)
 	}
 
-	manifestContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "backend", "manifests.tar"))
+	manifestContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "manifests.tar"))
 	if err != nil {
 		t.Fatal("failed to read manifest file: %w", err)
 	}
 
-	validationContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "backend", "validation.rego"))
+	validationContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "validation.rego"))
 	if err != nil {
 		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{
 		Component: shared.Component{
-			Name:    "mpas.ocm.software/podinfo/backend",
+			Name:    podinfoBackendComponentName,
 			Version: "1.0.0",
 		},
 		Repository: "backend",
@@ -122,29 +130,29 @@ func podinfoBackend(t *testing.T) setup.Component {
 func podinfoFrontend(t *testing.T) setup.Component {
 	t.Helper()
 
-	configContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "frontend", "config.yaml"))
+	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "config.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
 	}
 
-	readmeContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "frontend", "README.md"))
+	readmeContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "README.md"))
 	if err != nil {
 		t.Fatal("failed to read readme file: %w", err)
 	}
 
-	manifestContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "frontend", "manifests.tar"))
+	manifestContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "manifests.tar"))
 	if err != nil {
 		t.Fatal("failed to read manifest file: %w", err)
 	}
 
-	validationContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "frontend", "validation.rego"))
+	validationContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "validation.rego"))
 	if err != nil {
 		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{
 		Component: shared.Component{
-			Name:    "mpas.ocm.software/podinfo/frontend",
+			Name:    podinfoFrontendComponentName,
 			Version: "1.0.0",
 		},
 		Repository: "frontend",
@@ -181,29 +189,29 @@ func podinfoFrontend(t *testing.T) setup.Component {
 func podinfoRedis(t *testing.T) setup.Component {
 	t.Helper()
 
-	configContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "redis", "config.yaml"))
+	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "config.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
 	}
 
-	readmeContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "redis", "README.md"))
+	readmeContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "README.md"))
 	if err != nil {
 		t.Fatal("failed to read readme file: %w", err)
 	}
 
-	manifestContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "redis", "manifests.tar"))
+	manifestContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "manifests.tar"))
 	if err != nil {
 		t.Fatal("failed to read manifest file: %w", err)
 	}
 
-	validationContent, err := os.ReadFile(filepath.Join("testdata", "podinfo", "redis", "validation.rego"))
+	validationContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "validation.rego"))
 	if err != nil {
 		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{
 		Component: shared.Component{
-			Name:    "mpas.ocm.software/redis",
+			Name:    redisComponentName,
 			Version: "1.0.0",
 		},
 		Repository: "redis",

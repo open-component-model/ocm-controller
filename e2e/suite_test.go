@@ -19,9 +19,13 @@ import (
 )
 
 var (
-	testEnv         env.Environment
-	kindClusterName string
-	namespace       string
+	testEnv           env.Environment
+	kindClusterName   string
+	namespace         string
+	registryPort      = 5000
+	gitRepositoryPort = 3000
+	hostUrl           = "localhost"
+	portSeparator     = ":"
 )
 
 func TestMain(m *testing.M) {
@@ -41,8 +45,8 @@ func TestMain(m *testing.M) {
 		shared.StartGitServer(namespace),
 		shared.InstallFlux("latest"),
 		shared.RunTiltForControllers("ocm-controller"),
-		shared.ForwardPortForAppName("registry", 5000, stopChannelRegistry),
-		shared.ForwardPortForAppName("gitea", 3000, stopChannelGitea),
+		shared.ForwardPortForAppName("registry", registryPort, stopChannelRegistry),
+		shared.ForwardPortForAppName("gitea", gitRepositoryPort, stopChannelGitea),
 	)
 	// testEnv.AfterEachTest(
 	// 	shared.RemoveGitServer(namespace),
@@ -61,12 +65,12 @@ func TestMain(m *testing.M) {
 	// // The deletion uses the typical c.Resources() object.
 	// cfg.Client().Resources().Delete(ctx,&nsObj)
 
-	// testEnv.Finish(
-	// 	shared.RemoveGitServer(namespace),
-	// 	shared.ShutdownPortForward(stopChannelRegistry),
-	// 	shared.ShutdownPortForward(stopChannelGitea),
-	// 	envfuncs.DeleteNamespace(namespace),
-	// 	envfuncs.DestroyKindCluster(kindClusterName),
-	// )
+	testEnv.Finish(
+		shared.RemoveGitServer(namespace),
+		shared.ShutdownPortForward(stopChannelRegistry),
+		shared.ShutdownPortForward(stopChannelGitea),
+		envfuncs.DeleteNamespace(namespace),
+		envfuncs.DestroyKindCluster(kindClusterName),
+	)
 	os.Exit(testEnv.Run(m))
 }
