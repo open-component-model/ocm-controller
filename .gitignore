@@ -30,3 +30,5 @@ output/
 
 tilt-settings.yaml
 .envrc
+
+*__debug_bin

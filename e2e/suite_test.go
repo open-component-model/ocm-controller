@@ -9,6 +9,7 @@ package e2e
 import (
 	"os"
 	"testing"
+	"time"
 
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -18,9 +19,13 @@ import (
 )
 
 var (
-	testEnv         env.Environment
-	kindClusterName string
-	namespace       string
+	testEnv           env.Environment
+	kindClusterName   string
+	namespace         string
+	registryPort      = 5000
+	gitRepositoryPort = 3000
+	hostUrl           = "localhost"
+	portSeparator     = ":"
 )
 
 func TestMain(m *testing.M) {
@@ -28,7 +33,7 @@ func TestMain(m *testing.M) {
 
 	cfg, _ := envconf.NewFromFlags()
 	testEnv = env.NewWithConfig(cfg)
-	kindClusterName = envconf.RandomName("ocm-ctrl-e2e", 32)
+	kindClusterName = envconf.RandomName("ocm-ctrl-e2e"+time.Now().Format("2006-01-02-15-04-05"), 32)
 	namespace = "ocm-system"
 
 	stopChannelRegistry := make(chan struct{}, 1)
@@ -40,8 +45,8 @@ func TestMain(m *testing.M) {
 		shared.StartGitServer(namespace),
 		shared.InstallFlux("latest"),
 		shared.RunTiltForControllers("ocm-controller"),
-		shared.ForwardPortForAppName("registry", 5000, stopChannelRegistry),
-		shared.ForwardPortForAppName("gitea", 3000, stopChannelGitea),
+		shared.ForwardPortForAppName("registry", registryPort, stopChannelRegistry),
+		shared.ForwardPortForAppName("gitea", gitRepositoryPort, stopChannelGitea),
 	)
 
 	testEnv.Finish(
@@ -51,6 +56,5 @@ func TestMain(m *testing.M) {
 		envfuncs.DeleteNamespace(namespace),
 		envfuncs.DestroyKindCluster(kindClusterName),
 	)
-
 	os.Exit(testEnv.Run(m))
 }

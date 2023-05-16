@@ -1,0 +1,30 @@
+apiVersion: mpas.ocm.software/v1alpha1
+kind: ProductDescription
+metadata:
+  name: podinfo-description
+  namespace: mpas-system
+spec:
+  description: Podinfo deployment process.
+  pipelines:
+    # TODO: this needs to contain a lot more actually.
+    - name: podinfo-backend
+      source:
+        name: backend
+        version: 1.0.0
+      validation:
+        name: validation
+        version: 1.0.0
+    - name: podinfo-frontend
+      source:
+        name: frontend
+        version: 1.0.0
+      validation:
+        name: validation
+        version: 1.0.0
+    - name: podinfo-redis
+      source:
+        name: redis
+        version: 1.0.0
+      validation:
+        name: validation
+        version: 1.0.0
