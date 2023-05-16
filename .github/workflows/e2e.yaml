@@ -64,7 +64,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "${{ github.repository }} e2e Tests \nStatus: ${{ steps.e2e-tests.conclusion }}",
+                    "text": "${{ github.repository }} e2e Tests",
                     "emoji": true
                   }
                 },
@@ -73,7 +73,7 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*Status:* <span style='color:red'>${{ steps.e2e-tests.conclusion }}</span> " 
+                      "text": "*Status:* ${{ steps.e2e-tests.conclusion }} " 
                     },
                     {
                       "type": "mrkdwn",
@@ -90,16 +90,22 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Action:*\n<https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|Github Action>"
+                      "text": "*Action:*"
                     }
                   ]
                 },
                 {
                   "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": \n*Last change by:* ${{ github.actor }} \n*Tests Triggered By:* ${{ github.triggering_actor }}"
-                  }
+                  "fields": [
+                   {
+                      "type": "mrkdwn",
+                      "text": "\n*Last change by:* ${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Tests Triggered By:* ${{ github.triggering_actor }}"
+                    }
+                  ]
                 }
               ]
             }
