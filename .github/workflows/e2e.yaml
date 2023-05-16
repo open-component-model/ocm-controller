@@ -49,7 +49,7 @@ jobs:
       - name: Post to a Slack channel
         id: slack-notification
         uses: slackapi/slack-github-action@v1.23.0
-        if: ${{steps.e2e-tests.conclusion == failure || cancelled || success}} # ${{ github.ref == 'refs/heads/main' }} always()
+        if: ${{ steps.e2e-tests.conclusion == 'failure' || 'cancelled' || 'success' }} # ${{ github.ref == 'refs/heads/main' }} always()
         with:
           # Slack channel id, channel name, or user id to post message.
           # See also: https://api.slack.com/methods/chat.postMessage#channels
@@ -58,7 +58,7 @@ jobs:
           # For posting a simple plain text message
           payload: |
             {
-              "text" : "OCM Integration Test Report, Status: ${{ e2e-tests.conclusion }}",
+              "text" : "OCM Integration Test Report, Status: ${{ steps.e2e-tests.conclusion }}",
               "blocks": [
                 {
                   "type": "header",
@@ -77,7 +77,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Status:*\n${{ e2e-tests.conclusion == 'failure' }}"
+                      "text": "*Status:*\n${{ steps.e2e-tests.conclusion == 'failure' }}"
                     }
                   ]
                 },
