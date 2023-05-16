@@ -58,13 +58,13 @@ jobs:
           # For posting a simple plain text message
           payload: |
             {
-              "text" : "OCM e2e Tests Report, Status: ${{ steps.e2e-tests.conclusion }}",
+              "text" : "${{ github.repository }} e2e Tests Status: ${{ steps.e2e-tests.conclusion }}",
               "blocks": [
                 {
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "OCM Controller e2e Tests Report",
+                    "text": "${{ github.repository }} e2e Tests" \n*Status:* ${{ steps.e2e-tests.conclusion }},
                     "emoji": true
                   }
                 },
@@ -73,27 +73,14 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*e2e-tests for:* Repository ${{ github.repository }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Status:* ${{ steps.e2e-tests.conclusion }}"
-                    },
-                    {
-                      "type": "mrkdwn",
                       "text": "*Link:*<https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e Github Action>"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "fields": [
+                    },
                     {
                       "type": "mrkdwn",
                       "text": "*Details:*  \n*Branch:* ${{ github.head_ref }} \n*Last change by:* ${{ github.actor }} \n*Tests Triggered By:* ${{ github.triggering_actor }}"
                     }
                   ]
-                },
+                }
               ]
             }
         env:
