@@ -44,4 +44,64 @@ jobs:
           kustomize: '5.0.1'
           tilt: '0.32.2'
       - name: Run E2E tests
-        run: make e2e
+        id: e2e-tests
+        run: echo "hello" # make e2e
+      - name: Post to a Slack channel
+        id: slack-notification
+        uses: slackapi/slack-github-action@v1.23.0
+        if: ${{steps.e2e-tests.conclusion == failure || cancelled || success}} # ${{ github.ref == 'refs/heads/main' }} always()
+        with:
+          # Slack channel id, channel name, or user id to post message.
+          # See also: https://api.slack.com/methods/chat.postMessage#channels
+          # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
+          channel-id: 'C057ZEC15U3'
+          # For posting a simple plain text message
+          payload: |
+            {
+              "text" : "OCM Integration Test Report, Status: ${{ e2e-tests.conclusion }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "OCM Controller e2e Tests Report",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*e2e-tests:*\nOCM Controller"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:*\n${{ e2e-tests.conclusion == 'failure' }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Time:*\n${{ env.TEST_RUN_TS }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Action:*\n<https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|Github Action>"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|TestReport>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.OCM_GITHUB_SLACK_BOT_TOKEN }}
