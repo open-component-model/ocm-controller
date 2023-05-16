@@ -48,22 +48,6 @@ func TestMain(m *testing.M) {
 		shared.ForwardPortForAppName("registry", registryPort, stopChannelRegistry),
 		shared.ForwardPortForAppName("gitea", gitRepositoryPort, stopChannelGitea),
 	)
-	// testEnv.AfterEachTest(
-	// 	shared.RemoveGitServer(namespace),
-	// 	shared.ShutdownPortForward(stopChannelRegistry),
-	// 	shared.ShutdownPortForward(stopChannelGitea),
-	// 	envfuncs.DeleteNamespace(namespace),
-	// 	envfuncs.DestroyKindCluster(kindClusterName),	)
-
-	// testEnv.AfterEachTest(func(ctx context.Context, cfg *envconf.Config, t *testing.T)  {
-	// 	shared.RemoveGitServer(namespace),
-	// 	shared.ShutdownPortForward(stopChannelRegistry),
-	// 	shared.ShutdownPortForward(stopChannelGitea),
-	// 	envfuncs.DeleteNamespace(namespace),
-	// 	envfuncs.DestroyKindCluster(kindClusterName),
-	// })
-	// // The deletion uses the typical c.Resources() object.
-	// cfg.Client().Resources().Delete(ctx,&nsObj)
 
 	testEnv.Finish(
 		shared.RemoveGitServer(namespace),
