@@ -90,9 +90,9 @@ func (m *MockFetcher) GetResourceWasNotCalled() bool {
 	return len(m.getResourceCalledWith) == 0
 }
 
-func (m *MockFetcher) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
-	m.getComponentVersionCalledWith = append(m.getComponentVersionCalledWith, []any{obj, name, version})
-	return m.getComponentVersionMap[name], m.getComponentVersionErr
+func (m *MockFetcher) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (ocm.ComponentVersionAccess, error) {
+	m.getComponentVersionCalledWith = append(m.getComponentVersionCalledWith, []any{obj, obj.GetName(), obj.Status.ReconciledVersion})
+	return m.getComponentVersionMap[obj.GetName()], m.getComponentVersionErr
 }
 
 func (m *MockFetcher) GetComponentVersionReturnsForName(name string, cva ocm.ComponentVersionAccess, err error) {

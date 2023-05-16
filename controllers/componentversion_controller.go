@@ -257,7 +257,11 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
 	}
 
-	cv, err := r.OCMClient.GetComponentVersion(ctx, octx, obj, obj.Spec.Component, version)
+	if obj.Status.ReconciledVersion == "" {
+		obj.Status.ReconciledVersion = version
+	}
+
+	cv, err := r.OCMClient.GetComponentVersion(ctx, octx, obj)
 	if err != nil {
 		err = fmt.Errorf("failed to get component version: %w", err)
 		conditions.MarkStalled(obj, v1alpha1.ComponentVersionInvalidReason, err.Error())
@@ -367,7 +371,7 @@ func (r *ComponentVersionReconciler) parseReferences(ctx context.Context, octx o
 
 func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(ctx context.Context, octx ocm.Context, parent *v1alpha1.ComponentVersion, ref ocmdesc.ComponentReference) (*v1alpha1.Reference, error) {
 	// get component version
-	rcv, err := r.OCMClient.GetComponentVersion(ctx, octx, parent, ref.ComponentName, ref.Version)
+	rcv, err := r.OCMClient.GetComponentVersion(ctx, octx, parent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get component version: %w", err)
 	}

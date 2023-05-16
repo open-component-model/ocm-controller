@@ -19,7 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
+	"github.com/open-component-model/ocm/pkg/contexts/credentials"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 
@@ -132,7 +132,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 		},
 	}
 
-	cva, err := ocmClient.GetComponentVersion(context.Background(), ocm.New(), cv, component, "v0.0.1")
+	cva, err := ocmClient.GetComponentVersion(context.Background(), ocm.New(), cv)
 	assert.NoError(t, err)
 	assert.Equal(t, cv.Spec.Component, cva.GetName())
 }
@@ -182,11 +182,10 @@ func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
 	octx, err := ocmClient.CreateAuthenticatedOCMContext(context.Background(), cs)
 	require.NoError(t, err)
 
-	id := cpi.ConsumerIdentity{
-		identity.ID_TYPE:       identity.CONSUMER_TYPE,
-		identity.ID_HOSTNAME:   trimmedURL,
-		identity.ID_PATHPREFIX: "skarlso",
-	}
+	id := credentials.NewConsumerIdentity(identity.CONSUMER_TYPE,
+		identity.ID_HOSTNAME, trimmedURL,
+		identity.ID_PATHPREFIX, "skarlso",
+	)
 
 	creds, err := octx.CredentialsContext().GetCredentialsForConsumer(id)
 	require.NoError(t, err)
@@ -257,11 +256,10 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 	octx, err := ocmClient.CreateAuthenticatedOCMContext(context.Background(), cs)
 	require.NoError(t, err)
 
-	id := cpi.ConsumerIdentity{
-		identity.ID_TYPE:       identity.CONSUMER_TYPE,
-		identity.ID_HOSTNAME:   "ghcr.io",
-		identity.ID_PATHPREFIX: "skarlso",
-	}
+	id := credentials.NewConsumerIdentity(identity.CONSUMER_TYPE,
+		identity.ID_HOSTNAME, "ghcr.io",
+		identity.ID_PATHPREFIX, "skarlso",
+	)
 	creds, err := octx.CredentialsContext().GetCredentialsForConsumer(id)
 	require.NoError(t, err)
 	consumer, err := creds.Credentials(nil)

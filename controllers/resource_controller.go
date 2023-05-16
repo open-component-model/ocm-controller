@@ -32,12 +32,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	ocmv1 "github.com/open-component-model/ocm/pkg/contexts/ocm"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -55,9 +56,6 @@ import (
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/wapc/wapc-go"
 	wazeroEngine "github.com/wapc/wapc-go/engines/wazero"
-
-	"github.com/tetratelabs/wazero"
-	"github.com/wapc/wapc-go"
 )
 
 // ResourceReconciler reconciles a Resource object
@@ -65,8 +63,9 @@ type ResourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	kuberecorder.EventRecorder
-	OCMClient ocm.Contract
-	Cache     cache.Cache
+	OCMClient      ocm.Contract
+	Cache          cache.Cache
+	SnapshotWriter snapshot.Writer
 }
 
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
@@ -204,7 +203,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	conditions.Delete(obj, meta.StalledCondition)
 
-	var componentVersion *v1alpha1.ComponentVersion
+	componentVersion := &v1alpha1.ComponentVersion{}
 	if err := r.Get(ctx, obj.Spec.SourceRef.GetObjectKey(), componentVersion); err != nil {
 		err = fmt.Errorf("failed to get component version: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())
@@ -264,18 +263,18 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	engine := wazeroEngine.Engine()
 
 	for _, md := range obj.Spec.Middleware {
-		repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(md.Registry, nil))
+		mdRepo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(md.Registry, nil))
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		defer repo.Close()
+		defer mdRepo.Close()
 
 		component := strings.Split(md.Component, ":")
-		middlewareCV, err := repo.LookupComponentVersion(component[0], component[1])
+		middlewareCV, err := mdRepo.LookupComponentVersion(component[0], component[1])
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		defer cv.Close()
+		defer middlewareCV.Close()
 
 		res, err := middlewareCV.GetResource(ocmmetav1.NewIdentity(md.Name))
 		if err != nil {
@@ -313,7 +312,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		}
 		defer instance.Close(ctx)
 
-		_, err = instance.Invoke(ctx, "handler", md.Values)
+		_, err = instance.Invoke(ctx, "handler", md.Values.Raw)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -360,30 +359,8 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		return ctrl.Result{}, fmt.Errorf("snapshot name should not be empty")
 	}
 
-	snapshotCR := &v1alpha1.Snapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.GetSnapshotName(),
-		},
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
-		if snapshotCR.ObjectMeta.CreationTimestamp.IsZero() {
-			if err := controllerutil.SetOwnerReference(obj, snapshotCR, r.Scheme); err != nil {
-				return fmt.Errorf("failed to set owner to snapshot object: %w", err)
-			}
-		}
-		snapshotCR.Spec = v1alpha1.SnapshotSpec{
-			Identity: identity,
-			Digest:   digest,
-			Tag:      version,
-		}
-		return nil
-	})
+	_, err = r.SnapshotWriter.Write(ctx, obj, dir, identity)
 	if err != nil {
-		err = fmt.Errorf("failed to create or update snapshot: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateSnapshotFailedReason, err.Error())
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 		return ctrl.Result{}, err
 	}
 
@@ -434,7 +411,7 @@ func (r *ResourceReconciler) findObjects(key string) func(client.Object) []recon
 	}
 }
 
-func makeHost(cv ocm.ComponentVersionAccess, dir string) func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
+func makeHost(cv ocmv1.ComponentVersionAccess, dir string) func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
 	return func(ctx context.Context, binding, namespace, operation string, payload []byte) ([]byte, error) {
 		if binding != "ocm.software" {
 			return nil, errors.New("unrecognised binding")
@@ -460,7 +437,7 @@ func makeHost(cv ocm.ComponentVersionAccess, dir string) func(ctx context.Contex
 	}
 }
 
-func getReference(octx ocm.Context, res ocm.ResourceAccess) (string, error) {
+func getReference(octx ocmv1.Context, res ocmv1.ResourceAccess) (string, error) {
 	accSpec, err := res.Access()
 	if err != nil {
 		return "", err
