@@ -86,7 +86,7 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*Time:*\n${{ $NOW }}"
+                      "text": "*Time:*"
                     },
                     {
                       "type": "mrkdwn",
