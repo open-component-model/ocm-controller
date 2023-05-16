@@ -59,32 +59,49 @@ jobs:
           payload: |
             {
               "text": "${{ github.repository }} e2e Tests Status: ${{ steps.e2e-tests.conclusion }}",
-              "blocks":
-                [
-                  {
-                    "type": "header",
-                    "text":
-                      {
-                        "type": "plain_text",
-                        "text": "${{ github.repository }} e2e Tests \n*Status:* ${{ steps.e2e-tests.conclusion }} ",
-                        "emoji": true,
-                      }
-                  },
-                  {
-                    "type": "section",
-                    "fields":
-                      [
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Link:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e Github Action>"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Details:*\n*Branch:* ${{ github.head_ref }} \n*Last change by:* ${{ github.actor }} \n*Tests Triggered By:* ${{ github.triggering_actor }}"
-                        }
-                      ]
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ github.repository }} e2e Tests \n*Status:* ${{ steps.e2e-tests.conclusion }}",
+                    "emoji": true
                   }
-                ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Link:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e Github Action>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:* ${{ steps.e2e-tests.conclusion }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Time:*"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Action:*\n<https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|Github Action>"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Details:*\n*Branch:* ${{ github.head_ref }} \n*Last change by:* ${{ github.actor }} \n*Tests Triggered By:* ${{ github.triggering_actor }}"
+                  }
+                }
+              ]
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.OCM_GITHUB_SLACK_BOT_TOKEN }}
