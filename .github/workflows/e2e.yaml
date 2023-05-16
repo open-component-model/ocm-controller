@@ -58,7 +58,7 @@ jobs:
           # For posting a simple plain text message
           payload: |
             {
-              "text" : "OCM Integration Test Report, Status: ${{ steps.e2e-tests.conclusion }}",
+              "text" : "OCM e2e Tests Report, Status: ${{ steps.e2e-tests.conclusion }}",
               "blocks": [
                 {
                   "type": "header",
@@ -73,11 +73,11 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*e2e-tests:*\nOCM Controller"
+                      # "text": "*e2e-tests for repository:* \n${{ github.action_repository }} \n${{ github.action_path }} \n${{ github.action_ref }} \n${{ github.actor }} \n${{ github.base_ref }} \n${{github.event}} \n${{ github.head_ref }} \n${{ github.job }} \n${{ github.path }} \n${{ github.ref_name }} \n${{ github.repository }} \n{{ github.repositoryUrl }} \n${{ github.triggering_actor }} \n{{ github.workflow_ref}}"
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Status:*\n${{ steps.e2e-tests.conclusion == 'failure' }}"
+                      "text": "*Status:* ${{ steps.e2e-tests.conclusion }}"
                     }
                   ]
                 },
@@ -86,7 +86,7 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*Time:*\n${{ env.TEST_RUN_TS }}"
+                      "text": "*Time:*\n${{ $NOW }}"
                     },
                     {
                       "type": "mrkdwn",
