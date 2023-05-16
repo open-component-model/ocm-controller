@@ -73,7 +73,7 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      # "text": "*e2e-tests for repository:* \n${{ github.action_repository }} \n${{ github.action_path }} \n${{ github.action_ref }} \n${{ github.actor }} \n${{ github.base_ref }} \n${{github.event}} \n${{ github.head_ref }} \n${{ github.job }} \n${{ github.path }} \n${{ github.ref_name }} \n${{ github.repository }} \n{{ github.repositoryUrl }} \n${{ github.triggering_actor }} \n{{ github.workflow_ref}}"
+                      "text": "*e2e-tests for repository:* \n${{ github.action_repository }} \n${{ github.action_path }} \n${{ github.action_ref }} \n${{ github.actor }} \n${{ github.base_ref }} \n${{github.event}} \n${{ github.head_ref }} \n${{ github.job }} \n${{ github.path }} \n${{ github.ref_name }} \n${{ github.repository }} \n{{ github.repositoryUrl }} \n${{ github.triggering_actor }} \n{{ github.workflow_ref}}"
                     },
                     {
                       "type": "mrkdwn",
