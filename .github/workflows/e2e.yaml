@@ -64,7 +64,7 @@ jobs:
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "${{ github.repository }} e2e Tests" \n*Status:* ${{ steps.e2e-tests.conclusion }},
+                    "text": "${{ github.repository }} e2e Tests \n*Status:* ${{ steps.e2e-tests.conclusion }}",
                     "emoji": true
                   }
                 },
@@ -80,7 +80,7 @@ jobs:
                       "text": "*Details:*  \n*Branch:* ${{ github.head_ref }} \n*Last change by:* ${{ github.actor }} \n*Tests Triggered By:* ${{ github.triggering_actor }}"
                     }
                   ]
-                }
+                },
               ]
             }
         env:
