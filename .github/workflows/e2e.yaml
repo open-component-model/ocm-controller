@@ -46,7 +46,7 @@ jobs:
       - name: Run E2E tests
         id: e2e-tests
         run: make e2e
-      - name: Post to a Slack channel
+      - name: Notify on Failure
         id: slack-notification
         uses: slackapi/slack-github-action@v1.23.0
         if: ${{ steps.e2e-tests.conclusion == 'failure' && github.head_ref  == 'main' }}
