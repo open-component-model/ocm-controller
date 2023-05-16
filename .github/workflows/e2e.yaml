@@ -73,11 +73,15 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*e2e-tests for repository:* \n 1 ${{ github.action_repository }} \n 2 ${{ github.action_path }} \n 3 ${{ github.action_ref }} \n 4 ${{ github.actor }} \n5 ${{ github.base_ref }} \n 6 ${{github.event}} \n7 ${{ github.head_ref }} \n8 ${{ github.job }} \n9 ${{ github.path }} \n10 ${{ github.ref_name }} \n11 ${{ github.repository }} \n 12 ${{ github.repositoryUrl }} \n 13 ${{ github.triggering_actor }} \n14 ${{ github.workflow_ref}}"
+                      "text": "*e2e-tests for:* Repository ${{ github.repository }}"
                     },
                     {
                       "type": "mrkdwn",
                       "text": "*Status:* ${{ steps.e2e-tests.conclusion }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Link:*<https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e Github Action>"
                     }
                   ]
                 },
@@ -86,21 +90,10 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*Time:*"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Action:*\n<https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|Github Action>"
+                      "text": "*Details:*  \n*Branch:* ${{ github.head_ref }} \n*Last change by:* ${{ github.actor }} \n*Tests Triggered By:* ${{ github.triggering_actor }}"
                     }
                   ]
                 },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "<https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|TestReport>"
-                  }
-                }
               ]
             }
         env:
