@@ -90,7 +90,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Action:*"
+                      "text": "*Repository:* ${{ github.server_url }}/${{ github.repository }}"
                     }
                   ]
                 },
