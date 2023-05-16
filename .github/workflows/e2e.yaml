@@ -68,7 +68,7 @@ jobs:
                         "type": "plain_text",
                         "text": "${{ github.repository }} e2e Tests \n*Status:* ${{ steps.e2e-tests.conclusion }} ",
                         "emoji": true,
-                      },
+                      }
                   },
                   {
                     "type": "section",
@@ -76,11 +76,11 @@ jobs:
                       [
                         {
                           "type": "mrkdwn",
-                          "text": "*Link:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e Github Action>",
+                          "text": "*Link:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e Github Action>"
                         },
                         {
                           "type": "mrkdwn",
-                          "text": "*Details:*\n*Branch:* ${{ github.head_ref }} \n*Last change by:* ${{ github.actor }} \n*Tests Triggered By:* ${{ github.triggering_actor }}",
+                          "text": "*Details:*\n*Branch:* ${{ github.head_ref }} \n*Last change by:* ${{ github.actor }} \n*Tests Triggered By:* ${{ github.triggering_actor }}"
                         }
                       ]
                   }
