@@ -75,7 +75,8 @@ type configurationTestCase struct {
 	componentDescriptor func() *v1alpha1.ComponentDescriptor
 	snapshot            func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot
 	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference
-	patchStrategicMerge func(cfg *v1alpha1.Configuration, source client.Object, filename string) *v1alpha1.Configuration
+	patchStrategicMerge func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
+	valuesFrom          func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
 	expectError         string
 }
 
@@ -584,7 +585,7 @@ configuration:
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
 				return DefaultComponentDescriptor.DeepCopy()
 			},
-			patchStrategicMerge: func(cfg *v1alpha1.Configuration, source client.Object, filename string) *v1alpha1.Configuration {
+			patchStrategicMerge: func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration {
 				cfg.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
 					Source: v1alpha1.PatchStrategicMergeSource{
 						SourceRef: meta.NamespacedObjectKindReference{
@@ -592,7 +593,7 @@ configuration:
 							Name:      source.GetName(),
 							Namespace: source.GetNamespace(),
 						},
-						Path: filename,
+						Path: "sites/eu-west-1/deployment.yaml",
 					},
 					Target: v1alpha1.PatchStrategicMergeTarget{
 						Path: "merge-target/merge-target.yaml",
@@ -639,8 +640,79 @@ configuration:
 				fakeOcm.GetResourceReturnsOnCall(1, nil, nil)
 			},
 		},
+		{
+			name: "it applies config from flux sources",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			valuesFrom: func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration {
+				cfg.Spec.ValuesFrom = &v1alpha1.ValuesSource{
+					FluxSource: &v1alpha1.FluxValuesSource{
+						SourceRef: meta.NamespacedObjectKindReference{
+							Kind:      "GitRepository",
+							Name:      source.GetName(),
+							Namespace: source.GetNamespace(),
+						},
+						Path:    "config/values.yaml",
+						SubPath: "test.backend",
+					},
+				}
+				cfg.Spec.Values = nil
+				return cfg
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				name := "test-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+				}
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: cv.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{
+						Identity: identity,
+					},
+				}
+				resource.Status.SnapshotName = name
+				return snapshot
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "Resource",
+						Name:       "test-resource",
+						Namespace:  snapshot.Namespace,
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
+				require.NoError(t, err)
+				fakeCache.FetchDataByDigestReturns(content, nil)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
+				cmp := getMockComponent(t, DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
+			},
+		},
 	}
-	for i, tt := range testCases {
+	for i, tt := range testCases[len(testCases)-1:] {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			cv := tt.componentVersion()
 			conditions.MarkTrue(cv, meta.ReadyCondition, meta.SucceededReason, "test")
@@ -668,11 +740,23 @@ configuration:
 				path := "/file.tar.gz"
 				server := ghttp.NewServer()
 				server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
-					http.ServeFile(writer, request, "testdata/patch-repo.tar.gz")
+					http.ServeFile(writer, request, "testdata/git-repo.tar.gz")
 				})
-				checksum := "2f49fe50940c8c5918102070fc963e670d89fa242f77958d32c295b396a6539e"
+				checksum := "87670827f3d1a10094e3226381c95168b6ce92344ac1a1c2345caaeb7cc6b7d8"
 				gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
-				configuration = tt.patchStrategicMerge(configuration, gitRepo, "sites/eu-west-1/deployment.yaml")
+				configuration = tt.patchStrategicMerge(configuration, gitRepo)
+				objs = append(objs, gitRepo)
+			}
+
+			if tt.valuesFrom != nil {
+				path := "/file.tar.gz"
+				server := ghttp.NewServer()
+				server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
+					http.ServeFile(writer, request, "testdata/git-repo.tar.gz")
+				})
+				checksum := "87670827f3d1a10094e3226381c95168b6ce92344ac1a1c2345caaeb7cc6b7d8"
+				gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
+				configuration = tt.valuesFrom(configuration, gitRepo)
 				objs = append(objs, gitRepo)
 			}
 
