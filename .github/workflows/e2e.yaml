@@ -45,11 +45,11 @@ jobs:
           tilt: '0.32.2'
       - name: Run E2E tests
         id: e2e-tests
-        run: echo "hello" # make e2e
+        run: make e2e
       - name: Post to a Slack channel
         id: slack-notification
         uses: slackapi/slack-github-action@v1.23.0
-        if: ${{ steps.e2e-tests.conclusion == 'success' && github.head_ref  == 'feature/347_3' }}
+        if: ${{ steps.e2e-tests.conclusion == 'failure' && github.head_ref  == 'main' }}
         with:
           # Slack channel id, channel name, or user id to post message.
           # See also: https://api.slack.com/methods/chat.postMessage#channels
