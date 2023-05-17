@@ -780,6 +780,10 @@ func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.M
 		}
 
 		tmpDir, err := os.MkdirTemp("", "mutation-controller-")
+		if err != nil {
+			return nil, fmt.Errorf("could not create temporary directory: %w", err)
+		}
+
 		tarSize := tar.UnlimitedUntarSize
 		fetcher := fetch.NewArchiveFetcher(10, tarSize, tarSize, "")
 		err = fetcher.Fetch(source.GetArtifact().URL, source.GetArtifact().Digest, tmpDir)
