@@ -23,10 +23,10 @@ type MutationObject interface {
 // MutationSpec defines a common spec between Localization and Configuration.
 type MutationSpec struct {
 	// +required
-	Interval metav1.Duration `json:"interval"`
+	Interval metav1.Duration `json:"interval,omitempty"`
 
 	// +required
-	SourceRef ObjectReference `json:"sourceRef"`
+	SourceRef ObjectReference `json:"sourceRef,omitempty"`
 
 	// +optional
 	ConfigRef *ObjectReference `json:"configRef,omitempty"`
@@ -38,11 +38,36 @@ type MutationSpec struct {
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 
 	// +optional
+	ValuesFrom *ValuesSource `json:"valuesFrom,omitempty"`
+
+	// +optional
 	PatchStrategicMerge *PatchStrategicMerge `json:"patchStrategicMerge,omitempty"`
 
 	// Suspend stops all operations on this object.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
+}
+
+// ValuesSource provides access to values from an external Source such as a ConfigMap or GitRepository.
+// An optional subpath defines the path within the source from which the values should be resolved.
+type ValuesSource struct {
+	// +optional
+	FluxSource *FluxValuesSource `json:"fluxSource,omitempty"`
+
+	// TODO
+	// ConfigMap meta.LocalObjectReference
+	// Secret meta.LocalObjectReference
+}
+
+type FluxValuesSource struct {
+	// +required
+	SourceRef meta.NamespacedObjectKindReference `json:"sourceRef,omitempty"`
+
+	// +required
+	Path string `json:"path,omitempty"`
+
+	// +optional
+	SubPath string `json:"subPath,omitempty"`
 }
 
 // PatchStrategicMerge contains the source and target details required to perform a strategic merge
