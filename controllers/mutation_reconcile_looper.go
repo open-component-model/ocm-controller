@@ -853,8 +853,8 @@ func splitSubpath(subpath string) []string {
 	return strings.Split(subpath, ".")
 }
 
-func convertMap(data map[interface{}]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
+func convertMap(data map[any]any) map[string]any {
+	result := make(map[string]any)
 
 	for k, v := range data {
 		key, ok := k.(string)
@@ -864,7 +864,7 @@ func convertMap(data map[interface{}]interface{}) map[string]interface{} {
 		}
 
 		switch value := v.(type) {
-		case map[interface{}]interface{}:
+		case map[any]any:
 			// Recursively convert nested maps
 			result[key] = convertMap(value)
 		default:
