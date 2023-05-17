@@ -33,8 +33,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
-	"github.com/fluxcd/source-controller/api/v1beta2"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/event"
@@ -173,7 +172,7 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 }
 
 func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1alpha1.FluxDeployer, url, tag string) error {
-	ociRepoCR := &sourcev1.OCIRepository{
+	ociRepoCR := &sourcev1beta2.OCIRepository{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
 			Name:      obj.GetName(),
@@ -186,11 +185,11 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1al
 				return fmt.Errorf("failed to set owner reference on oci repository source: %w", err)
 			}
 		}
-		ociRepoCR.Spec = sourcev1.OCIRepositorySpec{
+		ociRepoCR.Spec = sourcev1beta2.OCIRepositorySpec{
 			Interval: obj.Spec.KustomizationTemplate.Interval,
 			Insecure: true,
 			URL:      url,
-			Reference: &v1beta2.OCIRepositoryRef{
+			Reference: &sourcev1beta2.OCIRepositoryRef{
 				Tag: tag,
 			},
 		}
@@ -219,7 +218,7 @@ func (r *FluxDeployerReconciler) reconcileKustomization(ctx context.Context, obj
 			}
 		}
 		kust.Spec = obj.Spec.KustomizationTemplate
-		kust.Spec.SourceRef.Kind = sourcev1.OCIRepositoryKind
+		kust.Spec.SourceRef.Kind = sourcev1beta2.OCIRepositoryKind
 		kust.Spec.SourceRef.Namespace = obj.GetNamespace()
 		kust.Spec.SourceRef.Name = obj.GetName()
 		return nil
