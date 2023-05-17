@@ -44,4 +44,70 @@ jobs:
           kustomize: '5.0.1'
           tilt: '0.32.2'
       - name: Run E2E tests
+        id: e2e-tests
         run: make e2e
+      - name: Notify on Failure
+        id: slack-notification
+        uses: slackapi/slack-github-action@v1.23.0
+        if: ${{ steps.e2e-tests.conclusion == 'failure' && github.head_ref  == 'main' }}
+        with:
+          # Slack channel id, channel name, or user id to post message.
+          # See also: https://api.slack.com/methods/chat.postMessage#channels
+          # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
+          channel-id: 'C03NF7KH128'
+          # For posting a simple plain text message
+          payload: |
+            {
+              "text": "${{ github.repository }} e2e Tests Status: ${{ steps.e2e-tests.conclusion }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ github.repository }} e2e Tests",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:* ${{ steps.e2e-tests.conclusion }} " 
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Github Action:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e>"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:* ${{ github.head_ref }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:* ${{ github.server_url }}/${{ github.repository }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                   {
+                      "type": "mrkdwn",
+                      "text": "\n*Last change by:* ${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Tests Triggered By:* ${{ github.triggering_actor }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.OCM_GITHUB_SLACK_BOT_TOKEN }}
