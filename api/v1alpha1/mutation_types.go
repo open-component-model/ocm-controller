@@ -49,7 +49,7 @@ type MutationSpec struct {
 }
 
 // ValuesSource provides access to values from an external Source such as a ConfigMap or GitRepository
-// an optional subpath defines the path within the source from which the values should be resolved.
+// An optional subpath defines the path within the source from which the values should be resolved.
 type ValuesSource struct {
 	// +optional
 	FluxSource *FluxValuesSource `json:"fluxSource,omitempty"`
