@@ -26,6 +26,7 @@ import (
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/comparch"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 )
@@ -285,6 +286,14 @@ func (m *mockComponent) GetResource(id ocmmetav1.Identity) (ocm.ResourceAccess, 
 		return nil, err
 	}
 	return &mockResource{resource: r, ctx: ocm.DefaultContext()}, nil
+}
+
+func (m *mockComponent) Repository() ocm.Repository {
+	return &genericocireg.Repository{}
+}
+
+func (m *mockComponent) Dup() (ocm.ComponentVersionAccess, error) {
+	return m, nil
 }
 
 func (m *mockComponent) Close() error {

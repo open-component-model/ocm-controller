@@ -47,6 +47,8 @@ import (
 	"github.com/open-component-model/ocm/pkg/spiff"
 	"github.com/open-component-model/ocm/pkg/utils"
 
+	utils2 "github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
+
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/component"
@@ -117,21 +119,13 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 				return fmt.Errorf("failed to configure resource: %w", err)
 			}
 		} else { // if values are nil then this is localization
-			refPath := mutationSpec.ConfigRef.ResourceRef.ReferencePath
 			cv, err := m.getComponentVersion(ctx, mutationSpec.ConfigRef)
 			if err != nil {
 				return fmt.Errorf("failed to get component version: %w", err)
 			}
 
-			cd, err := component.GetComponentDescriptor(ctx, m.Client, refPath, cv.Status.ComponentDescriptor)
-			if err != nil {
-				return fmt.Errorf("failed to get component descriptor from version: %w", err)
-			}
-			if cd == nil {
-				return fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", refPath)
-			}
-
-			sourceDir, err = m.localize(ctx, cv, sourceData, configData)
+			refPath := mutationSpec.ConfigRef.ResourceRef.ReferencePath
+			sourceDir, err = m.localize(ctx, cv, sourceData, configData, refPath)
 			if err != nil {
 				return fmt.Errorf("failed to localize resource: %w", err)
 			}
@@ -210,7 +204,7 @@ func (m *MutationReconcileLooper) configure(ctx context.Context, data []byte, co
 	return sourceDir, nil
 }
 
-func (m *MutationReconcileLooper) localize(ctx context.Context, cv *v1alpha1.ComponentVersion, data, configObj []byte) (string, error) {
+func (m *MutationReconcileLooper) localize(ctx context.Context, cv *v1alpha1.ComponentVersion, data, configObj []byte, refPath []ocmmetav1.Identity) (string, error) {
 	log := log.FromContext(ctx)
 
 	virtualFS, err := osfs.NewTempFileSystem()
@@ -233,7 +227,7 @@ func (m *MutationReconcileLooper) localize(ctx context.Context, cv *v1alpha1.Com
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
 
-	rules, err := m.createSubstitutionRulesForLocalization(ctx, cv, configObj)
+	rules, err := m.createSubstitutionRulesForLocalization(ctx, cv, configObj, refPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create substitution rules for localization: %w", err)
 	}
@@ -352,7 +346,7 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 	return io.ReadAll(uncompressed)
 }
 
-func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx context.Context, cv *v1alpha1.ComponentVersion, data []byte) (localize.Substitutions, error) {
+func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx context.Context, cv *v1alpha1.ComponentVersion, data []byte, refPath []ocmmetav1.Identity) (localize.Substitutions, error) {
 	config := &configdata.ConfigData{}
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(data, config); err != nil {
 		return nil,
@@ -383,7 +377,8 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx con
 			continue
 		}
 
-		resource, err := compvers.GetResource(ocmmetav1.NewIdentity(l.Resource.Name))
+		resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), nil)
+		resource, _, err := utils2.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch resource from component version: %w", err)
 		}
