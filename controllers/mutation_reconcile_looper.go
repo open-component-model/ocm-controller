@@ -377,7 +377,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx con
 			continue
 		}
 
-		resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), nil)
+		resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), refPath)
 		resource, _, err := utils2.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch resource from component version: %w", err)
