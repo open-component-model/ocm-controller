@@ -834,6 +834,9 @@ func extractSubpath(data map[string]any, subpath string) (map[string]any, bool) 
 		}
 
 		if i == len(keys)-1 {
+			if _, ok := value.(map[string]any); !ok {
+				return convertMap(value.(map[any]any)), true
+			}
 			return value.(map[string]any), true
 		}
 
