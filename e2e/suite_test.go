@@ -49,12 +49,12 @@ func TestMain(m *testing.M) {
 		shared.ForwardPortForAppName("gitea", gitRepositoryPort, stopChannelGitea),
 	)
 
-	// testEnv.Finish(
-	//     shared.RemoveGitServer(namespace),
-	//     shared.ShutdownPortForward(stopChannelRegistry),
-	//     shared.ShutdownPortForward(stopChannelGitea),
-	//     envfuncs.DeleteNamespace(namespace),
-	//     envfuncs.DestroyKindCluster(kindClusterName),
-	// )
+	testEnv.Finish(
+		shared.RemoveGitServer(namespace),
+		shared.ShutdownPortForward(stopChannelRegistry),
+		shared.ShutdownPortForward(stopChannelGitea),
+		envfuncs.DeleteNamespace(namespace),
+		envfuncs.DestroyKindCluster(kindClusterName),
+	)
 	os.Exit(testEnv.Run(m))
 }
