@@ -783,7 +783,7 @@ func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.M
 		fetcher := fetch.NewArchiveFetcher(10, tarSize, tarSize, "")
 		artifact := source.GetArtifact()
 		if artifact == nil {
-			return nil, fmt.Errorf("could not get values artifact")
+			return nil, fmt.Errorf("could not get artifact from source: %s", obj.ValuesFrom.FluxSource.SourceRef.Name)
 		}
 		err = fetcher.Fetch(artifact.URL, source.GetArtifact().Digest, tmpDir)
 		if err != nil {
