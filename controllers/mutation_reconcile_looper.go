@@ -471,7 +471,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 		return nil, fmt.Errorf("failed to marshal configuration schema: %w", err)
 	}
 
-	configSubstitutions, err := m.configurator(rules, defaults, values.Raw, schema)
+	configSubstitutions, err := m.generateSubstitutions(rules, defaults, values.Raw, schema)
 	if err != nil {
 		return nil, fmt.Errorf("configurator error: %w", err)
 	}
@@ -479,7 +479,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 	return configSubstitutions, nil
 }
 
-func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
+func (m *MutationReconcileLooper) generateSubstitutions(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
 	// configure defaults
 	templ := make(map[string]any)
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
@@ -781,7 +781,11 @@ func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.M
 
 		tarSize := tar.UnlimitedUntarSize
 		fetcher := fetch.NewArchiveFetcher(10, tarSize, tarSize, "")
-		err = fetcher.Fetch(source.GetArtifact().URL, source.GetArtifact().Digest, tmpDir)
+		artifact := source.GetArtifact()
+		if artifact == nil {
+			return nil, fmt.Errorf("could not get values artifact")
+		}
+		err = fetcher.Fetch(artifact.URL, source.GetArtifact().Digest, tmpDir)
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch values artifact from source: %w", err)
 		}
