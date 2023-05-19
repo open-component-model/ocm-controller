@@ -96,8 +96,11 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if cfg.Spec.PatchStrategicMerge == nil {
 			return nil
 		}
-		return []string{cfg.Spec.PatchStrategicMerge.Source.SourceRef.Name}
-
+		var ns = cfg.Spec.PatchStrategicMerge.Source.SourceRef.Namespace
+		if ns == "" {
+			ns = cfg.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, cfg.Spec.PatchStrategicMerge.Source.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -354,7 +357,7 @@ func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) fu
 		for _, key := range keys {
 			result := &v1alpha1.ConfigurationList{}
 			if err := r.List(context.TODO(), result, &client.ListOptions{
-				FieldSelector: fields.OneTermEqualSelector(key, obj.GetName()),
+				FieldSelector: fields.OneTermEqualSelector(key, fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())),
 				Namespace:     obj.GetNamespace(),
 			}); err != nil {
 				return []reconcile.Request{}
