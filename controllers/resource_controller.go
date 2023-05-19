@@ -62,8 +62,11 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Resource{}, resourceKey, func(rawObj client.Object) []string {
 		res := rawObj.(*v1alpha1.Resource)
-		return []string{res.Spec.SourceRef.Name}
-
+		var ns = res.Spec.SourceRef.Namespace
+		if ns == "" {
+			ns = res.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, res.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -296,8 +299,7 @@ func (r *ResourceReconciler) findObjects(key string) func(client.Object) []recon
 	return func(obj client.Object) []reconcile.Request {
 		resources := &v1alpha1.ResourceList{}
 		if err := r.List(context.TODO(), resources, &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(key, obj.GetName()),
-			Namespace:     obj.GetNamespace(),
+			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
 		}); err != nil {
 			return []reconcile.Request{}
 		}
