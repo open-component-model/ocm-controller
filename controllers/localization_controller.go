@@ -72,19 +72,22 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Localization{}, sourceKey, func(rawObj client.Object) []string {
 		loc := rawObj.(*v1alpha1.Localization)
-		return []string{loc.Spec.SourceRef.Name}
-
+		var ns = loc.Spec.SourceRef.Namespace
+		if ns == "" {
+			ns = loc.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, loc.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Localization{}, configKey, func(rawObj client.Object) []string {
 		loc := rawObj.(*v1alpha1.Localization)
-		if loc.Spec.ConfigRef == nil {
-			return nil
+		var ns = loc.Spec.ConfigRef.Namespace
+		if ns == "" {
+			ns = loc.GetNamespace()
 		}
-		return []string{loc.Spec.ConfigRef.Name}
-
+		return []string{fmt.Sprintf("%s/%s", ns, loc.Spec.ConfigRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -94,8 +97,11 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if loc.Spec.PatchStrategicMerge == nil {
 			return nil
 		}
-		return []string{loc.Spec.PatchStrategicMerge.Source.SourceRef.Name}
-
+		var ns = loc.Spec.PatchStrategicMerge.Source.SourceRef.Namespace
+		if ns == "" {
+			ns = loc.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, loc.Spec.PatchStrategicMerge.Source.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -298,12 +304,12 @@ func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) func(c
 
 		switch obj.(type) {
 		case *v1alpha1.ComponentVersion:
-			selectorTerm = obj.GetName()
+			selectorTerm = client.ObjectKeyFromObject(obj).String()
 		case *v1alpha1.Snapshot:
 			if len(obj.GetOwnerReferences()) != 1 {
 				return []reconcile.Request{}
 			}
-			selectorTerm = obj.GetOwnerReferences()[0].Name
+			selectorTerm = fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetOwnerReferences()[0].Name)
 		default:
 			return []reconcile.Request{}
 		}
@@ -311,7 +317,6 @@ func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) func(c
 		sourceRefs := &v1alpha1.LocalizationList{}
 		if err := r.List(context.TODO(), sourceRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(sourceKey, selectorTerm),
-			Namespace:     obj.GetNamespace(),
 		}); err != nil {
 			return []reconcile.Request{}
 		}
@@ -319,11 +324,9 @@ func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) func(c
 		configRefs := &v1alpha1.LocalizationList{}
 		if err := r.List(context.TODO(), configRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(configKey, selectorTerm),
-			Namespace:     obj.GetNamespace(),
 		}); err != nil {
 			return []reconcile.Request{}
 		}
-
 		return makeRequestsForLocalizations(append(sourceRefs.Items, configRefs.Items...)...)
 	}
 }
@@ -334,12 +337,10 @@ func (r *LocalizationReconciler) findObjectsForGitRepository(key string) func(cl
 	return func(obj client.Object) []reconcile.Request {
 		patchRefs := &v1alpha1.LocalizationList{}
 		if err := r.List(context.TODO(), patchRefs, &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(key, obj.GetName()),
-			Namespace:     obj.GetNamespace(),
+			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
 		}); err != nil {
 			return []reconcile.Request{}
 		}
-
 		return makeRequestsForLocalizations(patchRefs.Items...)
 	}
 }

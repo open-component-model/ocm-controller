@@ -71,7 +71,11 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if !ok {
 			return []string{}
 		}
-		return []string{obj.Spec.SourceRef.Name}
+		var ns = obj.Spec.SourceRef.Namespace
+		if ns == "" {
+			ns = obj.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, obj.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -281,7 +285,7 @@ func (r *FluxDeployerReconciler) findObjects(sourceKey string) func(client.Objec
 			if len(obj.GetOwnerReferences()) != 1 {
 				return []reconcile.Request{}
 			}
-			selectorTerm = obj.GetOwnerReferences()[0].Name
+			selectorTerm = fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetOwnerReferences()[0].Name)
 		default:
 			return []reconcile.Request{}
 		}
@@ -289,7 +293,6 @@ func (r *FluxDeployerReconciler) findObjects(sourceKey string) func(client.Objec
 		sourceRefs := &v1alpha1.FluxDeployerList{}
 		if err := r.List(context.TODO(), sourceRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(sourceKey, selectorTerm),
-			Namespace:     obj.GetNamespace(),
 		}); err != nil {
 			return []reconcile.Request{}
 		}

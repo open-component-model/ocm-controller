@@ -74,8 +74,11 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Configuration{}, sourceKey, func(rawObj client.Object) []string {
 		cfg := rawObj.(*v1alpha1.Configuration)
-		return []string{cfg.Spec.SourceRef.Name}
-
+		var ns = cfg.Spec.SourceRef.Namespace
+		if ns == "" {
+			ns = cfg.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, cfg.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -85,8 +88,11 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if cfg.Spec.ConfigRef == nil {
 			return nil
 		}
-		return []string{cfg.Spec.ConfigRef.Name}
-
+		var ns = cfg.Spec.ConfigRef.Namespace
+		if ns == "" {
+			ns = cfg.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, cfg.Spec.ConfigRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -96,8 +102,11 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if cfg.Spec.PatchStrategicMerge == nil {
 			return nil
 		}
-		return []string{cfg.Spec.PatchStrategicMerge.Source.SourceRef.Name}
-
+		var ns = cfg.Spec.PatchStrategicMerge.Source.SourceRef.Namespace
+		if ns == "" {
+			ns = cfg.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, cfg.Spec.PatchStrategicMerge.Source.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -316,12 +325,12 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) func(
 
 		switch obj.(type) {
 		case *v1alpha1.ComponentVersion:
-			selectorTerm = obj.GetName()
+			selectorTerm = client.ObjectKeyFromObject(obj).String()
 		case *v1alpha1.Snapshot:
 			if len(obj.GetOwnerReferences()) != 1 {
 				return []reconcile.Request{}
 			}
-			selectorTerm = obj.GetOwnerReferences()[0].Name
+			selectorTerm = fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetOwnerReferences()[0].Name)
 		default:
 			return []reconcile.Request{}
 		}
@@ -329,7 +338,6 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) func(
 		sourceRefs := &v1alpha1.ConfigurationList{}
 		if err := r.List(context.TODO(), sourceRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(sourceKey, selectorTerm),
-			Namespace:     obj.GetNamespace(),
 		}); err != nil {
 			return []reconcile.Request{}
 		}
@@ -337,7 +345,6 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) func(
 		configRefs := &v1alpha1.ConfigurationList{}
 		if err := r.List(context.TODO(), configRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(configKey, selectorTerm),
-			Namespace:     obj.GetNamespace(),
 		}); err != nil {
 			return []reconcile.Request{}
 		}
@@ -346,16 +353,14 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) func(
 	}
 }
 
-// this function will enqueue a reconciliation for any component version which is referenced
-// in the .spec.sourceRef or spec.configRef field of a Configuration
+// this function will enqueue a reconciliation
 func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) func(client.Object) []reconcile.Request {
 	return func(obj client.Object) []reconcile.Request {
 		cfgs := &v1alpha1.ConfigurationList{}
 		for _, key := range keys {
 			result := &v1alpha1.ConfigurationList{}
 			if err := r.List(context.TODO(), result, &client.ListOptions{
-				FieldSelector: fields.OneTermEqualSelector(key, obj.GetName()),
-				Namespace:     obj.GetNamespace(),
+				FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
 			}); err != nil {
 				return []reconcile.Request{}
 			}
