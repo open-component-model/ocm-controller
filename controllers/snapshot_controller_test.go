@@ -7,6 +7,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -14,9 +15,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierror "k8s.io/apimachinery/pkg/api/errors"
@@ -25,6 +23,11 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 )
 
 func TestSnapshotReconciler(t *testing.T) {
@@ -201,6 +204,58 @@ func TestSnapshotReconcilerDeleteFailsWithManifestNotFound(t *testing.T) {
 			},
 		},
 		StatusCode: 0,
+		Request:    nil,
+	})
+	recorder := record.NewFakeRecorder(32)
+
+	sr := SnapshotReconciler{
+		Client:              client,
+		Scheme:              env.scheme,
+		RegistryServiceName: "127.0.0.1:5000",
+		EventRecorder:       recorder,
+		Cache:               fakeCache,
+	}
+	_, err := sr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      snapshot.Name,
+			Namespace: snapshot.Namespace,
+		},
+	})
+	require.NoError(t, err)
+	err = client.Get(context.Background(), types.NamespacedName{Name: snapshot.Name, Namespace: snapshot.Namespace}, snapshot)
+	assert.True(t, apierror.IsNotFound(err))
+}
+
+func TestSnapshotReconcilerDeleteFailsWithNotFoundStatusCode(t *testing.T) {
+	snapshot := &v1alpha1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-snapshot",
+			Namespace: "default",
+			DeletionTimestamp: &metav1.Time{
+				Time: time.Now(),
+			},
+		},
+		Spec: v1alpha1.SnapshotSpec{
+			Identity: ocmmetav1.Identity{
+				v1alpha1.ComponentNameKey:    "component-name",
+				v1alpha1.ComponentVersionKey: "v0.0.1",
+				v1alpha1.ResourceNameKey:     "resource-name",
+				v1alpha1.ResourceVersionKey:  "v0.0.5",
+			},
+			Digest: "digest-1",
+			Tag:    "1234",
+		},
+	}
+	controllerutil.AddFinalizer(snapshot, snapshotFinalizer)
+	client := env.FakeKubeClient(WithObjects(snapshot))
+	fakeCache := &fakes.FakeCache{}
+	fakeCache.DeleteDataReturns(&transport.Error{
+		Errors: []transport.Diagnostic{
+			{
+				Code: transport.ManifestBlobUnknownErrorCode,
+			},
+		},
+		StatusCode: http.StatusNotFound,
 		Request:    nil,
 	})
 	recorder := record.NewFakeRecorder(32)

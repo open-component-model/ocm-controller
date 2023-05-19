@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -152,7 +153,11 @@ func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *d
 
 	if err := r.Cache.DeleteData(ctx, name, obj.Spec.Tag); err != nil {
 		var terr *transport.Error
-		if !errors.As(err, &terr) || !containsManifestNotFoundError(terr.Errors) {
+		if !errors.As(err, &terr) {
+			return fmt.Errorf("failure was not a transport error during data deletion: %w", err)
+		}
+
+		if terr.StatusCode != http.StatusNotFound && !isUnknownManifestError(terr.Errors) {
 			return fmt.Errorf("failed to delete data: %w", err)
 		}
 	}
@@ -162,7 +167,7 @@ func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *d
 	return patchHelper.Patch(ctx, obj)
 }
 
-func containsManifestNotFoundError(errors []transport.Diagnostic) bool {
+func isUnknownManifestError(errors []transport.Diagnostic) bool {
 	for _, e := range errors {
 		if e.Code == transport.ManifestUnknownErrorCode {
 			return true
