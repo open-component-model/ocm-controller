@@ -33,8 +33,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
-	"github.com/fluxcd/source-controller/api/v1beta2"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/event"
@@ -72,7 +71,11 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if !ok {
 			return []string{}
 		}
-		return []string{obj.Spec.SourceRef.Name}
+		var ns = obj.Spec.SourceRef.Namespace
+		if ns == "" {
+			ns = obj.GetNamespace()
+		}
+		return []string{fmt.Sprintf("%s/%s", ns, obj.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
@@ -173,7 +176,7 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 }
 
 func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1alpha1.FluxDeployer, url, tag string) error {
-	ociRepoCR := &sourcev1.OCIRepository{
+	ociRepoCR := &sourcev1beta2.OCIRepository{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
 			Name:      obj.GetName(),
@@ -186,11 +189,11 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1al
 				return fmt.Errorf("failed to set owner reference on oci repository source: %w", err)
 			}
 		}
-		ociRepoCR.Spec = sourcev1.OCIRepositorySpec{
+		ociRepoCR.Spec = sourcev1beta2.OCIRepositorySpec{
 			Interval: obj.Spec.KustomizationTemplate.Interval,
 			Insecure: true,
 			URL:      url,
-			Reference: &v1beta2.OCIRepositoryRef{
+			Reference: &sourcev1beta2.OCIRepositoryRef{
 				Tag: tag,
 			},
 		}
@@ -219,7 +222,7 @@ func (r *FluxDeployerReconciler) reconcileKustomization(ctx context.Context, obj
 			}
 		}
 		kust.Spec = obj.Spec.KustomizationTemplate
-		kust.Spec.SourceRef.Kind = sourcev1.OCIRepositoryKind
+		kust.Spec.SourceRef.Kind = sourcev1beta2.OCIRepositoryKind
 		kust.Spec.SourceRef.Namespace = obj.GetNamespace()
 		kust.Spec.SourceRef.Name = obj.GetName()
 		return nil
@@ -282,7 +285,7 @@ func (r *FluxDeployerReconciler) findObjects(sourceKey string) func(client.Objec
 			if len(obj.GetOwnerReferences()) != 1 {
 				return []reconcile.Request{}
 			}
-			selectorTerm = obj.GetOwnerReferences()[0].Name
+			selectorTerm = fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetOwnerReferences()[0].Name)
 		default:
 			return []reconcile.Request{}
 		}
@@ -290,7 +293,6 @@ func (r *FluxDeployerReconciler) findObjects(sourceKey string) func(client.Objec
 		sourceRefs := &v1alpha1.FluxDeployerList{}
 		if err := r.List(context.TODO(), sourceRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(sourceKey, selectorTerm),
-			Namespace:     obj.GetNamespace(),
 		}); err != nil {
 			return []reconcile.Request{}
 		}

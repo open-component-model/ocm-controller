@@ -13,17 +13,22 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/containers/image/v5/pkg/compression"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/http/fetch"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/tar"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
+	"gopkg.in/yaml.v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -41,6 +46,8 @@ import (
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/open-component-model/ocm/pkg/spiff"
 	"github.com/open-component-model/ocm/pkg/utils"
+
+	utils2 "github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -102,28 +109,23 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 		obj.GetStatus().LatestConfigVersion = snapshotID[v1alpha1.ComponentVersionKey]
 
 		// if values are not nil then this is configuration
-		if mutationSpec.Values != nil {
-			sourceDir, err = m.configure(ctx, sourceData, configData, mutationSpec.Values)
+		if mutationSpec.Values != nil || mutationSpec.ValuesFrom != nil {
+			values, err := m.getValues(ctx, mutationSpec)
+			if err != nil {
+				return fmt.Errorf("failed to get values: %w", err)
+			}
+			sourceDir, err = m.configure(ctx, sourceData, configData, values)
 			if err != nil {
 				return fmt.Errorf("failed to configure resource: %w", err)
 			}
-
 		} else { // if values are nil then this is localization
-			refPath := mutationSpec.ConfigRef.ResourceRef.ReferencePath
 			cv, err := m.getComponentVersion(ctx, mutationSpec.ConfigRef)
 			if err != nil {
 				return fmt.Errorf("failed to get component version: %w", err)
 			}
 
-			cd, err := component.GetComponentDescriptor(ctx, m.Client, refPath, cv.Status.ComponentDescriptor)
-			if err != nil {
-				return fmt.Errorf("failed to get component descriptor from version: %w", err)
-			}
-			if cd == nil {
-				return fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", refPath)
-			}
-
-			sourceDir, err = m.localize(ctx, cv, sourceData, configData)
+			refPath := mutationSpec.ConfigRef.ResourceRef.ReferencePath
+			sourceDir, err = m.localize(ctx, cv, sourceData, configData, refPath)
 			if err != nil {
 				return fmt.Errorf("failed to localize resource: %w", err)
 			}
@@ -140,7 +142,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 
 		gitSource, err := m.getSource(ctx, mutationSpec.PatchStrategicMerge.Source.SourceRef)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get patch source: %w", err)
 		}
 
 		obj.GetStatus().LatestPatchSourceVersion = gitSource.GetArtifact().Revision
@@ -150,7 +152,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 
 		sourceDir, snapshotID, err = m.strategicMergePatch(ctx, gitSource, sourceData, tmpDir, sourcePath, targetPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to perform strategic merge patch: %w", err)
 		}
 	}
 
@@ -202,7 +204,7 @@ func (m *MutationReconcileLooper) configure(ctx context.Context, data []byte, co
 	return sourceDir, nil
 }
 
-func (m *MutationReconcileLooper) localize(ctx context.Context, cv *v1alpha1.ComponentVersion, data, configObj []byte) (string, error) {
+func (m *MutationReconcileLooper) localize(ctx context.Context, cv *v1alpha1.ComponentVersion, data, configObj []byte, refPath []ocmmetav1.Identity) (string, error) {
 	log := log.FromContext(ctx)
 
 	virtualFS, err := osfs.NewTempFileSystem()
@@ -225,7 +227,7 @@ func (m *MutationReconcileLooper) localize(ctx context.Context, cv *v1alpha1.Com
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
 
-	rules, err := m.createSubstitutionRulesForLocalization(ctx, cv, configObj)
+	rules, err := m.createSubstitutionRulesForLocalization(ctx, cv, configObj, refPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create substitution rules for localization: %w", err)
 	}
@@ -344,7 +346,7 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 	return io.ReadAll(uncompressed)
 }
 
-func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx context.Context, cv *v1alpha1.ComponentVersion, data []byte) (localize.Substitutions, error) {
+func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx context.Context, cv *v1alpha1.ComponentVersion, data []byte, refPath []ocmmetav1.Identity) (localize.Substitutions, error) {
 	config := &configdata.ConfigData{}
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(data, config); err != nil {
 		return nil,
@@ -375,7 +377,8 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(ctx con
 			continue
 		}
 
-		resource, err := compvers.GetResource(ocmmetav1.NewIdentity(l.Resource.Name))
+		resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), refPath)
+		resource, _, err := utils2.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch resource from component version: %w", err)
 		}
@@ -468,7 +471,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 		return nil, fmt.Errorf("failed to marshal configuration schema: %w", err)
 	}
 
-	configSubstitutions, err := m.configurator(rules, defaults, values.Raw, schema)
+	configSubstitutions, err := m.generateSubstitutions(rules, defaults, values.Raw, schema)
 	if err != nil {
 		return nil, fmt.Errorf("configurator error: %w", err)
 	}
@@ -476,7 +479,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 	return configSubstitutions, nil
 }
 
-func (m *MutationReconcileLooper) configurator(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
+func (m *MutationReconcileLooper) generateSubstitutions(subst []localize.Substitution, defaults, values, schema []byte) (localize.Substitutions, error) {
 	// configure defaults
 	templ := make(map[string]any)
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
@@ -647,7 +650,6 @@ func (m *MutationReconcileLooper) getSource(ctx context.Context, ref meta.Namesp
 	switch ref.Kind {
 	case sourcev1.GitRepositoryKind:
 		obj = &sourcev1.GitRepository{}
-	//TODO: these are not part of source-controller v1 yet, consider renabling when they are
 	// case sourcev1.BucketKind:
 	//     obj = &sourcev1.Bucket{}
 	// case sourcev1.OCIRepositoryKind:
@@ -757,4 +759,124 @@ func (m *MutationReconcileLooper) getComponentVersion(ctx context.Context, obj *
 		return nil, err
 	}
 	return cv, nil
+}
+
+// getValues returns values that can be used for the configuration
+// currently it only possible to use inline values OR values from an external source
+func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.MutationSpec) (*apiextensionsv1.JSON, error) {
+	if obj.Values != nil {
+		return obj.Values, nil
+	}
+
+	if obj.ValuesFrom.FluxSource != nil {
+		source, err := m.getSource(ctx, obj.ValuesFrom.FluxSource.SourceRef)
+		if err != nil {
+			return nil, fmt.Errorf("could not get values from source: %w", err)
+		}
+
+		tmpDir, err := os.MkdirTemp("", "mutation-controller-")
+		if err != nil {
+			return nil, fmt.Errorf("could not create temporary directory: %w", err)
+		}
+
+		tarSize := tar.UnlimitedUntarSize
+		fetcher := fetch.NewArchiveFetcher(10, tarSize, tarSize, "")
+		artifact := source.GetArtifact()
+		if artifact == nil {
+			return nil, fmt.Errorf("could not get artifact from source: %s", obj.ValuesFrom.FluxSource.SourceRef.Name)
+		}
+		err = fetcher.Fetch(artifact.URL, source.GetArtifact().Digest, tmpDir)
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch values artifact from source: %w", err)
+		}
+
+		path, err := securejoin.SecureJoin(tmpDir, obj.ValuesFrom.FluxSource.Path)
+		if err != nil {
+			return nil, fmt.Errorf("could not construct values file path: %w", err)
+		}
+
+		dataFile, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("could not read values file: %w", err)
+		}
+
+		var data map[string]any
+		if err := yaml.Unmarshal(dataFile, &data); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal values: %w", err)
+		}
+
+		var found bool
+		if obj.ValuesFrom.FluxSource.SubPath != "" {
+			data, found = extractSubpath(data, obj.ValuesFrom.FluxSource.SubPath)
+			if !found {
+				return nil, errors.New("subPath not found")
+			}
+		}
+
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal values: %w", err)
+		}
+
+		return &apiextensionsv1.JSON{
+			Raw: jsonData,
+		}, nil
+	}
+
+	return nil, errors.New("no values found")
+}
+
+// Recursive function to extract the subpath from the data map
+func extractSubpath(data map[string]any, subpath string) (map[string]any, bool) {
+	keys := splitSubpath(subpath)
+	curr := data
+
+	for i, key := range keys {
+		value, ok := curr[key]
+		if !ok {
+			return nil, false
+		}
+
+		if i == len(keys)-1 {
+			if _, ok := value.(map[string]any); !ok {
+				return convertMap(value.(map[any]any)), true
+			}
+			return value.(map[string]any), true
+		}
+
+		if nested, ok := value.(map[any]any); ok {
+			curr = convertMap(nested)
+		} else {
+			return nil, false
+		}
+	}
+
+	return nil, false
+}
+
+// Helper function to split the subpath into keys
+func splitSubpath(subpath string) []string {
+	return strings.Split(subpath, ".")
+}
+
+func convertMap(data map[any]any) map[string]any {
+	result := make(map[string]any)
+
+	for k, v := range data {
+		key, ok := k.(string)
+		if !ok {
+			// Handle the case where the key is not a string
+			continue
+		}
+
+		switch value := v.(type) {
+		case map[any]any:
+			// Recursively convert nested maps
+			result[key] = convertMap(value)
+		default:
+			result[key] = value
+		}
+	}
+
+	return result
 }
