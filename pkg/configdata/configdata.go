@@ -17,13 +17,13 @@ type ConfigData struct {
 }
 
 type ConfigurationSpec struct {
-	Defaults map[string]string   `json:"defaults"`
+	Defaults map[string]any      `json:"defaults"`
 	Schema   gojsonschema.Schema `json:"schema"`
 	Rules    []ConfigRule        `json:"rules"`
 }
 
 type ConfigRule struct {
-	Value string `json:"value"`
+	Value any    `json:"value"`
 	Path  string `json:"path"`
 	File  string `json:"file"`
 }
