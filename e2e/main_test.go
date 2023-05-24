@@ -350,11 +350,13 @@ func TestComponentUploadToLocalOCIRegistry(t *testing.T) {
 	)
 }
 
+
 func checkRepositoryExistsInRegistry(componentName string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Helper()
 		res, err := crane.Catalog(hostUrl + portSeparator + strconv.Itoa(registryPort))
 		if err != nil {
+			t.Log(err)
 			t.Fail()
 		}
 
@@ -373,4 +375,22 @@ func containsComponent(craneCatalogRes []string, component string) bool {
 		}
 	}
 	return false
+}
+
+func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
+	t.Log("Test signed component-version transfer to local oci repository")
+
+	setupComponent := createTestComponentVersion(t)
+
+	validation := features.New("Validate if OCM Components are present in OCI Registry").
+		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
+		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(podinfoComponentName)).
+		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(podinfoBackendComponentName)).
+		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(podinfoFrontendComponentName)).
+		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(redisComponentName))
+
+	testEnv.Test(t,
+		setupComponent.Feature(),
+		validation.Feature(),
+	)
 }

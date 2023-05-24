@@ -26,6 +26,8 @@ var (
 	gitRepositoryPort = 3000
 	hostUrl           = "localhost"
 	portSeparator     = ":"
+	localOciRegistry  = "registry"
+	localGitService   = "gitea"
 )
 
 func TestMain(m *testing.M) {
@@ -45,8 +47,8 @@ func TestMain(m *testing.M) {
 		shared.StartGitServer(namespace),
 		shared.InstallFlux("latest"),
 		shared.RunTiltForControllers("ocm-controller"),
-		shared.ForwardPortForAppName("registry", registryPort, stopChannelRegistry),
-		shared.ForwardPortForAppName("gitea", gitRepositoryPort, stopChannelGitea),
+		shared.ForwardPortForAppName(localOciRegistry, registryPort, stopChannelRegistry),
+		shared.ForwardPortForAppName(localGitService, gitRepositoryPort, stopChannelGitea),
 	)
 
 	testEnv.Finish(
@@ -56,5 +58,12 @@ func TestMain(m *testing.M) {
 		envfuncs.DeleteNamespace(namespace),
 		envfuncs.DestroyKindCluster(kindClusterName),
 	)
+
+	testEnv.AfterEachTest(
+		shared.ResetRegistry(localOciRegistry,stopChannelRegistry),
+		shared.ShutdownPortForwardAfterTest(stopChannelRegistry),
+		shared.ForwardPortForAppNameAfterTest(localOciRegistry, registryPort, stopChannelRegistry),
+	)
+
 	os.Exit(testEnv.Run(m))
 }
