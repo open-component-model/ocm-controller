@@ -77,7 +77,6 @@ require (
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
 	github.com/containers/ocicrypt v1.1.6 // indirect
 	github.com/containers/storage v1.43.0 // indirect
-	github.com/cyberphone/json-canonicalization v0.0.0-20220623050100-57a0ce2678a7 // indirect
 	github.com/docker/cli v23.0.1+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker v23.0.3+incompatible // indirect
@@ -240,3 +239,7 @@ require (
 )
 
 replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
+
+replace github.com/mandelsoft/filepath v0.0.0-20230412200429-36b1eb66bd27 => github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
+
+replace github.com/open-component-model/ocm v0.3.0-rc.2 => github.com/open-component-model/ocm v0.3.0-rc.1.0.20230408161516-7bac90d616ab

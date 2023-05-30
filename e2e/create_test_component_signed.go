@@ -12,26 +12,21 @@ import (
 )
 
 var (
-	BasePath                      = "testdata/"
-	TestOCIRegistryComponentsPath = "testOCIRegistryComponents/"
-	pathComponent                 = BasePath + TestOCIRegistryComponentsPath
-	podinfoComponentName          = "mpas.ocm.software/podinfo"
-	podinfoBackendComponentName   = "mpas.ocm.software/podinfo/backend"
-	podinfoFrontendComponentName  = "mpas.ocm.software/podinfo/frontend"
-	redisComponentName            = "mpas.ocm.software/redis"
+	TestSignedComponentsPath = "testSignedOCIRegistryComponents/"
+	pathSignedComponent      = BasePath + TestSignedComponentsPath
 )
 
-func createTestComponentVersion(t *testing.T) *features.FeatureBuilder {
+func createTestComponentVersionSigned(t *testing.T, privateKey []byte) *features.FeatureBuilder {
 	t.Helper()
 
 	return features.New("Add components to component-version").
-		Setup(setup.AddComponentVersions(podinfo(t))).
-		Setup(setup.AddComponentVersions(podinfoBackend(t))).
-		Setup(setup.AddComponentVersions(podinfoFrontend(t))).
-		Setup(setup.AddComponentVersions(podinfoRedis(t)))
+		Setup(setup.AddComponentVersions(podinfoSigned(t, privateKey))).
+		Setup(setup.AddComponentVersions(podinfoBackendSigned(t, privateKey))).
+		Setup(setup.AddComponentVersions(podinfoFrontendSigned(t, privateKey))).
+		Setup(setup.AddComponentVersions(podinfoRedisSigned(t, privateKey)))
 }
 
-func podinfo(t *testing.T) setup.Component {
+func podinfoSigned(t *testing.T, key []byte) setup.Component {
 	t.Helper()
 
 	content, err := os.ReadFile(filepath.Join(pathComponent, "product_description.yaml"))
@@ -43,6 +38,10 @@ func podinfo(t *testing.T) setup.Component {
 		Component: shared.Component{
 			Name:    podinfoComponentName,
 			Version: "1.0.0",
+			Sign: &shared.Sign{
+				Name: "testKey.rsa",
+				Key:  key,
+			},
 		},
 		Repository: "podinfo",
 		ComponentVersionModifications: []shared.ComponentModification{
@@ -70,7 +69,7 @@ func podinfo(t *testing.T) setup.Component {
 	}
 }
 
-func podinfoBackend(t *testing.T) setup.Component {
+func podinfoBackendSigned(t *testing.T, key []byte) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(pathComponent, "podinfo", "backend", "config.yaml"))
@@ -97,6 +96,10 @@ func podinfoBackend(t *testing.T) setup.Component {
 		Component: shared.Component{
 			Name:    podinfoBackendComponentName,
 			Version: "1.0.0",
+			Sign: &shared.Sign{
+				Name: "testKey.rsa",
+				Key:  key,
+			},
 		},
 		Repository: "backend",
 		ComponentVersionModifications: []shared.ComponentModification{
@@ -129,7 +132,7 @@ func podinfoBackend(t *testing.T) setup.Component {
 	}
 }
 
-func podinfoFrontend(t *testing.T) setup.Component {
+func podinfoFrontendSigned(t *testing.T, key []byte) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(pathComponent, "podinfo", "frontend", "config.yaml"))
@@ -156,6 +159,10 @@ func podinfoFrontend(t *testing.T) setup.Component {
 		Component: shared.Component{
 			Name:    podinfoFrontendComponentName,
 			Version: "1.0.0",
+			Sign: &shared.Sign{
+				Name: "testKey.rsa",
+				Key:  key,
+			},
 		},
 		Repository: "frontend",
 		ComponentVersionModifications: []shared.ComponentModification{
@@ -188,7 +195,7 @@ func podinfoFrontend(t *testing.T) setup.Component {
 	}
 }
 
-func podinfoRedis(t *testing.T) setup.Component {
+func podinfoRedisSigned(t *testing.T, key []byte) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(pathComponent, "podinfo", "redis", "config.yaml"))
@@ -215,6 +222,10 @@ func podinfoRedis(t *testing.T) setup.Component {
 		Component: shared.Component{
 			Name:    redisComponentName,
 			Version: "1.0.0",
+			Sign: &shared.Sign{
+				Name: "testKey.rsa",
+				Key:  key,
+			},
 		},
 		Repository: "redis",
 		ComponentVersionModifications: []shared.ComponentModification{

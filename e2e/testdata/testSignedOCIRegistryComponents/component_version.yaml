@@ -1,0 +1,17 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ComponentVersion
+metadata:
+  name: podinfo
+  namespace: ocm-system
+spec:
+  interval: 5m0s
+  component: phoban.io/test
+  version:
+    semver: ">=v1.0.0"
+  repository:
+    url: gitea.ocm-system
+  verify:
+  - name: rsa
+    publicKey:
+      secretRef:
+        name: rsa

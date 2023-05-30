@@ -8,6 +8,12 @@ package e2e
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"github.com/open-component-model/ocm-e2e-framework/shared"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
@@ -33,17 +39,25 @@ import (
 )
 
 var (
-	testRepoName              = "ocm-controller-test"
-	timeoutDuration           = time.Minute * 2
-	testOCMControllerBasePath = "testOCMController/"
-	cvFile                    = testOCMControllerBasePath + "component_version.yaml"
-	localizationFile          = testOCMControllerBasePath + "localization.yaml"
-	resourceFile              = testOCMControllerBasePath + "resource.yaml"
-	configurationfile         = testOCMControllerBasePath + "configuration.yaml"
-	deployerFile              = testOCMControllerBasePath + "deployer.yaml"
-	cvManifest                = setup.File{
+	testRepoName          = "ocm-controller-test"
+	timeoutDuration       = time.Minute * 2
+	TestOCMControllerPath = "testOCMController/"
+	RsaPrivKeyName        = "testKeyRsa"
+	RsaPubKeyName         = "rsa"
+	cvFileSigned          = TestSignedComponentsPath + "component_version.yaml"
+	cvFile                = TestOCMControllerPath + "component_version.yaml"
+	localizationFile      = TestOCMControllerPath + "localization.yaml"
+	resourceFile          = TestOCMControllerPath + "resource.yaml"
+	configurationfile     = TestOCMControllerPath + "configuration.yaml"
+	deployerFile          = TestOCMControllerPath + "deployer.yaml"
+	cvManifest            = setup.File{
 		RepoName:       testRepoName,
 		SourceFilepath: cvFile,
+		DestFilepath:   "apps/component_version.yaml",
+	}
+	cvManifestSigned = setup.File{
+		RepoName:       testRepoName,
+		SourceFilepath: cvFileSigned,
 		DestFilepath:   "apps/component_version.yaml",
 	}
 	resourceManifest = setup.File{
@@ -68,6 +82,13 @@ var (
 	}
 	manifests = []setup.File{
 		cvManifest,
+		resourceManifest,
+		localizationManifest,
+		configurationManifest,
+		deployerManifest,
+	}
+	manifestsSigned = []setup.File{
+		cvManifestSigned,
 		resourceManifest,
 		localizationManifest,
 		configurationManifest,
@@ -350,7 +371,6 @@ func TestComponentUploadToLocalOCIRegistry(t *testing.T) {
 	)
 }
 
-
 func checkRepositoryExistsInRegistry(componentName string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Helper()
@@ -377,10 +397,92 @@ func containsComponent(craneCatalogRes []string, component string) bool {
 	return false
 }
 
-func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
+func TestRSASignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 	t.Log("Test signed component-version transfer to local oci repository")
 
-	setupComponent := createTestComponentVersion(t)
+	privateKey, publicKey, err := createRSAKeys()
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+	}
+	setupComponent := createTestComponentVersionSigned(t, privateKey)
+
+	validation := features.New("Validate if signed OCM Components are present in OCI Registry").
+		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
+		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
+		Setup(setup.AddFluxSyncForRepo(testRepoName, "apps/", namespace)).
+		Setup(setup.AddGitRepository(testRepoName)).
+		Setup(setup.AddFilesToGitRepository(manifestsSigned...)).
+		Setup(shared.CreateSecret(RsaPubKeyName, publicKey)).
+		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(podinfoComponentName)).
+		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(podinfoBackendComponentName)).
+		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(podinfoFrontendComponentName)).
+		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(redisComponentName))
+
+	testEnv.Test(t,
+		setupComponent.Feature(),
+		validation.Feature(),
+	)
+}
+
+func createRSAKeys() ([]byte, []byte, error) {
+	bitSize := 2048
+
+	key, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		panic(err)
+	}
+
+	pub := key.Public()
+
+	privateKey, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	publicKey, err := x509.MarshalPKIXPublicKey(pub.(*rsa.PublicKey))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Encode private key to PKCS#1 ASN.1 PEM.
+	keyPEM := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(key),
+		},
+	)
+
+	// Encode public key to PKCS#1 ASN.1 PEM.
+	pubPEM := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PUBLIC KEY",
+			Bytes: x509.MarshalPKCS1PublicKey(pub.(*rsa.PublicKey)),
+		},
+	)
+
+	// Write private key to file.
+	if err := ioutil.WriteFile(BasePath+TestSignedComponentsPath+RsaPrivKeyName, keyPEM, 0700); err != nil {
+		panic(err)
+	}
+
+	// Write public key to file.
+	if err := ioutil.WriteFile(BasePath+TestSignedComponentsPath+RsaPubKeyName, pubPEM, 0755); err != nil {
+		panic(err)
+	}
+
+	return privateKey, publicKey, nil
+}
+
+func TestSignedUnsignedComponentUploadToLocalOCIRegistry(t *testing.T) {
+	t.Log("Test signed component-version transfer to local oci repository")
+
+	privateKey, _, err := createRSAKeys()
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+	}
+	setupComponent := createTestComponentVersionSigned(t, privateKey)
 
 	validation := features.New("Validate if OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).

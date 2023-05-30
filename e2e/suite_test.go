@@ -11,11 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-component-model/ocm-e2e-framework/shared"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
-
-	"github.com/open-component-model/ocm-e2e-framework/shared"
 )
 
 var (
@@ -58,12 +57,10 @@ func TestMain(m *testing.M) {
 		envfuncs.DeleteNamespace(namespace),
 		envfuncs.DestroyKindCluster(kindClusterName),
 	)
-
 	testEnv.AfterEachTest(
-		shared.ResetRegistry(localOciRegistry,stopChannelRegistry),
+		shared.ResetRegistry(localOciRegistry, stopChannelRegistry),
 		shared.ShutdownPortForwardAfterTest(stopChannelRegistry),
 		shared.ForwardPortForAppNameAfterTest(localOciRegistry, registryPort, stopChannelRegistry),
 	)
-
 	os.Exit(testEnv.Run(m))
 }
