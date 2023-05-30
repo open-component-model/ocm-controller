@@ -20,10 +20,10 @@ func createTestComponentVersionSigned(t *testing.T, privateKey []byte) *features
 	t.Helper()
 
 	return features.New("Add components to component-version").
-		Setup(setup.AddComponentVersions(podinfoSigned(t, privateKey))).
 		Setup(setup.AddComponentVersions(podinfoBackendSigned(t, privateKey))).
 		Setup(setup.AddComponentVersions(podinfoFrontendSigned(t, privateKey))).
-		Setup(setup.AddComponentVersions(podinfoRedisSigned(t, privateKey)))
+		Setup(setup.AddComponentVersions(podinfoRedisSigned(t, privateKey))).
+		Setup(setup.AddComponentVersions(podinfoSigned(t, privateKey)))
 }
 
 func podinfoSigned(t *testing.T, key []byte) setup.Component {

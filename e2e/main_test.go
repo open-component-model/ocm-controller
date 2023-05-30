@@ -13,7 +13,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"github.com/open-component-model/ocm-e2e-framework/shared"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,25 +38,21 @@ import (
 )
 
 var (
-	testRepoName          = "ocm-controller-test"
-	timeoutDuration       = time.Minute * 2
-	TestOCMControllerPath = "testOCMController/"
-	RsaPrivKeyName        = "testKeyRsa"
-	RsaPubKeyName         = "rsa"
-	cvFileSigned          = TestSignedComponentsPath + "component_version.yaml"
-	cvFile                = TestOCMControllerPath + "component_version.yaml"
-	localizationFile      = TestOCMControllerPath + "localization.yaml"
-	resourceFile          = TestOCMControllerPath + "resource.yaml"
-	configurationfile     = TestOCMControllerPath + "configuration.yaml"
-	deployerFile          = TestOCMControllerPath + "deployer.yaml"
-	cvManifest            = setup.File{
+	testRepoName               = "ocm-controller-test"
+	testRepoSignedName         = "ocm-controller-signed-test"
+	testRepoSignedUnsignedName = "ocm-controller-signed-unsigned-test"
+	timeoutDuration            = time.Minute * 2
+	TestOCMControllerPath      = "testOCMController/"
+	RsaPubKeyName              = "rsa"
+	cvFileSigned               = TestSignedComponentsPath + "component_version.yaml"
+	cvFile                     = TestOCMControllerPath + "component_version.yaml"
+	localizationFile           = TestOCMControllerPath + "localization.yaml"
+	resourceFile               = TestOCMControllerPath + "resource.yaml"
+	configurationfile          = TestOCMControllerPath + "configuration.yaml"
+	deployerFile               = TestOCMControllerPath + "deployer.yaml"
+	cvManifest                 = setup.File{
 		RepoName:       testRepoName,
 		SourceFilepath: cvFile,
-		DestFilepath:   "apps/component_version.yaml",
-	}
-	cvManifestSigned = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: cvFileSigned,
 		DestFilepath:   "apps/component_version.yaml",
 	}
 	resourceManifest = setup.File{
@@ -80,6 +75,56 @@ var (
 		SourceFilepath: deployerFile,
 		DestFilepath:   "apps/deployer.yaml",
 	}
+	cvManifestSigned = setup.File{
+		RepoName:       testRepoSignedName,
+		SourceFilepath: cvFileSigned,
+		DestFilepath:   "apps/component_version.yaml",
+	}
+	resourceManifestSigned = setup.File{
+		RepoName:       testRepoSignedName,
+		SourceFilepath: resourceFile,
+		DestFilepath:   "apps/resource.yaml",
+	}
+	localizationManifestSigned = setup.File{
+		RepoName:       testRepoSignedName,
+		SourceFilepath: localizationFile,
+		DestFilepath:   "apps/localization.yaml",
+	}
+	configurationManifestSigned = setup.File{
+		RepoName:       testRepoSignedName,
+		SourceFilepath: configurationfile,
+		DestFilepath:   "apps/configuration.yaml",
+	}
+	deployerManifestSigned = setup.File{
+		RepoName:       testRepoSignedName,
+		SourceFilepath: deployerFile,
+		DestFilepath:   "apps/deployer.yaml",
+	}
+	cvManifestSignedUnsigned = setup.File{
+		RepoName:       testRepoSignedUnsignedName,
+		SourceFilepath: cvFile,
+		DestFilepath:   "apps/component_version.yaml",
+	}
+	resourceManifestSignedUnsigned = setup.File{
+		RepoName:       testRepoSignedUnsignedName,
+		SourceFilepath: resourceFile,
+		DestFilepath:   "apps/resource.yaml",
+	}
+	localizationManifestSignedUnsigned = setup.File{
+		RepoName:       testRepoSignedUnsignedName,
+		SourceFilepath: localizationFile,
+		DestFilepath:   "apps/localization.yaml",
+	}
+	configurationManifestSignedUnsigned = setup.File{
+		RepoName:       testRepoSignedUnsignedName,
+		SourceFilepath: configurationfile,
+		DestFilepath:   "apps/configuration.yaml",
+	}
+	deployerManifestSignedUnsigned = setup.File{
+		RepoName:       testRepoSignedUnsignedName,
+		SourceFilepath: deployerFile,
+		DestFilepath:   "apps/deployer.yaml",
+	}
 	manifests = []setup.File{
 		cvManifest,
 		resourceManifest,
@@ -89,10 +134,17 @@ var (
 	}
 	manifestsSigned = []setup.File{
 		cvManifestSigned,
-		resourceManifest,
-		localizationManifest,
-		configurationManifest,
-		deployerManifest,
+		resourceManifestSigned,
+		localizationManifestSigned,
+		configurationManifestSigned,
+		deployerManifestSigned,
+	}
+	manifestsSignedUnsigned = []setup.File{
+		cvManifestSignedUnsigned,
+		resourceManifestSignedUnsigned,
+		localizationManifestSignedUnsigned,
+		configurationManifestSignedUnsigned,
+		deployerManifestSignedUnsigned,
 	}
 )
 
@@ -409,9 +461,7 @@ func TestRSASignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 
 	validation := features.New("Validate if signed OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
-		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
-		Setup(setup.AddFluxSyncForRepo(testRepoName, "apps/", namespace)).
-		Setup(setup.AddGitRepository(testRepoName)).
+		Setup(setup.AddGitRepository(testRepoSignedName)).
 		Setup(setup.AddFilesToGitRepository(manifestsSigned...)).
 		Setup(shared.CreateSecret(RsaPubKeyName, publicKey)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(podinfoComponentName)).
@@ -435,16 +485,6 @@ func createRSAKeys() ([]byte, []byte, error) {
 
 	pub := key.Public()
 
-	privateKey, err := x509.MarshalPKCS8PrivateKey(key)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	publicKey, err := x509.MarshalPKIXPublicKey(pub.(*rsa.PublicKey))
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// Encode private key to PKCS#1 ASN.1 PEM.
 	keyPEM := pem.EncodeToMemory(
 		&pem.Block{
@@ -461,17 +501,7 @@ func createRSAKeys() ([]byte, []byte, error) {
 		},
 	)
 
-	// Write private key to file.
-	if err := ioutil.WriteFile(BasePath+TestSignedComponentsPath+RsaPrivKeyName, keyPEM, 0700); err != nil {
-		panic(err)
-	}
-
-	// Write public key to file.
-	if err := ioutil.WriteFile(BasePath+TestSignedComponentsPath+RsaPubKeyName, pubPEM, 0755); err != nil {
-		panic(err)
-	}
-
-	return privateKey, publicKey, nil
+	return keyPEM, pubPEM, nil
 }
 
 func TestSignedUnsignedComponentUploadToLocalOCIRegistry(t *testing.T) {
@@ -486,6 +516,9 @@ func TestSignedUnsignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 
 	validation := features.New("Validate if OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
+		Setup(setup.AddGitRepository(testRepoSignedName)).
+		Setup(setup.AddFilesToGitRepository(manifestsSignedUnsigned...)).
+		//Setup(shared.CreateSecret(RsaPubKeyName, publicKey)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(podinfoBackendComponentName)).
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(podinfoFrontendComponentName)).
