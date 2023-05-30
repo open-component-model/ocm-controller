@@ -238,8 +238,8 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
+//replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
 
-replace github.com/mandelsoft/filepath v0.0.0-20230412200429-36b1eb66bd27 => github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
+//replace github.com/mandelsoft/filepath v0.0.0-20230412200429-36b1eb66bd27 => github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
 
-replace github.com/open-component-model/ocm v0.3.0-rc.2 => github.com/open-component-model/ocm v0.3.0-rc.1.0.20230408161516-7bac90d616ab
+//replace github.com/open-component-model/ocm v0.3.0-rc.2 => github.com/open-component-model/ocm v0.3.0-rc.1.0.20230408161516-7bac90d616ab
