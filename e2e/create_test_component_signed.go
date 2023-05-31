@@ -11,11 +11,6 @@ import (
 	"github.com/open-component-model/ocm-e2e-framework/shared/steps/setup"
 )
 
-var (
-	TestSignedComponentsPath = "testSignedOCIRegistryComponents/"
-	pathSignedComponent      = BasePath + TestSignedComponentsPath
-)
-
 func createTestComponentVersionSigned(t *testing.T, privateKey []byte) *features.FeatureBuilder {
 	t.Helper()
 

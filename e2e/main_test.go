@@ -38,19 +38,23 @@ import (
 )
 
 var (
-	testRepoName               = "ocm-controller-test"
-	testRepoSignedName         = "ocm-controller-signed-test"
-	testRepoSignedUnsignedName = "ocm-controller-signed-unsigned-test"
-	timeoutDuration            = time.Minute * 2
-	TestOCMControllerPath      = "testOCMController/"
-	RsaPubKeyName              = "rsa"
-	cvFileSigned               = TestSignedComponentsPath + "component_version.yaml"
-	cvFile                     = TestOCMControllerPath + "component_version.yaml"
-	localizationFile           = TestOCMControllerPath + "localization.yaml"
-	resourceFile               = TestOCMControllerPath + "resource.yaml"
-	configurationfile          = TestOCMControllerPath + "configuration.yaml"
-	deployerFile               = TestOCMControllerPath + "deployer.yaml"
-	cvManifest                 = setup.File{
+	testRepoName                     = "ocm-controller-test"
+	testRepoSignedName               = "ocm-controller-signed-test"
+	testRepoSignedUnsignedName       = "ocm-controller-signed-unsigned-test"
+	timeoutDuration                  = time.Minute * 2
+	TestOCMControllerPath            = "testOCMController/"
+	TestSignedComponentsPath         = "testSignedOCIRegistryComponents/"
+	TestSignedUnsignedComponentsPath = "testSignedUnsignedOCIRegistryComponents"
+	RsaPubKeyName                    = "rsa"
+	RsaInvalidPubKeyName             = "rsainvalid"
+	cvFile                           = TestOCMControllerPath + "component_version.yaml"
+	localizationFile                 = TestOCMControllerPath + "localization.yaml"
+	resourceFile                     = TestOCMControllerPath + "resource.yaml"
+	configurationfile                = TestOCMControllerPath + "configuration.yaml"
+	deployerFile                     = TestOCMControllerPath + "deployer.yaml"
+	cvFileSigned                     = TestSignedComponentsPath + "component_version.yaml"
+	cvFileSignedUnsigned             = TestSignedUnsignedComponentsPath + "component_version.yaml"
+	cvManifest                       = setup.File{
 		RepoName:       testRepoName,
 		SourceFilepath: cvFile,
 		DestFilepath:   "apps/component_version.yaml",
@@ -102,7 +106,7 @@ var (
 	}
 	cvManifestSignedUnsigned = setup.File{
 		RepoName:       testRepoSignedUnsignedName,
-		SourceFilepath: cvFile,
+		SourceFilepath: cvFileSignedUnsigned,
 		DestFilepath:   "apps/component_version.yaml",
 	}
 	resourceManifestSignedUnsigned = setup.File{
@@ -428,8 +432,7 @@ func checkRepositoryExistsInRegistry(componentName string) features.Func {
 		t.Helper()
 		res, err := crane.Catalog(hostUrl + portSeparator + strconv.Itoa(registryPort))
 		if err != nil {
-			t.Log(err)
-			t.Fail()
+			t.Fatal(err)
 		}
 
 		if !containsComponent(res, componentName) {
@@ -454,8 +457,7 @@ func TestRSASignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 
 	privateKey, publicKey, err := createRSAKeys()
 	if err != nil {
-		t.Log(err)
-		t.Fail()
+		t.Fatal(err)
 	}
 	setupComponent := createTestComponentVersionSigned(t, privateKey)
 
@@ -507,18 +509,22 @@ func createRSAKeys() ([]byte, []byte, error) {
 func TestSignedUnsignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 	t.Log("Test signed component-version transfer to local oci repository")
 
+	_, publicKey, err := createRSAKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
 	privateKey, _, err := createRSAKeys()
 	if err != nil {
-		t.Log(err)
-		t.Fail()
+		t.Fatal(err)
 	}
+
 	setupComponent := createTestComponentVersionSigned(t, privateKey)
 
 	validation := features.New("Validate if OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
-		Setup(setup.AddGitRepository(testRepoSignedName)).
+		Setup(setup.AddGitRepository(testRepoSignedUnsignedName)).
 		Setup(setup.AddFilesToGitRepository(manifestsSignedUnsigned...)).
-		//Setup(shared.CreateSecret(RsaPubKeyName, publicKey)).
+		Setup(shared.CreateSecret(RsaInvalidPubKeyName, publicKey)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(podinfoBackendComponentName)).
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(podinfoFrontendComponentName)).
