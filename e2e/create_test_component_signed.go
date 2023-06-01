@@ -11,17 +11,18 @@ import (
 	"github.com/open-component-model/ocm-e2e-framework/shared/steps/setup"
 )
 
-func createTestComponentVersionSigned(t *testing.T, privateKey []byte) *features.FeatureBuilder {
+func createTestComponentVersionSigned(t *testing.T, privateKey []byte, privateKeyName string, publicKey []byte, publicKeyName string) *features.FeatureBuilder {
 	t.Helper()
 
 	return features.New("Add components to component-version").
-		Setup(setup.AddComponentVersions(podinfoBackendSigned(t, privateKey))).
-		Setup(setup.AddComponentVersions(podinfoFrontendSigned(t, privateKey))).
-		Setup(setup.AddComponentVersions(podinfoRedisSigned(t, privateKey))).
-		Setup(setup.AddComponentVersions(podinfoSigned(t, privateKey)))
+		Setup(shared.CreateSecret(publicKeyName, publicKey)).
+		Setup(setup.AddComponentVersions(podinfoBackendSigned(t, privateKey, privateKeyName))).
+		Setup(setup.AddComponentVersions(podinfoFrontendSigned(t, privateKey, privateKeyName))).
+		Setup(setup.AddComponentVersions(podinfoRedisSigned(t, privateKey, privateKeyName))).
+		Setup(setup.AddComponentVersions(podinfoSigned(t, privateKey, privateKeyName)))
 }
 
-func podinfoSigned(t *testing.T, key []byte) setup.Component {
+func podinfoSigned(t *testing.T, key []byte, privateKeyName string) setup.Component {
 	t.Helper()
 
 	content, err := os.ReadFile(filepath.Join(pathComponent, "product_description.yaml"))
@@ -34,7 +35,7 @@ func podinfoSigned(t *testing.T, key []byte) setup.Component {
 			Name:    podinfoComponentName,
 			Version: "1.0.0",
 			Sign: &shared.Sign{
-				Name: "testKey.rsa",
+				Name: privateKeyName,
 				Key:  key,
 			},
 		},
@@ -64,9 +65,8 @@ func podinfoSigned(t *testing.T, key []byte) setup.Component {
 	}
 }
 
-func podinfoBackendSigned(t *testing.T, key []byte) setup.Component {
+func podinfoBackendSigned(t *testing.T, key []byte, privateKeyName string) setup.Component {
 	t.Helper()
-
 	configContent, err := os.ReadFile(filepath.Join(pathComponent, "podinfo", "backend", "config.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
@@ -92,7 +92,7 @@ func podinfoBackendSigned(t *testing.T, key []byte) setup.Component {
 			Name:    podinfoBackendComponentName,
 			Version: "1.0.0",
 			Sign: &shared.Sign{
-				Name: "testKey.rsa",
+				Name: privateKeyName,
 				Key:  key,
 			},
 		},
@@ -127,7 +127,7 @@ func podinfoBackendSigned(t *testing.T, key []byte) setup.Component {
 	}
 }
 
-func podinfoFrontendSigned(t *testing.T, key []byte) setup.Component {
+func podinfoFrontendSigned(t *testing.T, key []byte, privateKeyName string) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(pathComponent, "podinfo", "frontend", "config.yaml"))
@@ -155,7 +155,7 @@ func podinfoFrontendSigned(t *testing.T, key []byte) setup.Component {
 			Name:    podinfoFrontendComponentName,
 			Version: "1.0.0",
 			Sign: &shared.Sign{
-				Name: "testKey.rsa",
+				Name: privateKeyName,
 				Key:  key,
 			},
 		},
@@ -190,7 +190,7 @@ func podinfoFrontendSigned(t *testing.T, key []byte) setup.Component {
 	}
 }
 
-func podinfoRedisSigned(t *testing.T, key []byte) setup.Component {
+func podinfoRedisSigned(t *testing.T, key []byte, privateKeyName string) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(pathComponent, "podinfo", "redis", "config.yaml"))
@@ -218,7 +218,7 @@ func podinfoRedisSigned(t *testing.T, key []byte) setup.Component {
 			Name:    redisComponentName,
 			Version: "1.0.0",
 			Sign: &shared.Sign{
-				Name: "testKey.rsa",
+				Name: privateKeyName,
 				Key:  key,
 			},
 		},

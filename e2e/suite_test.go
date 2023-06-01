@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 
 	cfg, _ := envconf.NewFromFlags()
 	testEnv = env.NewWithConfig(cfg)
-	kindClusterName = envconf.RandomName("ocm-ctrl-e2e"+time.Now().Format("2006-01-02-15-04-05"), 32)
+	kindClusterName = envconf.RandomName("ocm-ctrl-e2e-"+time.Now().Format("2006-01-02-15-04-05"), 4)
 	namespace = "ocm-system"
 
 	stopChannelRegistry := make(chan struct{}, 1)
@@ -51,14 +51,14 @@ func TestMain(m *testing.M) {
 	)
 
 	testEnv.Finish(
-		shared.RemoveGitServer(namespace),
+		//	shared.RemoveGitServer(namespace),
 		shared.ShutdownPortForward(stopChannelRegistry),
 		shared.ShutdownPortForward(stopChannelGitea),
-		envfuncs.DeleteNamespace(namespace),
-		envfuncs.DestroyKindCluster(kindClusterName),
+		//	envfuncs.DeleteNamespace(namespace),
+		//	envfuncs.DestroyKindCluster(kindClusterName),
 	)
 	testEnv.AfterEachTest(
-		shared.ResetRegistry(localOciRegistry, stopChannelRegistry),
+		shared.RestartDeployment(localOciRegistry),
 		shared.ShutdownPortForwardAfterTest(stopChannelRegistry),
 		shared.ForwardPortForAppNameAfterTest(localOciRegistry, registryPort, stopChannelRegistry),
 	)

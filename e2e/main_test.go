@@ -38,23 +38,20 @@ import (
 )
 
 var (
-	testRepoName                     = "ocm-controller-test"
-	testRepoSignedName               = "ocm-controller-signed-test"
-	testRepoSignedUnsignedName       = "ocm-controller-signed-unsigned-test"
-	timeoutDuration                  = time.Minute * 2
-	TestOCMControllerPath            = "testOCMController/"
-	TestSignedComponentsPath         = "testSignedOCIRegistryComponents/"
-	TestSignedUnsignedComponentsPath = "testSignedUnsignedOCIRegistryComponents"
-	RsaPubKeyName                    = "rsa"
-	RsaInvalidPubKeyName             = "rsainvalid"
-	cvFile                           = TestOCMControllerPath + "component_version.yaml"
-	localizationFile                 = TestOCMControllerPath + "localization.yaml"
-	resourceFile                     = TestOCMControllerPath + "resource.yaml"
-	configurationfile                = TestOCMControllerPath + "configuration.yaml"
-	deployerFile                     = TestOCMControllerPath + "deployer.yaml"
-	cvFileSigned                     = TestSignedComponentsPath + "component_version.yaml"
-	cvFileSignedUnsigned             = TestSignedUnsignedComponentsPath + "component_version.yaml"
-	cvManifest                       = setup.File{
+	testRepoName              = "ocm-controller-test"
+	testRepoSignedName        = "ocm-controller-signed-test"
+	testRepoSignedInvalidName = "ocm-controller-signed-invalid-test"
+	timeoutDuration           = time.Minute * 2
+	TestOCMControllerPath     = "testOCMController/"
+	TestSignedComponentsPath  = "testSignedOCIRegistryComponents/"
+	KeyName                   = "rsa"
+	cvFile                    = TestOCMControllerPath + "component_version.yaml"
+	localizationFile          = TestOCMControllerPath + "localization.yaml"
+	resourceFile              = TestOCMControllerPath + "resource.yaml"
+	configurationfile         = TestOCMControllerPath + "configuration.yaml"
+	deployerFile              = TestOCMControllerPath + "deployer.yaml"
+	cvFileSigned              = TestSignedComponentsPath + "component_version.yaml"
+	cvManifest                = setup.File{
 		RepoName:       testRepoName,
 		SourceFilepath: cvFile,
 		DestFilepath:   "apps/component_version.yaml",
@@ -104,28 +101,28 @@ var (
 		SourceFilepath: deployerFile,
 		DestFilepath:   "apps/deployer.yaml",
 	}
-	cvManifestSignedUnsigned = setup.File{
-		RepoName:       testRepoSignedUnsignedName,
-		SourceFilepath: cvFileSignedUnsigned,
+	cvManifestSignedInvalid = setup.File{
+		RepoName:       testRepoSignedInvalidName,
+		SourceFilepath: cvFileSigned,
 		DestFilepath:   "apps/component_version.yaml",
 	}
-	resourceManifestSignedUnsigned = setup.File{
-		RepoName:       testRepoSignedUnsignedName,
+	resourceManifestSignedInvalid = setup.File{
+		RepoName:       testRepoSignedInvalidName,
 		SourceFilepath: resourceFile,
 		DestFilepath:   "apps/resource.yaml",
 	}
-	localizationManifestSignedUnsigned = setup.File{
-		RepoName:       testRepoSignedUnsignedName,
+	localizationManifestSignedInvalid = setup.File{
+		RepoName:       testRepoSignedInvalidName,
 		SourceFilepath: localizationFile,
 		DestFilepath:   "apps/localization.yaml",
 	}
-	configurationManifestSignedUnsigned = setup.File{
-		RepoName:       testRepoSignedUnsignedName,
+	configurationManifestSignedInvalid = setup.File{
+		RepoName:       testRepoSignedInvalidName,
 		SourceFilepath: configurationfile,
 		DestFilepath:   "apps/configuration.yaml",
 	}
-	deployerManifestSignedUnsigned = setup.File{
-		RepoName:       testRepoSignedUnsignedName,
+	deployerManifestSignedInvalid = setup.File{
+		RepoName:       testRepoSignedInvalidName,
 		SourceFilepath: deployerFile,
 		DestFilepath:   "apps/deployer.yaml",
 	}
@@ -143,12 +140,12 @@ var (
 		configurationManifestSigned,
 		deployerManifestSigned,
 	}
-	manifestsSignedUnsigned = []setup.File{
-		cvManifestSignedUnsigned,
-		resourceManifestSignedUnsigned,
-		localizationManifestSignedUnsigned,
-		configurationManifestSignedUnsigned,
-		deployerManifestSignedUnsigned,
+	manifestsSignedInvalid = []setup.File{
+		cvManifestSignedInvalid,
+		resourceManifestSignedInvalid,
+		localizationManifestSignedInvalid,
+		configurationManifestSignedInvalid,
+		deployerManifestSignedInvalid,
 	}
 )
 
@@ -165,7 +162,7 @@ func TestOCMController(t *testing.T) {
 	manifests := features.New("Create Manifests").
 		Setup(setup.AddFilesToGitRepository(manifests...)).
 		Assess("check that component version is ready",
-			checkIsCVReady(getYAMLField(cvFile, "metadata.name"))).
+			checkCVConditionType(getYAMLField(cvFile, "metadata.name"), meta.ReadyCondition)).
 		Assess("check that resource is ready",
 			checkIsResourceReady(getYAMLField(resourceFile, "metadata.name"))).
 		Assess("check that localization is ready",
@@ -227,7 +224,7 @@ func TestOCMController(t *testing.T) {
 	)
 }
 
-func checkIsCVReady(name string) features.Func {
+func checkCVConditionType(name string, conditionType string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Helper()
 
@@ -246,7 +243,7 @@ func checkIsCVReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition)
+			return fconditions.IsTrue(obj, conditionType)
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
@@ -455,25 +452,35 @@ func containsComponent(craneCatalogRes []string, component string) bool {
 func TestRSASignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 	t.Log("Test signed component-version transfer to local oci repository")
 
+	name := getYAMLField(cvFileSigned, "metadata.name")
+
 	privateKey, publicKey, err := createRSAKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
-	setupComponent := createTestComponentVersionSigned(t, privateKey)
+
+	setupComponent := createTestComponentVersionSigned(t, privateKey, KeyName, publicKey, KeyName)
 
 	validation := features.New("Validate if signed OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
+		Setup(setup.AddScheme(sourcev1.AddToScheme)).
+		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
 		Setup(setup.AddGitRepository(testRepoSignedName)).
 		Setup(setup.AddFilesToGitRepository(manifestsSigned...)).
-		Setup(shared.CreateSecret(RsaPubKeyName, publicKey)).
+		Setup(setup.AddFluxSyncForRepo(testRepoSignedName, "apps/", namespace)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(podinfoBackendComponentName)).
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(podinfoFrontendComponentName)).
 		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(redisComponentName))
 
+	signatureVerification := features.New("Validate if signed OCM Components are present in OCI Registry").
+		Assess("Check that component version is ready", checkCVConditionType(name, meta.ReadyCondition)).
+		Assess("Check that component version signature was verified", checkCVReason(name, meta.SucceededReason)).
+		Teardown(shared.DeleteSecret(KeyName))
 	testEnv.Test(t,
 		setupComponent.Feature(),
 		validation.Feature(),
+		signatureVerification.Feature(),
 	)
 }
 
@@ -505,33 +512,80 @@ func createRSAKeys() ([]byte, []byte, error) {
 
 	return keyPEM, pubPEM, nil
 }
+func checkCVReason(name string, reason string) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-func TestSignedUnsignedComponentUploadToLocalOCIRegistry(t *testing.T) {
-	t.Log("Test signed component-version transfer to local oci repository")
+		gr := &v1alpha1.ComponentVersion{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
+		}
 
-	_, publicKey, err := createRSAKeys()
-	if err != nil {
-		t.Fatal(err)
+		err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
+			obj, ok := object.(*v1alpha1.ComponentVersion)
+			if !ok {
+				return false
+			}
+			return reasonMatches(obj, reason)
+		}), wait.WithTimeout(timeoutDuration))
+
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ctx
 	}
+}
+func reasonMatches(from fconditions.Getter, reason string) bool {
+	conditions_ := from.GetConditions()
+	if conditions_ == nil {
+		return false
+	}
+	for _, condition := range conditions_ {
+		if condition.Reason == reason {
+			return true
+		}
+	}
+	return false
+}
+
+func TestSignedInvalidComponentUploadToLocalOCIRegistry(t *testing.T) {
+	t.Log("Test invalid signed component-version transfer to local oci repository")
+
+	name := getYAMLField(cvFileSigned, "metadata.name")
+
 	privateKey, _, err := createRSAKeys()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	setupComponent := createTestComponentVersionSigned(t, privateKey)
+	_, invalidPublicKey, err := createRSAKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	validation := features.New("Validate if OCM Components are present in OCI Registry").
+	setupComponent := createTestComponentVersionSigned(t, privateKey, KeyName, invalidPublicKey, KeyName)
+
+	validation := features.New("Validate if invalid signed OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
-		Setup(setup.AddGitRepository(testRepoSignedUnsignedName)).
-		Setup(setup.AddFilesToGitRepository(manifestsSignedUnsigned...)).
-		Setup(shared.CreateSecret(RsaInvalidPubKeyName, publicKey)).
+		Setup(setup.AddScheme(sourcev1.AddToScheme)).
+		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
+		Setup(setup.AddGitRepository(testRepoSignedInvalidName)).
+		Setup(setup.AddFilesToGitRepository(manifestsSignedInvalid...)).
+		Setup(setup.AddFluxSyncForRepo(testRepoSignedInvalidName, "apps/", namespace)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(podinfoBackendComponentName)).
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(podinfoFrontendComponentName)).
 		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(redisComponentName))
 
+	signatureVerification := features.New("Validate if signed OCM Components are present in OCI Registry").
+		Assess("Check that component version is not ready", checkCVConditionType(name, meta.StalledCondition)).
+		Assess("Check that component version signature verification failed", checkCVReason(name, v1alpha1.VerificationFailedReason))
+
 	testEnv.Test(t,
 		setupComponent.Feature(),
 		validation.Feature(),
+		signatureVerification.Feature(),
 	)
 }

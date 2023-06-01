@@ -4,12 +4,12 @@ metadata:
   name: podinfo
   namespace: ocm-system
 spec:
-  interval: 5m0s
-  component: phoban.io/test
+  interval: 1m0s
+  component: mpas.ocm.software/podinfo
   version:
     semver: ">=v1.0.0"
   repository:
-    url: gitea.ocm-system
+    url: http://registry.ocm-system.svc.cluster.local:5000
   verify:
   - name: rsa
     publicKey:
