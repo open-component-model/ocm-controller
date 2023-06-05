@@ -28,7 +28,6 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/comparch"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 )
 
@@ -126,7 +125,7 @@ func TestComponentVersionReconcile(t *testing.T) {
 
 func TestComponentVersionReconcileFailure(t *testing.T) {
 	cv := DefaultComponent.DeepCopy()
-	cv.Spec.Version.Semver = "invalid"
+	cv.Status.ReconciledVersion = "invalid"
 	client := env.FakeKubeClient(WithObjects(cv))
 	recorder := &record.FakeRecorder{
 		Events:        make(chan string, 32),
@@ -146,6 +145,7 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 			Namespace: cv.Namespace,
 		},
 	})
+	assert.EqualError(t, err, "failed to check version: failed to parse latest version: Invalid Semantic Version")
 
 	t.Log("verifying updated object status")
 	err = client.Get(context.Background(), types.NamespacedName{
@@ -155,19 +155,19 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, conditions.IsFalse(cv, meta.ReadyCondition))
+	assert.True(t, conditions.IsTrue(cv, meta.StalledCondition))
 
 	close(recorder.Events)
 	found, event := false, ""
 	for e := range recorder.Events {
-		fmt.Println(e)
-		if strings.Contains(e, v1alpha1.CheckVersionFailedReason) {
+		if strings.Contains(e, "failed to check version") {
 			found, event = true, e
 			break
 		}
 	}
 	assert.True(t, found)
-	assert.Contains(t, event, v1alpha1.CheckVersionFailedReason)
-	assert.Contains(t, event, fmt.Sprintf("kind=%s", v1alpha1.ComponentVersionKind))
+	assert.Contains(t, event, "failed to check version: failed to parse latest version: Invalid Semantic Version")
+	assert.Contains(t, event, "kind=ComponentVersion")
 }
 
 func TestComponentVersionSemverCheck(t *testing.T) {
