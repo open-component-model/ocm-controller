@@ -1,11 +1,11 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: ComponentVersion
 metadata:
-  name: podinfo-signed
+  name: podinfo-signed-invalid
   namespace: ocm-system
 spec:
   interval: 1m0s
-  component: "component.name.signed/podinfo"
+  component: "component.name.signedinvalid/podinfo"
   version:
     semver: ">=v1.0.0"
   repository:

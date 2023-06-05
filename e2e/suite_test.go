@@ -51,16 +51,12 @@ func TestMain(m *testing.M) {
 	)
 
 	testEnv.Finish(
-		//	shared.RemoveGitServer(namespace),
+		shared.RemoveGitServer(namespace),
 		shared.ShutdownPortForward(stopChannelRegistry),
 		shared.ShutdownPortForward(stopChannelGitea),
-		//	envfuncs.DeleteNamespace(namespace),
-		//	envfuncs.DestroyKindCluster(kindClusterName),
+		envfuncs.DeleteNamespace(namespace),
+		envfuncs.DestroyKindCluster(kindClusterName),
 	)
-	testEnv.AfterEachTest(
-		shared.RestartDeployment(localOciRegistry),
-		shared.ShutdownPortForwardAfterTest(stopChannelRegistry),
-		shared.ForwardPortForAppNameAfterTest(localOciRegistry, registryPort, stopChannelRegistry),
-	)
+
 	os.Exit(testEnv.Run(m))
 }

@@ -1,0 +1,14 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: FluxDeployer
+metadata:
+  name: podinfo-signed
+  namespace: ocm-system
+spec:
+  sourceRef:
+    kind: Configuration
+    name: deployment-signed
+  kustomizationTemplate:
+    interval: 1m0s
+    path: ./
+    prune: true
+    targetNamespace: ocm-system

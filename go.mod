@@ -14,6 +14,7 @@ require (
 	github.com/containers/image/v5 v5.23.0
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/distribution/distribution/v3 v3.0.0-20230327091844-0c958010ace2
+	github.com/fluxcd/helm-controller/api v0.32.1
 	github.com/fluxcd/kustomize-controller/api v1.0.0-rc.1
 	github.com/fluxcd/pkg/apis/event v0.4.1
 	github.com/fluxcd/pkg/apis/meta v1.0.0
@@ -97,7 +98,6 @@ require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/fluxcd/flux2/v2 v2.0.0-rc.1 // indirect
 	github.com/fluxcd/go-git/v5 v5.0.0-20221219190809-2e5c9d01cfc4 // indirect
-	github.com/fluxcd/helm-controller/api v0.32.1 // indirect
 	github.com/fluxcd/image-automation-controller/api v0.32.0 // indirect
 	github.com/fluxcd/image-reflector-controller/api v0.27.0 // indirect
 	github.com/fluxcd/notification-controller/api v1.0.0-rc.1 // indirect
@@ -238,8 +238,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
 
-replace github.com/mandelsoft/filepath v0.0.0-20230412200429-36b1eb66bd27 => github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
-
-replace github.com/open-component-model/ocm v0.3.0-rc.2 => github.com/open-component-model/ocm v0.3.0-rc.1.0.20230408161516-7bac90d616ab
