@@ -24,8 +24,8 @@ require (
 	github.com/fluxcd/pkg/tar v0.2.0
 	github.com/fluxcd/source-controller/api v1.0.0-rc.1
 	github.com/google/go-containerregistry v0.14.0
-	github.com/mandelsoft/spiff v1.7.0-beta-4
-	github.com/mandelsoft/vfs v0.0.0-20230114230722-fb9b39ce80b9
+	github.com/mandelsoft/spiff v1.7.0-beta-5
+	github.com/mandelsoft/vfs v0.0.0-20230506183150-975954b82357
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.27.6
@@ -78,6 +78,7 @@ require (
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
 	github.com/containers/ocicrypt v1.1.6 // indirect
 	github.com/containers/storage v1.43.0 // indirect
+	github.com/cyberphone/json-canonicalization v0.0.0-20220623050100-57a0ce2678a7 // indirect
 	github.com/docker/cli v23.0.1+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker v23.0.3+incompatible // indirect
@@ -237,5 +238,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0
 )
-
-

@@ -320,6 +320,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
+github.com/cyberphone/json-canonicalization v0.0.0-20220623050100-57a0ce2678a7 h1:vU+EP9ZuFUCYE0NYLwTSob+3LNEJATzNfP/DC7SWGWI=
+github.com/cyberphone/json-canonicalization v0.0.0-20220623050100-57a0ce2678a7/go.mod h1:uzvlm1mxhHkdfqitSA92i7Se+S9ksOn3a3qmv/kyOCw=
 github.com/cyphar/filepath-securejoin v0.2.2/go.mod h1:FpkQEhXnPnOthhzymB7CGsFk2G9VLXONKD9G7QGMM+4=
 github.com/cyphar/filepath-securejoin v0.2.3 h1:YX6ebbZCZP7VkM3scTTokDgBL2TY741X51MTk3ycuNI=
 github.com/cyphar/filepath-securejoin v0.2.3/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
@@ -756,10 +758,10 @@ github.com/mandelsoft/filepath v0.0.0-20230412200429-36b1eb66bd27 h1:VivN6K8H4H0
 github.com/mandelsoft/filepath v0.0.0-20230412200429-36b1eb66bd27/go.mod h1:LxhqC7khDoRENwooP6f/vWvia9ivj6TqLYrR39zqkN0=
 github.com/mandelsoft/logging v0.0.0-20230331123830-36542ef18f6f h1:ZoqAURpfhE54QFLpcRot25aZEA0dfLVcGh0DmG5qLm4=
 github.com/mandelsoft/logging v0.0.0-20230331123830-36542ef18f6f/go.mod h1:HjtBPH5tsJygvyYEu2r/ZwOOBGcu+oR2sKH73VEnHtg=
-github.com/mandelsoft/spiff v1.7.0-beta-4 h1:/uRz2+uPtmHH4FK7WWcjbc/9WGFy6Byipmsdv+JDwMQ=
-github.com/mandelsoft/spiff v1.7.0-beta-4/go.mod h1:TwEeOPuRZxlzQBCLEyVTlHmBSruSGGNdiQ2fovVJ8ao=
-github.com/mandelsoft/vfs v0.0.0-20230114230722-fb9b39ce80b9 h1:Sc9FenFXNbcsF0M1d7dYbzj+VlXc9SBFHK8rhU49XQQ=
-github.com/mandelsoft/vfs v0.0.0-20230114230722-fb9b39ce80b9/go.mod h1:Z6caUgivS+P837kxRUaYPuzLKxNpOly4WlInNhrcWyc=
+github.com/mandelsoft/spiff v1.7.0-beta-5 h1:3kC10nTviDQhL8diSxp7i4IC2iSiDg6KPbH1CAq7Lfw=
+github.com/mandelsoft/spiff v1.7.0-beta-5/go.mod h1:TwEeOPuRZxlzQBCLEyVTlHmBSruSGGNdiQ2fovVJ8ao=
+github.com/mandelsoft/vfs v0.0.0-20230506183150-975954b82357 h1:BJKXJKeVAn9Z1Ke6N1p3G20SjMwOuJNBeSxT9two2FA=
+github.com/mandelsoft/vfs v0.0.0-20230506183150-975954b82357/go.mod h1:Z6caUgivS+P837kxRUaYPuzLKxNpOly4WlInNhrcWyc=
 github.com/marstr/guid v1.1.0 h1:/M4H/1G4avsieL6BbUwCOBzulmoeKVP5ux/3mQNnbyI=
 github.com/marstr/guid v1.1.0/go.mod h1:74gB1z2wpxxInTG6yaqA7KrtM0NZ+RbrcqDvYHefzho=
 github.com/matryer/is v1.2.0 h1:92UTHpy8CDwaJ08GqLDzhhuixiBUUD1p3AU6PHddz4A=
@@ -866,8 +868,12 @@ github.com/onsi/gomega v1.9.0/go.mod h1:Ho0h+IUsWyvy1OpqCwxlQ/21gkhVunqlU8fDGcoT
 github.com/onsi/gomega v1.10.3/go.mod h1:V9xEwhxec5O8UDM77eCW8vLymOMltsqPVYWrpDsH8xc=
 github.com/onsi/gomega v1.27.6 h1:ENqfyGeS5AX/rlXDd/ETokDz93u0YufY1Pgxuy/PvWE=
 github.com/onsi/gomega v1.27.6/go.mod h1:PIQNjfQwkP3aQAH7lf7j87O/5FiNr+ZR8+ipb+qQlhg=
+github.com/open-component-model/ocm v0.3.0-rc.2 h1:/VFnnAdI7TD5jIGqwcPRqjV+V2nFiocVH4VDJIzvuqs=
+github.com/open-component-model/ocm v0.3.0-rc.2/go.mod h1:QbwACnMG6tgGMwkkGD2nAV8K0MlieJAV3kxlXmwzPG4=
 github.com/open-component-model/ocm-controllers-sdk v0.0.6 h1:EriZ9IhYfVyPfvvglLRSUlBuxXt9aQIlfl2vgMhz2Ww=
 github.com/open-component-model/ocm-controllers-sdk v0.0.6/go.mod h1:npwcEnReNGiZ8DAJ5WEpcmenGWqHhMUHbN0040oS/CM=
+github.com/open-component-model/ocm-e2e-framework v0.3.1 h1:WxpNFfZ/718vk8Pj60ps4wlNbqLUZbt0q+16R/ZDfMA=
+github.com/open-component-model/ocm-e2e-framework v0.3.1/go.mod h1:mjMfRjdh6kLPI3kWKUh9jgWNZllFlPIVEymHlBpPZ+Y=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be h1:f2PlhC9pm5sqpBZFvnAoKj+KzXRzbjFMA+TqXfJdgho=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/go-digest/blake3 v0.0.0-20230329235805-65fac7b55eb7 h1:oXLzQ/IDIt0CA1AUUzWlYFxqkOalXZHa8uCdIFGsmn4=
