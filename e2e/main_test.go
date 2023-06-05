@@ -56,136 +56,44 @@ var (
 	configurationFile               = "configuration.yaml"
 	deployerFile                    = "deployer.yaml"
 	destinationPrefix               = "apps/"
-	cvManifest                      = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: TestOCMControllerPath + cvFile,
+)
+
+func getManifests(testName string, gitRepositoryName string) []setup.File {
+	cvManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + cvFile,
 		DestFilepath:   destinationPrefix + cvFile,
 	}
-	resourceManifest = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: TestOCMControllerPath + resourceFile,
+	resourceManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + resourceFile,
 		DestFilepath:   destinationPrefix + resourceFile,
 	}
-	localizationManifest = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: TestOCMControllerPath + localizationFile,
+	localizationManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + localizationFile,
 		DestFilepath:   destinationPrefix + localizationFile,
 	}
-	configurationManifest = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: TestOCMControllerPath + configurationFile,
+	configurationManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + configurationFile,
 		DestFilepath:   destinationPrefix + configurationFile,
 	}
-	deployerManifest = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: TestOCMControllerPath + deployerFile,
+
+	deployerManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + deployerFile,
 		DestFilepath:   destinationPrefix + deployerFile,
 	}
-	cvManifestUnsigned = setup.File{
-		RepoName:       testRepoUnsignedName,
-		SourceFilepath: TestUnsignedComponentsPath + cvFile,
-		DestFilepath:   destinationPrefix + cvFile,
-	}
-	resourceManifestUnsigned = setup.File{
-		RepoName:       testRepoUnsignedName,
-		SourceFilepath: TestUnsignedComponentsPath + resourceFile,
-		DestFilepath:   destinationPrefix + resourceFile,
-	}
-	localizationManifestUnsigned = setup.File{
-		RepoName:       testRepoUnsignedName,
-		SourceFilepath: TestUnsignedComponentsPath + localizationFile,
-		DestFilepath:   destinationPrefix + localizationFile,
-	}
-	configurationManifestUnsigned = setup.File{
-		RepoName:       testRepoUnsignedName,
-		SourceFilepath: TestUnsignedComponentsPath + configurationFile,
-		DestFilepath:   destinationPrefix + configurationFile,
-	}
-	deployerManifestUnsigned = setup.File{
-		RepoName:       testRepoUnsignedName,
-		SourceFilepath: TestUnsignedComponentsPath + deployerFile,
-		DestFilepath:   destinationPrefix + deployerFile,
-	}
-	cvManifestSigned = setup.File{
-		RepoName:       testRepoSignedName,
-		SourceFilepath: TestSignedComponentsPath + cvFile,
-		DestFilepath:   destinationPrefix + cvFile,
-	}
-	resourceManifestSigned = setup.File{
-		RepoName:       testRepoSignedName,
-		SourceFilepath: TestSignedComponentsPath + resourceFile,
-		DestFilepath:   destinationPrefix + resourceFile,
-	}
-	localizationManifestSigned = setup.File{
-		RepoName:       testRepoSignedName,
-		SourceFilepath: TestSignedComponentsPath + localizationFile,
-		DestFilepath:   destinationPrefix + localizationFile,
-	}
-	configurationManifestSigned = setup.File{
-		RepoName:       testRepoSignedName,
-		SourceFilepath: TestSignedComponentsPath + configurationFile,
-		DestFilepath:   destinationPrefix + configurationFile,
-	}
-	deployerManifestSigned = setup.File{
-		RepoName:       testRepoSignedName,
-		SourceFilepath: TestSignedComponentsPath + deployerFile,
-		DestFilepath:   destinationPrefix + deployerFile,
-	}
-	cvManifestSignedInvalid = setup.File{
-		RepoName:       testRepoSignedInvalidName,
-		SourceFilepath: TestSignedInvalidComponentsPath + cvFile,
-		DestFilepath:   destinationPrefix + cvFile,
-	}
-	resourceManifestSignedInvalid = setup.File{
-		RepoName:       testRepoSignedInvalidName,
-		SourceFilepath: TestSignedInvalidComponentsPath + resourceFile,
-		DestFilepath:   destinationPrefix + resourceFile,
-	}
-	localizationManifestSignedInvalid = setup.File{
-		RepoName:       testRepoSignedInvalidName,
-		SourceFilepath: TestSignedInvalidComponentsPath + localizationFile,
-		DestFilepath:   destinationPrefix + localizationFile,
-	}
-	configurationManifestSignedInvalid = setup.File{
-		RepoName:       testRepoSignedInvalidName,
-		SourceFilepath: TestSignedInvalidComponentsPath + configurationFile,
-		DestFilepath:   destinationPrefix + configurationFile,
-	}
-	deployerManifestSignedInvalid = setup.File{
-		RepoName:       testRepoSignedInvalidName,
-		SourceFilepath: TestSignedInvalidComponentsPath + deployerFile,
-		DestFilepath:   destinationPrefix + deployerFile,
-	}
-	manifests = []setup.File{
+
+	return []setup.File{
 		cvManifest,
 		resourceManifest,
 		localizationManifest,
 		configurationManifest,
 		deployerManifest,
 	}
-	manifestsUnsigned = []setup.File{
-		cvManifestUnsigned,
-		resourceManifestUnsigned,
-		localizationManifestUnsigned,
-		configurationManifestUnsigned,
-		deployerManifestUnsigned,
-	}
-	manifestsSigned = []setup.File{
-		cvManifestSigned,
-		resourceManifestSigned,
-		localizationManifestSigned,
-		configurationManifestSigned,
-		deployerManifestSigned,
-	}
-	manifestsSignedInvalid = []setup.File{
-		cvManifestSignedInvalid,
-		resourceManifestSignedInvalid,
-		localizationManifestSignedInvalid,
-		configurationManifestSignedInvalid,
-		deployerManifestSignedInvalid,
-	}
-)
-
+}
 func TestOCMController(t *testing.T) {
 	t.Log("running e2e ocm-controller tests")
 
@@ -197,7 +105,7 @@ func TestOCMController(t *testing.T) {
 		Setup(setup.AddFluxSyncForRepo(testRepoName, destinationPrefix, namespace))
 
 	manifests := features.New("Create Manifests").
-		Setup(setup.AddFilesToGitRepository(manifests...)).
+		Setup(setup.AddFilesToGitRepository(getManifests(TestOCMControllerPath, testRepoName)...)).
 		Assess("check that component version is ready",
 			checkCVConditionType(getYAMLField(TestOCMControllerPath+cvFile, "metadata.name"), meta.ReadyCondition)).
 		Assess("check that component version is valid", checkCVReason(getYAMLField(TestOCMControllerPath+cvFile, "metadata.name"), meta.SucceededReason)).
@@ -451,13 +359,12 @@ func TestComponentUploadToLocalOCIRegistry(t *testing.T) {
 	name := getYAMLField(TestUnsignedComponentsPath+cvFile, "metadata.name")
 	componentNameIdentifier := "unsigned"
 	setupComponent := createTestComponentVersion(t, "unsigned")
-	CraneCatalog()
 	validation := features.New("Validate if OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
 		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
 		Setup(setup.AddGitRepository(testRepoUnsignedName)).
-		Setup(setup.AddFilesToGitRepository(manifestsUnsigned...)).
+		Setup(setup.AddFilesToGitRepository(getManifests(TestUnsignedComponentsPath, testRepoUnsignedName)...)).
 		Setup(setup.AddFluxSyncForRepo(testRepoUnsignedName, destinationPrefix, namespace)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
@@ -492,17 +399,6 @@ func checkRepositoryExistsInRegistry(componentName string) features.Func {
 	}
 }
 
-func CraneCatalog() {
-	res, err := crane.Catalog(hostUrl + portSeparator + strconv.Itoa(registryPort))
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	for _, returnedComponent := range res {
-		fmt.Println(returnedComponent)
-	}
-}
-
 func TestRSASignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 	t.Log("Test signed component-version transfer to local oci repository")
 
@@ -514,13 +410,12 @@ func TestRSASignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 	}
 
 	setupComponent := createTestComponentVersionSigned(t, "Add signed components to component-version", privateKey, KeyName, publicKey, KeyName, componentNameIdentifier)
-	CraneCatalog()
 	validation := features.New("Validate if signed OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
 		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
 		Setup(setup.AddGitRepository(testRepoSignedName)).
-		Setup(setup.AddFilesToGitRepository(manifestsSigned...)).
+		Setup(setup.AddFilesToGitRepository(getManifests(TestSignedComponentsPath, testRepoSignedName)...)).
 		Setup(setup.AddFluxSyncForRepo(testRepoSignedName, destinationPrefix, namespace)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
@@ -622,13 +517,12 @@ func TestSignedInvalidComponentUploadToLocalOCIRegistry(t *testing.T) {
 	}
 
 	setupComponent := createTestComponentVersionSigned(t, "Add signed invalid components to component-version", privateKey, KeyName, invalidPublicKey, KeyName, componentNameIdentifier)
-	CraneCatalog()
 	validation := features.New("Validate if invalid signed OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
 		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
 		Setup(setup.AddGitRepository(testRepoSignedInvalidName)).
-		Setup(setup.AddFilesToGitRepository(manifestsSignedInvalid...)).
+		Setup(setup.AddFilesToGitRepository(getManifests(TestSignedInvalidComponentsPath, testRepoSignedInvalidName)...)).
 		Setup(setup.AddFluxSyncForRepo(testRepoSignedInvalidName, destinationPrefix, namespace)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
