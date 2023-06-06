@@ -7,14 +7,12 @@
 package e2e
 
 import (
-	"os"
-	"testing"
-	"time"
-
 	"github.com/open-component-model/ocm-e2e-framework/shared"
+	"os"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+	"testing"
 )
 
 var (
@@ -34,7 +32,7 @@ func TestMain(m *testing.M) {
 
 	cfg, _ := envconf.NewFromFlags()
 	testEnv = env.NewWithConfig(cfg)
-	kindClusterName = envconf.RandomName("ocm-ctrl-e2e-"+time.Now().Format("2006-01-02-15-04-05"), 4)
+	kindClusterName = envconf.RandomName("ocm-ctrl-e2e", 32)
 	namespace = "ocm-system"
 
 	stopChannelRegistry := make(chan struct{}, 1)

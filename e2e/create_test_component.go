@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Gardener contributors.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package e2e
 
 import (
@@ -12,7 +16,7 @@ import (
 )
 
 var (
-	BasePath                     = "testdata/common"
+	basePath                     = "testdata/common"
 	componentNamePrefix          = "component.name."
 	podinfoComponentName         = "/podinfo"
 	podinfoBackendComponentName  = "/podinfo/backend"
@@ -20,28 +24,35 @@ var (
 	redisComponentName           = "/redis"
 )
 
-func createTestComponentVersion(t *testing.T, componentNameIdentifier string) *features.FeatureBuilder {
+func createTestComponentVersionUnsigned(t *testing.T, componentNameIdentifier string) *features.FeatureBuilder {
 	t.Helper()
 	return features.New("Add components to component-version").
-		Setup(setup.AddComponentVersions(podinfo(t, componentNameIdentifier))).
-		Setup(setup.AddComponentVersions(podinfoBackend(t, componentNameIdentifier))).
-		Setup(setup.AddComponentVersions(podinfoFrontend(t, componentNameIdentifier))).
-		Setup(setup.AddComponentVersions(podinfoRedis(t, componentNameIdentifier)))
+		Setup(setup.AddComponentVersions(podinfoBackend(t, nil, "", componentNameIdentifier))).
+		Setup(setup.AddComponentVersions(podinfoFrontend(t, nil, "", componentNameIdentifier))).
+		Setup(setup.AddComponentVersions(podinfoRedis(t, nil, "", componentNameIdentifier))).
+		Setup(setup.AddComponentVersions(podinfo(t, nil, "", componentNameIdentifier)))
 }
 
-func podinfo(t *testing.T, componentNameIdentifier string) setup.Component {
+func createTestComponentVersionSigned(t *testing.T, featureString string, privateKey []byte, keyName string, publicKey []byte, componentNameIdentifier string) *features.FeatureBuilder {
+	t.Helper()
+	return features.New(featureString).
+		WithStep("create secret", 1, shared.CreateSecret(keyName, publicKey)).
+		WithStep("", 2, setup.AddComponentVersions(podinfoBackend(t, privateKey, keyName, componentNameIdentifier))).
+		WithStep("", 2, setup.AddComponentVersions(podinfoFrontend(t, privateKey, keyName, componentNameIdentifier))).
+		WithStep("", 2, setup.AddComponentVersions(podinfoRedis(t, privateKey, keyName, componentNameIdentifier))).
+		WithStep("", 2, setup.AddComponentVersions(podinfo(t, privateKey, keyName, componentNameIdentifier)))
+}
+
+func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
-	content, err := os.ReadFile(filepath.Join(BasePath, "product_description.yaml"))
+	content, err := os.ReadFile(filepath.Join(basePath, "product_description.yaml"))
 	if err != nil {
 		t.Fatal("failed to read setup file: %w", err)
 	}
 
-	return setup.Component{
-		Component: shared.Component{
-			Name:    componentNamePrefix + componentNameIdentifier + podinfoComponentName,
-			Version: "1.0.0",
-		},
+	temp := setup.Component{
+		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoComponentName),
 		Repository: "podinfo",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -66,36 +77,34 @@ func podinfo(t *testing.T, componentNameIdentifier string) setup.Component {
 			}),
 		},
 	}
+	return temp
 }
 
-func podinfoBackend(t *testing.T, componentNameIdentifier string) setup.Component {
+func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
-	configContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "backend", "config.yaml"))
+	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "config.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
 	}
 
-	readmeContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "backend", "README.md"))
+	readmeContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "README.md"))
 	if err != nil {
 		t.Fatal("failed to read readme file: %w", err)
 	}
 
-	manifestContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "backend", "manifests.tar"))
+	manifestContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "manifests.tar"))
 	if err != nil {
 		t.Fatal("failed to read manifest file: %w", err)
 	}
 
-	validationContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "backend", "validation.rego"))
+	validationContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "validation.rego"))
 	if err != nil {
 		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{
-		Component: shared.Component{
-			Name:    componentNamePrefix + componentNameIdentifier + podinfoBackendComponentName,
-			Version: "1.0.0",
-		},
+		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoBackendComponentName),
 		Repository: "backend",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -127,34 +136,31 @@ func podinfoBackend(t *testing.T, componentNameIdentifier string) setup.Componen
 	}
 }
 
-func podinfoFrontend(t *testing.T, componentNameIdentifier string) setup.Component {
+func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
-	configContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "frontend", "config.yaml"))
+	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "config.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
 	}
 
-	readmeContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "frontend", "README.md"))
+	readmeContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "README.md"))
 	if err != nil {
 		t.Fatal("failed to read readme file: %w", err)
 	}
 
-	manifestContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "frontend", "manifests.tar"))
+	manifestContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "manifests.tar"))
 	if err != nil {
 		t.Fatal("failed to read manifest file: %w", err)
 	}
 
-	validationContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "frontend", "validation.rego"))
+	validationContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "validation.rego"))
 	if err != nil {
 		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{
-		Component: shared.Component{
-			Name:    componentNamePrefix + componentNameIdentifier + podinfoFrontendComponentName,
-			Version: "1.0.0",
-		},
+		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoFrontendComponentName),
 		Repository: "frontend",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -186,34 +192,31 @@ func podinfoFrontend(t *testing.T, componentNameIdentifier string) setup.Compone
 	}
 }
 
-func podinfoRedis(t *testing.T, componentNameIdentifier string) setup.Component {
+func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
-	configContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "redis", "config.yaml"))
+	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "config.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
 	}
 
-	readmeContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "redis", "README.md"))
+	readmeContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "README.md"))
 	if err != nil {
 		t.Fatal("failed to read readme file: %w", err)
 	}
 
-	manifestContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "redis", "manifests.tar"))
+	manifestContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "manifests.tar"))
 	if err != nil {
 		t.Fatal("failed to read manifest file: %w", err)
 	}
 
-	validationContent, err := os.ReadFile(filepath.Join(BasePath, "podinfo", "redis", "validation.rego"))
+	validationContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "validation.rego"))
 	if err != nil {
 		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{
-		Component: shared.Component{
-			Name:    componentNamePrefix + componentNameIdentifier + redisComponentName,
-			Version: "1.0.0",
-		},
+		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, redisComponentName),
 		Repository: "redis",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -242,5 +245,21 @@ func podinfoRedis(t *testing.T, componentNameIdentifier string) setup.Component 
 				Type: "validator.mpas.ocm.software",
 			}),
 		},
+	}
+}
+func getComponent(privateKeyName string, privateKey []byte, componentNameIdentifier string, componentName string) shared.Component {
+	if len(privateKeyName) > 0 && privateKey != nil {
+		return shared.Component{
+			Name:    componentNamePrefix + componentNameIdentifier + componentName,
+			Version: "1.0.0",
+			Sign: &shared.Sign{
+				Name: privateKeyName,
+				Key:  privateKey,
+			},
+		}
+	}
+	return shared.Component{
+		Name:    componentNamePrefix + componentNameIdentifier + componentName,
+		Version: "1.0.0",
 	}
 }
