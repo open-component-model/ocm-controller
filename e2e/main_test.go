@@ -49,6 +49,7 @@ var (
 	testUnsignedComponentsPath      = "testUnsignedOCIRegistryComponents/"
 	testSignedComponentsPath        = "testSignedOCIRegistryComponents/"
 	testSignedInvalidComponentsPath = "testSignedInvalidOCIRegistryComponents/"
+	testLocalization                = ""
 	keyName                         = "rsa"
 	cvFile                          = "component_version.yaml"
 	localizationFile                = "localization.yaml"
@@ -495,6 +496,51 @@ func reasonMatches(from fconditions.Getter, reason string) bool {
 
 func TestSignedInvalidComponentUploadToLocalOCIRegistry(t *testing.T) {
 	t.Log("Test invalid signed component-version transfer to local oci repository")
+
+	name := getYAMLField(testSignedInvalidComponentsPath+cvFile, "metadata.name")
+	componentNameIdentifier := "signedinvalid"
+
+	privateKey, _, err := createRSAKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, invalidPublicKey, err := createRSAKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	setupComponent := createTestComponentVersionSigned(t, "Add signed invalid components to component-version", privateKey, keyName, invalidPublicKey, componentNameIdentifier)
+	validation := features.New("Validate if invalid signed OCM Components are present in OCI Registry").
+		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
+		Setup(setup.AddScheme(sourcev1.AddToScheme)).
+		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
+		Setup(setup.AddGitRepository(testRepoSignedInvalidName)).
+		Setup(setup.AddFilesToGitRepository(getManifests(testSignedInvalidComponentsPath, testRepoSignedInvalidName)...)).
+		Setup(setup.AddFluxSyncForRepo(testRepoSignedInvalidName, destinationPrefix, namespace)).
+		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
+		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
+		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
+		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
+
+	signatureVerification := features.New("Validate if signed OCM Components are present in OCI Registry").
+		Assess("Check that component version is not ready", checkCVConditionType(name, meta.ReadyCondition)).
+		Assess("Check that component version signature verification failed", checkCVReason(name, v1alpha1.VerificationFailedReason))
+
+	testEnv.Test(t,
+		setupComponent.Feature(),
+		validation.Feature(),
+		signatureVerification.Feature(),
+	)
+}
+
+//Create a Configuration object and verify it has correctly modified the config data
+//Create a Resource object and validate the created snapshot content
+//Check the ComponentDescriptor object for resources
+
+// Create a Localization object and verify it has correctly modified the Image in the deployment file
+func TestLocalization(t *testing.T) {
+	t.Log("Create a Localization object and verify it has correctly modified the Image in the deployment file")
 
 	name := getYAMLField(testSignedInvalidComponentsPath+cvFile, "metadata.name")
 	componentNameIdentifier := "signedinvalid"

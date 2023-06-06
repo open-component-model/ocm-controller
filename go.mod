@@ -238,3 +238,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0
 )
+replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
