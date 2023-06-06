@@ -7,12 +7,13 @@
 package e2e
 
 import (
-	"github.com/open-component-model/ocm-e2e-framework/shared"
 	"os"
+	"testing"
+
+	"github.com/open-component-model/ocm-e2e-framework/shared"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
-	"testing"
 )
 
 var (
