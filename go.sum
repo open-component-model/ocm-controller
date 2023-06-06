@@ -872,8 +872,8 @@ github.com/open-component-model/ocm v0.3.0-rc.2 h1:/VFnnAdI7TD5jIGqwcPRqjV+V2nFi
 github.com/open-component-model/ocm v0.3.0-rc.2/go.mod h1:QbwACnMG6tgGMwkkGD2nAV8K0MlieJAV3kxlXmwzPG4=
 github.com/open-component-model/ocm-controllers-sdk v0.0.6 h1:EriZ9IhYfVyPfvvglLRSUlBuxXt9aQIlfl2vgMhz2Ww=
 github.com/open-component-model/ocm-controllers-sdk v0.0.6/go.mod h1:npwcEnReNGiZ8DAJ5WEpcmenGWqHhMUHbN0040oS/CM=
-github.com/open-component-model/ocm-e2e-framework v0.3.1 h1:WxpNFfZ/718vk8Pj60ps4wlNbqLUZbt0q+16R/ZDfMA=
-github.com/open-component-model/ocm-e2e-framework v0.3.1/go.mod h1:mjMfRjdh6kLPI3kWKUh9jgWNZllFlPIVEymHlBpPZ+Y=
+github.com/open-component-model/ocm-e2e-framework v0.3.2-0.20230606072800-b50459a25f7e h1:F1/em0zz+KUPg3hsM0+yu/rPxwpTWs0uAGSS9akkifY=
+github.com/open-component-model/ocm-e2e-framework v0.3.2-0.20230606072800-b50459a25f7e/go.mod h1:43XXqtZMomcougtwzskm/gbLuUal6NzgR8CgITlT52Q=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be h1:f2PlhC9pm5sqpBZFvnAoKj+KzXRzbjFMA+TqXfJdgho=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/go-digest/blake3 v0.0.0-20230329235805-65fac7b55eb7 h1:oXLzQ/IDIt0CA1AUUzWlYFxqkOalXZHa8uCdIFGsmn4=
