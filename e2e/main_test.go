@@ -179,7 +179,7 @@ func checkCVConditionType(name string, conditionType string) features.Func {
 			t.Fail()
 		}
 
-		t.Logf("checking readiness of ComponentVersion with name: %s...", name)
+		t.Logf("Check %s of ComponentVersion with name: %s...", conditionType, name)
 		gr := &v1alpha1.ComponentVersion{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
 		}
@@ -189,15 +189,12 @@ func checkCVConditionType(name string, conditionType string) features.Func {
 			if !ok {
 				return false
 			}
-			t.Log("conditionType: ", conditionType)
 			return fconditions.IsTrue(obj, conditionType)
 		}), wait.WithTimeout(timeoutDuration))
 
-		t.Log("condition met")
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		return ctx
 	}
 }
