@@ -64,10 +64,10 @@ func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
-	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
+func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, retErr error) {
+	logger := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
-	log.Info("starting ocm component loop")
+	logger.Info("starting ocm component loop")
 
 	obj := &v1alpha1.ComponentVersion{}
 	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
@@ -79,11 +79,10 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if obj.Spec.Suspend {
-		log.Info("component object suspended")
+		logger.Info("component object suspended")
 		return
 	}
 
-	var patchHelper *patch.Helper
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create patchhelper: %w", err)
@@ -112,6 +111,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			obj.Status.ObservedGeneration = obj.Generation
 			msg := fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter())
 			vid := fmt.Sprintf("%s:%s", obj.Status.ComponentDescriptor.Name, obj.Status.ReconciledVersion)
+			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
 			metadata := make(map[string]string)
 			metadata[v1alpha1.GroupVersion.Group+"/component_version"] = vid
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, msg, metadata)
@@ -166,7 +166,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !ok {
-		msg := fmt.Sprintf("attempted to verify component, but the digest didn't match")
+		msg := "attempted to verify component, but the digest didn't match"
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, msg)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, fmt.Sprintf("%s, retrying in %s", msg, obj.GetRequeueAfter()), nil)
 
@@ -174,6 +174,9 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			RequeueAfter: obj.GetRequeueAfter(),
 		}, nil
 	}
+
+	// Remove stalled condition if set. If verification was successful we want to continue with the reconciliation.
+	conditions.Delete(obj, meta.StalledCondition)
 
 	// update the result for the defer call to have the latest information
 	rresult, err := r.reconcile(ctx, octx, obj, version)
