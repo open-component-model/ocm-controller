@@ -385,6 +385,7 @@ func checkRepositoryExistsInRegistry(componentName string) features.Func {
 
 		for _, returnedComponent := range res {
 			t.Log("crane catalog", returnedComponent)
+			t.Log("!!Looking for", componentName)
 			if strings.Contains(returnedComponent, componentName) {
 				return ctx
 			}
@@ -394,7 +395,7 @@ func checkRepositoryExistsInRegistry(componentName string) features.Func {
 	}
 }
 
-func TestRSASignedComponentUploadToLocalOCIRegistry(t *testing.T) {
+func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 	t.Log("Test signed component-version transfer to local oci repository")
 
 	name := getYAMLField(testSignedComponentsPath+cvFile, "metadata.name")
@@ -417,7 +418,7 @@ func TestRSASignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
 		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
 
-	signatureVerification := features.New("Validate if signed OCM Components are present in OCI Registry").
+	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
 		Assess("Check that component version is ready", checkCVConditionType(name, meta.ReadyCondition)).
 		Assess("Check that component version signature was verified", checkCVReason(name, meta.SucceededReason)).
 		Teardown(shared.DeleteSecret(keyName))
@@ -522,8 +523,8 @@ func TestSignedInvalidComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
 		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
 
-	signatureVerification := features.New("Validate if signed OCM Components are present in OCI Registry").
-		Assess("Check that component version is not ready", checkCVConditionType(name, meta.ReadyCondition)).
+	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
+		Assess("Check that component version is ready", checkCVConditionType(name, meta.ReadyCondition)).
 		Assess("Check that component version signature verification failed", checkCVReason(name, v1alpha1.VerificationFailedReason))
 
 	testEnv.Test(t,
