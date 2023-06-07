@@ -8,10 +8,17 @@ package e2e
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/open-component-model/ocm-e2e-framework/shared"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,48 +40,60 @@ import (
 )
 
 var (
-	testRepoName              = "ocm-controller-test"
-	timeoutDuration           = time.Minute * 2
-	testOCMControllerBasePath = "testOCMController/"
-	cvFile                    = testOCMControllerBasePath + "component_version.yaml"
-	localizationFile          = testOCMControllerBasePath + "localization.yaml"
-	resourceFile              = testOCMControllerBasePath + "resource.yaml"
-	configurationfile         = testOCMControllerBasePath + "configuration.yaml"
-	deployerFile              = testOCMControllerBasePath + "deployer.yaml"
-	cvManifest                = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: cvFile,
-		DestFilepath:   "apps/component_version.yaml",
+	testRepoName                    = "ocm-controller-test"
+	testRepoUnsignedName            = "ocm-controller-unsigned-test"
+	testRepoSignedName              = "ocm-controller-signed-test"
+	testRepoSignedInvalidName       = "ocm-controller-signed-invalid-test"
+	timeoutDuration                 = time.Minute * 2
+	testOCMControllerPath           = "testOCMController/"
+	testUnsignedComponentsPath      = "testUnsignedOCIRegistryComponents/"
+	testSignedComponentsPath        = "testSignedOCIRegistryComponents/"
+	testSignedInvalidComponentsPath = "testSignedInvalidOCIRegistryComponents/"
+	keyName                         = "rsa"
+	cvFile                          = "component_version.yaml"
+	localizationFile                = "localization.yaml"
+	resourceFile                    = "resource.yaml"
+	configurationFile               = "configuration.yaml"
+	deployerFile                    = "deployer.yaml"
+	destinationPrefix               = "apps/"
+)
+
+func getManifests(testName string, gitRepositoryName string) []setup.File {
+	cvManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + cvFile,
+		DestFilepath:   destinationPrefix + cvFile,
 	}
-	resourceManifest = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: resourceFile,
-		DestFilepath:   "apps/resource.yaml",
+	resourceManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + resourceFile,
+		DestFilepath:   destinationPrefix + resourceFile,
 	}
-	localizationManifest = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: localizationFile,
-		DestFilepath:   "apps/localization.yaml",
+	localizationManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + localizationFile,
+		DestFilepath:   destinationPrefix + localizationFile,
 	}
-	configurationManifest = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: configurationfile,
-		DestFilepath:   "apps/configuration.yaml",
+	configurationManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + configurationFile,
+		DestFilepath:   destinationPrefix + configurationFile,
 	}
-	deployerManifest = setup.File{
-		RepoName:       testRepoName,
-		SourceFilepath: deployerFile,
-		DestFilepath:   "apps/deployer.yaml",
+
+	deployerManifest := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + deployerFile,
+		DestFilepath:   destinationPrefix + deployerFile,
 	}
-	manifests = []setup.File{
+
+	return []setup.File{
 		cvManifest,
 		resourceManifest,
 		localizationManifest,
 		configurationManifest,
 		deployerManifest,
 	}
-)
-
+}
 func TestOCMController(t *testing.T) {
 	t.Log("running e2e ocm-controller tests")
 
@@ -83,20 +102,21 @@ func TestOCMController(t *testing.T) {
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
 		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
 		Setup(setup.AddGitRepository(testRepoName)).
-		Setup(setup.AddFluxSyncForRepo(testRepoName, "apps/", namespace))
+		Setup(setup.AddFluxSyncForRepo(testRepoName, destinationPrefix, namespace))
 
 	manifests := features.New("Create Manifests").
-		Setup(setup.AddFilesToGitRepository(manifests...)).
+		Setup(setup.AddFilesToGitRepository(getManifests(testOCMControllerPath, testRepoName)...)).
 		Assess("check that component version is ready",
-			checkIsCVReady(getYAMLField(cvFile, "metadata.name"))).
+			checkCVConditionType(getYAMLField(testOCMControllerPath+cvFile, "metadata.name"), meta.ReadyCondition)).
+		Assess("check that component version is valid", checkCVReason(getYAMLField(testOCMControllerPath+cvFile, "metadata.name"), meta.SucceededReason)).
 		Assess("check that resource is ready",
-			checkIsResourceReady(getYAMLField(resourceFile, "metadata.name"))).
+			checkIsResourceReady(getYAMLField(testOCMControllerPath+resourceFile, "metadata.name"))).
 		Assess("check that localization is ready",
-			checkIsLocalizationReady(getYAMLField(localizationFile, "metadata.name"))).
+			checkIsLocalizationReady(getYAMLField(testOCMControllerPath+localizationFile, "metadata.name"))).
 		Assess("check that configuration is ready",
-			checkIsConfigurationReady(getYAMLField(configurationfile, "metadata.name"))).
+			checkIsConfigurationReady(getYAMLField(testOCMControllerPath+configurationFile, "metadata.name"))).
 		Assess("check that flux deployer is ready",
-			checkIsFluxDeployerReady(getYAMLField(deployerFile, "metadata.name")))
+			checkIsFluxDeployerReady(getYAMLField(testOCMControllerPath+deployerFile, "metadata.name")))
 
 	validation := features.New("Validate OCM Pipeline").
 		Assess("check that backend deployment was localized",
@@ -150,7 +170,7 @@ func TestOCMController(t *testing.T) {
 	)
 }
 
-func checkIsCVReady(name string) features.Func {
+func checkCVConditionType(name string, conditionType string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Helper()
 
@@ -159,7 +179,7 @@ func checkIsCVReady(name string) features.Func {
 			t.Fail()
 		}
 
-		t.Logf("checking readiness of ComponentVersion with name: %s...", name)
+		t.Logf("Check %s of ComponentVersion with name: %s...", conditionType, name)
 		gr := &v1alpha1.ComponentVersion{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
 		}
@@ -169,13 +189,12 @@ func checkIsCVReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition)
+			return fconditions.IsTrue(obj, conditionType)
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		return ctx
 	}
 }
@@ -199,7 +218,7 @@ func checkIsResourceReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition)
+			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
@@ -229,7 +248,7 @@ func checkIsConfigurationReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition)
+			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
@@ -258,7 +277,7 @@ func checkIsLocalizationReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition)
+			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
@@ -287,7 +306,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition)
+			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
@@ -304,7 +323,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition)
+			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
@@ -321,7 +340,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition)
+			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, v2beta1.ReconciliationSucceededReason)
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {
@@ -334,16 +353,22 @@ func checkIsFluxDeployerReady(name string) features.Func {
 
 func TestComponentUploadToLocalOCIRegistry(t *testing.T) {
 	t.Log("Test component-version transfer to local oci repository")
-
-	setupComponent := createTestComponentVersion(t)
-
+	name := getYAMLField(testUnsignedComponentsPath+cvFile, "metadata.name")
+	componentNameIdentifier := "unsigned"
+	setupComponent := createTestComponentVersionUnsigned(t, componentNameIdentifier)
 	validation := features.New("Validate if OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
-		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(podinfoComponentName)).
-		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(podinfoBackendComponentName)).
-		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(podinfoFrontendComponentName)).
-		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(redisComponentName))
-
+		Setup(setup.AddScheme(sourcev1.AddToScheme)).
+		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
+		Setup(setup.AddGitRepository(testRepoUnsignedName)).
+		Setup(setup.AddFilesToGitRepository(getManifests(testUnsignedComponentsPath, testRepoUnsignedName)...)).
+		Setup(setup.AddFluxSyncForRepo(testRepoUnsignedName, destinationPrefix, namespace)).
+		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
+		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
+		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
+		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName)).
+		Assess("Check that component version is ready", checkCVConditionType(name, meta.ReadyCondition)).
+		Assess("Check that component version reconcile succeeded", checkCVReason(name, meta.SucceededReason))
 	testEnv.Test(t,
 		setupComponent.Feature(),
 		validation.Feature(),
@@ -355,22 +380,148 @@ func checkRepositoryExistsInRegistry(componentName string) features.Func {
 		t.Helper()
 		res, err := crane.Catalog(hostUrl + portSeparator + strconv.Itoa(registryPort))
 		if err != nil {
-			t.Fail()
+			t.Fatal(err)
 		}
 
-		if !containsComponent(res, componentName) {
-			t.Fail()
+		for _, returnedComponent := range res {
+			t.Log("crane catalog", returnedComponent)
+			if strings.Contains(returnedComponent, componentName) {
+				return ctx
+			}
+		}
+		t.Fail()
+		return ctx
+	}
+}
+
+func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
+	t.Log("Test signed component-version transfer to local oci repository")
+
+	name := getYAMLField(testSignedComponentsPath+cvFile, "metadata.name")
+	componentNameIdentifier := "signed"
+	privateKey, publicKey, err := createRSAKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	setupComponent := createTestComponentVersionSigned(t, "Add signed components to component-version", privateKey, keyName, publicKey, componentNameIdentifier)
+	validation := features.New("Validate if signed OCM Components are present in OCI Registry").
+		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
+		Setup(setup.AddScheme(sourcev1.AddToScheme)).
+		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
+		Setup(setup.AddGitRepository(testRepoSignedName)).
+		Setup(setup.AddFilesToGitRepository(getManifests(testSignedComponentsPath, testRepoSignedName)...)).
+		Setup(setup.AddFluxSyncForRepo(testRepoSignedName, destinationPrefix, namespace)).
+		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName))
+
+	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
+		Assess("Check that component version is ready", checkCVConditionType(name, meta.ReadyCondition)).
+		Assess("Check that component version signature was verified", checkCVReason(name, meta.SucceededReason)).
+		Teardown(shared.DeleteSecret(keyName))
+	testEnv.Test(t,
+		setupComponent.Feature(),
+		validation.Feature(),
+		signatureVerification.Feature(),
+	)
+}
+
+func createRSAKeys() ([]byte, []byte, error) {
+	bitSize := 2048
+
+	key, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pub := key.Public()
+
+	// Encode private key to PKCS#1 ASN.1 PEM.
+	keyPEM := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(key),
+		},
+	)
+
+	// Encode public key to PKCS#1 ASN.1 PEM.
+	pubPEM := pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PUBLIC KEY",
+			Bytes: x509.MarshalPKCS1PublicKey(pub.(*rsa.PublicKey)),
+		},
+	)
+
+	return keyPEM, pubPEM, nil
+}
+
+func checkCVReason(name string, reason string) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Helper()
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		gr := &v1alpha1.ComponentVersion{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
+		}
+
+		err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
+			obj, ok := object.(*v1alpha1.ComponentVersion)
+			if !ok {
+				return false
+			}
+			return reasonMatches(obj, reason)
+		}), wait.WithTimeout(timeoutDuration))
+
+		if err != nil {
+			t.Fatal(err)
 		}
 		return ctx
 	}
 }
-func containsComponent(craneCatalogRes []string, component string) bool {
-	for _, returnedComponent := range craneCatalogRes {
-		t := strings.Index(returnedComponent, "/")
-		returnedComponent = returnedComponent[t+1:]
-		if returnedComponent == component {
+func reasonMatches(from fconditions.Getter, reason string) bool {
+	conditions_ := from.GetConditions()
+	for _, condition := range conditions_ {
+		if condition.Reason == reason {
 			return true
 		}
 	}
 	return false
+}
+
+func TestSignedInvalidComponentUploadToLocalOCIRegistry(t *testing.T) {
+	t.Log("Test invalid signed component-version transfer to local oci repository")
+
+	name := getYAMLField(testSignedInvalidComponentsPath+cvFile, "metadata.name")
+	componentNameIdentifier := "signedinvalid"
+
+	privateKey, _, err := createRSAKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, invalidPublicKey, err := createRSAKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	setupComponent := createTestComponentVersionSigned(t, "Add signed invalid components to component-version", privateKey, keyName, invalidPublicKey, componentNameIdentifier)
+	validation := features.New("Validate if invalid signed OCM Components are present in OCI Registry").
+		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
+		Setup(setup.AddScheme(sourcev1.AddToScheme)).
+		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
+		Setup(setup.AddGitRepository(testRepoSignedInvalidName)).
+		Setup(setup.AddFilesToGitRepository(getManifests(testSignedInvalidComponentsPath, testRepoSignedInvalidName)...)).
+		Setup(setup.AddFluxSyncForRepo(testRepoSignedInvalidName, destinationPrefix, namespace)).
+		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName))
+
+	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
+		Assess("Check that component version signature verification failed", checkCVReason(name, v1alpha1.VerificationFailedReason))
+
+	testEnv.Test(t,
+		setupComponent.Feature(),
+		validation.Feature(),
+		signatureVerification.Feature(),
+	)
 }

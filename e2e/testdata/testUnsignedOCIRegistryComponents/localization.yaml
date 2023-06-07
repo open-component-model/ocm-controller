@@ -1,0 +1,16 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Localization
+metadata:
+  name: deployment-unsigned
+  namespace: ocm-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: Resource
+    name: deployment-unsigned
+  configRef:
+    kind: ComponentVersion
+    name: podinfo-unsigned
+    resourceRef:
+      name: config
+      version: latest

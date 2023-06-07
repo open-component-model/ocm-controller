@@ -102,7 +102,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			reconciling.Reason = meta.ProgressingWithRetryReason
 			conditions.Set(obj, reconciling)
 			msg := fmt.Sprintf("Reconciliation did not succeed, retrying in %s", obj.GetRequeueAfter())
-			conditions.MarkFalse(obj, meta.ReadyCondition, meta.ProgressingWithRetryReason, msg)
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 		}
 
