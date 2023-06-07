@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build e2e
+
 package e2e
 
 import (
@@ -27,10 +29,10 @@ var (
 func createTestComponentVersionUnsigned(t *testing.T, componentNameIdentifier string) *features.FeatureBuilder {
 	t.Helper()
 	return features.New("Add components to component-version").
-		Setup(setup.AddComponentVersions(podinfoBackend(t, nil, "", componentNameIdentifier))).
-		Setup(setup.AddComponentVersions(podinfoFrontend(t, nil, "", componentNameIdentifier))).
-		Setup(setup.AddComponentVersions(podinfoRedis(t, nil, "", componentNameIdentifier))).
-		Setup(setup.AddComponentVersions(podinfo(t, nil, "", componentNameIdentifier)))
+		Setup(setup.AddComponentVersions(podinfoBackend(t, componentNameIdentifier))).
+		Setup(setup.AddComponentVersions(podinfoFrontend(t, componentNameIdentifier))).
+		Setup(setup.AddComponentVersions(podinfoRedis(t, componentNameIdentifier))).
+		Setup(setup.AddComponentVersions(podinfo(t, componentNameIdentifier)))
 }
 
 func createTestComponentVersionSigned(t *testing.T, featureString string, privateKey []byte, keyName string, publicKey []byte, componentNameIdentifier string) *features.FeatureBuilder {
@@ -40,7 +42,7 @@ func createTestComponentVersionSigned(t *testing.T, featureString string, privat
 		WithStep("", 2, setup.AddComponentVersions(basicSignedComponent(t, privateKey, keyName, componentNameIdentifier)))
 }
 
-func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
+func podinfo(t *testing.T, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
 	content, err := os.ReadFile(filepath.Join(basePath, "product_description.yaml"))
@@ -49,7 +51,10 @@ func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNa
 	}
 
 	temp := setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoComponentName),
+		Component: shared.Component{
+			Name:    componentNamePrefix + componentNameIdentifier + podinfoComponentName,
+			Version: "1.0.0",
+		},
 		Repository: "podinfo",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -100,7 +105,7 @@ func basicSignedComponent(t *testing.T, privateKey []byte, privateKeyName string
 	return temp
 }
 
-func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
+func podinfoBackend(t *testing.T, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "backend", "config.yaml"))
@@ -124,7 +129,10 @@ func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, comp
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoBackendComponentName),
+		Component: shared.Component{
+			Name:    componentNamePrefix + componentNameIdentifier + podinfoBackendComponentName,
+			Version: "1.0.0",
+		},
 		Repository: "backend",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -156,7 +164,7 @@ func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, comp
 	}
 }
 
-func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
+func podinfoFrontend(t *testing.T, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "frontend", "config.yaml"))
@@ -180,7 +188,10 @@ func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, com
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoFrontendComponentName),
+		Component: shared.Component{
+			Name:    componentNamePrefix + componentNameIdentifier + podinfoFrontendComponentName,
+			Version: "1.0.0",
+		},
 		Repository: "frontend",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -212,7 +223,7 @@ func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, com
 	}
 }
 
-func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
+func podinfoRedis(t *testing.T, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, "podinfo", "redis", "config.yaml"))
@@ -236,7 +247,10 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, redisComponentName),
+		Component: shared.Component{
+			Name:    componentNamePrefix + componentNameIdentifier + redisComponentName,
+			Version: "1.0.0",
+		},
 		Repository: "redis",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -265,21 +279,5 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 				Type: "validator.mpas.ocm.software",
 			}),
 		},
-	}
-}
-func getComponent(privateKeyName string, privateKey []byte, componentNameIdentifier string, componentName string) shared.Component {
-	if len(privateKeyName) > 0 && privateKey != nil {
-		return shared.Component{
-			Name:    componentNamePrefix + componentNameIdentifier + componentName,
-			Version: "1.0.0",
-			Sign: &shared.Sign{
-				Name: privateKeyName,
-				Key:  privateKey,
-			},
-		}
-	}
-	return shared.Component{
-		Name:    componentNamePrefix + componentNameIdentifier + componentName,
-		Version: "1.0.0",
 	}
 }
