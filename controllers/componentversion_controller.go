@@ -111,7 +111,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			obj.Status.ObservedGeneration = obj.Generation
 			msg := fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter())
 			vid := fmt.Sprintf("%s:%s", obj.Status.ComponentDescriptor.Name, obj.Status.ReconciledVersion)
-			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
 			metadata := make(map[string]string)
 			metadata[v1alpha1.GroupVersion.Group+"/component_version"] = vid
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, msg, metadata)
@@ -149,6 +148,12 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !update {
+		conditions.Delete(obj, meta.ReconcilingCondition)
+		conditions.MarkTrue(obj,
+			meta.ReadyCondition,
+			meta.SucceededReason,
+			fmt.Sprintf("Applied version: %s", version))
+
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
 		}, nil
@@ -174,9 +179,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			RequeueAfter: obj.GetRequeueAfter(),
 		}, nil
 	}
-
-	// Remove stalled condition if set. If verification was successful we want to continue with the reconciliation.
-	conditions.Delete(obj, meta.StalledCondition)
 
 	// update the result for the defer call to have the latest information
 	rresult, err := r.reconcile(ctx, octx, obj, version)
