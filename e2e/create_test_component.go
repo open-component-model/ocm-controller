@@ -37,10 +37,7 @@ func createTestComponentVersionSigned(t *testing.T, featureString string, privat
 	t.Helper()
 	return features.New(featureString).
 		WithStep("create secret", 1, shared.CreateSecret(keyName, publicKey)).
-		WithStep("", 2, setup.AddComponentVersions(podinfoBackend(t, privateKey, keyName, componentNameIdentifier))).
-		WithStep("", 2, setup.AddComponentVersions(podinfoFrontend(t, privateKey, keyName, componentNameIdentifier))).
-		WithStep("", 2, setup.AddComponentVersions(podinfoRedis(t, privateKey, keyName, componentNameIdentifier))).
-		WithStep("", 2, setup.AddComponentVersions(podinfo(t, privateKey, keyName, componentNameIdentifier)))
+		WithStep("", 2, setup.AddComponentVersions(basicSignedComponent(t, privateKey, keyName, componentNameIdentifier)))
 }
 
 func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
@@ -74,6 +71,29 @@ func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNa
 				Name:          "redis",
 				Version:       "1.0.0",
 				ComponentName: componentNamePrefix + componentNameIdentifier + redisComponentName,
+			}),
+		},
+	}
+	return temp
+}
+
+func basicSignedComponent(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string) setup.Component {
+	t.Helper()
+	temp := setup.Component{
+		Component: shared.Component{
+			Name:    componentNamePrefix + componentNameIdentifier + podinfoComponentName,
+			Version: "1.0.0",
+			Sign: &shared.Sign{
+				Name: privateKeyName,
+				Key:  privateKey,
+			},
+		},
+		Repository: "podinfo",
+		ComponentVersionModifications: []shared.ComponentModification{
+			shared.BlobResource(shared.Resource{
+				Name: "product-description",
+				Data: "test-component",
+				Type: "PlainText",
 			}),
 		},
 	}

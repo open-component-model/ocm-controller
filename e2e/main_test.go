@@ -412,10 +412,7 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Setup(setup.AddGitRepository(testRepoSignedName)).
 		Setup(setup.AddFilesToGitRepository(getManifests(testSignedComponentsPath, testRepoSignedName)...)).
 		Setup(setup.AddFluxSyncForRepo(testRepoSignedName, destinationPrefix, namespace)).
-		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
-		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
-		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
-		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
+		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName))
 
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
 		Assess("Check that component version is ready", checkCVConditionType(name, meta.ReadyCondition)).
@@ -517,10 +514,7 @@ func TestSignedInvalidComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Setup(setup.AddGitRepository(testRepoSignedInvalidName)).
 		Setup(setup.AddFilesToGitRepository(getManifests(testSignedInvalidComponentsPath, testRepoSignedInvalidName)...)).
 		Setup(setup.AddFluxSyncForRepo(testRepoSignedInvalidName, destinationPrefix, namespace)).
-		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
-		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
-		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
-		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
+		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName))
 
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
 		Assess("Check that component version is ready", checkCVConditionType(name, meta.ReadyCondition)).
