@@ -385,7 +385,6 @@ func checkRepositoryExistsInRegistry(componentName string) features.Func {
 
 		for _, returnedComponent := range res {
 			t.Log("crane catalog", returnedComponent)
-			t.Log("!!Looking for", componentName)
 			if strings.Contains(returnedComponent, componentName) {
 				return ctx
 			}

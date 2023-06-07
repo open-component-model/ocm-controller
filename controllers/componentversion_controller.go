@@ -106,8 +106,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 		}
 
-		conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
-
 		// Set status observed generation option if the component is ready.
 		if conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
@@ -116,7 +114,6 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			metadata := make(map[string]string)
 			metadata[v1alpha1.GroupVersion.Group+"/component_version"] = vid
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, msg, metadata)
-
 		}
 
 		// Update the object.
