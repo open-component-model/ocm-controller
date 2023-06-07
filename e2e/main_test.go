@@ -517,7 +517,6 @@ func TestSignedInvalidComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName))
 
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
-		Assess("Check that component version is ready", checkCVConditionType(name, meta.ReadyCondition)).
 		Assess("Check that component version signature verification failed", checkCVReason(name, v1alpha1.VerificationFailedReason))
 
 	testEnv.Test(t,
