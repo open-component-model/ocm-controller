@@ -146,6 +146,7 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 			Namespace: cv.Namespace,
 		},
 	})
+	require.NoError(t, err)
 
 	t.Log("verifying updated object status")
 	err = client.Get(context.Background(), types.NamespacedName{
