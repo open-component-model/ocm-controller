@@ -106,7 +106,7 @@ type Component struct {
 }
 
 func (t *testEnv) AddComponentVersionToRepository(component Component, resources ...Resource) error {
-	octx := ocm.ForContext(context.Background())
+	octx := ocm.FromContext(context.Background())
 	target, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(t.repositoryURL, nil))
 
 	if err != nil {

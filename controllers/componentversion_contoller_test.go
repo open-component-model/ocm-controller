@@ -306,6 +306,12 @@ type mockResource struct {
 	resource ocmdesc.Resource
 }
 
+func (r *mockResource) ComponentVersion() ocm.ComponentVersionAccess {
+	panic("implement me")
+}
+
+var _ ocm.ResourceAccess = &mockResource{}
+
 func (r *mockResource) Access() (ocm.AccessSpec, error) {
 	return r.ctx.AccessSpecForSpec(r.resource.Access)
 }
