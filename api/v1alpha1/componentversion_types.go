@@ -86,9 +86,6 @@ type Signature struct {
 type Version struct {
 	// +optional
 	Semver string `json:"semver,omitempty"`
-
-	// +optional
-	AllowRollback bool `json:"allowRollback,omitempty"`
 }
 
 type ReferencesConfig struct {
