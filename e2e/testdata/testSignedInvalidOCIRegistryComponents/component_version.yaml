@@ -4,7 +4,7 @@ metadata:
   name: podinfo-signed-invalid
   namespace: ocm-system
 spec:
-  interval: 1m0s
+  interval: 30s
   component: "component.name.signedinvalid/podinfo"
   version:
     semver: ">=v1.0.0"

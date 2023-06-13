@@ -82,7 +82,7 @@ e2e: test-summary-tool ## Runs e2e tests
 
 .PHONY: e2e-verbose
 e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
-	go test -v -count=1 -tags=e2e ./e2e
+	$(GOTESTSUM) --format standard-verbose -- -count=1 -tags=e2e ./e2e
 
 ##@ Build
 
@@ -139,12 +139,12 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: dev-deploy
-dev-deploy:  ## Deploy controller dev image in the configured Kubernetes cluster in ~/.kube/config
+dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernetes cluster in ~/.kube/config
 	mkdir -p config/dev && cp -R config/default/* config/dev
 	cd config/dev && kustomize edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
-	&& kustomize edit add patch --path ./patches/init-container.yaml \
-	&& kustomize edit set image open-component-model/ocm-registry=$(REG_IMG):$(REG_TAG)
-	kustomize build config/dev | kubectl apply -f -
+	&& $(KUSTOMIZE) edit add patch --path ./patches/init-container.yaml \
+	&& $(KUSTOMIZE) edit set image open-component-model/ocm-registry=$(REG_IMG):$(REG_TAG)
+	$(KUSTOMIZE) build config/dev | kubectl apply -f -
 	rm -rf config/dev
 
 .PHONY: undeploy

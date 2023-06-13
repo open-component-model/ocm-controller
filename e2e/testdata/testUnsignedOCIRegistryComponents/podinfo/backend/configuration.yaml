@@ -12,7 +12,7 @@ spec:
     kind: ComponentVersion
     name: podinfo-unsigned
     resourceRef:
-      name: config
+      name: config-backend
       version: latest
   values:
     message: "This is a test message Unsigned"

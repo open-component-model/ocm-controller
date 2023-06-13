@@ -125,7 +125,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, obj)
 	if err != nil {
-		msg := fmt.Sprintf("authentication failed for repository: %s", obj.Spec.Repository.URL)
+		msg := fmt.Sprintf("authentication failed for repository: %s with error: %s", obj.Spec.Repository.URL, err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.AuthenticatedContextCreationFailedReason, msg)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 
@@ -137,7 +137,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// reconcile the version before calling reconcile func
 	update, version, err := r.checkVersion(ctx, octx, obj)
 	if err != nil {
-		msg := fmt.Sprintf("version check failed for %s %s", obj.Spec.Component, obj.Spec.Version.Semver)
+		msg := fmt.Sprintf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CheckVersionFailedReason, msg)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 
@@ -160,7 +160,8 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	ok, err := r.OCMClient.VerifyComponent(ctx, octx, obj, version)
 	if err != nil {
-		msg := fmt.Sprintf("failed to verify %s with constraint %s", obj.Spec.Component, obj.Spec.Version.Semver)
+		msg := fmt.Sprintf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err)
+		conditions.Delete(obj, meta.ReconcilingCondition)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, msg)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, fmt.Sprintf("%s, retrying in %s", err.Error(), obj.GetRequeueAfter()), nil)
 
@@ -204,7 +205,6 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 		return ctrl.Result{}, err
 	}
 
-	conditions.Delete(obj, meta.StalledCondition)
 	defer cv.Close()
 
 	// convert ComponentDescriptor to v3alpha1

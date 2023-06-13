@@ -1,16 +1,16 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Localization
 metadata:
-  name: deployment-signed
+  name: localization-test
   namespace: ocm-system
 spec:
   interval: 1m
   sourceRef:
     kind: Resource
-    name: deployment-signed
+    name: deployment-localization
   configRef:
     kind: ComponentVersion
-    name: podinfo-signed
+    name: podinfo-localization
     resourceRef:
       name: config
       version: latest

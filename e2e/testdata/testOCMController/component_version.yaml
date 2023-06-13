@@ -5,8 +5,8 @@ metadata:
   namespace: ocm-system
 spec:
   interval: 5m0s
-  component: phoban.io/test
+  component: component.name.pipeline/podinfo"
   version:
     semver: ">=v1.0.0"
   repository:
-    url: ghcr.io/phoban01
+    url: "http://registry.ocm-system.svc.cluster.local:5000"

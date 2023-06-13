@@ -1,13 +1,18 @@
 apiVersion: delivery.ocm.software/v1alpha1
-kind: Resource
+kind: Configuration
 metadata:
-  name: deployment
+  name: deployment-backend
   namespace: ocm-system
 spec:
   interval: 1m
   sourceRef:
+    kind: Localization
+    name: deployment-backend
+  configRef:
     kind: ComponentVersion
     name: podinfo
     resourceRef:
-      name: manifests
+      name: config-backend
       version: latest
+  values:
+    message: "This is a test message"

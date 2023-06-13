@@ -1,0 +1,36 @@
+apiVersion: config.ocm.software/v1alpha1
+kind: ConfigData
+metadata:
+  name: ocm-config
+  labels:
+    env: test
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+    replicas: 1
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+      replicas:
+        type: integer
+  rules:
+  - value: (( message ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
+  - value: (( replicas ))
+    file: deploy.yaml
+    path: spec.replicas
+localization:
+- resource:
+    name: image
+  file: deploy.yaml
+  image: spec.template.spec.containers[0].image

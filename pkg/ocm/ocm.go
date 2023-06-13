@@ -186,9 +186,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	defer cva.Close()
 
 	var identities []ocmmetav1.Identity
-	for _, ref := range resource.ReferencePath {
-		identities = append(identities, ref)
-	}
+	identities = append(identities, resource.ReferencePath...)
 
 	res, _, err := utils.ResolveResourceReference(cva, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities), cva.Repository())
 	if err != nil {
@@ -266,7 +264,7 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 	for _, signature := range obj.Spec.Verify {
 		cert, err := c.getPublicKey(ctx, obj.Namespace, signature.PublicKey.SecretRef.Name, signature.Name)
 		if err != nil {
-			return false, fmt.Errorf("verify error: %w", err)
+			return false, fmt.Errorf("failed to get public key for verification: %w", err)
 		}
 
 		opts := signing.NewOptions(
@@ -277,12 +275,12 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 		)
 
 		if err := opts.Complete(signingattr.Get(octx)); err != nil {
-			return false, fmt.Errorf("verify error: %w", err)
+			return false, fmt.Errorf("failed to complete signature check: %w", err)
 		}
 
 		dig, err := signing.Apply(nil, nil, cv, opts)
 		if err != nil {
-			return false, fmt.Errorf("verify error: %w", err)
+			return false, fmt.Errorf("failed to apply signing: %w", err)
 		}
 
 		var value string
