@@ -58,6 +58,7 @@ var (
 	configurationFile               = "configuration.yaml"
 	deployerFile                    = "deployer.yaml"
 	destinationPrefix               = "apps/"
+	version1                        = "1.0.0"
 )
 
 func getManifests(testName string, gitRepositoryName string) []setup.File {
@@ -100,7 +101,7 @@ func TestOCMController(t *testing.T) {
 	t.Log("running e2e ocm-controller tests")
 	componentNameIdentifier := "pipeline"
 
-	setupComponent := createTestComponentVersionUnsigned(t, componentNameIdentifier, testOCMControllerPath)
+	setupComponent := createTestComponentVersionUnsigned(t, componentNameIdentifier, testOCMControllerPath, version1)
 
 	management := features.New("Configure Management Repository").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
@@ -375,7 +376,7 @@ func TestComponentUploadToLocalOCIRegistry(t *testing.T) {
 	t.Log("Test component-version transfer to local oci repository")
 	name := getYAMLField(testUnsignedComponentsPath+cvFile, "metadata.name")
 	componentNameIdentifier := "unsigned"
-	setupComponent := createTestComponentVersionUnsigned(t, componentNameIdentifier, testUnsignedComponentsPath)
+	setupComponent := createTestComponentVersionUnsigned(t, componentNameIdentifier, testUnsignedComponentsPath, version1)
 	validation := features.New("Validate if OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
@@ -424,7 +425,7 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	setupComponent := createTestComponentVersionSigned(t, "Add signed components to component-version", privateKey, keyName, publicKey, componentNameIdentifier, testSignedComponentsPath)
+	setupComponent := createTestComponentVersionSigned(t, "Add signed components to component-version", privateKey, keyName, publicKey, componentNameIdentifier, testSignedComponentsPath, version1)
 	validation := features.New("Validate if signed OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
@@ -529,7 +530,7 @@ func TestSignedInvalidComponentUploadToLocalOCIRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	setupComponent := createTestComponentVersionSigned(t, "Add signed invalid components to component-version", privateKey, keyName, invalidPublicKey, componentNameIdentifier, testSignedInvalidComponentsPath)
+	setupComponent := createTestComponentVersionSigned(t, "Add signed invalid components to component-version", privateKey, keyName, invalidPublicKey, componentNameIdentifier, testSignedInvalidComponentsPath, version1)
 	validation := features.New("Validate if invalid signed OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).

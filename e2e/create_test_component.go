@@ -24,26 +24,26 @@ var (
 	redisComponentName           = "/redis"
 )
 
-func createTestComponentVersionUnsigned(t *testing.T, componentNameIdentifier string, testPath string) *features.FeatureBuilder {
+func createTestComponentVersionUnsigned(t *testing.T, componentNameIdentifier string, testPath string, version string) *features.FeatureBuilder {
 	t.Helper()
 	return features.New("Add components to component-version").
-		Setup(setup.AddComponentVersions(podinfoBackend(t, nil, "", componentNameIdentifier, testPath, "config-backend"))).
-		Setup(setup.AddComponentVersions(podinfoFrontend(t, nil, "", componentNameIdentifier, testPath))).
-		Setup(setup.AddComponentVersions(podinfoRedis(t, nil, "", componentNameIdentifier, testPath))).
-		Setup(setup.AddComponentVersions(podinfo(t, nil, "", componentNameIdentifier, testPath)))
+		Setup(setup.AddComponentVersions(podinfoBackend(t, nil, "", componentNameIdentifier, testPath, "config-backend", version))).
+		Setup(setup.AddComponentVersions(podinfoFrontend(t, nil, "", componentNameIdentifier, testPath, version))).
+		Setup(setup.AddComponentVersions(podinfoRedis(t, nil, "", componentNameIdentifier, testPath, version))).
+		Setup(setup.AddComponentVersions(podinfo(t, nil, "", componentNameIdentifier, testPath, version)))
 }
 
-func createTestComponentVersionSigned(t *testing.T, featureString string, privateKey []byte, keyName string, publicKey []byte, componentNameIdentifier string, testPath string) *features.FeatureBuilder {
+func createTestComponentVersionSigned(t *testing.T, featureString string, privateKey []byte, keyName string, publicKey []byte, componentNameIdentifier string, testPath string, version string) *features.FeatureBuilder {
 	t.Helper()
 	return features.New(featureString).
 		WithStep("create secret", 1, shared.CreateSecret(keyName, publicKey)).
-		WithStep("", 2, setup.AddComponentVersions(podinfoBackend(t, privateKey, keyName, componentNameIdentifier, testPath, "config-backend"))).
-		WithStep("", 2, setup.AddComponentVersions(podinfoFrontend(t, privateKey, keyName, componentNameIdentifier, testPath))).
-		WithStep("", 2, setup.AddComponentVersions(podinfoRedis(t, privateKey, keyName, componentNameIdentifier, testPath))).
-		WithStep("", 2, setup.AddComponentVersions(podinfo(t, privateKey, keyName, componentNameIdentifier, testPath)))
+		WithStep("", 2, setup.AddComponentVersions(podinfoBackend(t, privateKey, keyName, componentNameIdentifier, testPath, "config-backend", version))).
+		WithStep("", 2, setup.AddComponentVersions(podinfoFrontend(t, privateKey, keyName, componentNameIdentifier, testPath, version))).
+		WithStep("", 2, setup.AddComponentVersions(podinfoRedis(t, privateKey, keyName, componentNameIdentifier, testPath, version))).
+		WithStep("", 2, setup.AddComponentVersions(podinfo(t, privateKey, keyName, componentNameIdentifier, testPath, version)))
 }
 
-func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string) setup.Component {
+func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, version string) setup.Component {
 	t.Helper()
 
 	content, err := os.ReadFile(filepath.Join(basePath, testPath, "product_description.yaml"))
@@ -52,7 +52,7 @@ func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNa
 	}
 
 	temp := setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoComponentName),
+		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoComponentName, version),
 		Repository: "podinfo",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
@@ -62,17 +62,17 @@ func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNa
 			}),
 			shared.ComponentVersionRef(shared.ComponentRef{
 				Name:          "backend",
-				Version:       "1.0.0",
+				Version:       version,
 				ComponentName: componentNamePrefix + componentNameIdentifier + podinfoBackendComponentName,
 			}),
 			shared.ComponentVersionRef(shared.ComponentRef{
 				Name:          "frontend",
-				Version:       "1.0.0",
+				Version:       version,
 				ComponentName: componentNamePrefix + componentNameIdentifier + podinfoFrontendComponentName,
 			}),
 			shared.ComponentVersionRef(shared.ComponentRef{
 				Name:          "redis",
-				Version:       "1.0.0",
+				Version:       version,
 				ComponentName: componentNamePrefix + componentNameIdentifier + redisComponentName,
 			}),
 		},
@@ -103,7 +103,7 @@ func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNa
 //	return temp
 //}
 
-func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, configName string) setup.Component {
+func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, configName string, version string) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, "podinfo", "backend", "config-backend.yaml"))
@@ -127,18 +127,20 @@ func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, comp
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoBackendComponentName),
+		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoBackendComponentName, version),
 		Repository: "backend",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
-				Name: configName,
-				Data: string(configContent),
-				Type: "configdata.ocm.software",
+				Name:    configName,
+				Data:    string(configContent),
+				Type:    "configdata.ocm.software",
+				Version: version,
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "instructions",
-				Data: string(readmeContent),
-				Type: "PlainText",
+				Name:    "instructions",
+				Data:    string(readmeContent),
+				Type:    "PlainText",
+				Version: version,
 			}),
 			shared.ImageRefResource("ghcr.io/stefanprodan/podinfo:6.2.0", shared.Resource{
 				Name:    "image",
@@ -146,20 +148,22 @@ func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, comp
 				Type:    "ociImage",
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "manifests",
-				Data: string(manifestContent),
-				Type: "kustomize.ocm.fluxcd.io",
+				Name:    "manifests",
+				Data:    string(manifestContent),
+				Type:    "kustomize.ocm.fluxcd.io",
+				Version: version,
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "validation",
-				Data: string(validationContent),
-				Type: "validator.mpas.ocm.software",
+				Name:    "validation",
+				Data:    string(validationContent),
+				Type:    "validator.mpas.ocm.software",
+				Version: version,
 			}),
 		},
 	}
 }
 
-func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string) setup.Component {
+func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, version string) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, "podinfo", "frontend", "config.yaml"))
@@ -183,18 +187,20 @@ func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, com
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoFrontendComponentName),
+		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoFrontendComponentName, version),
 		Repository: "frontend",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
-				Name: "config",
-				Data: string(configContent),
-				Type: "configdata.ocm.software",
+				Name:    "config",
+				Data:    string(configContent),
+				Type:    "configdata.ocm.software",
+				Version: version,
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "instructions",
-				Data: string(readmeContent),
-				Type: "PlainText",
+				Name:    "instructions",
+				Data:    string(readmeContent),
+				Type:    "PlainText",
+				Version: version,
 			}),
 			shared.ImageRefResource("ghcr.io/stefanprodan/podinfo:6.2.0", shared.Resource{
 				Name:    "image",
@@ -202,20 +208,22 @@ func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, com
 				Type:    "ociImage",
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "manifests",
-				Data: string(manifestContent),
-				Type: "kustomize.ocm.fluxcd.io",
+				Name:    "manifests",
+				Data:    string(manifestContent),
+				Type:    "kustomize.ocm.fluxcd.io",
+				Version: version,
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "validation",
-				Data: string(validationContent),
-				Type: "validator.mpas.ocm.software",
+				Name:    "validation",
+				Data:    string(validationContent),
+				Type:    "validator.mpas.ocm.software",
+				Version: version,
 			}),
 		},
 	}
 }
 
-func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string) setup.Component {
+func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, version string) setup.Component {
 	t.Helper()
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, "podinfo", "redis", "config.yaml"))
@@ -239,18 +247,20 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, redisComponentName),
+		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, redisComponentName, version),
 		Repository: "redis",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
-				Name: "config",
-				Data: string(configContent),
-				Type: "configdata.ocm.software",
+				Name:    "config",
+				Data:    string(configContent),
+				Type:    "configdata.ocm.software",
+				Version: version,
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "instructions",
-				Data: string(readmeContent),
-				Type: "PlainText",
+				Name:    "instructions",
+				Data:    string(readmeContent),
+				Type:    "PlainText",
+				Version: version,
 			}),
 			shared.ImageRefResource("redis:6.0.1", shared.Resource{
 				Name:    "image",
@@ -258,19 +268,21 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 				Type:    "ociImage",
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "manifests",
-				Data: string(manifestContent),
-				Type: "kustomize.ocm.fluxcd.io",
+				Name:    "manifests",
+				Data:    string(manifestContent),
+				Type:    "kustomize.ocm.fluxcd.io",
+				Version: version,
 			}),
 			shared.BlobResource(shared.Resource{
-				Name: "validation",
-				Data: string(validationContent),
-				Type: "validator.mpas.ocm.software",
+				Name:    "validation",
+				Data:    string(validationContent),
+				Type:    "validator.mpas.ocm.software",
+				Version: version,
 			}),
 		},
 	}
 }
-func getComponent(privateKeyName string, privateKey []byte, componentNameIdentifier string, componentName string) shared.Component {
+func getComponent(privateKeyName string, privateKey []byte, componentNameIdentifier string, componentName string, version string) shared.Component {
 	if len(privateKeyName) > 0 && privateKey != nil {
 		return shared.Component{
 			Name:    componentNamePrefix + componentNameIdentifier + componentName,
@@ -283,6 +295,6 @@ func getComponent(privateKeyName string, privateKey []byte, componentNameIdentif
 	}
 	return shared.Component{
 		Name:    componentNamePrefix + componentNameIdentifier + componentName,
-		Version: "1.0.0",
+		Version: version,
 	}
 }
