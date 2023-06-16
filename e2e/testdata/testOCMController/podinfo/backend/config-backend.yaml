@@ -18,13 +18,13 @@ configuration:
         type: string
   rules:
   - value: (( replicas ))
-    file: deploy.yaml
+    file: manifests/deploy.yaml
     path: spec.replicas
   - value: (( cacheAddr ))
-    file: configmap.yaml
+    file: manifests/configmap.yaml
     path: data.PODINFO_CACHE_SERVER
 localization:
 - resource:
     name: image
-  file: deploy.yaml
+  file: manifests/deploy.yaml
   image: spec.template.spec.containers[0].image

@@ -14,5 +14,7 @@ spec:
     resourceRef:
       name: config-frontend
       version: latest
+      referencePath:
+        - name: frontend
   values:
     message: "This is a test message Unsigned Frontend"

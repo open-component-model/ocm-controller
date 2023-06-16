@@ -129,8 +129,6 @@ spec:
                 description: Component versions refer to specific snapshots of a component.
                   A common scenario being the release of a component.
                 properties:
-                  allowRollback:
-                    type: boolean
                   semver:
                     type: string
                 type: object

@@ -16,5 +16,5 @@ configuration:
 localization:
 - resource:
     name: image
-  file: deploy.yaml
+  file: manifests/deploy.yaml
   image: spec.template.spec.containers[0].image

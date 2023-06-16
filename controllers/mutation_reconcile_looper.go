@@ -28,6 +28,7 @@ import (
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
+	"github.com/open-component-model/ocm/pkg/utils/tarutils"
 	"gopkg.in/yaml.v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,22 +39,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartifact"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
-	"github.com/open-component-model/ocm/pkg/spiff"
-	"github.com/open-component-model/ocm/pkg/utils/tarutils"
-
-	utils2 "github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
-
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/component"
 	"github.com/open-component-model/ocm-controller/pkg/configdata"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartifact"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	utils2 "github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
+	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
+	"github.com/open-component-model/ocm/pkg/spiff"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 

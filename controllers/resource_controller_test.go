@@ -47,6 +47,10 @@ func TestResourceReconciler(t *testing.T) {
 			Namespace: cd.Namespace,
 		},
 	}
+	conditions.MarkTrue(cv,
+		meta.ReadyCondition,
+		meta.SucceededReason,
+		"Applied version: 1.0.0")
 
 	client := env.FakeKubeClient(WithObjects(cv, resource, cd))
 	t.Log("priming fake cache")
@@ -128,6 +132,10 @@ func XTestResourceReconcilerFailed(t *testing.T) {
 			Namespace: cd.Namespace,
 		},
 	}
+	conditions.MarkTrue(cv,
+		meta.ReadyCondition,
+		meta.SucceededReason,
+		"Applied version: 1.0.0")
 
 	client := env.FakeKubeClient(WithObjects(cv, resource, cd))
 	t.Log("priming fake cache")

@@ -10,7 +10,9 @@ spec:
     name: resource-redis
   configRef:
     kind: ComponentVersion
-    name: podinfo
+    name: podinfo-unsigned
     resourceRef:
       name: config-redis
       version: latest
+      referencePath:
+        - name: redis

@@ -14,5 +14,7 @@ spec:
     resourceRef:
       name: config-redis
       version: latest
+      referencePath:
+        - name: redis
   values:
     message: "This is a test message redis"

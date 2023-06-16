@@ -106,7 +106,7 @@ type Component struct {
 }
 
 func (t *testEnv) AddComponentVersionToRepository(component Component, resources ...Resource) error {
-	octx := ocm.ForContext(context.Background())
+	octx := ocm.FromContext(context.Background())
 	target, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(t.repositoryURL, nil))
 
 	if err != nil {
@@ -116,7 +116,7 @@ func (t *testEnv) AddComponentVersionToRepository(component Component, resources
 
 	comp, err := target.LookupComponent(component.Name)
 	if err != nil {
-		return fmt.Errorf("failed to look up component: %w", err)
+		return fmt.Errorf("failed to look up component: %s %w", component.Name, err)
 	}
 
 	compvers, err := comp.NewVersion(component.Version, true)

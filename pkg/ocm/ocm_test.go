@@ -183,7 +183,7 @@ func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
 	require.NoError(t, err)
 
 	id := cpi.ConsumerIdentity{
-		identity.ID_TYPE:       identity.CONSUMER_TYPE,
+		cpi.ID_TYPE:            identity.CONSUMER_TYPE,
 		identity.ID_HOSTNAME:   trimmedURL,
 		identity.ID_PATHPREFIX: "skarlso",
 	}
@@ -258,7 +258,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	id := cpi.ConsumerIdentity{
-		identity.ID_TYPE:       identity.CONSUMER_TYPE,
+		cpi.ID_TYPE:            identity.CONSUMER_TYPE,
 		identity.ID_HOSTNAME:   "ghcr.io",
 		identity.ID_PATHPREFIX: "skarlso",
 	}

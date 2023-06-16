@@ -21,16 +21,16 @@ configuration:
         type: integer
   rules:
   - value: (( message ))
-    file: configmap.yaml
+    file: manifests/configmap.yaml
     path: data.PODINFO_UI_MESSAGE
   - value: (( color ))
-    file: configmap.yaml
+    file: manifests/configmap.yaml
     path: data.PODINFO_UI_COLOR
   - value: (( replicas ))
-    file: deploy.yaml
+    file: manifests/deploy.yaml
     path: spec.replicas
 localization:
 - resource:
     name: image
-  file: deploy.yaml
+  file: manifests/deploy.yaml
   image: spec.template.spec.containers[0].image

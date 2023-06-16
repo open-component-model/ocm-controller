@@ -14,5 +14,7 @@ spec:
     resourceRef:
       name: config-backend
       version: latest
+      referencePath:
+        - name: backend
   values:
     message: "This is a test message"

@@ -210,12 +210,11 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			expectedUpdate:    false,
 		},
 		{
-			description:       "use older version is rollback is enabled",
+			description:       "using an older version than the reconciled one should not trigger an update",
 			givenVersion:      "<=0.0.3",
 			reconciledVersion: "0.0.3",
 			latestVersion:     "0.0.2",
-			allowRollback:     true,
-			expectedUpdate:    true,
+			expectedUpdate:    false,
 		},
 		{
 			description:       "don't allow rollback if it isn't enabled",
@@ -236,7 +235,6 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.description), func(t *testing.T) {
 			obj := DefaultComponent.DeepCopy()
 			obj.Spec.Version.Semver = tt.givenVersion
-			obj.Spec.Version.AllowRollback = tt.allowRollback
 			obj.Status.ReconciledVersion = tt.reconciledVersion
 			fakeClient := env.FakeKubeClient(WithObjects(obj))
 			fakeOcm := &fakes.MockFetcher{}
@@ -305,6 +303,12 @@ type mockResource struct {
 	ctx      ocm.Context
 	resource ocmdesc.Resource
 }
+
+func (r *mockResource) ComponentVersion() ocm.ComponentVersionAccess {
+	panic("implement me")
+}
+
+var _ ocm.ResourceAccess = &mockResource{}
 
 func (r *mockResource) Access() (ocm.AccessSpec, error) {
 	return r.ctx.AccessSpecForSpec(r.resource.Access)

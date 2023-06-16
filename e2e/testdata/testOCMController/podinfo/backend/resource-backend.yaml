@@ -4,7 +4,7 @@ metadata:
   name: resource-backend
   namespace: ocm-system
 spec:
-  interval: 1m
+  interval: 5s
   sourceRef:
     kind: ComponentVersion
     name: podinfo
@@ -12,4 +12,4 @@ spec:
       name: manifests
       version: latest
       referencePath:
-      - name: backend
+        - name: backend

@@ -67,14 +67,9 @@ var (
 func getManifests(testName string, gitRepositoryName string) []setup.File {
 	cvManifest := setup.File{
 		RepoName:       gitRepositoryName,
-		SourceFilepath: testName + "podinfo/" + cvFile,
+		SourceFilepath: testName + cvFile,
 		DestFilepath:   destinationPrefix + cvFile,
 	}
-	//cvManifestBackend := setup.File{
-	//	RepoName:       gitRepositoryName,
-	//	SourceFilepath: testName + "podinfo/" + "component_version_backend.yaml",
-	//	DestFilepath:   destinationPrefix + "component_version_backend.yaml",
-	//}
 	resourceManifestBackend := setup.File{
 		RepoName:       gitRepositoryName,
 		SourceFilepath: testName + pathBackend + resourceFile + "-backend.yaml",
@@ -96,11 +91,6 @@ func getManifests(testName string, gitRepositoryName string) []setup.File {
 		SourceFilepath: testName + pathBackend + deployerFile + "-backend.yaml",
 		DestFilepath:   destinationPrefix + deployerFile + "-backend.yaml",
 	}
-	//cvManifestFrontend := setup.File{
-	//	RepoName:       gitRepositoryName,
-	//	SourceFilepath: testName + "podinfo/" + "component_version_frontend.yaml",
-	//	DestFilepath:   destinationPrefix + "component_version_frontend.yaml",
-	//}
 	resourceManifestFrontend := setup.File{
 		RepoName:       gitRepositoryName,
 		SourceFilepath: testName + pathFrontend + resourceFile + "-frontend.yaml",
@@ -122,11 +112,6 @@ func getManifests(testName string, gitRepositoryName string) []setup.File {
 		SourceFilepath: testName + pathFrontend + deployerFile + "-frontend.yaml",
 		DestFilepath:   destinationPrefix + deployerFile + "-frontend.yaml",
 	}
-	//cvManifestRedis := setup.File{
-	//	RepoName:       gitRepositoryName,
-	//	SourceFilepath: testName + "podinfo/" + "component_version_redis.yaml",
-	//	DestFilepath:   destinationPrefix + "component_version_redis.yaml",
-	//}
 	resourceManifestRedis := setup.File{
 		RepoName:       gitRepositoryName,
 		SourceFilepath: testName + pathRedis + resourceFile + "-redis.yaml",
@@ -151,9 +136,6 @@ func getManifests(testName string, gitRepositoryName string) []setup.File {
 
 	return []setup.File{
 		cvManifest,
-		//cvManifestBackend,
-		//cvManifestFrontend,
-		//cvManifestRedis,
 		resourceManifestBackend,
 		localizationManifestBackend,
 		configurationManifestBackend,
@@ -200,7 +182,7 @@ func TestOCMController(t *testing.T) {
 			func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 				client, err := cfg.NewClient()
 				if err != nil {
-					t.Fail()
+					t.Fatal(err)
 				}
 
 				gr := &appsv1.Deployment{
@@ -215,14 +197,16 @@ func TestOCMController(t *testing.T) {
 					img := obj.Spec.Template.Spec.Containers[0].Image
 					return strings.Contains(img, "ghcr.io/stefanprodan/podinfo")
 				}), wait.WithTimeout(timeoutDuration))
-
+				if err != nil {
+					t.Fatal(err)
+				}
 				return ctx
 			}).
 		Assess("check that configmap was configured",
 			func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 				client, err := cfg.NewClient()
 				if err != nil {
-					t.Fail()
+					t.Fatal(err)
 				}
 
 				gr := &corev1.ConfigMap{
@@ -236,7 +220,9 @@ func TestOCMController(t *testing.T) {
 					}
 					return obj.Data["PODINFO_UI_MESSAGE"] == "This is a test message"
 				}), wait.WithTimeout(timeoutDuration))
-
+				if err != nil {
+					t.Fatal(err)
+				}
 				return ctx
 			})
 

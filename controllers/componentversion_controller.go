@@ -313,7 +313,7 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.
 	}
 	log.V(4).Info("current reconciled version is", "reconciled", current.String())
 
-	if latestSemver.Equal(current) || (current.GreaterThan(latestSemver) && !obj.Spec.Version.AllowRollback) {
+	if latestSemver.Equal(current) || current.GreaterThan(latestSemver) {
 		log.V(4).Info("Reconciled version equal to or greater than newest available version", "version", latestSemver)
 		return false, "", nil
 	}
