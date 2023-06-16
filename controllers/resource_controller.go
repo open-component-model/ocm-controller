@@ -188,10 +188,23 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	var componentVersion v1alpha1.ComponentVersion
 	if err := r.Get(ctx, obj.Spec.SourceRef.GetObjectKey(), &componentVersion); err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Info("component version not found yet, waiting for it to exist...")
+
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		}
+
 		err = fmt.Errorf("failed to get component version: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+
 		return ctrl.Result{}, err
+	}
+
+	if !conditions.IsReady(&componentVersion) {
+		logger.Info("waiting for component version to be ready...")
+
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, &componentVersion)

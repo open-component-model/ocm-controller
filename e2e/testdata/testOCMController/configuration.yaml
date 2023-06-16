@@ -10,9 +10,11 @@ spec:
     name: deployment
   configRef:
     kind: ComponentVersion
-    name: podinfo
+    name: podinfo-unsigned
     resourceRef:
       name: config
-      version: latest
+      version: 1.0.0
+      referencePath:
+        - name: backend
   values:
     message: "This is a test message"

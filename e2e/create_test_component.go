@@ -45,11 +45,6 @@ func createTestComponentVersionSigned(t *testing.T, featureString string, privat
 func podinfo(t *testing.T, componentNameIdentifier string) setup.Component {
 	t.Helper()
 
-	content, err := os.ReadFile(filepath.Join(basePath, "product_description.yaml"))
-	if err != nil {
-		t.Fatal("failed to read setup file: %w", err)
-	}
-
 	temp := setup.Component{
 		Component: shared.Component{
 			Name:    componentNamePrefix + componentNameIdentifier + podinfoComponentName,
@@ -57,11 +52,6 @@ func podinfo(t *testing.T, componentNameIdentifier string) setup.Component {
 		},
 		Repository: "podinfo",
 		ComponentVersionModifications: []shared.ComponentModification{
-			shared.BlobResource(shared.Resource{
-				Name: "product-description",
-				Data: string(content),
-				Type: "productdescription.mpas.ocm.software",
-			}),
 			shared.ComponentVersionRef(shared.ComponentRef{
 				Name:          "backend",
 				Version:       "1.0.0",

@@ -59,6 +59,8 @@ var (
 
 func TestOCMController(t *testing.T) {
 	t.Log("running e2e ocm-controller tests")
+	componentNameIdentifier := "unsigned"
+	setupComponent := createTestComponentVersionUnsigned(t, componentNameIdentifier)
 
 	management := features.New("Configure Management Repository").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
@@ -122,7 +124,7 @@ func TestOCMController(t *testing.T) {
 					if !ok {
 						return false
 					}
-					return obj.Data["PODINFO_UI_MESSAGE"] == "This is a test message"
+					return obj.Data["PODINFO_CACHE_SERVER"] == "tcp://redis:6379"
 				}), wait.WithTimeout(timeoutDuration))
 				if err != nil {
 					t.Fail()
@@ -132,6 +134,7 @@ func TestOCMController(t *testing.T) {
 			})
 
 	testEnv.Test(t,
+		setupComponent.Feature(),
 		management.Feature(),
 		manifests.Feature(),
 		validation.Feature(),
