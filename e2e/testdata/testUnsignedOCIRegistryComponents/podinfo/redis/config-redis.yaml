@@ -1,28 +1,18 @@
 apiVersion: config.ocm.software/v1alpha1
 kind: ConfigData
 metadata:
-  name: ocm-config-unisgned-backend
+  name: redis-config
   labels:
     env: test
 configuration:
   defaults:
-    replicas: 2
-    cacheAddr: tcp://redis:6379
+    replicas: 1
   schema:
     type: object
     additionalProperties: false
     properties:
       replicas:
-        type: integer
-      cacheAddr:
         type: string
-  rules:
-  - value: (( replicas ))
-    file: deploy.yaml
-    path: spec.replicas
-  - value: (( cacheAddr ))
-    file: configmap.yaml
-    path: data.PODINFO_CACHE_SERVER
 localization:
 - resource:
     name: image

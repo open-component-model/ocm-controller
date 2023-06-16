@@ -1,7 +1,7 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Resource
 metadata:
-  name: resource-unsigned-backend
+  name: resource-unsigned-frontend
   namespace: ocm-system
 spec:
   interval: 1m
@@ -10,6 +10,4 @@ spec:
     name: podinfo-unsigned
     resourceRef:
       name: manifests
-      referencePath:
-      - name: backend
-      #version: latest
+      version: 1.0.0

@@ -45,7 +45,7 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/open-component-model/ocm/pkg/spiff"
-	"github.com/open-component-model/ocm/pkg/utils"
+	"github.com/open-component-model/ocm/pkg/utils/tarutils"
 
 	utils2 "github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 
@@ -184,7 +184,7 @@ func (m *MutationReconcileLooper) configure(ctx context.Context, data []byte, co
 		return "", errTar
 	}
 
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(data)); err != nil {
+	if err := tarutils.ExtractTarToFs(virtualFS, bytes.NewBuffer(data)); err != nil {
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
 
@@ -223,7 +223,7 @@ func (m *MutationReconcileLooper) localize(ctx context.Context, cv *v1alpha1.Com
 		return "", errTar
 	}
 
-	if err := utils.ExtractTarToFs(virtualFS, bytes.NewBuffer(data)); err != nil {
+	if err := tarutils.ExtractTarToFs(virtualFS, bytes.NewBuffer(data)); err != nil {
 		return "", fmt.Errorf("extract tar error: %w", err)
 	}
 

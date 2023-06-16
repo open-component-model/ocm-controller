@@ -1,12 +1,12 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: FluxDeployer
 metadata:
-  name: podinfo
+  name: fluxdeployer-podinfo-frontend
   namespace: ocm-system
 spec:
   sourceRef:
     kind: Configuration
-    name: deployment-backend
+    name: configuration-frontend
   kustomizationTemplate:
     interval: 1m0s
     path: ./

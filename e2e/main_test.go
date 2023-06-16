@@ -53,48 +53,119 @@ var (
 	testLocalizationPath            = "testLocalization"
 	keyName                         = "rsa"
 	cvFile                          = "component_version.yaml"
-	localizationFile                = "localization.yaml"
-	resourceFile                    = "resource.yaml"
-	configurationFile               = "configuration.yaml"
-	deployerFile                    = "deployer.yaml"
+	localizationFile                = "localization"
+	resourceFile                    = "resource"
+	configurationFile               = "configuration"
+	deployerFile                    = "deployer"
 	destinationPrefix               = "apps/"
 	version1                        = "1.0.0"
+	pathBackend                     = "podinfo/backend/"
+	pathFrontend                    = "podinfo/frontend/"
+	pathRedis                       = "podinfo/redis/"
 )
 
 func getManifests(testName string, gitRepositoryName string) []setup.File {
 	cvManifest := setup.File{
 		RepoName:       gitRepositoryName,
-		SourceFilepath: testName + cvFile,
+		SourceFilepath: testName + "podinfo/" + cvFile,
 		DestFilepath:   destinationPrefix + cvFile,
 	}
-	resourceManifest := setup.File{
+	//cvManifestBackend := setup.File{
+	//	RepoName:       gitRepositoryName,
+	//	SourceFilepath: testName + "podinfo/" + "component_version_backend.yaml",
+	//	DestFilepath:   destinationPrefix + "component_version_backend.yaml",
+	//}
+	resourceManifestBackend := setup.File{
 		RepoName:       gitRepositoryName,
-		SourceFilepath: testName + "podinfo/backend/" + resourceFile,
-		DestFilepath:   destinationPrefix + resourceFile,
+		SourceFilepath: testName + pathBackend + resourceFile + "-backend.yaml",
+		DestFilepath:   destinationPrefix + resourceFile + "-backend.yaml",
 	}
-	localizationManifest := setup.File{
+	localizationManifestBackend := setup.File{
 		RepoName:       gitRepositoryName,
-		SourceFilepath: testName + "podinfo/backend/" + localizationFile,
-		DestFilepath:   destinationPrefix + localizationFile,
+		SourceFilepath: testName + pathBackend + localizationFile + "-backend.yaml",
+		DestFilepath:   destinationPrefix + localizationFile + "-backend.yaml",
 	}
-	configurationManifest := setup.File{
+	configurationManifestBackend := setup.File{
 		RepoName:       gitRepositoryName,
-		SourceFilepath: testName + "podinfo/backend/" + configurationFile,
-		DestFilepath:   destinationPrefix + configurationFile,
+		SourceFilepath: testName + pathBackend + configurationFile + "-backend.yaml",
+		DestFilepath:   destinationPrefix + configurationFile + "-backend.yaml",
 	}
 
-	deployerManifest := setup.File{
+	deployerManifestBackend := setup.File{
 		RepoName:       gitRepositoryName,
-		SourceFilepath: testName + "podinfo/backend/" + deployerFile,
-		DestFilepath:   destinationPrefix + deployerFile,
+		SourceFilepath: testName + pathBackend + deployerFile + "-backend.yaml",
+		DestFilepath:   destinationPrefix + deployerFile + "-backend.yaml",
+	}
+	//cvManifestFrontend := setup.File{
+	//	RepoName:       gitRepositoryName,
+	//	SourceFilepath: testName + "podinfo/" + "component_version_frontend.yaml",
+	//	DestFilepath:   destinationPrefix + "component_version_frontend.yaml",
+	//}
+	resourceManifestFrontend := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + pathFrontend + resourceFile + "-frontend.yaml",
+		DestFilepath:   destinationPrefix + resourceFile + "-frontend.yaml",
+	}
+	localizationManifestFrontend := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + pathFrontend + localizationFile + "-frontend.yaml",
+		DestFilepath:   destinationPrefix + localizationFile + "-frontend.yaml",
+	}
+	configurationManifestFrontend := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + pathFrontend + configurationFile + "-frontend.yaml",
+		DestFilepath:   destinationPrefix + configurationFile + "-frontend.yaml",
+	}
+
+	deployerManifestFrontend := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + pathFrontend + deployerFile + "-frontend.yaml",
+		DestFilepath:   destinationPrefix + deployerFile + "-frontend.yaml",
+	}
+	//cvManifestRedis := setup.File{
+	//	RepoName:       gitRepositoryName,
+	//	SourceFilepath: testName + "podinfo/" + "component_version_redis.yaml",
+	//	DestFilepath:   destinationPrefix + "component_version_redis.yaml",
+	//}
+	resourceManifestRedis := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + pathRedis + resourceFile + "-redis.yaml",
+		DestFilepath:   destinationPrefix + resourceFile + "-redis.yaml",
+	}
+	localizationManifestRedis := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + pathRedis + localizationFile + "-redis.yaml",
+		DestFilepath:   destinationPrefix + localizationFile + "-redis.yaml",
+	}
+	configurationManifestRedis := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + pathRedis + configurationFile + "-redis.yaml",
+		DestFilepath:   destinationPrefix + configurationFile + "-redis.yaml",
+	}
+
+	deployerManifestRedis := setup.File{
+		RepoName:       gitRepositoryName,
+		SourceFilepath: testName + pathRedis + deployerFile + "-redis.yaml",
+		DestFilepath:   destinationPrefix + deployerFile + "-redis.yaml",
 	}
 
 	return []setup.File{
 		cvManifest,
-		resourceManifest,
-		localizationManifest,
-		configurationManifest,
-		deployerManifest,
+		//cvManifestBackend,
+		//cvManifestFrontend,
+		//cvManifestRedis,
+		resourceManifestBackend,
+		localizationManifestBackend,
+		configurationManifestBackend,
+		deployerManifestBackend,
+		resourceManifestFrontend,
+		localizationManifestFrontend,
+		configurationManifestFrontend,
+		deployerManifestFrontend,
+		resourceManifestRedis,
+		localizationManifestRedis,
+		configurationManifestRedis,
+		deployerManifestRedis,
 	}
 }
 func TestOCMController(t *testing.T) {

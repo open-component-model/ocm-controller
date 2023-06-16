@@ -1,18 +1,18 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: Configuration
 metadata:
-  name: configuration-unsigned-backend
+  name: configuration-redis
   namespace: ocm-system
 spec:
   interval: 1m
   sourceRef:
     kind: Localization
-    name: localization-unsigned-backend
+    name: localization-redis
   configRef:
     kind: ComponentVersion
-    name: podinfo-unsigned
+    name: podinfo
     resourceRef:
-      name: config-backend
+      name: config-redis
       version: latest
   values:
-    message: "This is a test message Unsigned"
+    message: "This is a test message redis"

@@ -28,8 +28,8 @@ func createTestComponentVersionUnsigned(t *testing.T, componentNameIdentifier st
 	t.Helper()
 	return features.New("Add components to component-version").
 		Setup(setup.AddComponentVersions(podinfoBackend(t, nil, "", componentNameIdentifier, testPath, "config-backend", version))).
-		Setup(setup.AddComponentVersions(podinfoFrontend(t, nil, "", componentNameIdentifier, testPath, version))).
-		Setup(setup.AddComponentVersions(podinfoRedis(t, nil, "", componentNameIdentifier, testPath, version))).
+		Setup(setup.AddComponentVersions(podinfoFrontend(t, nil, "", componentNameIdentifier, testPath, "config-frontend", version))).
+		Setup(setup.AddComponentVersions(podinfoRedis(t, nil, "", componentNameIdentifier, testPath, "config-redis", version))).
 		Setup(setup.AddComponentVersions(podinfo(t, nil, "", componentNameIdentifier, testPath, version)))
 }
 
@@ -38,15 +38,15 @@ func createTestComponentVersionSigned(t *testing.T, featureString string, privat
 	return features.New(featureString).
 		WithStep("create secret", 1, shared.CreateSecret(keyName, publicKey)).
 		WithStep("", 2, setup.AddComponentVersions(podinfoBackend(t, privateKey, keyName, componentNameIdentifier, testPath, "config-backend", version))).
-		WithStep("", 2, setup.AddComponentVersions(podinfoFrontend(t, privateKey, keyName, componentNameIdentifier, testPath, version))).
-		WithStep("", 2, setup.AddComponentVersions(podinfoRedis(t, privateKey, keyName, componentNameIdentifier, testPath, version))).
+		WithStep("", 2, setup.AddComponentVersions(podinfoFrontend(t, privateKey, keyName, componentNameIdentifier, testPath, "config-frontend", version))).
+		WithStep("", 2, setup.AddComponentVersions(podinfoRedis(t, privateKey, keyName, componentNameIdentifier, testPath, "config-redis", version))).
 		WithStep("", 2, setup.AddComponentVersions(podinfo(t, privateKey, keyName, componentNameIdentifier, testPath, version)))
 }
 
 func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, version string) setup.Component {
 	t.Helper()
 
-	content, err := os.ReadFile(filepath.Join(basePath, testPath, "product_description.yaml"))
+	content, err := os.ReadFile(filepath.Join(basePath, testPath, "podinfo/product_description.yaml"))
 	if err != nil {
 		t.Fatal("failed to read setup file: %w", err)
 	}
@@ -163,10 +163,10 @@ func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, comp
 	}
 }
 
-func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, version string) setup.Component {
+func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, configName string, version string) setup.Component {
 	t.Helper()
 
-	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, "podinfo", "frontend", "config.yaml"))
+	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, "podinfo", "frontend", "config-frontend.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
 	}
@@ -191,7 +191,7 @@ func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, com
 		Repository: "frontend",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
-				Name:    "config",
+				Name:    configName,
 				Data:    string(configContent),
 				Type:    "configdata.ocm.software",
 				Version: version,
@@ -223,10 +223,10 @@ func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, com
 	}
 }
 
-func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, version string) setup.Component {
+func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, componentNameIdentifier string, testPath string, configName string, version string) setup.Component {
 	t.Helper()
 
-	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, "podinfo", "redis", "config.yaml"))
+	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, "podinfo", "redis", "config-redis.yaml"))
 	if err != nil {
 		t.Fatal("failed to read config file: %w", err)
 	}
@@ -251,7 +251,7 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 		Repository: "redis",
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
-				Name:    "config",
+				Name:    configName,
 				Data:    string(configContent),
 				Type:    "configdata.ocm.software",
 				Version: version,

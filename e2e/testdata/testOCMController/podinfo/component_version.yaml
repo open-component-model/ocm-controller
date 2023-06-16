@@ -5,8 +5,11 @@ metadata:
   namespace: ocm-system
 spec:
   interval: 5m0s
-  component: component.name.pipeline/podinfo"
+  component: component.name.pipeline/podinfo
   version:
     semver: ">=v1.0.0"
+  references:
+    expand: true
   repository:
-    url: "http://registry.ocm-system.svc.cluster.local:5000"
+    url: http://registry.ocm-system.svc.cluster.local:5000
+  

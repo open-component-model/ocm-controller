@@ -148,6 +148,8 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	}
 
 	cd, err := component.GetComponentDescriptor(ctx, c.client, resource.ReferencePath, cv.Status.ComponentDescriptor)
+
+	logger.Info(fmt.Sprintf("getResource 1. GetComponentDescriptor: "))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to find component descriptor for reference: %w", err)
 	}
@@ -164,16 +166,23 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	}
 	// Add extra identity.
 	for k, v := range resource.ElementMeta.ExtraIdentity {
+
 		identity[k] = v
 	}
+	logger.Info(fmt.Sprintf("getResource 2. Length of resource.ElementMeta.ExtraIdentity: %s\n", len(resource.ElementMeta.ExtraIdentity)))
+
 	name, err := ConstructRepositoryName(identity)
+	logger.Info(fmt.Sprintf("getResource 3. ConstructRepositoryName: %s\n", name))
+
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to construct name: %w", err)
 	}
+
 	cached, err := c.cache.IsCached(ctx, name, version)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to check cache: %w", err)
 	}
+	logger.Info(fmt.Sprintf("getResource 4. cached?: %s\n", cached))
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
@@ -183,14 +192,17 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get component Version: %w", err)
 	}
+	logger.Info(fmt.Sprintf("getResource 5. GetComponentVersion: %s\n", cva.GetName()))
 	defer cva.Close()
 
 	var identities []ocmmetav1.Identity
 	identities = append(identities, resource.ReferencePath...)
+	logger.Info(fmt.Sprintf("getResource 6. resource.Name: %s\n", resource.Name))
+	logger.Info(fmt.Sprintf("getResource 7. identities: %s\n", identities))
 
 	res, _, err := utils.ResolveResourceReference(cva, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities), cva.Repository())
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
+		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %s %w", resource.Name, err)
 	}
 
 	access, err := res.AccessMethod()

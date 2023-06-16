@@ -1,18 +1,16 @@
 apiVersion: delivery.ocm.software/v1alpha1
-kind: Configuration
+kind: Localization
 metadata:
-  name: configuration-unsigned-backend
+  name: localization-backend
   namespace: ocm-system
 spec:
   interval: 1m
   sourceRef:
-    kind: Localization
-    name: localization-unsigned-backend
+    kind: Resource
+    name: resource-backend
   configRef:
     kind: ComponentVersion
-    name: podinfo-unsigned
+    name: podinfo
     resourceRef:
       name: config-backend
       version: latest
-  values:
-    message: "This is a test message Unsigned"
