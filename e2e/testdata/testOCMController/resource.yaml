@@ -4,10 +4,12 @@ metadata:
   name: deployment
   namespace: ocm-system
 spec:
-  interval: 1m
+  interval: 5s
   sourceRef:
     kind: ComponentVersion
-    name: podinfo
+    name: podinfo-unsigned
     resourceRef:
       name: manifests
-      version: latest
+      version: 1.0.0
+      referencePath:
+        - name: backend
