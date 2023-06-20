@@ -33,10 +33,10 @@ tilt-settings.yaml
 
 *__debug_bin
 #test data raw
-e2e/testdata/testOCMController/podinfo/backend/manifests
-e2e/testdata/testOCMController/podinfo/frontend/manifests
-e2e/testdata/testOCMController/podinfo/redis/manifests
+e2e/testdata/testOCMController/podinfo/backend/manifests/*
+e2e/testdata/testOCMController/podinfo/frontend/manifests/*
+e2e/testdata/testOCMController/podinfo/redis/manifests/*
 
-e2e/testdata/testSignedOCIRegistryComponents/podinfo/backend/manifests
-e2e/testdata/testSignedOCIRegistryComponents/podinfo/frontend/manifests
-e2e/testdata/testSignedOCIRegistryComponents/podinfo/redis/manifests
+e2e/testdata/testSignedOCIRegistryComponents/podinfo/backend/manifests/*
+e2e/testdata/testSignedOCIRegistryComponents/podinfo/frontend/manifests/*
+e2e/testdata/testSignedOCIRegistryComponents/podinfo/redis/manifests/*
