@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis
+  name: redis-signed
 spec:
   selector:
     matchLabels:
-      app: redis
+      app: redis-signed
   template:
     metadata:
       labels:
-        app: redis
+        app: redis-signed
     spec:
       containers:
       - name: redis
@@ -17,7 +17,7 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
-        - "/redis-master/redis.conf"
+        - "/redis-master-signed/redis.conf"
         ports:
         - name: redis
           containerPort: 6379
@@ -42,16 +42,16 @@ spec:
             cpu: 100m
             memory: 32Mi
         volumeMounts:
-        - mountPath: /var/lib/redis
+        - mountPath: /var/lib/redis-signed
           name: data
-        - mountPath: /redis-master
+        - mountPath: /redis-master-signed
           name: config
       volumes:
       - name: data
         emptyDir: {}
       - name: config
         configMap:
-          name: redis-config
+          name: redis-config-signed
           items:
           - key: redis.conf
             path: redis.conf

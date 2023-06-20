@@ -1,7 +1,7 @@
 apiVersion: config.ocm.software/v1alpha1
 kind: ConfigData
 metadata:
-  name: ocm-config
+  name: ocm-config-pipeline-frontend
   labels:
     env: test
 configuration:

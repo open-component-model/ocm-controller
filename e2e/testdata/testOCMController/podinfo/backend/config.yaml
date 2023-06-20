@@ -1,34 +1,34 @@
 apiVersion: config.ocm.software/v1alpha1
 kind: ConfigData
 metadata:
-  name: ocm-config-signed-frontend
+  name: ocm-config-pipeline-backend
   labels:
     env: test
 configuration:
   defaults:
-    color: red
-    message: Hello, world!
     replicas: 1
+    cacheAddr: tcp://redis:6379
+    message: Hello, world!
   schema:
     type: object
     additionalProperties: false
     properties:
-      color:
+      replicas:
+        type: integer
+      cacheAddr:
         type: string
       message:
         type: string
-      replicas:
-        type: integer
   rules:
-  - value: (( message ))
-    file: manifests/configmap.yaml
-    path: data.PODINFO_UI_MESSAGE
-  - value: (( color ))
-    file: manifests/configmap.yaml
-    path: data.PODINFO_UI_COLOR
   - value: (( replicas ))
     file: manifests/deploy.yaml
     path: spec.replicas
+  - value: (( cacheAddr ))
+    file: manifests/configmap.yaml
+    path: data.PODINFO_CACHE_SERVER
+  - value: (( message ))
+    file: manifests/configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
 localization:
 - resource:
     name: image

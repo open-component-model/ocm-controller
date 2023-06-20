@@ -6,3 +6,4 @@ metadata:
     app: frontend
 data:
   PODINFO_UI_COLOR: "#34577c"
+  PODINFO_UI_MESSAGE: "This is a test message"

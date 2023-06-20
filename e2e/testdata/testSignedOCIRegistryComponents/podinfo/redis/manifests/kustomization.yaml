@@ -4,6 +4,6 @@ resources:
 - deploy.yaml
 - service.yaml
 configMapGenerator:
-- name: redis-config
+- name: redis-config-signed
   files:
     - redis.conf

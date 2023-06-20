@@ -40,7 +40,7 @@ spec:
         - --port=9898
         - --port-metrics=9797
         - --level=info
-        - --cache-server=cache:6379
+        - --cache-server=redis:6379
         envFrom:
         - configMapRef:
             name: frontend-config

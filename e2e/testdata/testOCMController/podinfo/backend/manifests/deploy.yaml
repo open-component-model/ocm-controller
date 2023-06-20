@@ -43,7 +43,7 @@ spec:
         - --grpc-port=9999
         - --grpc-service-name=backend
         - --level=info
-        - --cache-server=cache:6379
+        - --cache-server=redis:6379
         envFrom:
         - configMapRef:
             name: backend-config

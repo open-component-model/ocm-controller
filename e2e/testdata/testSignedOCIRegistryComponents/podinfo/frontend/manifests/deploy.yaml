@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend
+  name: frontend-signed
 spec:
   minReadySeconds: 3
   revisionHistoryLimit: 5
@@ -12,14 +12,14 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: frontend
+      app: frontend-signed
   template:
     metadata:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9797"
       labels:
-        app: frontend
+        app: frontend-signed
     spec:
       containers:
       - name: frontend
@@ -40,10 +40,10 @@ spec:
         - --port=9898
         - --port-metrics=9797
         - --level=info
-        - --cache-server=cache:6379
+        - --cache-server=redis-signed:6379
         envFrom:
         - configMapRef:
-            name: frontend-config
+            name: frontend-config-signed
         livenessProbe:
           exec:
             command:

@@ -6,3 +6,4 @@ metadata:
     app: backend
 data:
   PODINFO_CACHE_SERVER: tcp://redis:6379
+  PODINFO_UI_MESSAGE: "This is a test message"

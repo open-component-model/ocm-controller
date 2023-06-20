@@ -1,8 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: frontend-config
+  name: frontend-config-signed
   labels:
-    app: frontend
+    app: frontend-signed
 data:
   PODINFO_UI_COLOR: "#34577c"
+  PODINFO_UI_MESSAGE: "This is a test message"

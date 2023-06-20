@@ -1,0 +1,18 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Localization
+metadata:
+  name: localization-signed-redis
+  namespace: ocm-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: Resource
+    name: resource-signed-redis
+  configRef:
+    kind: ComponentVersion
+    name: podinfo-signed
+    resourceRef:
+      name: config
+      version: latest
+      referencePath:
+        - name: redis

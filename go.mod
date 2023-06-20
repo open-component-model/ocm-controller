@@ -24,6 +24,8 @@ require (
 	github.com/fluxcd/pkg/tar v0.2.0
 	github.com/fluxcd/source-controller/api v1.0.0-rc.1
 	github.com/google/go-containerregistry v0.14.0
+	github.com/mandelsoft/spiff v1.7.0-beta-5
+	github.com/mandelsoft/vfs v0.0.0-20230506183150-975954b82357
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.27.6
@@ -138,8 +140,6 @@ require (
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mandelsoft/filepath v0.0.0-20230412200429-36b1eb66bd27 // indirect
 	github.com/mandelsoft/logging v0.0.0-20230331123830-36542ef18f6f // indirect
-	github.com/mandelsoft/spiff v1.7.0-beta-5 // indirect
-	github.com/mandelsoft/vfs v0.0.0-20230506183150-975954b82357 // indirect
 	github.com/marstr/guid v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
@@ -248,9 +248,9 @@ require (
 )
 
 replace (
-	github.com/open-component-model/ocm => ../ocm
-
-	github.com/open-component-model/ocm-controllers-sdk => ../ocm-controllers-sdk
+	//github.com/open-component-model/ocm => ../ocm
+	github.com/open-component-model/ocm => github.com/open-component-model/ocm v0.3.0-rc.1.0.20230607081545-8d3b8aa59b92
+	//github.com/open-component-model/ocm-controllers-sdk => ../ocm-controllers-sdk
 	github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
 
 	oras.land/oras-go => oras.land/oras-go v1.2.3

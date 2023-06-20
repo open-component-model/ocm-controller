@@ -1,8 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: backend-config
+  name: backend-config-signed
   labels:
-    app: backend
+    app: backend-signed
 data:
   PODINFO_CACHE_SERVER: tcp://redis:6379
+  PODINFO_UI_MESSAGE: "This is a test message"

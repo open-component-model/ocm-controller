@@ -1,7 +1,7 @@
 apiVersion: config.ocm.software/v1alpha1
 kind: ConfigData
 metadata:
-  name: redis-config
+  name: ocm-config-pipeline-redis
   labels:
     env: test
 configuration:

@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend
+  name: backend-signed
 spec:
   replicas: 1
   minReadySeconds: 3
@@ -13,14 +13,14 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: backend
+      app: backend-signed
   template:
     metadata:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9797"
       labels:
-        app: backend
+        app: backend-signed
     spec:
       containers:
       - name: backend
@@ -41,12 +41,12 @@ spec:
         - --port=9898
         - --port-metrics=9797
         - --grpc-port=9999
-        - --grpc-service-name=backend
+        - --grpc-service-name=backend-signed
         - --level=info
-        - --cache-server=cache:6379
+        - --cache-server=redis-signed:6379
         envFrom:
         - configMapRef:
-            name: backend-config
+            name: backend-config-signed
         livenessProbe:
           exec:
             command:
