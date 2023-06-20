@@ -29,7 +29,7 @@ require (
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.27.6
-	github.com/open-component-model/ocm v0.3.0-rc.2
+	github.com/open-component-model/ocm v0.3.0-rc.1.0.20230607081545-8d3b8aa59b92
 	github.com/open-component-model/ocm-controllers-sdk v0.1.0
 	github.com/open-component-model/ocm-e2e-framework v0.3.3
 	github.com/opencontainers/go-digest v1.0.0
@@ -184,7 +184,7 @@ require (
 	helm.sh/helm/v3 v3.11.1 // indirect
 	k8s.io/cli-runtime v0.26.3 // indirect
 	k8s.io/kubectl v0.26.3 // indirect
-	oras.land/oras-go v1.2.2 // indirect
+	oras.land/oras-go v1.2.3 // indirect
 	sigs.k8s.io/cli-utils v0.34.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
 )
@@ -247,11 +247,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-replace (
-	//github.com/open-component-model/ocm => ../ocm
-	github.com/open-component-model/ocm => github.com/open-component-model/ocm v0.3.0-rc.1.0.20230607081545-8d3b8aa59b92
-	//github.com/open-component-model/ocm-controllers-sdk => ../ocm-controllers-sdk
-	github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
 
-	oras.land/oras-go => oras.land/oras-go v1.2.3
-)

@@ -19,9 +19,6 @@ import (
 
 func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta.NamespacedObjectReference) (*v1alpha1.ComponentDescriptor, error) {
 	componentDescriptor := &v1alpha1.ComponentDescriptor{}
-	fmt.Println("getComponentDescriptorObject 1. reached")
-	fmt.Println("getComponentDescriptorObject 2. ref.Name", ref.Name)
-	fmt.Println("getComponentDescriptorObject 3. ref.Namespace", ref.Namespace)
 	if err := c.Get(ctx, types.NamespacedName{
 		Name:      ref.Name,
 		Namespace: ref.Namespace,
@@ -33,20 +30,15 @@ func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta
 
 func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []ocmmetav1.Identity, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
 	// Return early if there was no name defined.
-	fmt.Println("GetComponentDescriptor 1. reached")
 	if len(refPath) == 0 {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
 	}
-	fmt.Println("GetComponentDescriptor 2. refPath not nil obj.Name")
 	// Handle the nested loop. If we get to this part, we check if the reference that we found
 	// is the one we were looking for.
 	//TODO: What about extra identity?
-	fmt.Println("GetComponentDescriptor 3. refPath contains name obj.Name", obj.Name, refPath)
 	if referencePathContainsName(obj.Name, refPath) {
-		fmt.Println("GetComponentDescriptor 4. refPath contains name obj.Name Yes", obj.Name, refPath)
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
 	}
-	fmt.Println("GetComponentDescriptor 4. refPath contains name obj.Name NO", obj.Name, refPath)
 	// This is not the reference object we are looking for, let's dig deeper.
 	for _, ref := range obj.References {
 		desc, err := GetComponentDescriptor(ctx, c, refPath, ref)
