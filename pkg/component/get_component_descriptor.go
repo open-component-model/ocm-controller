@@ -40,7 +40,7 @@ func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []ocmm
 	if referencePathContainsName(obj.Name, refPath) {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
 	}
-	
+
 	// This is not the reference object we are looking for, let's dig deeper.
 	for _, ref := range obj.References {
 		desc, err := GetComponentDescriptor(ctx, c, refPath, ref)
