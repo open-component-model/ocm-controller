@@ -33,12 +33,14 @@ func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []ocmm
 	if len(refPath) == 0 {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
 	}
+
 	// Handle the nested loop. If we get to this part, we check if the reference that we found
 	// is the one we were looking for.
 	//TODO: What about extra identity?
 	if referencePathContainsName(obj.Name, refPath) {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
 	}
+	
 	// This is not the reference object we are looking for, let's dig deeper.
 	for _, ref := range obj.References {
 		desc, err := GetComponentDescriptor(ctx, c, refPath, ref)
