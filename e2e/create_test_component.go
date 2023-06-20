@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build e2e
+
 package e2e
 
 import (
@@ -26,7 +28,6 @@ var (
 	backend                      = "backend"
 	frontend                     = "frontend"
 	redis                        = "redis"
-	errMsgReadFile               = "failed to read file: %w"
 )
 
 func createTestComponentVersionUnsigned(t *testing.T, componentNameIdentifier string, testPath string, version string) *features.FeatureBuilder {
@@ -79,22 +80,22 @@ func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, comp
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, backend, "config.yaml"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read config file: %w", err)
 	}
 
 	readmeContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, backend, "README.md"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read readme file: %w", err)
 	}
 
 	manifestContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, backend, "manifests.tar"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read manifest file: %w", err)
 	}
 
 	validationContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, backend, "validation.rego"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{
@@ -139,22 +140,22 @@ func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, com
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, frontend, "config.yaml"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read config file: %w", err)
 	}
 
 	readmeContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, frontend, "README.md"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read readme file: %w", err)
 	}
 
 	manifestContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, frontend, "manifests.tar"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read manifest file: %w", err)
 	}
 
 	validationContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, frontend, "validation.rego"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{
@@ -199,22 +200,22 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 
 	configContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, redis, "config.yaml"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read config file: %w", err)
 	}
 
 	readmeContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, redis, "README.md"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read readme file: %w", err)
 	}
 
 	manifestContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, redis, "manifests.tar"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read manifest file: %w", err)
 	}
 
 	validationContent, err := os.ReadFile(filepath.Join(basePath, testPath, podinfoName, redis, "validation.rego"))
 	if err != nil {
-		t.Fatal(errMsgReadFile, err)
+		t.Fatal("failed to read validation file: %w", err)
 	}
 
 	return setup.Component{

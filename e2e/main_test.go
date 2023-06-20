@@ -82,8 +82,7 @@ func TestOCMController(t *testing.T) {
 
 	componentVersion := features.New("Create Manifests").
 		Setup(setup.AddFilesToGitRepository(getManifests(testOCMControllerPath, testRepoName)...)).
-		Assess("check that component version "+cvName+" is ready", checkCVConditionType(cvName, meta.ReadyCondition, true)).
-		Assess("check that component version "+cvName+"is valid", checkCVReason(cvName, meta.SucceededReason))
+		Assess("check that component version "+cvName+" is ready and valid", checkIsComponentVersionReady(cvName))
 
 	componentDescriptor := features.New("Check component-descriptors exist").
 		Assess("check that component version "+cvName+" has Component Descriptors", checkCompDescriptorsExistForCompVersion(cvName, componentNamePrefix+componentNameIdentifier))
@@ -145,14 +144,12 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
 
 	signatureVerificationFailed := features.New("Validate if invalid signed OCM Components are present in OCI Registry").
-		Assess("Check that component version is ready", checkCVConditionType(cvName, meta.ReadyCondition, false)).
-		Assess("Check that component version signature verification failed", checkCVReason(cvName, v1alpha1.VerificationFailedReason)).
+		Assess("Check that component version "+cvName+"is ready and signature verification failed", checkIsComponentVersionFailed(cvName)).
 		Teardown(shared.DeleteSecret(keyName))
 
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
 		WithStep("create valid rsa key secret", 1, shared.CreateSecret(keyName, publicKey)).
-		Assess("Check that component version "+cvName+" is ready", checkCVConditionType(cvName, meta.ReadyCondition, true)).
-		Assess("Check that component version signature was verified", checkCVReason(cvName, meta.SucceededReason))
+		Assess("Check that component version "+cvName+" is ready and signature was verified", checkIsComponentVersionReady(cvName))
 
 	testEnv.Test(t,
 		setupComponent.Feature(),
@@ -160,6 +157,73 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		signatureVerificationFailed.Feature(),
 		signatureVerification.Feature(),
 	)
+}
+
+func checkIsComponentVersionReady(name string) features.Func {
+	return checkObjectCondition(&v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
+	}, func(obj fconditions.Getter) bool {
+		return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
+	})
+}
+
+func checkIsComponentVersionFailed(name string) features.Func {
+	return checkObjectCondition(&v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
+	}, func(obj fconditions.Getter) bool {
+		return fconditions.IsFalse(obj, meta.ReadyCondition) && reasonMatches(obj, v1alpha1.VerificationFailedReason)
+	})
+}
+
+func checkIsResourceReady(name string) features.Func {
+	return checkObjectCondition(&v1alpha1.Resource{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
+	}, func(obj fconditions.Getter) bool {
+		return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
+	})
+}
+
+func checkIsConfigurationReady(name string) features.Func {
+	return checkObjectCondition(&v1alpha1.Configuration{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
+	}, func(obj fconditions.Getter) bool {
+		return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
+	})
+}
+
+func checkIsLocalizationReady(name string) features.Func {
+	return checkObjectCondition(&v1alpha1.Localization{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
+	}, func(obj fconditions.Getter) bool {
+		return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
+	})
+}
+
+func checkObjectCondition(conditionObject k8s.Object, condition func(getter fconditions.Getter) bool) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Helper()
+
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fail()
+		}
+
+		t.Logf("checking readiness of object with name: %s", conditionObject.GetName())
+
+		err = wait.For(conditions.New(client.Resources()).ResourceMatch(conditionObject, func(object k8s.Object) bool {
+			obj, ok := object.(fconditions.Getter)
+			if !ok {
+				return false
+			}
+			return condition(obj)
+		}), wait.WithTimeout(timeoutDuration))
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return ctx
+	}
 }
 
 func getManifests(testName string, gitRepositoryName string) []setup.File {
@@ -246,206 +310,6 @@ func getManifests(testName string, gitRepositoryName string) []setup.File {
 	}
 }
 
-func checkCVConditionType(name string, conditionType string, isTrue bool) features.Func {
-	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Helper()
-
-		client, err := cfg.NewClient()
-		if err != nil {
-			t.Fail()
-		}
-
-		t.Logf("Check %s of ComponentVersion with name: %s...", conditionType, name)
-		gr := &v1alpha1.ComponentVersion{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		}
-		if isTrue {
-			err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
-				obj, ok := object.(*v1alpha1.ComponentVersion)
-				if !ok {
-					return false
-				}
-				return fconditions.IsTrue(obj, conditionType)
-			}), wait.WithTimeout(timeoutDuration))
-
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-		if !isTrue {
-			err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
-				obj, ok := object.(*v1alpha1.ComponentVersion)
-				if !ok {
-					return false
-				}
-				return fconditions.IsFalse(obj, conditionType)
-			}), wait.WithTimeout(timeoutDuration))
-
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-		return ctx
-	}
-}
-
-func checkCVReason(name string, reason string) features.Func {
-	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Helper()
-		client, err := cfg.NewClient()
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("Check %s of ComponentVersion with name: %s...", reason, name)
-		gr := &v1alpha1.ComponentVersion{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		}
-
-		err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
-			obj, ok := object.(*v1alpha1.ComponentVersion)
-			if !ok {
-				return false
-			}
-			return reasonMatches(obj, reason)
-		}), wait.WithTimeout(timeoutDuration))
-
-		if err != nil {
-			t.Fatal(err)
-		}
-		return ctx
-	}
-}
-
-func checkCompDescriptorsExistForCompVersion(componentVersionName string, componentNamePrefix string) features.Func {
-	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		cdNameSeparator := "-"
-		client, err := cfg.NewClient()
-		if err != nil {
-			t.Fatal(err)
-		}
-		gr := &v1alpha1.ComponentVersion{
-			ObjectMeta: metav1.ObjectMeta{Name: componentVersionName, Namespace: namespace},
-		}
-		err = client.Resources().Get(ctx, componentVersionName, namespace, gr)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		cdName := strings.Join([]string{componentNamePrefix, podinfoName, version1}, cdNameSeparator)
-		cdNameNested := []string{
-			strings.Join([]string{componentNamePrefix, podinfoName, backend, version1}, cdNameSeparator),
-			strings.Join([]string{componentNamePrefix, podinfoName, frontend, version1}, cdNameSeparator),
-			strings.Join([]string{componentNamePrefix, redis, version1}, cdNameSeparator)}
-
-		if !strings.Contains(gr.Status.ComponentDescriptor.ComponentDescriptorRef.Name, cdName) {
-			t.Fatal(fmt.Sprintf("Component Descriptor %s does not exist for Component Version: %s", cdName, componentVersionName))
-		}
-
-		expandReferences := false
-		if gr.Spec.References.Expand == true {
-			expandReferences = true
-			t.Log("references.expand: true")
-		}
-
-		if expandReferences {
-			for index, compDescRef := range gr.Status.ComponentDescriptor.References {
-				if !strings.Contains(compDescRef.ComponentDescriptorRef.Name, cdNameNested[index]) {
-					t.Fatal(fmt.Sprintf("Nested Component Descriptor %s not found, expected %s", compDescRef.ComponentDescriptorRef.Name, cdNameNested[index]))
-				}
-			}
-		}
-		return ctx
-	}
-}
-
-func checkIsResourceReady(name string) features.Func {
-	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Helper()
-
-		client, err := cfg.NewClient()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		t.Logf("checking readiness of Resource with name: %s...", name)
-		gr := &v1alpha1.Resource{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		}
-
-		err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
-			obj, ok := object.(*v1alpha1.Resource)
-			if !ok {
-				return false
-			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
-		}), wait.WithTimeout(timeoutDuration))
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		return ctx
-	}
-}
-
-func checkIsConfigurationReady(name string) features.Func {
-	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Helper()
-
-		client, err := cfg.NewClient()
-		if err != nil {
-			t.Fail()
-		}
-
-		t.Logf("checking readiness of Configuration with name: %s...", name)
-		gr := &v1alpha1.Configuration{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		}
-
-		err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
-			obj, ok := object.(*v1alpha1.Configuration)
-			if !ok {
-				return false
-			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
-		}), wait.WithTimeout(timeoutDuration))
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		return ctx
-	}
-}
-func checkIsLocalizationReady(name string) features.Func {
-	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Helper()
-
-		client, err := cfg.NewClient()
-		if err != nil {
-			t.Fail()
-		}
-
-		t.Logf("checking readiness of Localization with name: %s...", name)
-		gr := &v1alpha1.Localization{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		}
-
-		err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
-			obj, ok := object.(*v1alpha1.Localization)
-			if !ok {
-				return false
-			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
-		}), wait.WithTimeout(timeoutDuration))
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		return ctx
-	}
-}
 func checkIsFluxDeployerReady(name string) features.Func {
 	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 		t.Helper()
@@ -509,6 +373,68 @@ func checkIsFluxDeployerReady(name string) features.Func {
 		return ctx
 	}
 }
+
+func checkRepositoryExistsInRegistry(componentName string) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		t.Helper()
+		res, err := crane.Catalog(hostUrl + portSeparator + strconv.Itoa(registryPort))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, returnedComponent := range res {
+			t.Log("crane catalog", returnedComponent)
+			if strings.Contains(returnedComponent, componentName) {
+				return ctx
+			}
+		}
+		t.Fail()
+		return ctx
+	}
+}
+
+func checkCompDescriptorsExistForCompVersion(componentVersionName string, componentNamePrefix string) features.Func {
+	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+		cdNameSeparator := "-"
+		client, err := cfg.NewClient()
+		if err != nil {
+			t.Fatal(err)
+		}
+		gr := &v1alpha1.ComponentVersion{
+			ObjectMeta: metav1.ObjectMeta{Name: componentVersionName, Namespace: namespace},
+		}
+		err = client.Resources().Get(ctx, componentVersionName, namespace, gr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		cdName := strings.Join([]string{componentNamePrefix, podinfoName, version1}, cdNameSeparator)
+		cdNameNested := []string{
+			strings.Join([]string{componentNamePrefix, podinfoName, backend, version1}, cdNameSeparator),
+			strings.Join([]string{componentNamePrefix, podinfoName, frontend, version1}, cdNameSeparator),
+			strings.Join([]string{componentNamePrefix, redis, version1}, cdNameSeparator)}
+
+		if !strings.Contains(gr.Status.ComponentDescriptor.ComponentDescriptorRef.Name, cdName) {
+			t.Fatal(fmt.Sprintf("Component Descriptor %s does not exist for Component Version: %s", cdName, componentVersionName))
+		}
+
+		expandReferences := false
+		if gr.Spec.References.Expand == true {
+			expandReferences = true
+			t.Log("references.expand: true")
+		}
+
+		if expandReferences {
+			for index, compDescRef := range gr.Status.ComponentDescriptor.References {
+				if !strings.Contains(compDescRef.ComponentDescriptorRef.Name, cdNameNested[index]) {
+					t.Fatal(fmt.Sprintf("Nested Component Descriptor %s not found, expected %s", compDescRef.ComponentDescriptorRef.Name, cdNameNested[index]))
+				}
+			}
+		}
+		return ctx
+	}
+}
+
 func checkCustomResourcesReadiness(path string) *features.FeatureBuilder {
 	return features.New("Check if Manifests are Ready").
 		Assess("check that "+path+" resource is ready",
@@ -529,11 +455,9 @@ func checkDeploymentReadiness(deploymentName string, imageName string) *features
 				if err != nil {
 					t.Fatal(err)
 				}
-
 				gr := &appsv1.Deployment{
 					ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Namespace: namespace},
 				}
-
 				err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
 					obj, ok := object.(*appsv1.Deployment)
 					if !ok {
@@ -548,6 +472,7 @@ func checkDeploymentReadiness(deploymentName string, imageName string) *features
 				return ctx
 			})
 }
+
 func checkConfigMapReadiness(configmapName string, message string) *features.FeatureBuilder {
 	return features.New("Validate OCM Pipeline: ConfigMap").
 		Assess("check that configmap "+configmapName+" was configured",
@@ -556,11 +481,9 @@ func checkConfigMapReadiness(configmapName string, message string) *features.Fea
 				if err != nil {
 					t.Fatal(err)
 				}
-
 				gr := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{Name: configmapName, Namespace: namespace},
 				}
-
 				err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
 					obj, ok := object.(*corev1.ConfigMap)
 					if !ok {
@@ -573,25 +496,6 @@ func checkConfigMapReadiness(configmapName string, message string) *features.Fea
 				}
 				return ctx
 			})
-}
-
-func checkRepositoryExistsInRegistry(componentName string) features.Func {
-	return func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
-		t.Helper()
-		res, err := crane.Catalog(hostUrl + portSeparator + strconv.Itoa(registryPort))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		for _, returnedComponent := range res {
-			t.Log("crane catalog", returnedComponent)
-			if strings.Contains(returnedComponent, componentName) {
-				return ctx
-			}
-		}
-		t.Fail()
-		return ctx
-	}
 }
 
 func createRSAKeys() ([]byte, []byte, error) {
