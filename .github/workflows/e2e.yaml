@@ -77,7 +77,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Status:* ${{ job.status == 'success' && ':white_check_checkmark:' || ':x:' }}" 
+                      "text": "*Status:* ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }}" 
                     }
                   ]
                 },
