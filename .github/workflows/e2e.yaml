@@ -45,16 +45,16 @@ jobs:
           tilt: '0.32.2'
       - name: Run E2E tests
         id: e2e-tests
-        run: echo "hello" #make e2e
+        run: make e2e
       - name: Notify on Failure
         id: slack-notification
         uses: slackapi/slack-github-action@v1.23.0
-        if: always() #${{ github.ref_name  == 'main' }}
+        if: ${{ github.ref_name  == 'main' }}
         with:
           # Slack channel id, channel name, or user id to post message.
           # See also: https://api.slack.com/methods/chat.postMessage#channels
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
-          channel-id: 'C057ZEC15U3' #'C03NF7KH128'
+          channel-id: 'C03NF7KH128'
           # For posting a simple plain text message
           payload: |
             {
