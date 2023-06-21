@@ -190,7 +190,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 
 	res, _, err := utils.ResolveResourceReference(cva, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities), cva.Repository())
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %w", err)
+		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %s %w", resource.Name, err)
 	}
 
 	access, err := res.AccessMethod()

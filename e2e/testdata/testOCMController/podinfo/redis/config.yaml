@@ -1,0 +1,20 @@
+apiVersion: config.ocm.software/v1alpha1
+kind: ConfigData
+metadata:
+  name: ocm-config-pipeline-redis
+  labels:
+    env: test
+configuration:
+  defaults:
+    replicas: 1
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      replicas:
+        type: string
+localization:
+- resource:
+    name: image
+  file: manifests/deploy.yaml
+  image: spec.template.spec.containers[0].image

@@ -49,7 +49,7 @@ jobs:
       - name: Notify on Failure
         id: slack-notification
         uses: slackapi/slack-github-action@v1.23.0
-        if: ${{ github.head_ref  == 'main' }}
+        if: ${{ github.ref_name  == 'main' }}
         with:
           # Slack channel id, channel name, or user id to post message.
           # See also: https://api.slack.com/methods/chat.postMessage#channels

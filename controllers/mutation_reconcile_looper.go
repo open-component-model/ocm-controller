@@ -39,6 +39,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/component"
+	"github.com/open-component-model/ocm-controller/pkg/configdata"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartifact"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
@@ -47,12 +52,6 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/open-component-model/ocm/pkg/spiff"
-
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/cache"
-	"github.com/open-component-model/ocm-controller/pkg/component"
-	"github.com/open-component-model/ocm-controller/pkg/configdata"
-	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 

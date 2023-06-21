@@ -1,0 +1,36 @@
+apiVersion: config.ocm.software/v1alpha1
+kind: ConfigData
+metadata:
+  name: ocm-config-signed-frontend
+  labels:
+    env: test
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+    replicas: 1
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+      replicas:
+        type: integer
+  rules:
+  - value: (( message ))
+    file: manifests/configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: manifests/configmap.yaml
+    path: data.PODINFO_UI_COLOR
+  - value: (( replicas ))
+    file: manifests/deploy.yaml
+    path: spec.replicas
+localization:
+- resource:
+    name: image
+  file: manifests/deploy.yaml
+  image: spec.template.spec.containers[0].image

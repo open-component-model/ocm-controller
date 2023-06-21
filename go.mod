@@ -2,8 +2,6 @@ module github.com/open-component-model/ocm-controller
 
 go 1.20
 
-replace oras.land/oras-go => oras.land/oras-go v1.2.3
-
 // Something requires the naming package. :( Which was an experimental package and has been removed.
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.0
 
@@ -186,7 +184,7 @@ require (
 	helm.sh/helm/v3 v3.11.1 // indirect
 	k8s.io/cli-runtime v0.26.3 // indirect
 	k8s.io/kubectl v0.26.3 // indirect
-	oras.land/oras-go v1.2.2 // indirect
+	oras.land/oras-go v1.2.3 // indirect
 	sigs.k8s.io/cli-utils v0.34.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
 )

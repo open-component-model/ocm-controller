@@ -1,0 +1,20 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Configuration
+metadata:
+  name: configuration-pipeline-frontend
+  namespace: ocm-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: Localization
+    name: localization-pipeline-frontend
+  configRef:
+    kind: ComponentVersion
+    name: podinfo-pipeline
+    resourceRef:
+      name: config
+      version: latest
+      referencePath:
+        - name: frontend
+  values:
+    message: "This is a test message Pipeline Frontend"

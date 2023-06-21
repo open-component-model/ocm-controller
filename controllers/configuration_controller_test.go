@@ -285,7 +285,7 @@ func TestConfigurationReconciler(t *testing.T) {
 		},
 		{
 			name:        "get resource fails during config data fetch",
-			expectError: "failed to get data for config ref: failed to fetch resource data from resource ref: failed to fetch resource from component version: boo",
+			expectError: "failed to get data for config ref: failed to fetch resource data from resource ref: failed to fetch resource from component version: ",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ObservedGeneration = 5

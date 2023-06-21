@@ -1,0 +1,36 @@
+apiVersion: config.ocm.software/v1alpha1
+kind: ConfigData
+metadata:
+  name: ocm-config-pipeline-backend
+  labels:
+    env: test
+configuration:
+  defaults:
+    replicas: 1
+    cacheAddr: tcp://redis:6379
+    message: Hello, world!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      replicas:
+        type: integer
+      cacheAddr:
+        type: string
+      message:
+        type: string
+  rules:
+  - value: (( replicas ))
+    file: manifests/deploy.yaml
+    path: spec.replicas
+  - value: (( cacheAddr ))
+    file: manifests/configmap.yaml
+    path: data.PODINFO_CACHE_SERVER
+  - value: (( message ))
+    file: manifests/configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+localization:
+- resource:
+    name: image
+  file: manifests/deploy.yaml
+  image: spec.template.spec.containers[0].image

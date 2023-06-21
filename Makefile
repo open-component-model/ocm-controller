@@ -82,7 +82,7 @@ e2e: test-summary-tool ## Runs e2e tests
 
 .PHONY: e2e-verbose
 e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
-	go test -v -count=1 -tags=e2e ./e2e
+	$(GOTESTSUM) --format standard-verbose -- -count=1 -tags=e2e ./e2e
 
 ##@ Build
 
