@@ -49,12 +49,12 @@ jobs:
       - name: Notify on Failure
         id: slack-notification
         uses: slackapi/slack-github-action@v1.23.0
-        if: ${{ github.ref_name  == 'main' }}
+        if: always() #${{ github.ref_name  == 'main' }}
         with:
           # Slack channel id, channel name, or user id to post message.
           # See also: https://api.slack.com/methods/chat.postMessage#channels
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
-          channel-id: 'C03NF7KH128'
+          channel-id: 'C057ZEC15U3' #'C03NF7KH128'
           # For posting a simple plain text message
           payload: |
             {
@@ -71,39 +71,26 @@ jobs:
                 {
                   "type": "section",
                   "fields": [
+                   {
+                      "type": "mrkdwn",
+                      "text": "*Repository:* ${{ github.server_url }}/${{ github.repository }}"
+                    },
                     {
                       "type": "mrkdwn",
-                      "text": "*Status:* ${{ steps.e2e-tests.conclusion }} " 
+                      "text": "*Status:* ${{ job.status == 'success' && ':white_check_checkmark:' || ':x:' }}" " 
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:* ${{ github.ref_name }}"
                     },
                     {
                       "type": "mrkdwn",
                       "text": "*Github Action:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e>"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Branch:* ${{ github.head_ref }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Repository:* ${{ github.server_url }}/${{ github.repository }}"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                   {
-                      "type": "mrkdwn",
-                      "text": "\n*Last change by:* ${{ github.actor }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Tests Triggered By:* ${{ github.triggering_actor }}"
                     }
                   ]
                 }
