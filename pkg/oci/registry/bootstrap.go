@@ -73,35 +73,35 @@ func main() {
 	// TODO: add support for updating existing objects
 	objs := registryObjects(ns, app, image, port, certSecretName)
 
-	var (
-		tlsCrt []byte
-		tlsKey []byte
-	)
-
-	if tlsCrt, err = os.ReadFile(filepath.Join("certs", "tls.crt")); err != nil {
-		fmt.Fprintf(os.Stderr, "could not find tls.crt: %v", err)
-		os.Exit(1)
-	}
-
-	if tlsKey, err = os.ReadFile(filepath.Join("certs", "tls.key")); err != nil {
-		fmt.Fprintf(os.Stderr, "could not find tls.key: %v", err)
-		os.Exit(1)
-	}
-
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      certSecretName,
 			Namespace: ns,
 		},
-		Data: map[string][]byte{
-			"tls.crt": tlsCrt,
-			"tls.key": tlsKey,
-		},
 		Type: corev1.SecretTypeOpaque,
 	}
-
 	if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
 		if apierror.IsNotFound(err) {
+			var (
+				tlsCrt []byte
+				tlsKey []byte
+			)
+
+			if tlsCrt, err = os.ReadFile(filepath.Join("certs", "tls.crt")); err != nil {
+				fmt.Fprintf(os.Stderr, "could not find tls.crt: %v", err)
+				os.Exit(1)
+			}
+
+			if tlsKey, err = os.ReadFile(filepath.Join("certs", "tls.key")); err != nil {
+				fmt.Fprintf(os.Stderr, "could not find tls.key: %v", err)
+				os.Exit(1)
+			}
+
+			secret.Data = map[string][]byte{
+				"tls.crt": tlsCrt,
+				"tls.key": tlsKey,
+			}
+
 			objs = append(objs, secret)
 		} else {
 			fmt.Fprintf(os.Stderr, "could not get if secret already exists: %v", err)

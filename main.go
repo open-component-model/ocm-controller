@@ -48,20 +48,24 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var eventsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	var ociRegistryAddr string
-	var ociRegistryCertificateSecretName string
-	var namespace string
+	var (
+		metricsAddr                      string
+		eventsAddr                       string
+		enableLeaderElection             bool
+		probeAddr                        string
+		ociRegistryAddr                  string
+		ociRegistryCertificateSecretName string
+		ociRegistryInsecureSkipVerify    bool
+		ociRegistryNamespace             string
+	)
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
 	flag.StringVar(&ociRegistryCertificateSecretName, "oci-registry-certificate-secret-name", "registry-cert", "The name of the secret that contains the certificates for the in-cluster registry.")
-	flag.StringVar(&namespace, "namespace", "ocm-system", "The namespace in which this controller is running in.")
+	flag.StringVar(&ociRegistryNamespace, "oci-registry-namespace", "ocm-system", "The namespace in which the registry is running in.")
+	flag.BoolVar(&ociRegistryInsecureSkipVerify, "oci-registry-insecure-skip-verify", false, "Skip verification of the certificate that the registry is using.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -95,7 +99,7 @@ func main() {
 	cache := oci.NewClient(
 		ociRegistryAddr,
 		oci.WithClient(mgr.GetClient()),
-		oci.WithNamespace(namespace),
+		oci.WithNamespace(ociRegistryNamespace),
 		oci.WithCertificateSecretName(ociRegistryCertificateSecretName),
 	)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)

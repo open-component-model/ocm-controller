@@ -74,6 +74,13 @@ func WithNamespace(namespace string) ClientOptsFunc {
 	}
 }
 
+// WithInsecureSkipVerify sets up certificates for the client.
+func WithInsecureSkipVerify() ClientOptsFunc {
+	return func(opts *Client) {
+		opts.InsecureSkipVerify = true
+	}
+}
+
 // WithClient sets up certificates for the client.
 func WithClient(client client.Client) ClientOptsFunc {
 	return func(opts *Client) {
@@ -83,10 +90,11 @@ func WithClient(client client.Client) ClientOptsFunc {
 
 // Client implements the caching layer and the OCI layer.
 type Client struct {
-	Client            client.Client
-	OCIRepositoryAddr string
-	CertificateSecret string
-	Namespace         string
+	Client             client.Client
+	OCIRepositoryAddr  string
+	CertificateSecret  string
+	InsecureSkipVerify bool
+	Namespace          string
 
 	tlsCrt []byte
 	tlsKey []byte
@@ -97,40 +105,38 @@ func (c *Client) WithTransport() Option {
 	return func(o *options) error {
 		tlsConfig := &tls.Config{}
 
-		// if there is a secret configured, add Certificates
-		if c.CertificateSecret != "" {
-			if c.tlsKey == nil && c.tlsCrt == nil {
-				if c.Client == nil {
-					return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
-				}
-
-				registryCerts := &corev1.Secret{}
-				if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertificateSecret, Namespace: c.Namespace}, registryCerts); err != nil {
-					return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
-				}
-
-				tlsCrt, ok := registryCerts.Data["tls.crt"]
-				if !ok {
-					return fmt.Errorf("tls.crt data not found in registry certificate secret")
-				}
-
-				tlsKey, ok := registryCerts.Data["tls.key"]
-				if !ok {
-					return fmt.Errorf("tls.key data not found in registry certificate secret")
-				}
-
-				c.tlsCrt = tlsCrt
-				c.tlsKey = tlsKey
+		if c.tlsKey == nil && c.tlsCrt == nil {
+			if c.Client == nil {
+				return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
 			}
 
-			tlsConfig.Certificates = []tls.Certificate{
-				{
-					Certificate: [][]byte{c.tlsCrt},
-					PrivateKey:  c.tlsKey,
-				},
+			registryCerts := &corev1.Secret{}
+			if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertificateSecret, Namespace: c.Namespace}, registryCerts); err != nil {
+				return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
 			}
-		} else {
-			// If there is no secret configured, skip verification.
+
+			tlsCrt, ok := registryCerts.Data["tls.crt"]
+			if !ok {
+				return fmt.Errorf("tls.crt data not found in registry certificate secret")
+			}
+
+			tlsKey, ok := registryCerts.Data["tls.key"]
+			if !ok {
+				return fmt.Errorf("tls.key data not found in registry certificate secret")
+			}
+
+			c.tlsCrt = tlsCrt
+			c.tlsKey = tlsKey
+		}
+
+		tlsConfig.Certificates = []tls.Certificate{
+			{
+				Certificate: [][]byte{c.tlsCrt},
+				PrivateKey:  c.tlsKey,
+			},
+		}
+
+		if c.InsecureSkipVerify {
 			tlsConfig.InsecureSkipVerify = true
 		}
 
