@@ -39,6 +39,10 @@ func TestMain(m *testing.M) {
 	stopChannelRegistry := make(chan struct{}, 1)
 	stopChannelGitea := make(chan struct{}, 1)
 
+	if err := os.Setenv("REGISTRY_DISABLE_HTTPS", "1"); err != nil {
+		os.Exit(1)
+	}
+
 	testEnv.Setup(
 		envfuncs.CreateKindCluster(kindClusterName),
 		envfuncs.CreateNamespace(namespace),

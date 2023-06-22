@@ -103,6 +103,15 @@ for o in objects:
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
         break
 
+disableHTTPS = os.getenv("REGISTRY_DISABLE_HTTPS", "")
+
+if disableHTTPS:
+    print('disabling HTTPS for the registry')
+    for o in objects:
+        if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'ocm-controller':
+            o['spec']['template']['spec']['initContainers'][0]['env'] = [{'name': 'REGISTRY_DISABLE_HTTPS', 'value': '1'}]
+            break
+
 updated_install = encode_yaml_stream(objects)
 
 # Apply the updated yaml to the cluster.

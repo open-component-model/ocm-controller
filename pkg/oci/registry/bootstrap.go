@@ -39,6 +39,8 @@ const (
 	defaultAppName = "registry"
 	// defaultRegistryCertSecret is the default name of the secret that contains the certificates for the registry
 	defaultRegistryCertSecret = "registry-cert"
+	// defaultEnableHTTPS
+	defaultEnableHTTPS = true
 	// defaultRegistryPort is the default port of the registry service
 	defaultRegistryPort = 5000
 )
@@ -63,32 +65,40 @@ func main() {
 	app := assignDefaultIfEmptyString(os.Getenv("APP_NAME"), defaultAppName)
 	image := assignDefaultIfEmptyString(os.Getenv("REGISTRY_IMAGE"), defaultRegistryImage)
 	certSecretName := assignDefaultIfEmptyString(os.Getenv("REGISTRY_CERT_SECRET_NAME"), defaultRegistryCertSecret)
+
+	enableHTTPS := defaultEnableHTTPS
+	if os.Getenv("REGISTRY_DISABLE_HTTPS") != "" {
+		enableHTTPS = false
+	}
+
 	port, err := strconv.ParseInt(os.Getenv("REGISTRY_PORT"), 10, 32)
 	if port == 0 || err != nil {
 		port = defaultRegistryPort
 	}
 	// create registry deployment and service
 	// TODO: add support for updating existing objects
-	objs := registryObjects(ns, app, image, port, certSecretName)
+	objs := registryObjects(ns, app, image, port, certSecretName, enableHTTPS)
 
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      certSecretName,
-			Namespace: ns,
-		},
-		Type: corev1.SecretTypeOpaque,
-	}
-	if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
-		if apierror.IsNotFound(err) {
-			secret.Data = map[string][]byte{
-				"tls.crt": tlsCrt,
-				"tls.key": tlsKey,
+	if enableHTTPS {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      certSecretName,
+				Namespace: ns,
+			},
+			Type: corev1.SecretTypeOpaque,
+		}
+		if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
+			if apierror.IsNotFound(err) {
+				secret.Data = map[string][]byte{
+					"tls.crt": tlsCrt,
+					"tls.key": tlsKey,
+				}
+
+				objs = append(objs, secret)
+			} else {
+				fmt.Fprintf(os.Stderr, "could not get if secret already exists: %v", err)
+				os.Exit(1)
 			}
-
-			objs = append(objs, secret)
-		} else {
-			fmt.Fprintf(os.Stderr, "could not get if secret already exists: %v", err)
-			os.Exit(1)
 		}
 	}
 
@@ -156,8 +166,135 @@ func patchObj(ctx context.Context, c client.Client, objs []client.Object) {
 }
 
 // registryObjects returns the objects needed to deploy a registry
-func registryObjects(namespace, name, image string, port int64, secretName string) []client.Object {
-	return []client.Object{
+func registryObjects(namespace, name, image string, port int64, secretName string, https bool) []client.Object {
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": name,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": name,
+					},
+				},
+				Spec: corev1.PodSpec{
+					EnableServiceLinks: new(bool),
+					Containers: []corev1.Container{
+						{
+							Name: "registry",
+							Env: []corev1.EnvVar{
+								{
+									Name:  "REGISTRY_STORAGE_DELETE_ENABLED",
+									Value: "true",
+								},
+							},
+							Image: image,
+							LivenessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									TCPSocket: &corev1.TCPSocketAction{
+										Port: intstr.IntOrString{
+											IntVal: int32(port),
+										},
+									},
+								},
+								InitialDelaySeconds: 15,
+								TimeoutSeconds:      1,
+								PeriodSeconds:       20,
+								SuccessThreshold:    1,
+								FailureThreshold:    3,
+							},
+							ReadinessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									TCPSocket: &corev1.TCPSocketAction{
+										Port: intstr.IntOrString{
+											IntVal: int32(port),
+										},
+									},
+								},
+								InitialDelaySeconds: 2,
+								TimeoutSeconds:      1,
+								PeriodSeconds:       5,
+								SuccessThreshold:    1,
+								FailureThreshold:    3,
+							},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:                &[]int64{1000}[0],
+								RunAsNonRoot:             &[]bool{true}[0],
+								ReadOnlyRootFilesystem:   &[]bool{true}[0],
+								AllowPrivilegeEscalation: new(bool),
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "registry",
+									MountPath: "/var/lib/registry",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+							Name: "registry",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if https {
+		envs := deployment.Spec.Template.Spec.Containers[0].Env
+		envs = append(envs,
+			corev1.EnvVar{
+				Name:  "REGISTRY_HTTP_TLS_CERTIFICATE",
+				Value: "/certs/tls.crt",
+			},
+			corev1.EnvVar{
+				Name:  "REGISTRY_HTTP_TLS_KEY",
+				Value: "/certs/tls.key",
+			},
+		)
+		deployment.Spec.Template.Spec.Containers[0].Env = envs
+
+		mounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      "registry-cert",
+			MountPath: "/certs",
+		})
+		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = mounts
+
+		volumes := deployment.Spec.Template.Spec.Volumes
+		volumes = append(volumes, corev1.Volume{
+			Name: "registry-cert",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: secretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "tls.crt",
+							Path: "tls.crt",
+						},
+						{
+							Key:  "tls.key",
+							Path: "tls.key",
+						},
+					},
+				},
+			},
+		})
+		deployment.Spec.Template.Spec.Volumes = volumes
+	}
+
+	objects := []client.Object{
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
@@ -179,120 +316,9 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 				},
 			},
 		},
-		&appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": name,
-					},
-				},
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": name,
-						},
-					},
-					Spec: corev1.PodSpec{
-						EnableServiceLinks: new(bool),
-						Containers: []corev1.Container{
-							{
-								Name: "registry",
-								Env: []corev1.EnvVar{
-									{
-										Name:  "REGISTRY_STORAGE_DELETE_ENABLED",
-										Value: "true",
-									},
-									{
-										Name:  "REGISTRY_HTTP_TLS_CERTIFICATE",
-										Value: "/certs/tls.crt",
-									},
-									{
-										Name:  "REGISTRY_HTTP_TLS_KEY",
-										Value: "/certs/tls.key",
-									},
-								},
-								Image: image,
-								LivenessProbe: &corev1.Probe{
-									ProbeHandler: corev1.ProbeHandler{
-										TCPSocket: &corev1.TCPSocketAction{
-											Port: intstr.IntOrString{
-												IntVal: int32(port),
-											},
-										},
-									},
-									InitialDelaySeconds: 15,
-									TimeoutSeconds:      1,
-									PeriodSeconds:       20,
-									SuccessThreshold:    1,
-									FailureThreshold:    3,
-								},
-								ReadinessProbe: &corev1.Probe{
-									ProbeHandler: corev1.ProbeHandler{
-										TCPSocket: &corev1.TCPSocketAction{
-											Port: intstr.IntOrString{
-												IntVal: int32(port),
-											},
-										},
-									},
-									InitialDelaySeconds: 2,
-									TimeoutSeconds:      1,
-									PeriodSeconds:       5,
-									SuccessThreshold:    1,
-									FailureThreshold:    3,
-								},
-								SecurityContext: &corev1.SecurityContext{
-									RunAsUser:                &[]int64{1000}[0],
-									RunAsNonRoot:             &[]bool{true}[0],
-									ReadOnlyRootFilesystem:   &[]bool{true}[0],
-									AllowPrivilegeEscalation: new(bool),
-								},
-								VolumeMounts: []corev1.VolumeMount{
-									{
-										Name:      "registry",
-										MountPath: "/var/lib/registry",
-									},
-									{
-										Name:      "registry-cert",
-										MountPath: "/certs",
-									},
-								},
-							},
-						},
-						Volumes: []corev1.Volume{
-							{
-								VolumeSource: corev1.VolumeSource{
-									EmptyDir: &corev1.EmptyDirVolumeSource{},
-								},
-								Name: "registry",
-							},
-							{
-								VolumeSource: corev1.VolumeSource{
-									Secret: &corev1.SecretVolumeSource{
-										SecretName: secretName,
-										Items: []corev1.KeyToPath{
-											{
-												Key:  "tls.crt",
-												Path: "tls.crt",
-											},
-											{
-												Key:  "tls.key",
-												Path: "tls.key",
-											},
-										},
-									},
-								},
-								Name: "registry-cert",
-							},
-						},
-					},
-				},
-			},
-		},
+		deployment,
 	}
+	return objects
 }
 
 func assignDefaultIfEmptyString(s string, defaultVal string) string {

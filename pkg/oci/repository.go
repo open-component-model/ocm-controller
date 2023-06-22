@@ -105,39 +105,41 @@ func (c *Client) WithTransport() Option {
 	return func(o *options) error {
 		tlsConfig := &tls.Config{}
 
-		if c.tlsKey == nil && c.tlsCrt == nil {
-			if c.Client == nil {
-				return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
-			}
-
-			registryCerts := &corev1.Secret{}
-			if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertificateSecret, Namespace: c.Namespace}, registryCerts); err != nil {
-				return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
-			}
-
-			tlsCrt, ok := registryCerts.Data["tls.crt"]
-			if !ok {
-				return fmt.Errorf("tls.crt data not found in registry certificate secret")
-			}
-
-			tlsKey, ok := registryCerts.Data["tls.key"]
-			if !ok {
-				return fmt.Errorf("tls.key data not found in registry certificate secret")
-			}
-
-			c.tlsCrt = tlsCrt
-			c.tlsKey = tlsKey
-		}
-
-		tlsConfig.Certificates = []tls.Certificate{
-			{
-				Certificate: [][]byte{c.tlsCrt},
-				PrivateKey:  c.tlsKey,
-			},
-		}
-
 		if c.InsecureSkipVerify {
+			// if this is not set, and we are using a self-signed certificate
+			// the certificate will not matter.
 			tlsConfig.InsecureSkipVerify = true
+		} else {
+			if c.tlsKey == nil && c.tlsCrt == nil {
+				if c.Client == nil {
+					return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
+				}
+
+				registryCerts := &corev1.Secret{}
+				if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertificateSecret, Namespace: c.Namespace}, registryCerts); err != nil {
+					return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
+				}
+
+				tlsCrt, ok := registryCerts.Data["tls.crt"]
+				if !ok {
+					return fmt.Errorf("tls.crt data not found in registry certificate secret")
+				}
+
+				tlsKey, ok := registryCerts.Data["tls.key"]
+				if !ok {
+					return fmt.Errorf("tls.key data not found in registry certificate secret")
+				}
+
+				c.tlsCrt = tlsCrt
+				c.tlsKey = tlsKey
+			}
+
+			tlsConfig.Certificates = []tls.Certificate{
+				{
+					Certificate: [][]byte{c.tlsCrt},
+					PrivateKey:  c.tlsKey,
+				},
+			}
 		}
 
 		// Create a new HTTP transport with the TLS configuration
