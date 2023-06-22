@@ -101,7 +101,7 @@ func main() {
 		oci.WithClient(mgr.GetClient()),
 		oci.WithNamespace(ociRegistryNamespace),
 		oci.WithCertificateSecretName(ociRegistryCertificateSecretName),
-		oci.WithInsecureSkipVerify(ociRegistryInsecureSkipVerify),
+		//oci.WithInsecureSkipVerify(ociRegistryInsecureSkipVerify),
 	)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
 	snapshotWriter := snapshot.NewOCIWriter(mgr.GetClient(), cache, mgr.GetScheme())

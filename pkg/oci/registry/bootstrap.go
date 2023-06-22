@@ -25,9 +25,11 @@ import (
 
 var (
 	//go:embed certs/server.pem
-	tlsCrt []byte
+	serverPem []byte
 	//go:embed certs/server-key.pem
-	tlsKey []byte
+	serverKeyPem []byte
+	//go:embed certs/ca.pem
+	caPem []byte
 )
 
 const (
@@ -90,8 +92,9 @@ func main() {
 		if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
 			if apierror.IsNotFound(err) {
 				secret.Data = map[string][]byte{
-					"server.pem":     tlsCrt,
-					"server-key.pem": tlsKey,
+					"server.pem":     serverPem,
+					"server-key.pem": serverKeyPem,
+					"ca.pem":         caPem,
 				}
 
 				objs = append(objs, secret)

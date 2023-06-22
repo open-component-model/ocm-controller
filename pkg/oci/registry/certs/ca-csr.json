@@ -1,9 +1,8 @@
 {
-  "CN": "example.com CA",
+  "CN": "registry.ocm-system.svc.cluster.local. CA",
   "hosts": [
     "127.0.0.1",
     "localhost",
-    "example.com",
-    "www.example.com"
+    "registry.ocm-system.svc.cluster.local."
   ]
 }
