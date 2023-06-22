@@ -9,7 +9,6 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -24,13 +23,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-//
-//var (
-//	//go:embed certs/tls.crt
-//	tlsCrt []byte
-//	//go:embed certs/tls.key
-//	tlsKey []byte
-//)
+var (
+	//go:embed certs/tls.crt
+	tlsCrt []byte
+	//go:embed certs/tls.key
+	tlsKey []byte
+)
 
 const (
 	// defaultNamespace is the default namespace to deploy the registry
@@ -82,21 +80,6 @@ func main() {
 	}
 	if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
 		if apierror.IsNotFound(err) {
-			var (
-				tlsCrt []byte
-				tlsKey []byte
-			)
-
-			if tlsCrt, err = os.ReadFile(filepath.Join("certs", "tls.crt")); err != nil {
-				fmt.Fprintf(os.Stderr, "could not find tls.crt: %v", err)
-				os.Exit(1)
-			}
-
-			if tlsKey, err = os.ReadFile(filepath.Join("certs", "tls.key")); err != nil {
-				fmt.Fprintf(os.Stderr, "could not find tls.key: %v", err)
-				os.Exit(1)
-			}
-
 			secret.Data = map[string][]byte{
 				"tls.crt": tlsCrt,
 				"tls.key": tlsKey,

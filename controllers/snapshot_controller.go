@@ -131,7 +131,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	obj.Status.LastReconciledDigest = obj.Spec.Digest
 	obj.Status.LastReconciledTag = obj.Spec.Tag
-	obj.Status.RepositoryURL = fmt.Sprintf("http://%s/%s", r.RegistryServiceName, name)
+	obj.Status.RepositoryURL = fmt.Sprintf("https://%s/%s", r.RegistryServiceName, name)
 	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
 	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg)
 	log.Info("snapshot successfully reconciled", "snapshot", klog.KObj(obj))

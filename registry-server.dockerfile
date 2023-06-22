@@ -11,7 +11,6 @@ RUN go mod download
 
 # Copy the go source
 COPY pkg/oci/registry/bootstrap.go main.go
-COPY pkg/oci/registry/certs/ certs/
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o registry-server main.go
@@ -21,6 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o registry-server main.go
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/registry-server .
+COPY pkg/oci/registry/certs/ /pkg/oci/registry/certs/
 USER 65532:65532
 
 ENTRYPOINT ["/registry-server"]

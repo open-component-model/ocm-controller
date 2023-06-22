@@ -75,9 +75,9 @@ func WithNamespace(namespace string) ClientOptsFunc {
 }
 
 // WithInsecureSkipVerify sets up certificates for the client.
-func WithInsecureSkipVerify() ClientOptsFunc {
+func WithInsecureSkipVerify(value bool) ClientOptsFunc {
 	return func(opts *Client) {
-		opts.InsecureSkipVerify = true
+		opts.InsecureSkipVerify = value
 	}
 }
 

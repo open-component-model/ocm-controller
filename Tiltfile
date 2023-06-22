@@ -162,8 +162,6 @@ docker_build_with_restart(
     ],
     live_update = [
         sync('./bin/registry-server', '/registry-server'),
-        sync('./pkg/oci/registry/certs/tls.key', '/certs/tls.key'),
-        sync('./pkg/oci/registry/certs/tls.crt', '/certs/tls.crt'),
     ],
 )
 
@@ -174,13 +172,13 @@ docker_build_with_restart(
 # on _any_ file change. We only want to monitor the binary.
 # If debugging is enabled, we switch to a different docker file using
 # the delve port.
-entrypoint = ['/manager']
+entrypoint = ['/manager', '--oci-registry-insecure-skip-verify']
 dockerfile = 'tilt.dockerfile'
 if settings.get('debug').get('enabled'):
     k8s_resource('ocm-controller', port_forwards=[
         port_forward(30000, 30000, 'debugger'),
     ])
-    entrypoint = ['/dlv', '--listen=:30000', '--api-version=2', '--continue=true', '--accept-multiclient=true', '--headless=true', 'exec', '/manager', '--']
+    entrypoint = ['/dlv', '--listen=:30000', '--api-version=2', '--continue=true', '--accept-multiclient=true', '--headless=true', 'exec', '/manager', '--oci-registry-insecure-skip-verify', '--']
     dockerfile = 'tilt.debug.dockerfile'
 
 
@@ -196,12 +194,11 @@ docker_build_with_restart(
     ],
     live_update = [
         sync('./bin/manager', '/manager'),
-        sync('./pkg/oci/registry/certs/tls.key', '/certs/tls.key'),
-        sync('./pkg/oci/registry/certs/tls.crt', '/certs/tls.crt'),
+        sync('./pkg/oci/registry/certs/tls.key', '/pkg/oci/registry/certs/tls.key'),
+        sync('./pkg/oci/registry/certs/tls.crt', '/pkg/oci/registry/certs/tls.crt'),
     ],
 )
 
 
 if settings.get('forward_registry'):
     k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards='5000:5000')
-
