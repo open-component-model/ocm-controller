@@ -24,9 +24,9 @@ import (
 )
 
 var (
-	//go:embed certs/tls.crt
+	//go:embed certs/server.pem
 	tlsCrt []byte
-	//go:embed certs/tls.key
+	//go:embed certs/server-key.pem
 	tlsKey []byte
 )
 
@@ -90,8 +90,8 @@ func main() {
 		if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
 			if apierror.IsNotFound(err) {
 				secret.Data = map[string][]byte{
-					"tls.crt": tlsCrt,
-					"tls.key": tlsKey,
+					"server.pem":     tlsCrt,
+					"server-key.pem": tlsKey,
 				}
 
 				objs = append(objs, secret)
@@ -256,11 +256,11 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 		envs = append(envs,
 			corev1.EnvVar{
 				Name:  "REGISTRY_HTTP_TLS_CERTIFICATE",
-				Value: "/certs/tls.crt",
+				Value: "/certs/server.pem",
 			},
 			corev1.EnvVar{
 				Name:  "REGISTRY_HTTP_TLS_KEY",
-				Value: "/certs/tls.key",
+				Value: "/certs/server-key.pem",
 			},
 		)
 		deployment.Spec.Template.Spec.Containers[0].Env = envs
@@ -280,12 +280,12 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 					SecretName: secretName,
 					Items: []corev1.KeyToPath{
 						{
-							Key:  "tls.crt",
-							Path: "tls.crt",
+							Key:  "server.pem",
+							Path: "server.pem",
 						},
 						{
-							Key:  "tls.key",
-							Path: "tls.key",
+							Key:  "server-key.pem",
+							Path: "server-key.pem",
 						},
 					},
 				},

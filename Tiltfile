@@ -152,8 +152,7 @@ local_resource(
     "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/registry-server ./pkg/oci/registry/bootstrap.go",
     deps = [
         "pkg/oci/registry/bootstrap.go",
-        "pkg/oci/registry/certs/tls.key",
-        "pkg/oci/registry/certs/tls.crt",
+        "pkg/oci/registry/certs",
         "go.mod",
         "go.sum",
     ],
@@ -166,8 +165,7 @@ docker_build_with_restart(
     entrypoint = ['/registry-server'],
     only=[
       './bin',
-      './pkg/oci/registry/certs/tls.key',
-      './pkg/oci/registry/certs/tls.crt',
+      './pkg/oci/registry/certs',
     ],
     live_update = [
         sync('./bin/registry-server', '/registry-server'),
@@ -198,13 +196,11 @@ docker_build_with_restart(
     entrypoint = entrypoint,
     only=[
       './bin',
-      './pkg/oci/registry/certs/tls.key',
-      './pkg/oci/registry/certs/tls.crt',
+      './pkg/oci/registry/certs',
     ],
     live_update = [
         sync('./bin/manager', '/manager'),
-        sync('./pkg/oci/registry/certs/tls.key', '/pkg/oci/registry/certs/tls.key'),
-        sync('./pkg/oci/registry/certs/tls.crt', '/pkg/oci/registry/certs/tls.crt'),
+        sync('./pkg/oci/registry/certs', '/pkg/oci/registry/certs'),
     ],
 )
 
