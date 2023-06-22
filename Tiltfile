@@ -137,6 +137,37 @@ local_resource(
     ],
 )
 
+# Build the Registry
+local_resource(
+    'registry-binary',
+    "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/registry-server ./pkg/oci/registry/bootstrap.go",
+    deps = [
+        "pkg/oci/registry/bootstrap.go",
+        "pkg/oci/registry/certs/tls.key",
+        "pkg/oci/registry/certs/tls.crt",
+        "go.mod",
+        "go.sum",
+    ],
+)
+
+docker_build_with_restart(
+    'ghcr.io/open-component-model/ocm-registry',
+    '.',
+    dockerfile = 'registry-server-tilt.dockerfile',
+    entrypoint = ['/registry-server'],
+    only=[
+      './bin',
+      './pkg/oci/registry/certs/tls.key',
+      './pkg/oci/registry/certs/tls.crt',
+    ],
+    live_update = [
+        sync('./bin/registry-server', '/registry-server'),
+        sync('./pkg/oci/registry/certs/tls.key', '/certs/tls.key'),
+        sync('./pkg/oci/registry/certs/tls.crt', '/certs/tls.crt'),
+    ],
+)
+
+
 # Build the docker image for our controller. We use a specific Dockerfile
 # since tilt can't run on a scratch container.
 # `only` here is important, otherwise, the container will get updated
@@ -160,9 +191,13 @@ docker_build_with_restart(
     entrypoint = entrypoint,
     only=[
       './bin',
+      './pkg/oci/registry/certs/tls.key',
+      './pkg/oci/registry/certs/tls.crt',
     ],
     live_update = [
         sync('./bin/manager', '/manager'),
+        sync('./pkg/oci/registry/certs/tls.key', '/certs/tls.key'),
+        sync('./pkg/oci/registry/certs/tls.crt', '/certs/tls.crt'),
     ],
 )
 

@@ -53,11 +53,15 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var ociRegistryAddr string
+	var ociRegistryCertificateSecretName string
+	var namespace string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
+	flag.StringVar(&ociRegistryCertificateSecretName, "oci-registry-certificate-secret-name", "registry-cert", "The name of the secret that contains the certificates for the in-cluster registry.")
+	flag.StringVar(&namespace, "namespace", "ocm-system", "The namespace in which this controller is running in.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -88,7 +92,12 @@ func main() {
 		ociRegistryAddr = v
 	}
 
-	cache := oci.NewClient(ociRegistryAddr)
+	cache := oci.NewClient(
+		ociRegistryAddr,
+		oci.WithClient(mgr.GetClient()),
+		oci.WithNamespace(namespace),
+		oci.WithCertificateSecretName(ociRegistryCertificateSecretName),
+	)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
 	snapshotWriter := snapshot.NewOCIWriter(mgr.GetClient(), cache, mgr.GetScheme())
 	dynClient, err := dynamic.NewForConfig(restConfig)

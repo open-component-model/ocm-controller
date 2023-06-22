@@ -11,6 +11,7 @@ RUN go mod download
 
 # Copy the go source
 COPY pkg/oci/registry/bootstrap.go main.go
+COPY pkg/oci/registry/certs/ certs/
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o registry-server main.go

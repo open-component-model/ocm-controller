@@ -6,8 +6,10 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -22,13 +24,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+//
+//var (
+//	//go:embed certs/tls.crt
+//	tlsCrt []byte
+//	//go:embed certs/tls.key
+//	tlsKey []byte
+//)
+
 const (
 	// defaultNamespace is the default namespace to deploy the registry
 	defaultNamespace = "ocm-system"
-	// defaultRegistreyImage is the default registry image to deploy
-	defaultRegistreyImage = "registry:2"
+	// defaultRegistryImage is the default registry image to deploy
+	defaultRegistryImage = "registry:2"
 	// defaultAppName is the default name of the registry deployment
 	defaultAppName = "registry"
+	// defaultRegistryCertSecret is the default name of the secret that contains the certificates for the registry
+	defaultRegistryCertSecret = "registry-cert"
 	// defaultRegistryPort is the default port of the registry service
 	defaultRegistryPort = 5000
 )
@@ -51,14 +63,52 @@ func main() {
 	}
 	ns := assignDefaultIfEmptyString(os.Getenv("NAMESPACE"), defaultNamespace)
 	app := assignDefaultIfEmptyString(os.Getenv("APP_NAME"), defaultAppName)
-	image := assignDefaultIfEmptyString(os.Getenv("REGISTRY_IMAGE"), defaultRegistreyImage)
+	image := assignDefaultIfEmptyString(os.Getenv("REGISTRY_IMAGE"), defaultRegistryImage)
+	certSecretName := assignDefaultIfEmptyString(os.Getenv("REGISTRY_CERT_SECRET_NAME"), defaultRegistryCertSecret)
 	port, err := strconv.ParseInt(os.Getenv("REGISTRY_PORT"), 10, 32)
 	if port == 0 || err != nil {
 		port = defaultRegistryPort
 	}
 	// create registry deployment and service
 	// TODO: add support for updating existing objects
-	objs := registryObjects(ns, app, image, port)
+	objs := registryObjects(ns, app, image, port, certSecretName)
+
+	var (
+		tlsCrt []byte
+		tlsKey []byte
+	)
+
+	if tlsCrt, err = os.ReadFile(filepath.Join("certs", "tls.crt")); err != nil {
+		fmt.Fprintf(os.Stderr, "could not find tls.crt: %v", err)
+		os.Exit(1)
+	}
+
+	if tlsKey, err = os.ReadFile(filepath.Join("certs", "tls.key")); err != nil {
+		fmt.Fprintf(os.Stderr, "could not find tls.key: %v", err)
+		os.Exit(1)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      certSecretName,
+			Namespace: ns,
+		},
+		Data: map[string][]byte{
+			"tls.crt": tlsCrt,
+			"tls.key": tlsKey,
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
+
+	if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
+		if apierror.IsNotFound(err) {
+			objs = append(objs, secret)
+		} else {
+			fmt.Fprintf(os.Stderr, "could not get if secret already exists: %v", err)
+			os.Exit(1)
+		}
+	}
+
 	dep := &appsv1.Deployment{}
 	if err := c.Get(ctx, client.ObjectKey{
 		Namespace: ns,
@@ -123,7 +173,7 @@ func patchObj(ctx context.Context, c client.Client, objs []client.Object) {
 }
 
 // registryObjects returns the objects needed to deploy a registry
-func registryObjects(namespace, name, image string, port int64) []client.Object {
+func registryObjects(namespace, name, image string, port int64, secretName string) []client.Object {
 	return []client.Object{
 		&corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
@@ -173,6 +223,14 @@ func registryObjects(namespace, name, image string, port int64) []client.Object 
 										Name:  "REGISTRY_STORAGE_DELETE_ENABLED",
 										Value: "true",
 									},
+									{
+										Name:  "REGISTRY_HTTP_TLS_CERTIFICATE",
+										Value: "/certs/tls.crt",
+									},
+									{
+										Name:  "REGISTRY_HTTP_TLS_KEY",
+										Value: "/certs/tls.key",
+									},
 								},
 								Image: image,
 								LivenessProbe: &corev1.Probe{
@@ -214,6 +272,10 @@ func registryObjects(namespace, name, image string, port int64) []client.Object 
 										Name:      "registry",
 										MountPath: "/var/lib/registry",
 									},
+									{
+										Name:      "registry-cert",
+										MountPath: "/certs",
+									},
 								},
 							},
 						},
@@ -223,6 +285,24 @@ func registryObjects(namespace, name, image string, port int64) []client.Object 
 									EmptyDir: &corev1.EmptyDirVolumeSource{},
 								},
 								Name: "registry",
+							},
+							{
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{
+										SecretName: secretName,
+										Items: []corev1.KeyToPath{
+											{
+												Key:  "tls.crt",
+												Path: "tls.crt",
+											},
+											{
+												Key:  "tls.key",
+												Path: "tls.key",
+											},
+										},
+									},
+								},
+								Name: "registry-cert",
 							},
 						},
 					},
