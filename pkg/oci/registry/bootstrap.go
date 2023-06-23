@@ -265,6 +265,10 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 				Name:  "REGISTRY_HTTP_TLS_KEY",
 				Value: "/certs/server-key.pem",
 			},
+			corev1.EnvVar{
+				Name:  "REGISTRY_HTTP_TLS_CLIENTCAS_0",
+				Value: "/certs/ca.pem",
+			},
 		)
 		deployment.Spec.Template.Spec.Containers[0].Env = envs
 
@@ -272,6 +276,9 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 		mounts = append(mounts, corev1.VolumeMount{
 			Name:      "registry-cert",
 			MountPath: "/certs",
+		}, corev1.VolumeMount{
+			Name:      "registry-root-cert",
+			MountPath: "/etc/docker/certs.d/localhost:5000",
 		})
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = mounts
 
@@ -283,16 +290,37 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 					SecretName: secretName,
 					Items: []corev1.KeyToPath{
 						{
-							Key:  "ca.pem",
-							Path: "ca.pem",
-						},
-						{
 							Key:  "server.pem",
 							Path: "server.pem",
 						},
 						{
 							Key:  "server-key.pem",
 							Path: "server-key.pem",
+						},
+						{
+							Key:  "ca.pem",
+							Path: "ca.pem",
+						},
+					},
+				},
+			},
+		}, corev1.Volume{
+			Name: "registry-root-cert",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: secretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "server.pem",
+							Path: "client.cert",
+						},
+						{
+							Key:  "server-key.pem",
+							Path: "client.key",
+						},
+						{
+							Key:  "ca.pem",
+							Path: "ca.crt",
 						},
 					},
 				},
