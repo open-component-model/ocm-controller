@@ -4,5 +4,9 @@
     "127.0.0.1",
     "localhost",
     "registry.ocm-system.svc.cluster.local."
+  ],
+  "SAN": [
+    "127.0.0.1",
+    "localhost"
   ]
 }

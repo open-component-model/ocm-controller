@@ -283,6 +283,10 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 					SecretName: secretName,
 					Items: []corev1.KeyToPath{
 						{
+							Key:  "ca.pem",
+							Path: "ca.pem",
+						},
+						{
 							Key:  "server.pem",
 							Path: "server.pem",
 						},

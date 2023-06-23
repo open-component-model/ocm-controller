@@ -65,7 +65,7 @@ func main() {
 	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
 	flag.StringVar(&ociRegistryCertificateSecretName, "oci-registry-certificate-secret-name", "registry-cert", "The name of the secret that contains the certificates for the in-cluster registry.")
 	flag.StringVar(&ociRegistryNamespace, "oci-registry-namespace", "ocm-system", "The namespace in which the registry is running in.")
-	flag.BoolVar(&ociRegistryInsecureSkipVerify, "oci-registry-insecure-skip-verify", false, "Skip verification of the certificate that the registry is using.")
+	flag.BoolVar(&ociRegistryInsecureSkipVerify, "oci-registry-insecure-skip-verify", true, "Skip verification of the certificate that the registry is using.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -101,7 +101,7 @@ func main() {
 		oci.WithClient(mgr.GetClient()),
 		oci.WithNamespace(ociRegistryNamespace),
 		oci.WithCertificateSecretName(ociRegistryCertificateSecretName),
-		//oci.WithInsecureSkipVerify(ociRegistryInsecureSkipVerify),
+		oci.WithInsecureSkipVerify(ociRegistryInsecureSkipVerify),
 	)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
 	snapshotWriter := snapshot.NewOCIWriter(mgr.GetClient(), cache, mgr.GetScheme())
