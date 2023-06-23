@@ -77,8 +77,8 @@ test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
-e2e: test-summary-tool ## Runs e2e tests 
-	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e 
+e2e: test-summary-tool ## Runs e2e tests
+	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e
 
 .PHONY: e2e-verbose
 e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
@@ -141,7 +141,7 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 .PHONY: dev-deploy
 dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernetes cluster in ~/.kube/config
 	mkdir -p config/dev && cp -R config/default/* config/dev
-	cd config/dev && kustomize edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
+	cd config/dev && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
 	&& $(KUSTOMIZE) edit add patch --path ./patches/init-container.yaml \
 	&& $(KUSTOMIZE) edit set image open-component-model/ocm-registry=$(REG_IMG):$(REG_TAG)
 	$(KUSTOMIZE) build config/dev | kubectl apply -f -
@@ -180,7 +180,7 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-.PHONY: test-summary-tool 
+.PHONY: test-summary-tool
 test-summary-tool: ## Download gotestsum locally if necessary.
 	GOBIN=$(LOCALBIN) go install gotest.tools/gotestsum@${TAG}
 
