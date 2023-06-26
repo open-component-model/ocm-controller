@@ -9,12 +9,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"sort"
 
 	"github.com/Masterminds/semver"
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/go-logr/logr"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/open-component-model/ocm-controller/pkg/component"
+	"github.com/open-component-model/ocm/pkg/contexts/credentials"
+	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,7 +29,7 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	ocmocireg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 
@@ -32,7 +37,6 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
-	"github.com/open-component-model/ocm-controller/pkg/component"
 )
 
 const dockerConfigKey = ".dockerconfigjson"
@@ -43,7 +47,6 @@ type Contract interface {
 	GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error)
 	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
-	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 	VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
 }
 
@@ -228,7 +231,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
 func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
+	repoSpec := ocmocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
@@ -246,7 +249,7 @@ func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj 
 func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
 	logger := log.FromContext(ctx)
 
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
+	repoSpec := ocmocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
 		return false, fmt.Errorf("failed to get repository for spec: %w", err)
@@ -328,7 +331,7 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 func (c *Client) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error) {
 	logger := log.FromContext(ctx)
 
-	versions, err := c.ListComponentVersions(logger, octx, obj)
+	versions, err := c.listComponentVersions(logger, octx, obj)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component versions: %w", err)
 	}
@@ -362,23 +365,15 @@ type Version struct {
 	Version string
 }
 
-func (c *Client) ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error) {
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
-
-	repo, err := octx.RepositoryForSpec(repoSpec)
+func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error) {
+	cv, err := c.lookupComponent(context.Background(), octx, obj, obj.Spec.Component, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+		return nil, fmt.Errorf("failed to lookup componint: %w", err)
 	}
-	defer repo.Close()
 
-	// get the component Version
-	cv, err := repo.LookupComponent(obj.Spec.Component)
-	if err != nil {
-		return nil, fmt.Errorf("component error: %w", err)
-	}
-	defer cv.Close()
+	defer cv.list.Close()
 
-	versions, err := cv.ListVersions()
+	versions, err := cv.list.ListVersions()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list versions for component: %w", err)
 	}
@@ -417,4 +412,60 @@ func HashIdentity(id ocmmetav1.Identity) (string, error) {
 	}
 
 	return fmt.Sprintf("sha-%d", hash), nil
+}
+
+type componentBundle struct {
+	versioned ocm.ComponentVersionAccess
+	list      ocm.ComponentAccess
+}
+
+func (c *Client) lookupComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (*componentBundle, error) {
+	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL)
+	creds, err := credentials.CredentialsChain(nil).Credentials(octx.CredentialsContext())
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct credential chain: %w", err)
+	}
+
+	u, err := url.Parse(obj.Spec.Repository.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repository url: %w", err)
+	}
+
+	ocirepo, err := ocireg.NewRepository(octx.OCIContext(), repoSpec, &ocireg.RepositoryInfo{
+		Scheme:  "https",
+		Locator: u.Host,
+		Creds:   creds,
+		Legacy:  false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+	}
+
+	defer ocirepo.Close()
+
+	repo, err := genericocireg.NewRepository(octx, genericocireg.DefaultComponentRepositoryMeta(nil), ocirepo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+	}
+	defer repo.Close()
+
+	// get the component Version
+	// has to be closed at calling site.
+	cv, err := repo.LookupComponent(name)
+	if err != nil {
+		return nil, fmt.Errorf("component error: %w", err)
+	}
+
+	if version == "" {
+		return &componentBundle{
+			list: cv,
+		}, nil
+	}
+
+	versionedComponent, err := cv.LookupVersion(version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get version: %w", err)
+	}
+
+	return &componentBundle{versioned: versionedComponent}, nil
 }

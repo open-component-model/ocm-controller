@@ -9,6 +9,8 @@ replace github.com/opencontainers/go-digest => github.com/opencontainers/go-dige
 
 replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
 
+replace github.com/open-component-model/ocm => ../ocm
+
 require (
 	cuelang.org/go v0.4.3
 	github.com/Masterminds/semver v1.5.0

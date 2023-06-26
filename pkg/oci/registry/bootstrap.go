@@ -28,8 +28,6 @@ var (
 	serverPem []byte
 	//go:embed certs/server-key.pem
 	serverKeyPem []byte
-	//go:embed certs/ca.pem
-	caPem []byte
 )
 
 const (
@@ -41,8 +39,6 @@ const (
 	defaultAppName = "registry"
 	// defaultRegistryCertSecret is the default name of the secret that contains the certificates for the registry
 	defaultRegistryCertSecret = "registry-cert"
-	// defaultEnableHTTPS
-	defaultEnableHTTPS = true
 	// defaultRegistryPort is the default port of the registry service
 	defaultRegistryPort = 5000
 )
@@ -68,40 +64,32 @@ func main() {
 	image := assignDefaultIfEmptyString(os.Getenv("REGISTRY_IMAGE"), defaultRegistryImage)
 	certSecretName := assignDefaultIfEmptyString(os.Getenv("REGISTRY_CERT_SECRET_NAME"), defaultRegistryCertSecret)
 
-	enableHTTPS := defaultEnableHTTPS
-	if os.Getenv("REGISTRY_DISABLE_HTTPS") != "" {
-		enableHTTPS = false
-	}
-
 	port, err := strconv.ParseInt(os.Getenv("REGISTRY_PORT"), 10, 32)
 	if port == 0 || err != nil {
 		port = defaultRegistryPort
 	}
 	// create registry deployment and service
 	// TODO: add support for updating existing objects
-	objs := registryObjects(ns, app, image, port, certSecretName, enableHTTPS)
+	objs := registryObjects(ns, app, image, port, certSecretName)
 
-	if enableHTTPS {
-		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      certSecretName,
-				Namespace: ns,
-			},
-			Type: corev1.SecretTypeOpaque,
-		}
-		if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
-			if apierror.IsNotFound(err) {
-				secret.Data = map[string][]byte{
-					"server.pem":     serverPem,
-					"server-key.pem": serverKeyPem,
-					"ca.pem":         caPem,
-				}
-
-				objs = append(objs, secret)
-			} else {
-				fmt.Fprintf(os.Stderr, "could not get if secret already exists: %v", err)
-				os.Exit(1)
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      certSecretName,
+			Namespace: ns,
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
+	if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
+		if apierror.IsNotFound(err) {
+			secret.Data = map[string][]byte{
+				"server.pem":     serverPem,
+				"server-key.pem": serverKeyPem,
 			}
+
+			objs = append(objs, secret)
+		} else {
+			fmt.Fprintf(os.Stderr, "could not get if secret already exists: %v", err)
+			os.Exit(1)
 		}
 	}
 
@@ -169,7 +157,7 @@ func patchObj(ctx context.Context, c client.Client, objs []client.Object) {
 }
 
 // registryObjects returns the objects needed to deploy a registry
-func registryObjects(namespace, name, image string, port int64, secretName string, https bool) []client.Object {
+func registryObjects(namespace, name, image string, port int64, secretName string) []client.Object {
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -254,80 +242,46 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 		},
 	}
 
-	if https {
-		envs := deployment.Spec.Template.Spec.Containers[0].Env
-		envs = append(envs,
-			corev1.EnvVar{
-				Name:  "REGISTRY_HTTP_TLS_CERTIFICATE",
-				Value: "/certs/server.pem",
-			},
-			corev1.EnvVar{
-				Name:  "REGISTRY_HTTP_TLS_KEY",
-				Value: "/certs/server-key.pem",
-			},
-			corev1.EnvVar{
-				Name:  "REGISTRY_HTTP_TLS_CLIENTCAS_0",
-				Value: "/certs/ca.pem",
-			},
-		)
-		deployment.Spec.Template.Spec.Containers[0].Env = envs
+	envs := deployment.Spec.Template.Spec.Containers[0].Env
+	envs = append(envs,
+		corev1.EnvVar{
+			Name:  "REGISTRY_HTTP_TLS_CERTIFICATE",
+			Value: "/certs/server.pem",
+		},
+		corev1.EnvVar{
+			Name:  "REGISTRY_HTTP_TLS_KEY",
+			Value: "/certs/server-key.pem",
+		},
+	)
+	deployment.Spec.Template.Spec.Containers[0].Env = envs
 
-		mounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
-		mounts = append(mounts, corev1.VolumeMount{
-			Name:      "registry-cert",
-			MountPath: "/certs",
-		}, corev1.VolumeMount{
-			Name:      "registry-root-cert",
-			MountPath: "/etc/docker/certs.d/localhost:5000",
-		})
-		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = mounts
+	mounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
+	mounts = append(mounts, corev1.VolumeMount{
+		Name:      "registry-cert",
+		MountPath: "/certs",
+	})
+	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = mounts
 
-		volumes := deployment.Spec.Template.Spec.Volumes
-		volumes = append(volumes, corev1.Volume{
-			Name: "registry-cert",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  "server.pem",
-							Path: "server.pem",
-						},
-						{
-							Key:  "server-key.pem",
-							Path: "server-key.pem",
-						},
-						{
-							Key:  "ca.pem",
-							Path: "ca.pem",
-						},
+	volumes := deployment.Spec.Template.Spec.Volumes
+	volumes = append(volumes, corev1.Volume{
+		Name: "registry-cert",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: secretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "server.pem",
+						Path: "server.pem",
+					},
+					{
+						Key:  "server-key.pem",
+						Path: "server-key.pem",
 					},
 				},
 			},
-		}, corev1.Volume{
-			Name: "registry-root-cert",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  "server.pem",
-							Path: "client.cert",
-						},
-						{
-							Key:  "server-key.pem",
-							Path: "client.key",
-						},
-						{
-							Key:  "ca.pem",
-							Path: "ca.crt",
-						},
-					},
-				},
-			},
-		})
-		deployment.Spec.Template.Spec.Volumes = volumes
-	}
+		},
+	})
+	deployment.Spec.Template.Spec.Volumes = volumes
 
 	objects := []client.Object{
 		&corev1.Service{

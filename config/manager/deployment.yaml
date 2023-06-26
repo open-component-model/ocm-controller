@@ -35,6 +35,9 @@ spec:
           capabilities:
             drop:
               - "ALL"
+        volumeMounts:
+          - mountPath: "/etc/ssl/certs/"
+            name: "certificate-secret"
         livenessProbe:
           httpGet:
             path: /healthz
@@ -56,3 +59,10 @@ spec:
             memory: 64Mi
       serviceAccountName: ocm-controller
       terminationGracePeriodSeconds: 10
+      volumes:
+        - name: "certificate-secret"
+          secret:
+            secretName: "root-crt"
+            items:
+              - key: "ca-certificates.crt"
+                path: "ca-certificates.crt"

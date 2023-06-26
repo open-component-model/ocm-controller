@@ -7,7 +7,6 @@ package oci
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -99,57 +98,44 @@ type Client struct {
 
 	serverPem    []byte
 	serverKeyPem []byte
-	caCert       []byte
 }
 
 // WithTransport sets up insecure TLS so the library is forced to use HTTPS.
 func (c *Client) WithTransport() Option {
 	return func(o *options) error {
 		tlsConfig := &tls.Config{}
-		if c.InsecureSkipVerify {
-			tlsConfig.InsecureSkipVerify = true
-		} else {
-			if c.serverKeyPem == nil && c.serverPem == nil {
-				if c.Client == nil {
-					return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
-				}
 
-				registryCerts := &corev1.Secret{}
-				if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertificateSecret, Namespace: c.Namespace}, registryCerts); err != nil {
-					return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
-				}
-
-				serverPem, ok := registryCerts.Data["server.pem"]
-				if !ok {
-					return fmt.Errorf("server.pem data not found in registry certificate secret")
-				}
-
-				serverKeyPem, ok := registryCerts.Data["server-key.pem"]
-				if !ok {
-					return fmt.Errorf("server-key.pem data not found in registry certificate secret")
-				}
-
-				caCert, ok := registryCerts.Data["ca.pem"]
-				if !ok {
-					return fmt.Errorf("ca.pem data not found in registry certificate secret")
-				}
-
-				c.serverPem = serverPem
-				c.serverKeyPem = serverKeyPem
-				c.caCert = caCert
+		if c.serverKeyPem == nil && c.serverPem == nil {
+			if c.Client == nil {
+				return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
 			}
 
-			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(c.caCert)
-
-			tlsConfig.Certificates = []tls.Certificate{
-				{
-					Certificate: [][]byte{c.serverPem},
-					PrivateKey:  c.serverKeyPem,
-				},
+			registryCerts := &corev1.Secret{}
+			if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertificateSecret, Namespace: c.Namespace}, registryCerts); err != nil {
+				return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
 			}
-			tlsConfig.RootCAs = caCertPool
+
+			serverPem, ok := registryCerts.Data["server.pem"]
+			if !ok {
+				return fmt.Errorf("server.pem data not found in registry certificate secret")
+			}
+
+			serverKeyPem, ok := registryCerts.Data["server-key.pem"]
+			if !ok {
+				return fmt.Errorf("server-key.pem data not found in registry certificate secret")
+			}
+			c.serverPem = serverPem
+			c.serverKeyPem = serverKeyPem
 		}
+
+		tlsConfig.Certificates = []tls.Certificate{
+			{
+				Certificate: [][]byte{c.serverPem},
+				PrivateKey:  c.serverKeyPem,
+			},
+		}
+
+		tlsConfig.InsecureSkipVerify = c.InsecureSkipVerify
 
 		// Create a new HTTP transport with the TLS configuration
 		transport := &http.Transport{

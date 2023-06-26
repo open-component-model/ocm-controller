@@ -84,6 +84,11 @@ e2e: test-summary-tool ## Runs e2e tests
 e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
 	$(GOTESTSUM) --format standard-verbose -- -count=1 -tags=e2e ./e2e
 
+.PHONY: e2e-certs
+e2e-certs:
+	$(MKCERT) --install
+	# TODO: Complete this.
+
 ##@ Build
 
 .PHONY: build
