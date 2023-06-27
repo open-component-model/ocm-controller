@@ -91,10 +91,11 @@ bootstrap_or_install_flux()
 install_unpacker()
 
 # Create developer certificates
+print('creating developer certificates')
 local('make generate-developer-certs')
-local('./hack/create_developer_certificate_secrets.sh')
-k8s_yaml('./hack/certs/rootCASecret.yaml')
-k8s_yaml('./hack/certs/registryCertificateSecret.yaml')
+
+print('applying generated secrets')
+k8s_yaml(['./hack/certs/rootCASecret.yaml', './hack/certs/registryCertificateSecret.yaml'])
 
 # Use kustomize to build the install yaml files
 install = kustomize('config/default')
@@ -108,7 +109,7 @@ for o in objects:
         if settings.get('debug').get('enabled'):
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
         print('updating ocm-controller deployment to add generated certificates')
-        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/etc/ssl/', 'name': 'root-certificate'}, {'mountPath': '/certs', 'name': 'registry-certs'}]
+        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/etc/ssl/certs', 'name': 'root-certificate'}, {'mountPath': '/certs', 'name': 'registry-certs'}]
         o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'developer-root-certificate', 'items': [{'key': 'ca-certificates.crt', 'path': 'ca-certificates.crt'}]}}, {'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'server.pem', 'path': 'server.pem'}, {'key': 'server-key.pem', 'path': 'server-key.pem'}]}}]
 
     if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'registry':
@@ -158,13 +159,13 @@ local_resource(
 # on _any_ file change. We only want to monitor the binary.
 # If debugging is enabled, we switch to a different docker file using
 # the delve port.
-entrypoint = ['/manager', '--oci-registry-insecure-skip-verify']
+entrypoint = ['/manager']
 dockerfile = 'tilt.dockerfile'
 if settings.get('debug').get('enabled'):
     k8s_resource('ocm-controller', port_forwards=[
         port_forward(30000, 30000, 'debugger'),
     ])
-    entrypoint = ['/dlv', '--listen=:30000', '--api-version=2', '--continue=true', '--accept-multiclient=true', '--headless=true', 'exec', '/manager', '--oci-registry-insecure-skip-verify', '--']
+    entrypoint = ['/dlv', '--listen=:30000', '--api-version=2', '--continue=true', '--accept-multiclient=true', '--headless=true', 'exec', '/manager', '--']
     dockerfile = 'tilt.debug.dockerfile'
 
 
@@ -175,11 +176,9 @@ docker_build_with_restart(
     entrypoint = entrypoint,
     only=[
       './bin',
-      './pkg/oci/registry/certs',
     ],
     live_update = [
         sync('./bin/manager', '/manager'),
-        sync('./pkg/oci/registry/certs', '/pkg/oci/registry/certs'),
     ],
 )
 

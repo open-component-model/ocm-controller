@@ -91,7 +91,7 @@ e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
 .PHONY: generate-developer-certs
 generate-developer-certs: mkcert
 	$(MKCERT) --install
-	$(MKCERT) -cert-file ./hack/certs/server.pem  -key-file ./hack/certs/server-key.pem registry.ocm-system.svc.cluster.local localhost 127.0.0.1 ::1
+	./hack/create_developer_certificate_secrets.sh
 
 ##@ Build
 
@@ -188,7 +188,7 @@ $(KUSTOMIZE): $(LOCALBIN)
 .PHONY: mkcert
 mkcert: $(MKCERT)
 $(MKCERT): $(LOCALBIN)
-	curl -L "https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-$(MKCERT_VERSION)-$(UNAME)-amd64" -o $(LOCALBIN)/mkcert
+	curl -L "https://github.com/FiloSottile/mkcert/releases/download/$(MKCERT_VERSION)/mkcert-$(MKCERT_VERSION)-$(UNAME)-amd64" -o $(LOCALBIN)/mkcert
 	chmod +x $(LOCALBIN)/mkcert
 
 .PHONY: controller-gen

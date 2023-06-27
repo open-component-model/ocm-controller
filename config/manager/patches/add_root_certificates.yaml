@@ -14,7 +14,7 @@ spec:
         - name: manager
           image: open-component-model/ocm-controller
           volumeMounts:
-            - mountPath: "/etc/ssl/"
+            - mountPath: "/etc/ssl/certs"
               name: "root-certificate"
             - mountPath: "/certs"
               name: "client-certificates"
