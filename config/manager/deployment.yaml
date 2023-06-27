@@ -36,7 +36,7 @@ spec:
             drop:
               - "ALL"
         volumeMounts:
-          - mountPath: "/etc/ssl/certs/"
+          - mountPath: "/etc/ssl/certs"
             name: "certificate-secret"
         livenessProbe:
           httpGet:
@@ -62,7 +62,7 @@ spec:
       volumes:
         - name: "certificate-secret"
           secret:
-            secretName: "root-crt"
+            secretName: "developer-root-certificate"
             items:
               - key: "ca-certificates.crt"
                 path: "ca-certificates.crt"

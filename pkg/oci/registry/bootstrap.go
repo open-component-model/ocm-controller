@@ -6,11 +6,12 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierror "k8s.io/apimachinery/pkg/api/errors"
@@ -23,13 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var (
-	//go:embed certs/server.pem
-	serverPem []byte
-	//go:embed certs/server-key.pem
-	serverKeyPem []byte
-)
-
 const (
 	// defaultNamespace is the default namespace to deploy the registry
 	defaultNamespace = "ocm-system"
@@ -37,8 +31,6 @@ const (
 	defaultRegistryImage = "registry:2"
 	// defaultAppName is the default name of the registry deployment
 	defaultAppName = "registry"
-	// defaultRegistryCertSecret is the default name of the secret that contains the certificates for the registry
-	defaultRegistryCertSecret = "registry-cert"
 	// defaultRegistryPort is the default port of the registry service
 	defaultRegistryPort = 5000
 )
@@ -62,7 +54,7 @@ func main() {
 	ns := assignDefaultIfEmptyString(os.Getenv("NAMESPACE"), defaultNamespace)
 	app := assignDefaultIfEmptyString(os.Getenv("APP_NAME"), defaultAppName)
 	image := assignDefaultIfEmptyString(os.Getenv("REGISTRY_IMAGE"), defaultRegistryImage)
-	certSecretName := assignDefaultIfEmptyString(os.Getenv("REGISTRY_CERT_SECRET_NAME"), defaultRegistryCertSecret)
+	certSecretName := assignDefaultIfEmptyString(os.Getenv("REGISTRY_CERT_SECRET_NAME"), v1alpha1.DefaultCertificateSecretName)
 
 	port, err := strconv.ParseInt(os.Getenv("REGISTRY_PORT"), 10, 32)
 	if port == 0 || err != nil {
@@ -81,6 +73,18 @@ func main() {
 	}
 	if err := c.Get(ctx, client.ObjectKey{Name: certSecretName, Namespace: ns}, secret); err != nil {
 		if apierror.IsNotFound(err) {
+			serverPem, err := os.ReadFile(filepath.Join("certs", "server.pem"))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "failed to find server.pem, please generate registry certificates or provide a secret source: %v", err)
+				os.Exit(1)
+			}
+
+			serverKeyPem, err := os.ReadFile(filepath.Join("certs", "server-key.pem"))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "failed to find server-key.pem, please generate registry certificates or provide a secret source: %v", err)
+				os.Exit(1)
+			}
+
 			secret.Data = map[string][]byte{
 				"server.pem":     serverPem,
 				"server-key.pem": serverKeyPem,
@@ -264,7 +268,7 @@ func registryObjects(namespace, name, image string, port int64, secretName strin
 
 	volumes := deployment.Spec.Template.Spec.Volumes
 	volumes = append(volumes, corev1.Volume{
-		Name: "registry-cert",
+		Name: v1alpha1.DefaultCertificateSecretName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName: secretName,

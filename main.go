@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/controllers"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
@@ -63,7 +64,7 @@ func main() {
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
-	flag.StringVar(&ociRegistryCertificateSecretName, "oci-registry-certificate-secret-name", "registry-cert", "The name of the secret that contains the certificates for the in-cluster registry.")
+	flag.StringVar(&ociRegistryCertificateSecretName, "oci-registry-certificate-secret-name", v1alpha1.DefaultCertificateSecretName, "The name of the secret that contains the certificates for the in-cluster registry.")
 	flag.StringVar(&ociRegistryNamespace, "oci-registry-namespace", "ocm-system", "The namespace in which the registry is running in.")
 	flag.BoolVar(&ociRegistryInsecureSkipVerify, "oci-registry-insecure-skip-verify", false, "Skip verification of the certificate that the registry is using.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
