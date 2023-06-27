@@ -12,9 +12,12 @@ spec:
     spec:
       containers:
         - name: manager
+          image: open-component-model/ocm-controller
           volumeMounts:
             - mountPath: "/etc/ssl/"
               name: "root-certificate"
+            - mountPath: "/certs"
+              name: "client-certificates"
       volumes:
         - name: "root-certificate"
           secret:
@@ -22,3 +25,11 @@ spec:
             items:
               - key: "ca-certificates.crt"
                 path: "ca-certificates.crt"
+        - name: "client-certificates"
+          secret:
+            secretName: "registry-certs"
+            items:
+              - key: "server.pem"
+                path: "server.pem"
+              - key: "server-key.pem"
+                path: "server-key.pem"

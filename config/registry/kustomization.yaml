@@ -6,4 +6,4 @@ resources:
 
 # Uncomment to enable HTTPS for the registry
 #patches:
-#- - path: ./patches/add_certificate.yaml
+#- path: ./patches/add_registry_certificates.yaml

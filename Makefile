@@ -89,7 +89,7 @@ e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
 	$(GOTESTSUM) --format standard-verbose -- -count=1 -tags=e2e ./e2e
 
 .PHONY: generate-developer-certs
-generate-e2e-certs: mkcert
+generate-developer-certs: mkcert
 	$(MKCERT) --install
 	$(MKCERT) -cert-file ./hack/certs/server.pem  -key-file ./hack/certs/server-key.pem registry.ocm-system.svc.cluster.local localhost 127.0.0.1 ::1
 
@@ -177,7 +177,7 @@ GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs
 KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.9.0
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
-MKCERT_VERSION != v1.4.4
+MKCERT_VERSION ?= v1.4.4
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize

@@ -16,6 +16,12 @@ spec:
     spec:
       containers:
         - name: registry
+          image: registry:2
+          env:
+            - name: REGISTRY_HTTP_TLS_CERTIFICATE
+              value: "/certs/server.pem"
+            - name: REGISTRY_HTTP_TLS_KEY
+              value: "/certs/server-key.pem"
           volumeMounts:
             - mountPath: "/certs"
               name: "registry-certs"

@@ -90,6 +90,12 @@ bootstrap_or_install_flux()
 # check if installing unpacker is needed
 install_unpacker()
 
+# Create developer certificates
+local('make generate-developer-certs')
+local('./hack/create_developer_certificate_secrets.sh')
+k8s_yaml('./hack/certs/rootCASecret.yaml')
+k8s_yaml('./hack/certs/registryCertificateSecret.yaml')
+
 # Use kustomize to build the install yaml files
 install = kustomize('config/default')
 
@@ -101,11 +107,15 @@ for o in objects:
         o['spec']['template']['spec']['securityContext']['runAsNonRoot'] = False
         if settings.get('debug').get('enabled'):
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
-        break
+        print('updating ocm-controller deployment to add generated certificates')
+        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/etc/ssl/', 'name': 'root-certificate'}, {'mountPath': '/certs', 'name': 'registry-certs'}]
+        o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'developer-root-certificate', 'items': [{'key': 'ca-certificates.crt', 'path': 'ca-certificates.crt'}]}}, {'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'server.pem', 'path': 'server.pem'}, {'key': 'server-key.pem', 'path': 'server-key.pem'}]}}]
 
-# TODO: Generate certificates
-# Create Secrets
-# Patch both Deployments
+    if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'registry':
+        print('updating registry deployment to add generated certificates')
+        o['spec']['template']['spec']['containers'][0]['env'] += [{'name': 'REGISTRY_HTTP_TLS_CERTIFICATE', 'value': '/certs/server.pem'}, {'name': 'REGISTRY_HTTP_TLS_KEY', 'value': '/certs/server-key.pem'}]
+        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'registry-certs'}]
+        o['spec']['template']['spec']['volumes'] = [{'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'server.pem', 'path': 'server.pem'}, {'key': 'server-key.pem', 'path': 'server-key.pem'}]}}]
 
 updated_install = encode_yaml_stream(objects)
 
@@ -140,6 +150,7 @@ local_resource(
         "pkg",
     ],
 )
+
 
 # Build the docker image for our controller. We use a specific Dockerfile
 # since tilt can't run on a scratch container.
