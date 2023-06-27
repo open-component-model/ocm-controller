@@ -50,21 +50,21 @@ func init() {
 
 func main() {
 	var (
-		metricsAddr                      string
-		eventsAddr                       string
-		enableLeaderElection             bool
-		probeAddr                        string
-		ociRegistryAddr                  string
-		ociRegistryCertificateSecretName string
-		ociRegistryInsecureSkipVerify    bool
-		ociRegistryNamespace             string
+		metricsAddr                    string
+		eventsAddr                     string
+		enableLeaderElection           bool
+		probeAddr                      string
+		ociRegistryAddr                string
+		ociRegistryCertificateLocation string
+		ociRegistryInsecureSkipVerify  bool
+		ociRegistryNamespace           string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
-	flag.StringVar(&ociRegistryCertificateSecretName, "oci-registry-certificate-secret-name", v1alpha1.DefaultCertificateSecretName, "The name of the secret that contains the certificates for the in-cluster registry.")
+	flag.StringVar(&ociRegistryCertificateLocation, "oci-registry-certificate-location", v1alpha1.DefaultRegistryCertificateLocation, "The location in the contain where certificates live for the registry.")
 	flag.StringVar(&ociRegistryNamespace, "oci-registry-namespace", "ocm-system", "The namespace in which the registry is running in.")
 	flag.BoolVar(&ociRegistryInsecureSkipVerify, "oci-registry-insecure-skip-verify", false, "Skip verification of the certificate that the registry is using.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -101,7 +101,7 @@ func main() {
 		ociRegistryAddr,
 		oci.WithClient(mgr.GetClient()),
 		oci.WithNamespace(ociRegistryNamespace),
-		oci.WithCertificateSecretName(ociRegistryCertificateSecretName),
+		oci.WithCertificateLocation(ociRegistryCertificateLocation),
 		oci.WithInsecureSkipVerify(ociRegistryInsecureSkipVerify),
 	)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)

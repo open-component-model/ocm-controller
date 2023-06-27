@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	ociname "github.com/google/go-containerregistry/pkg/name"
@@ -22,9 +24,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -60,10 +60,10 @@ type ResourceOptions struct {
 // If the certificate isn't defined, we will use `WithInsecure`.
 type ClientOptsFunc func(opts *Client)
 
-// WithCertificateSecretName sets up certificates for the client.
-func WithCertificateSecretName(name string) ClientOptsFunc {
+// WithCertificateLocation sets up certificates for the client.
+func WithCertificateLocation(name string) ClientOptsFunc {
 	return func(opts *Client) {
-		opts.CertificateSecret = name
+		opts.CertificateLocation = name
 	}
 }
 
@@ -90,11 +90,11 @@ func WithClient(client client.Client) ClientOptsFunc {
 
 // Client implements the caching layer and the OCI layer.
 type Client struct {
-	Client             client.Client
-	OCIRepositoryAddr  string
-	CertificateSecret  string
-	InsecureSkipVerify bool
-	Namespace          string
+	Client              client.Client
+	OCIRepositoryAddr   string
+	CertificateLocation string
+	InsecureSkipVerify  bool
+	Namespace           string
 
 	serverPem    []byte
 	serverKeyPem []byte
@@ -110,20 +110,16 @@ func (c *Client) WithTransport() Option {
 				return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
 			}
 
-			registryCerts := &corev1.Secret{}
-			if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertificateSecret, Namespace: c.Namespace}, registryCerts); err != nil {
-				return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
+			serverPem, err := os.ReadFile(filepath.Join(c.CertificateLocation, "server.pem"))
+			if err != nil {
+				return fmt.Errorf("server.pem data not found in registry certificate secret: %w", err)
 			}
 
-			serverPem, ok := registryCerts.Data["server.pem"]
-			if !ok {
-				return fmt.Errorf("server.pem data not found in registry certificate secret")
+			serverKeyPem, err := os.ReadFile(filepath.Join(c.CertificateLocation, "server-key.pem"))
+			if err != nil {
+				return fmt.Errorf("server-key.pem data not found in registry certificate secret: %w", err)
 			}
 
-			serverKeyPem, ok := registryCerts.Data["server-key.pem"]
-			if !ok {
-				return fmt.Errorf("server-key.pem data not found in registry certificate secret")
-			}
 			c.serverPem = serverPem
 			c.serverKeyPem = serverKeyPem
 		}

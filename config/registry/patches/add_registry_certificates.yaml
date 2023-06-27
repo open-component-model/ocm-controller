@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+  labels:
+    app: registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+        - name: registry
+          volumeMounts:
+            - mountPath: "/certs"
+              name: "registry-certs"
+      volumes:
+        - name: "registry-certs"
+          secret:
+            secretName: "registry-cert"
+            items:
+              - key: "server.pem"
+                path: "server.pem"
+              - key: "server-key.pem"
+                path: "server-key.pem"

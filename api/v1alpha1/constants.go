@@ -1,6 +1,6 @@
 package v1alpha1
 
 const (
-	// DefaultCertificateSecretName name of the secret that will be created.
-	DefaultCertificateSecretName = "registry-cert"
+	// DefaultRegistryCertificateLocation is the location of certificates for client and registry.
+	DefaultRegistryCertificateLocation = "/certs"
 )

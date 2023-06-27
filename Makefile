@@ -90,7 +90,8 @@ e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
 
 .PHONY: generate-developer-certs
 generate-e2e-certs: mkcert
-	./hack/generate_e2e_certs.sh
+	$(MKCERT) --install
+	$(MKCERT) -cert-file ./hack/certs/server.pem  -key-file ./hack/certs/server-key.pem registry.ocm-system.svc.cluster.local localhost 127.0.0.1 ::1
 
 ##@ Build
 

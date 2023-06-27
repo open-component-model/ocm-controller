@@ -103,14 +103,9 @@ for o in objects:
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
         break
 
-disableHTTPS = os.getenv("REGISTRY_DISABLE_HTTPS", "")
-
-if disableHTTPS:
-    print('disabling HTTPS for the registry')
-    for o in objects:
-        if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'ocm-controller':
-            o['spec']['template']['spec']['initContainers'][0]['env'] = [{'name': 'REGISTRY_DISABLE_HTTPS', 'value': '1'}]
-            break
+# TODO: Generate certificates
+# Create Secrets
+# Patch both Deployments
 
 updated_install = encode_yaml_stream(objects)
 
@@ -145,33 +140,6 @@ local_resource(
         "pkg",
     ],
 )
-
-# Build the Registry
-local_resource(
-    'registry-binary',
-    "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/registry-server ./pkg/oci/registry/bootstrap.go",
-    deps = [
-        "pkg/oci/registry/bootstrap.go",
-        "pkg/oci/registry/certs",
-        "go.mod",
-        "go.sum",
-    ],
-)
-
-docker_build_with_restart(
-    'ghcr.io/open-component-model/ocm-registry',
-    '.',
-    dockerfile = 'registry-server-tilt.dockerfile',
-    entrypoint = ['/registry-server'],
-    only=[
-      './bin',
-      './pkg/oci/registry/certs',
-    ],
-    live_update = [
-        sync('./bin/registry-server', '/registry-server'),
-    ],
-)
-
 
 # Build the docker image for our controller. We use a specific Dockerfile
 # since tilt can't run on a scratch container.
