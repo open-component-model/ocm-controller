@@ -122,7 +122,7 @@ func TestClient_FetchPush(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	assert.NoError(t, err)
 
-	addr := strings.TrimPrefix(testServer.URL, "http://")
+	addr := strings.TrimPrefix(testServer.URL, "https://")
 	testCases := []struct {
 		name     string
 		blob     []byte

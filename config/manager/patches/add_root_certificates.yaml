@@ -21,15 +21,17 @@ spec:
       volumes:
         - name: "root-certificate"
           secret:
-            secretName: "developer-root-certificate"
+            secretName: "registry-certs"
             items:
-              - key: "ca-certificates.crt"
+              - key: "ca.pem"
                 path: "ca-certificates.crt"
         - name: "client-certificates"
           secret:
             secretName: "registry-certs"
             items:
-              - key: "server.pem"
-                path: "server.pem"
-              - key: "server-key.pem"
-                path: "server-key.pem"
+              - key: "cert.pem"
+                path: "cert.pem"
+              - key: "key.pem"
+                path: "key.pem"
+              - key: "ca.pem"
+                path: "ca.pem"

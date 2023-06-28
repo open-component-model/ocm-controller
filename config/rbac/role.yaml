@@ -29,7 +29,6 @@ rules:
   - secrets
   - serviceaccounts
   verbs:
-  - create
   - get
   - list
   - watch

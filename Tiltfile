@@ -90,12 +90,8 @@ bootstrap_or_install_flux()
 # check if installing unpacker is needed
 install_unpacker()
 
-# Create developer certificates
-print('creating developer certificates')
-local('make generate-developer-certs')
-
 print('applying generated secrets')
-k8s_yaml(['./hack/certs/rootCASecret.yaml', './hack/certs/registryCertificateSecret.yaml'])
+k8s_yaml('./hack/certs/registry_certs_secret.yaml')
 
 # Use kustomize to build the install yaml files
 install = kustomize('config/default')
@@ -110,13 +106,13 @@ for o in objects:
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
         print('updating ocm-controller deployment to add generated certificates')
         o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/etc/ssl/certs', 'name': 'root-certificate'}, {'mountPath': '/certs', 'name': 'registry-certs'}]
-        o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'developer-root-certificate', 'items': [{'key': 'ca-certificates.crt', 'path': 'ca-certificates.crt'}]}}, {'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'server.pem', 'path': 'server.pem'}, {'key': 'server-key.pem', 'path': 'server-key.pem'}]}}]
+        o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'ca.pem', 'path': 'ca-certificates.crt'}]}}, {'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'ca.pem', 'path': 'ca.pem'}, {'key': 'cert.pem', 'path': 'cert.pem'}, {'key': 'key.pem', 'path': 'key.pem'}]}}]
 
     if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'registry':
         print('updating registry deployment to add generated certificates')
-        o['spec']['template']['spec']['containers'][0]['env'] += [{'name': 'REGISTRY_HTTP_TLS_CERTIFICATE', 'value': '/certs/server.pem'}, {'name': 'REGISTRY_HTTP_TLS_KEY', 'value': '/certs/server-key.pem'}]
+        o['spec']['template']['spec']['containers'][0]['env'] += [{'name': 'REGISTRY_HTTP_TLS_CERTIFICATE', 'value': '/certs/cert.pem'}, {'name': 'REGISTRY_HTTP_TLS_KEY', 'value': '/certs/key.pem'}, {'name': 'REGISTRY_HTTP_TLS_CLIENTCAS_0', 'value': '/certs/ca.pem'}]
         o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'registry-certs'}]
-        o['spec']['template']['spec']['volumes'] = [{'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'server.pem', 'path': 'server.pem'}, {'key': 'server-key.pem', 'path': 'server-key.pem'}]}}]
+        o['spec']['template']['spec']['volumes'] = [{'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'cert.pem', 'path': 'cert.pem'}, {'key': 'key.pem', 'path': 'key.pem'}, {'key': 'ca.pem', 'path': 'ca.pem'}]}}]
 
 updated_install = encode_yaml_stream(objects)
 

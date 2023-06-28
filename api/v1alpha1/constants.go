@@ -1,6 +1,8 @@
 package v1alpha1
 
 const (
-	// DefaultRegistryCertificateLocation is the location of certificates for client and registry.
-	DefaultRegistryCertificateLocation = "/certs"
+	// DefaultRegistryCertFileLocation is the location of certificates for client and registry.
+	DefaultRegistryCertFileLocation = "/certs/cert.pem"
+	DefaultRegistryKeyFileLocation  = "/certs/key.pem"
+	DefaultRegistryCaFileLocation   = "/certs/ca.pem"
 )

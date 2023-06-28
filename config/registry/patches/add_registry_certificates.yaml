@@ -19,9 +19,11 @@ spec:
           image: registry:2
           env:
             - name: REGISTRY_HTTP_TLS_CERTIFICATE
-              value: "/certs/server.pem"
+              value: "/certs/cert.pem"
             - name: REGISTRY_HTTP_TLS_KEY
-              value: "/certs/server-key.pem"
+              value: "/certs/key.pem"
+            - name: REGISTRY_HTTP_TLS_CLIENTCAS_0
+              value: "/certs/ca.pem"
           volumeMounts:
             - mountPath: "/certs"
               name: "registry-certs"
@@ -30,7 +32,9 @@ spec:
           secret:
             secretName: "registry-cert"
             items:
-              - key: "server.pem"
-                path: "server.pem"
-              - key: "server-key.pem"
-                path: "server-key.pem"
+              - key: "cert.pem"
+                path: "cert.pem"
+              - key: "key.pem"
+                path: "key.pem"
+              - key: "ca.pem"
+                path: "ca.pem"
