@@ -20,7 +20,7 @@ type MutationObject interface {
 	GetStatus() *MutationStatus
 }
 
-// MutationSpec defines a common spec between Localization and Configuration.
+// MutationSpec defines a common spec for Localization and Configuration of OCM resources.
 type MutationSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval,omitempty"`

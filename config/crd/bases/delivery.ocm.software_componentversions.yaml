@@ -48,30 +48,33 @@ spec:
           metadata:
             type: object
           spec:
-            description: ComponentVersionSpec defines the desired state of ComponentVersion
+            description: ComponentVersionSpec specifies the configuration required
+              to retrieve a component descriptor for a component version.
             properties:
               component:
-                description: 'Every Component Version has a name. Name and version
-                  are the identifier for a Component Version and therefor for the
-                  artifact set described by it. A component name SHOULD reference
-                  a location where the component’s resources (typically source code,
-                  and/or documentation) are hosted. It MUST be a DNS compliant name
-                  with lowercase characters and MUST contain a name after the domain.
-                  Examples: - github.com/pathToYourRepo'
+                description: Component specifies the name of the ComponentVersion.
                 type: string
               interval:
+                description: Interval specifies the interval at which the Repository
+                  will be checked for updates.
                 type: string
               references:
+                description: References specifies configuration for the handling of
+                  nested component references.
                 properties:
                   expand:
+                    description: Expand specifies if a Kubernetes API resource of
+                      kind ComponentDescriptor should be be generated for each component
+                      reference that is present in the root ComponentVersion.
                     type: boolean
                 type: object
               repository:
-                description: Repository defines the OCM Repository.
+                description: Repository provides details about the OCI repository
+                  from which the component descriptor can be retrieved.
                 properties:
                   secretRef:
-                    description: LocalObjectReference contains enough information
-                      to let you locate the referenced object inside the same namespace.
+                    description: SecretRef specifies the credentials used to access
+                      the OCI registry.
                     properties:
                       name:
                         description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -79,9 +82,8 @@ spec:
                         type: string
                     type: object
                   url:
-                    description: 'TODO@souleb: do we need a scheme for the url? add
-                      description for each field Do we need a type field? (e.g. oci,
-                      git, s3, etc.)'
+                    description: URL specifies the URL of the OCI registry in which
+                      the ComponentVersion is stored.
                     type: string
                 required:
                 - url
@@ -93,19 +95,24 @@ spec:
                   or destination, but it is still allowed to do so. https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account
                 type: string
               suspend:
-                description: Suspend stops all operations on this component version
-                  object.
+                description: Suspend can be used to temporarily pause the reconciliation
+                  of the ComponentVersion resource.
                 type: boolean
               verify:
+                description: Verify specifies a list signatures that should be validated
+                  before the ComponentVersion is marked Verified.
                 items:
                   description: Signature defines the details of a signature to use
                     for verification.
                   properties:
                     name:
-                      description: Name of the signature.
+                      description: Name specifies the name of the signature. An OCM
+                        component may have multiple signatures.
                       type: string
                     publicKey:
-                      description: Key which is used for verification.
+                      description: PublicKey provides a reference to a Kubernetes
+                        Secret that contains a public key which will be used to validate
+                        the named signature.
                       properties:
                         secretRef:
                           description: LocalObjectReference contains enough information
@@ -126,10 +133,11 @@ spec:
                   type: object
                 type: array
               version:
-                description: Component versions refer to specific snapshots of a component.
-                  A common scenario being the release of a component.
+                description: Version specifies the version information for the ComponentVersion.
                 properties:
                   semver:
+                    description: Semver specifies a semantic version constraint for
+                      the Component Version.
                     type: string
                 type: object
             required:
@@ -142,12 +150,12 @@ spec:
             description: ComponentVersionStatus defines the observed state of ComponentVersion
             properties:
               componentDescriptor:
-                description: Reference contains all referred components and their
-                  versions.
+                description: ComponentDescriptor holds the ComponentDescriptor information
+                  for the ComponentVersion.
                 properties:
                   componentDescriptorRef:
-                    description: NamespacedObjectReference contains enough information
-                      to locate the referenced Kubernetes resource object in any namespace.
+                    description: ComponentDescriptorRef specifies the reference for
+                      the Kubernetes object representing the ComponentDescriptor.
                     properties:
                       name:
                         description: Name of the referent.
@@ -162,18 +170,24 @@ spec:
                   extraIdentity:
                     additionalProperties:
                       type: string
+                    description: ExtraIdentity specifies additional identity attributes
+                      of the referenced component.
                     type: object
                   name:
+                    description: Name specifies the name of the referenced component.
                     type: string
                   references:
+                    description: References is a list of component references.
                     x-kubernetes-preserve-unknown-fields: true
                   version:
+                    description: Version specifies the version of the referened component.
                     type: string
                 required:
                 - name
                 - version
                 type: object
               conditions:
+                description: Conditions holds the conditions for the ComponentVersion.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
@@ -246,8 +260,12 @@ spec:
                 format: int64
                 type: integer
               reconciledVersion:
+                description: ReconciledVersion is a string containing the version
+                  of the latest reconciled ComponentVersion.
                 type: string
               verified:
+                description: Verified is a boolean indiciating whether all of the
+                  specified signatures have been verified and are valid.
                 type: boolean
             type: object
         type: object

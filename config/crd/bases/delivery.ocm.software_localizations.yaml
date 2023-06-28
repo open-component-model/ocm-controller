@@ -48,8 +48,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: MutationSpec defines a common spec between Localization and
-              Configuration.
+            description: MutationSpec defines a common spec for Localization and Configuration
+              of OCM resources.
             properties:
               configRef:
                 description: ObjectReference defines a resource which may be accessed

@@ -9,139 +9,6 @@
 <p>Package v1alpha1 contains API Schema definitions for the delivery v1alpha1 API group</p>
 Resource Types:
 <ul class="simple"></ul>
-<h3 id="delivery.ocm.software/v1alpha1.ComponentDescriptor">ComponentDescriptor
-</h3>
-<p>ComponentDescriptor is the Schema for the componentdescriptors API</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>metadata</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.ComponentDescriptorSpec">
-ComponentDescriptorSpec
-</a>
-</em>
-</td>
-<td>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>ComponentVersionSpec</code><br>
-<em>
-github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1.ComponentVersionSpec
-</em>
-</td>
-<td>
-<p>
-(Members of <code>ComponentVersionSpec</code> are embedded into this type.)
-</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>version</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.ComponentDescriptorStatus">
-ComponentDescriptorStatus
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="delivery.ocm.software/v1alpha1.ComponentDescriptorSpec">ComponentDescriptorSpec
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#delivery.ocm.software/v1alpha1.ComponentDescriptor">ComponentDescriptor</a>)
-</p>
-<p>ComponentDescriptorSpec adds a version to the top level component descriptor definition.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>ComponentVersionSpec</code><br>
-<em>
-github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1.ComponentVersionSpec
-</em>
-</td>
-<td>
-<p>
-(Members of <code>ComponentVersionSpec</code> are embedded into this type.)
-</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>version</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="delivery.ocm.software/v1alpha1.ComponentDescriptorStatus">ComponentDescriptorStatus
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#delivery.ocm.software/v1alpha1.ComponentDescriptor">ComponentDescriptor</a>)
-</p>
-<p>ComponentDescriptorStatus defines the observed state of ComponentDescriptor</p>
 <h3 id="delivery.ocm.software/v1alpha1.ComponentVersion">ComponentVersion
 </h3>
 <p>ComponentVersion is the Schema for the ComponentVersions API</p>
@@ -184,30 +51,13 @@ ComponentVersionSpec
 <table>
 <tr>
 <td>
-<code>interval</code><br>
-<em>
-<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
 <code>component</code><br>
 <em>
 string
 </em>
 </td>
 <td>
-<p>Every Component Version has a name.
-Name and version are the identifier for a Component Version and therefor for the artifact set described by it.
-A component name SHOULD reference a location where the component’s resources (typically source code, and/or documentation) are hosted.
-It MUST be a DNS compliant name with lowercase characters and MUST contain a name after the domain.
-Examples:
-- github.com/pathToYourRepo</p>
+<p>Component specifies the name of the ComponentVersion.</p>
 </td>
 </tr>
 <tr>
@@ -220,7 +70,7 @@ Version
 </em>
 </td>
 <td>
-<p>Component versions refer to specific snapshots of a component. A common scenario being the release of a component.</p>
+<p>Version specifies the version information for the ComponentVersion.</p>
 </td>
 </tr>
 <tr>
@@ -233,6 +83,21 @@ Repository
 </em>
 </td>
 <td>
+<p>Repository provides details about the OCI repository from which the component
+descriptor can be retrieved.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>interval</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<p>Interval specifies the interval at which the Repository will be checked for updates.</p>
 </td>
 </tr>
 <tr>
@@ -246,6 +111,8 @@ Repository
 </td>
 <td>
 <em>(Optional)</em>
+<p>Verify specifies a list signatures that should be validated before the ComponentVersion
+is marked Verified.</p>
 </td>
 </tr>
 <tr>
@@ -259,6 +126,7 @@ ReferencesConfig
 </td>
 <td>
 <em>(Optional)</em>
+<p>References specifies configuration for the handling of nested component references.</p>
 </td>
 </tr>
 <tr>
@@ -270,7 +138,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Suspend stops all operations on this component version object.</p>
+<p>Suspend can be used to temporarily pause the reconciliation of the ComponentVersion resource.</p>
 </td>
 </tr>
 <tr>
@@ -313,7 +181,8 @@ ComponentVersionStatus
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.ComponentVersion">ComponentVersion</a>)
 </p>
-<p>ComponentVersionSpec defines the desired state of ComponentVersion</p>
+<p>ComponentVersionSpec specifies the configuration required to retrieve a
+component descriptor for a component version.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -326,30 +195,13 @@ ComponentVersionStatus
 <tbody>
 <tr>
 <td>
-<code>interval</code><br>
-<em>
-<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
 <code>component</code><br>
 <em>
 string
 </em>
 </td>
 <td>
-<p>Every Component Version has a name.
-Name and version are the identifier for a Component Version and therefor for the artifact set described by it.
-A component name SHOULD reference a location where the component’s resources (typically source code, and/or documentation) are hosted.
-It MUST be a DNS compliant name with lowercase characters and MUST contain a name after the domain.
-Examples:
-- github.com/pathToYourRepo</p>
+<p>Component specifies the name of the ComponentVersion.</p>
 </td>
 </tr>
 <tr>
@@ -362,7 +214,7 @@ Version
 </em>
 </td>
 <td>
-<p>Component versions refer to specific snapshots of a component. A common scenario being the release of a component.</p>
+<p>Version specifies the version information for the ComponentVersion.</p>
 </td>
 </tr>
 <tr>
@@ -375,6 +227,21 @@ Repository
 </em>
 </td>
 <td>
+<p>Repository provides details about the OCI repository from which the component
+descriptor can be retrieved.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>interval</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<p>Interval specifies the interval at which the Repository will be checked for updates.</p>
 </td>
 </tr>
 <tr>
@@ -388,6 +255,8 @@ Repository
 </td>
 <td>
 <em>(Optional)</em>
+<p>Verify specifies a list signatures that should be validated before the ComponentVersion
+is marked Verified.</p>
 </td>
 </tr>
 <tr>
@@ -401,6 +270,7 @@ ReferencesConfig
 </td>
 <td>
 <em>(Optional)</em>
+<p>References specifies configuration for the handling of nested component references.</p>
 </td>
 </tr>
 <tr>
@@ -412,7 +282,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Suspend stops all operations on this component version object.</p>
+<p>Suspend can be used to temporarily pause the reconciliation of the ComponentVersion resource.</p>
 </td>
 </tr>
 <tr>
@@ -474,6 +344,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
+<p>Conditions holds the conditions for the ComponentVersion.</p>
 </td>
 </tr>
 <tr>
@@ -487,6 +358,7 @@ Reference
 </td>
 <td>
 <em>(Optional)</em>
+<p>ComponentDescriptor holds the ComponentDescriptor information for the ComponentVersion.</p>
 </td>
 </tr>
 <tr>
@@ -498,6 +370,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+<p>ReconciledVersion is a string containing the version of the latest reconciled ComponentVersion.</p>
 </td>
 </tr>
 <tr>
@@ -509,6 +382,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
+<p>Verified is a boolean indiciating whether all of the specified signatures have been verified and are valid.</p>
 </td>
 </tr>
 </tbody>
@@ -1094,7 +968,7 @@ MutationStatus
 <a href="#delivery.ocm.software/v1alpha1.Configuration">Configuration</a>, 
 <a href="#delivery.ocm.software/v1alpha1.Localization">Localization</a>)
 </p>
-<p>MutationSpec defines a common spec between Localization and Configuration.</p>
+<p>MutationSpec defines a common spec for Localization and Configuration of OCM resources.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1508,6 +1382,7 @@ string
 </em>
 </td>
 <td>
+<p>Name specifies the name of the referenced component.</p>
 </td>
 </tr>
 <tr>
@@ -1518,6 +1393,7 @@ string
 </em>
 </td>
 <td>
+<p>Version specifies the version of the referened component.</p>
 </td>
 </tr>
 <tr>
@@ -1530,6 +1406,7 @@ string
 </em>
 </td>
 <td>
+<p>References is a list of component references.</p>
 </td>
 </tr>
 <tr>
@@ -1541,6 +1418,7 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
+<p>ExtraIdentity specifies additional identity attributes of the referenced component.</p>
 </td>
 </tr>
 <tr>
@@ -1554,6 +1432,8 @@ github.com/fluxcd/pkg/apis/meta.NamespacedObjectReference
 </td>
 <td>
 <em>(Optional)</em>
+<p>ComponentDescriptorRef specifies the reference for the Kubernetes object representing
+the ComponentDescriptor.</p>
 </td>
 </tr>
 </tbody>
@@ -1566,6 +1446,8 @@ github.com/fluxcd/pkg/apis/meta.NamespacedObjectReference
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.ComponentVersionSpec">ComponentVersionSpec</a>)
 </p>
+<p>ReferencesConfig specifies how component references should be handled when reconciling
+the root component.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1585,6 +1467,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
+<p>Expand specifies if a Kubernetes API resource of kind ComponentDescriptor should be
+be generated for each component reference that is present in the root ComponentVersion.</p>
 </td>
 </tr>
 </tbody>
@@ -1597,7 +1481,7 @@ bool
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.ComponentVersionSpec">ComponentVersionSpec</a>)
 </p>
-<p>Repository defines the OCM Repository.</p>
+<p>Repository specifies access details for the repository that contains OCM ComponentVersions.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1616,9 +1500,7 @@ string
 </em>
 </td>
 <td>
-<p>TODO@souleb: do we need a scheme for the url?
-add description for each field
-Do we need a type field? (e.g. oci, git, s3, etc.)</p>
+<p>URL specifies the URL of the OCI registry in which the ComponentVersion is stored.</p>
 </td>
 </tr>
 <tr>
@@ -1632,6 +1514,7 @@ Kubernetes core/v1.LocalObjectReference
 </td>
 <td>
 <em>(Optional)</em>
+<p>SecretRef specifies the credentials used to access the OCI registry.</p>
 </td>
 </tr>
 </tbody>
@@ -1688,6 +1571,7 @@ Kubernetes meta/v1.Duration
 </em>
 </td>
 <td>
+<p>Interval specifies the interval at which the Repository will be checked for updates.</p>
 </td>
 </tr>
 <tr>
@@ -1700,20 +1584,7 @@ ObjectReference
 </em>
 </td>
 <td>
-<p>SourceRef defines the input source from which the resource
-will be retrieved</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>outputTemplate</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.SnapshotTemplateSpec">
-SnapshotTemplateSpec
-</a>
-</em>
-</td>
-<td>
+<p>SourceRef specifies the source object from which the resource should be retrieved.</p>
 </td>
 </tr>
 <tr>
@@ -1725,7 +1596,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Suspend stops all operations on this object.</p>
+<p>Suspend can be used to temporarily pause the reconciliation of the Resource.</p>
 </td>
 </tr>
 </table>
@@ -1767,7 +1638,9 @@ ResourceStatus
 <td>
 <code>ElementMeta</code><br>
 <em>
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm%5c.software/v3alpha1%5c.ElementMeta">
 github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1.ElementMeta
+</a>
 </em>
 </td>
 <td>
@@ -1780,7 +1653,9 @@ github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.softw
 <td>
 <code>referencePath</code><br>
 <em>
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Identity">
 []github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
+</a>
 </em>
 </td>
 <td>
@@ -1818,6 +1693,7 @@ Kubernetes meta/v1.Duration
 </em>
 </td>
 <td>
+<p>Interval specifies the interval at which the Repository will be checked for updates.</p>
 </td>
 </tr>
 <tr>
@@ -1830,20 +1706,7 @@ ObjectReference
 </em>
 </td>
 <td>
-<p>SourceRef defines the input source from which the resource
-will be retrieved</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>outputTemplate</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.SnapshotTemplateSpec">
-SnapshotTemplateSpec
-</a>
-</em>
-</td>
-<td>
+<p>SourceRef specifies the source object from which the resource should be retrieved.</p>
 </td>
 </tr>
 <tr>
@@ -1855,7 +1718,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Suspend stops all operations on this object.</p>
+<p>Suspend can be used to temporarily pause the reconciliation of the Resource.</p>
 </td>
 </tr>
 </tbody>
@@ -1902,6 +1765,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
+<p>Conditions holds the conditions for the ComponentVersion.</p>
 </td>
 </tr>
 <tr>
@@ -1913,6 +1777,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+<p>LastAppliedResourceVersion holds the version of the resource that was last applied (if applicable).</p>
 </td>
 </tr>
 <tr>
@@ -1924,8 +1789,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastAppliedComponentVersion tracks the last applied component version. If there is a change
-we fire off a reconcile loop to get that new version.</p>
+<p>LastAppliedComponentVersion holds the version of the last applied ComponentVersion for the ComponentVersion which contains this Resource.</p>
 </td>
 </tr>
 <tr>
@@ -1937,6 +1801,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+<p>SnapshotName specifies the name of the Snapshot that has been created to store the resource within the cluster and make it available for consumption by Flux controllers.</p>
 </td>
 </tr>
 <tr>
@@ -1948,19 +1813,20 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+<p>LatestSnapshotDigest is a string representation of the digest for the most recent Resource snapshot.</p>
 </td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
-<h3 id="delivery.ocm.software/v1alpha1.SecretRefValue">SecretRefValue
+<h3 id="delivery.ocm.software/v1alpha1.SecretRef">SecretRef
 </h3>
 <p>
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.Signature">Signature</a>)
 </p>
-<p>SecretRefValue clearly denotes that the requested option is a Secret.</p>
+<p>SecretRef specifies a reference to a Secret</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -2012,329 +1878,28 @@ string
 </em>
 </td>
 <td>
-<p>Name of the signature.</p>
+<p>Name specifies the name of the signature. An OCM component may have multiple
+signatures.</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>publicKey</code><br>
 <em>
-<a href="#delivery.ocm.software/v1alpha1.SecretRefValue">
-SecretRefValue
+<a href="#delivery.ocm.software/v1alpha1.SecretRef">
+SecretRef
 </a>
 </em>
 </td>
 <td>
-<p>Key which is used for verification.</p>
+<p>PublicKey provides a reference to a Kubernetes Secret that contains a public key
+which will be used to validate the named signature.</p>
 </td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
-<h3 id="delivery.ocm.software/v1alpha1.Snapshot">Snapshot
-</h3>
-<p>Snapshot is the Schema for the snapshots API</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>metadata</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.SnapshotSpec">
-SnapshotSpec
-</a>
-</em>
-</td>
-<td>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>identity</code><br>
-<em>
-github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>digest</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>tag</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>suspend</code><br>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Suspend stops all operations on this object.</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.SnapshotStatus">
-SnapshotStatus
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="delivery.ocm.software/v1alpha1.SnapshotSpec">SnapshotSpec
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#delivery.ocm.software/v1alpha1.Snapshot">Snapshot</a>)
-</p>
-<p>SnapshotSpec defines the desired state of Snapshot</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>identity</code><br>
-<em>
-github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>digest</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>tag</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>suspend</code><br>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Suspend stops all operations on this object.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="delivery.ocm.software/v1alpha1.SnapshotStatus">SnapshotStatus
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#delivery.ocm.software/v1alpha1.Snapshot">Snapshot</a>)
-</p>
-<p>SnapshotStatus defines the observed state of Snapshot</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>conditions</code><br>
-<em>
-<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Condition">
-[]Kubernetes meta/v1.Condition
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>digest</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Digest is calculated by the caching layer.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>tag</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Tag defines the explicit tag that was used to create the related snapshot and cache entry.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>repositoryURL</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>RepositoryURL has the concrete URL pointing to the local registry including the service name.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>observedGeneration</code><br>
-<em>
-int64
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ObservedGeneration is the last reconciled generation.</p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="delivery.ocm.software/v1alpha1.SnapshotTemplateSpec">SnapshotTemplateSpec
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#delivery.ocm.software/v1alpha1.MutationSpec">MutationSpec</a>, 
-<a href="#delivery.ocm.software/v1alpha1.ResourceSpec">ResourceSpec</a>)
-</p>
-<p>SnapshotTemplateSpec defines the template used to create snapshots</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>name</code><br>
-<em>
-string
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>labels</code><br>
-<em>
-map[string]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>annotations</code><br>
-<em>
-map[string]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<h3 id="delivery.ocm.software/v1alpha1.SnapshotWriter">SnapshotWriter
-</h3>
-<p>SnapshotWriter defines any object which produces a snapshot</p>
 <h3 id="delivery.ocm.software/v1alpha1.ValuesSource">ValuesSource
 </h3>
 <p>
@@ -2376,7 +1941,7 @@ FluxValuesSource
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.ComponentVersionSpec">ComponentVersionSpec</a>)
 </p>
-<p>Version defines version upgrade / downgrade options.</p>
+<p>Version specifies version information that can be used to resolve a Component Version</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -2396,6 +1961,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+<p>Semver specifies a semantic version constraint for the Component Version.</p>
 </td>
 </tr>
 </tbody>
