@@ -455,11 +455,6 @@ func (in *MutationSpec) DeepCopyInto(out *MutationSpec) {
 		*out = new(ObjectReference)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.OutputTemplate != nil {
-		in, out := &in.OutputTemplate, &out.OutputTemplate
-		*out = new(SnapshotTemplateSpec)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = new(apiextensionsv1.JSON)

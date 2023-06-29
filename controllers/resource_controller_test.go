@@ -190,7 +190,7 @@ func XTestResourceShouldReconcile(t *testing.T) {
 			snapshot: func(resource v1alpha1.Resource) *v1alpha1.Snapshot {
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      resource.Spec.OutputTemplate.Name,
+						Name:      resource.Status.SnapshotName,
 						Namespace: resource.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -211,7 +211,7 @@ func XTestResourceShouldReconcile(t *testing.T) {
 			snapshot: func(resource v1alpha1.Resource) *v1alpha1.Snapshot {
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      resource.Spec.OutputTemplate.Name,
+						Name:      resource.Status.SnapshotName,
 						Namespace: resource.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},

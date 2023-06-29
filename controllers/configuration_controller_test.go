@@ -886,7 +886,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      configuration.Spec.OutputTemplate.Name,
+						Name:      configuration.Status.SnapshotName,
 						Namespace: configuration.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -916,7 +916,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      configuration.Spec.OutputTemplate.Name,
+						Name:      configuration.Status.SnapshotName,
 						Namespace: configuration.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -1002,7 +1002,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      configuration.Spec.OutputTemplate.Name,
+						Name:      configuration.Status.SnapshotName,
 						Namespace: configuration.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{},
@@ -1057,7 +1057,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      configuration.Spec.OutputTemplate.Name,
+						Name:      configuration.Status.SnapshotName,
 						Namespace: configuration.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{},

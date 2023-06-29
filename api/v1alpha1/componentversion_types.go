@@ -95,7 +95,7 @@ type Version struct {
 // ReferencesConfig specifies how component references should be handled when reconciling
 // the root component.
 type ReferencesConfig struct {
-	// Expand specifies if a Kubernetes API resource of kind ComponentDescriptor should be
+	// Expand specifies if a Kubernetes API resource of kind ComponentDescriptor should
 	// be generated for each component reference that is present in the root ComponentVersion.
 	// +optional
 	Expand bool `json:"expand,omitempty"`
@@ -107,7 +107,7 @@ type Reference struct {
 	// +required
 	Name string `json:"name"`
 
-	// Version specifies the version of the referened component.
+	// Version specifies the version of the referenced component.
 	// +required
 	Version string `json:"version"`
 
@@ -144,7 +144,7 @@ type ComponentVersionStatus struct {
 	// +optional
 	ReconciledVersion string `json:"reconciledVersion,omitempty"`
 
-	// Verified is a boolean indiciating whether all of the specified signatures have been verified and are valid.
+	// Verified is a boolean indicating whether all of the specified signatures have been verified and are valid.
 	// +optional
 	Verified bool `json:"verified,omitempty"`
 }

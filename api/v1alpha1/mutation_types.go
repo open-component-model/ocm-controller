@@ -32,9 +32,6 @@ type MutationSpec struct {
 	ConfigRef *ObjectReference `json:"configRef,omitempty"`
 
 	// +optional
-	OutputTemplate *SnapshotTemplateSpec `json:"outputTemplate,omitempty"`
-
-	// +optional
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 
 	// +optional
