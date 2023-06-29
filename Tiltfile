@@ -105,8 +105,8 @@ for o in objects:
         if settings.get('debug').get('enabled'):
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
         print('updating ocm-controller deployment to add generated certificates')
-        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/etc/ssl/certs', 'name': 'root-certificate'}, {'mountPath': '/certs', 'name': 'registry-certs'}]
-        o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'ca.pem', 'path': 'registry-root-ca.crt'}]}}, {'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'ca.pem', 'path': 'ca.pem'}, {'key': 'cert.pem', 'path': 'cert.pem'}, {'key': 'key.pem', 'path': 'key.pem'}]}}]
+        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'registry-certs'}]
+        o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'ca.pem', 'path': 'ca.pem'}]}}, {'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'ca.pem', 'path': 'ca.pem'}, {'key': 'cert.pem', 'path': 'cert.pem'}, {'key': 'key.pem', 'path': 'key.pem'}]}}]
 
     if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'registry':
         print('updating registry deployment to add generated certificates')
@@ -145,6 +145,7 @@ local_resource(
         "api",
         "controllers",
         "pkg",
+        "hack/entrypoint.sh",
     ],
 )
 
@@ -155,7 +156,7 @@ local_resource(
 # on _any_ file change. We only want to monitor the binary.
 # If debugging is enabled, we switch to a different docker file using
 # the delve port.
-entrypoint = ['/manager']
+entrypoint = ['/entrypoint.sh', '/manager']
 dockerfile = 'tilt.dockerfile'
 if settings.get('debug').get('enabled'):
     k8s_resource('ocm-controller', port_forwards=[
@@ -172,8 +173,10 @@ docker_build_with_restart(
     entrypoint = entrypoint,
     only=[
       './bin',
+      './hack/entrypoint.sh',
     ],
     live_update = [
+        sync('./hack/entrypoint.sh', '/entrypoint.sh'),
         sync('./bin/manager', '/manager'),
     ],
 )

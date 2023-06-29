@@ -265,10 +265,9 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 			return false, fmt.Errorf("failed to complete signature check: %w", err)
 		}
 
-		// TODO: Because of the HTTPS repository? But now I'm not overriding the frigging certificate anymore.
 		dig, err := signing.Apply(nil, nil, cv.versioned, opts)
 		if err != nil {
-			return false, fmt.Errorf("failed to apply signing: %w", err)
+			return false, fmt.Errorf("failed to apply signing to versined component: %w", err)
 		}
 
 		var value string
