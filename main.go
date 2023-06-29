@@ -103,7 +103,6 @@ func main() {
 
 	cache := oci.NewClient(
 		ociRegistryAddr,
-		oci.WithClient(mgr.GetClient()),
 		oci.WithNamespace(ociRegistryNamespace),
 		oci.WithCAFileLocation(ociRegistryCALocation),
 		oci.WithCertFileLocation(ociRegistryCertLocation),

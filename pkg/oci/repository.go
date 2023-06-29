@@ -25,7 +25,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -86,16 +85,8 @@ func WithInsecureSkipVerify(value bool) ClientOptsFunc {
 	}
 }
 
-// WithClient sets up certificates for the client.
-func WithClient(client client.Client) ClientOptsFunc {
-	return func(opts *Client) {
-		opts.Client = client
-	}
-}
-
 // Client implements the caching layer and the OCI layer.
 type Client struct {
-	Client             client.Client
 	OCIRepositoryAddr  string
 	CertLocation       string
 	KeyLocation        string
@@ -112,12 +103,7 @@ type Client struct {
 func (c *Client) WithTransport() Option {
 	return func(o *options) error {
 		tlsConfig := &tls.Config{}
-
 		if c.certPem == nil && c.keyPem == nil {
-			if c.Client == nil {
-				return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
-			}
-
 			certPem, err := os.ReadFile(c.CertLocation)
 			if err != nil {
 				return fmt.Errorf("cert data not found in registry certificate secret: %w", err)

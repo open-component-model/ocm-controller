@@ -51,18 +51,34 @@ type Contract interface {
 
 // Client implements the OCM fetcher interface.
 type Client struct {
-	client client.Client
-	cache  cache.Cache
+	client       client.Client
+	cache        cache.Cache
+	disableHttps bool
 }
 
 var _ Contract = &Client{}
 
+type ClientOptionsFunc func(c *Client)
+
+// WithDisableHTTPS disables the https repository setting.
+func WithDisableHTTPS() ClientOptionsFunc {
+	return func(c *Client) {
+		c.disableHttps = true
+	}
+}
+
 // NewClient creates a new fetcher Client using the provided k8s client.
-func NewClient(client client.Client, cache cache.Cache) *Client {
-	return &Client{
+func NewClient(client client.Client, cache cache.Cache, opts ...ClientOptionsFunc) *Client {
+	c := &Client{
 		client: client,
 		cache:  cache,
 	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
 }
 
 func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error) {
@@ -245,6 +261,7 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 	if err != nil {
 		return false, fmt.Errorf("failed to look up component Version: %w", err)
 	}
+	defer cv.Close()
 
 	resolver := ocm.NewCompoundResolver(cv.versioned.Repository())
 
@@ -355,7 +372,7 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 		return nil, fmt.Errorf("failed to lookup componint: %w", err)
 	}
 
-	defer cv.list.Close()
+	defer cv.Close()
 
 	versions, err := cv.list.ListVersions()
 	if err != nil {
@@ -403,6 +420,14 @@ type componentBundle struct {
 	list      ocm.ComponentAccess
 }
 
+func (c *componentBundle) Close() error {
+	if c.versioned != nil {
+		return c.versioned.Close()
+	}
+
+	return c.list.Close()
+}
+
 type lookupComponentOption struct {
 	name    string
 	version string
@@ -442,8 +467,13 @@ func (c *Client) lookupComponent(ctx context.Context, octx ocm.Context, obj *v1a
 		return nil, fmt.Errorf("failed to parse repository url: %w", err)
 	}
 
+	scheme := "https"
+	if c.disableHttps {
+		scheme = "http"
+	}
+
 	ociRepo, err := ocireg.NewRepository(octx.OCIContext(), repoSpec, &ocireg.RepositoryInfo{
-		Scheme:  "https",
+		Scheme:  scheme,
 		Locator: u.Host,
 		Creds:   creds,
 		Legacy:  false,

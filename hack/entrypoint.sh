@@ -3,13 +3,13 @@
 rootCA=/certs/ca.pem
 
 if [ ! -e "${rootCA}" ]; then
-  echo "root certificate at location ${rootCA} not found"
+  echo "root certificate at location ${rootCA} not found, ignoring appending it..."
 
-  exit 1
+  exec "$@"
 fi
 
 echo "Updating root certificate with provided certificate..."
-cat "${rootCA}" | tee -a /etc/ssl/certs/ca-certificates.crt
+tee -a /etc/ssl/certs/ca-certificates.crt < "${rootCA}"
 
 echo "done."
 

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -122,7 +123,7 @@ func TestClient_FetchPush(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	assert.NoError(t, err)
 
-	addr := strings.TrimPrefix(testServer.URL, "https://")
+	addr := strings.TrimPrefix(testServer.URL, "http://")
 	testCases := []struct {
 		name     string
 		blob     []byte
@@ -168,10 +169,17 @@ func TestClient_FetchPush(t *testing.T) {
 		},
 	}
 
+	c := NewClient(addr,
+		WithCAFileLocation(filepath.Join("testdata", "ca.pem")),
+		WithKeyFileLocation(filepath.Join("testdata", "key.pem")),
+		WithCertFileLocation(filepath.Join("testdata", "cert.pem")),
+	)
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
+
 			g := NewWithT(t)
-			c := NewClient(addr)
 			obj := &v1alpha1.ComponentVersion{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-name",
@@ -240,10 +248,18 @@ func TestClient_DeleteData(t *testing.T) {
 		},
 	}
 
+	c := NewClient(addr, WithInsecureSkipVerify(true),
+		WithCAFileLocation(filepath.Join("testdata", "ca.pem")),
+		WithKeyFileLocation(filepath.Join("testdata", "key.pem")),
+		WithCertFileLocation(filepath.Join("testdata", "cert.pem")),
+	)
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
+
 			g := NewWithT(t)
-			c := NewClient(addr)
+
 			obj := &v1alpha1.ComponentVersion{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-name",
