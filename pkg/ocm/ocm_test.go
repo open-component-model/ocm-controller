@@ -62,7 +62,7 @@ func TestClient_GetResource(t *testing.T) {
 		oci.WithKeyFileLocation(filepath.Join("testdata", "key.pem")),
 		oci.WithCAFileLocation(filepath.Join("testdata", "ca.pem")),
 	)
-	ocmClient := NewClient(fakeKubeClient, cache, WithDisableHTTPS())
+	ocmClient := NewClient(fakeKubeClient, cache, WithDisabledHTTPS())
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -108,7 +108,7 @@ func TestClient_GetResource(t *testing.T) {
 func TestClient_GetComponentVersion(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient()
 	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"))
-	ocmClient := NewClient(fakeKubeClient, cache, WithDisableHTTPS())
+	ocmClient := NewClient(fakeKubeClient, cache, WithDisabledHTTPS())
 	component := "github.com/skarlso/ocm-demo-index"
 
 	err := env.AddComponentVersionToRepository(Component{
@@ -417,7 +417,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeKubeClient := env.FakeKubeClient()
 			cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"))
-			ocmClient := NewClient(fakeKubeClient, cache, WithDisableHTTPS())
+			ocmClient := NewClient(fakeKubeClient, cache, WithDisabledHTTPS())
 			component := "github.com/skarlso/ocm-demo-index"
 
 			err := tt.setupComponents(component)
@@ -449,7 +449,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 	}
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"))
-	ocmClient := NewClient(fakeKubeClient, cache, WithDisableHTTPS())
+	ocmClient := NewClient(fakeKubeClient, cache, WithDisabledHTTPS())
 	component := "github.com/skarlso/ocm-demo-index"
 
 	err = env.AddComponentVersionToRepository(Component{

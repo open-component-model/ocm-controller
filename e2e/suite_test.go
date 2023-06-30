@@ -7,17 +7,14 @@
 package e2e
 
 import (
-	"context"
-	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 	"testing"
 
-	"github.com/open-component-model/ocm-e2e-framework/shared"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+
+	"github.com/open-component-model/ocm-e2e-framework/shared"
 )
 
 var (
@@ -54,7 +51,6 @@ func TestMain(m *testing.M) {
 	)
 
 	testEnv.Finish(
-		dumpControllerLogs(namespace),
 		shared.RemoveGitServer(namespace),
 		shared.ShutdownPortForward(stopChannelRegistry),
 		shared.ShutdownPortForward(stopChannelGitea),
@@ -63,31 +59,4 @@ func TestMain(m *testing.M) {
 	)
 
 	os.Exit(testEnv.Run(m))
-}
-
-func dumpControllerLogs(n string) env.Func {
-	return func(ctx context.Context, config *envconf.Config) (context.Context, error) {
-		fmt.Println("dumping logs")
-		// kubectl logs `k get pods --template '{{range .items}}{{.metadata.name}}{{end}}' --selector=app=ocm-controller -n ocm-system` -n ocm-system -f
-		cmd := exec.CommandContext(ctx, "kubectl", "get", "pods", "--template", "'{{range .items}}{{.metadata.name}}{{end}}'", "--selector=app=ocm-controller", "-n", "ocm-system")
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			fmt.Println("ERROR 1: ", err, string(output))
-			return ctx, fmt.Errorf("failed to get pods: %w", err)
-		}
-
-		pod := strings.ReplaceAll(string(output), "'", "")
-		fmt.Println("getting logs for pod: ", pod)
-
-		cmd = exec.CommandContext(ctx, "kubectl", "logs", pod, "-n", "ocm-system")
-		output, err = cmd.CombinedOutput()
-		if err != nil {
-			fmt.Println("ERROR 2: ", err, string(output))
-			return ctx, fmt.Errorf("failed to gather logs from pod %s: %w", string(output), err)
-		}
-
-		fmt.Println(string(output))
-
-		return ctx, nil
-	}
 }

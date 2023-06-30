@@ -25,7 +25,7 @@ rootCAPath=$(sudo ./bin/mkcert -CAROOT)/rootCA.pem
 
 echo "updating root certificate"
 
-sudo cat "${rootCAPath}" | sudo tee -a /etc/ssl/certs/ca-certificates.crt || echo "appending to ca-certificates failed but ignoring"
+sudo cat "${rootCAPath}" | sudo tee -a /etc/ssl/certs/ca-certificates.crt || echo "failed to append to ca-certificates. Ignoring the failure"
 
 if [ ! -e "${certPath}" ] && [ ! -e "${keyPath}" ]; then
   echo -n "certificates not found, generating..."

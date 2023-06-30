@@ -51,19 +51,19 @@ type Contract interface {
 
 // Client implements the OCM fetcher interface.
 type Client struct {
-	client       client.Client
-	cache        cache.Cache
-	disableHttps bool
+	client        client.Client
+	cache         cache.Cache
+	disabledHttps bool
 }
 
 var _ Contract = &Client{}
 
 type ClientOptionsFunc func(c *Client)
 
-// WithDisableHTTPS disables the https repository setting.
-func WithDisableHTTPS() ClientOptionsFunc {
+// WithDisabledHTTPS disables the https repository setting.
+func WithDisabledHTTPS() ClientOptionsFunc {
 	return func(c *Client) {
-		c.disableHttps = true
+		c.disabledHttps = true
 	}
 }
 
@@ -261,7 +261,7 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 	if err != nil {
 		return false, fmt.Errorf("failed to look up component Version: %w", err)
 	}
-	defer cv.Close()
+	defer cv.close()
 
 	resolver := ocm.NewCompoundResolver(cv.versioned.Repository())
 
@@ -372,7 +372,7 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 		return nil, fmt.Errorf("failed to lookup componint: %w", err)
 	}
 
-	defer cv.Close()
+	defer cv.close()
 
 	versions, err := cv.list.ListVersions()
 	if err != nil {
@@ -420,7 +420,7 @@ type componentBundle struct {
 	list      ocm.ComponentAccess
 }
 
-func (c *componentBundle) Close() error {
+func (c *componentBundle) close() error {
 	if c.versioned != nil {
 		return c.versioned.Close()
 	}
@@ -468,7 +468,7 @@ func (c *Client) lookupComponent(ctx context.Context, octx ocm.Context, obj *v1a
 	}
 
 	scheme := "https"
-	if c.disableHttps {
+	if c.disabledHttps {
 		scheme = "http"
 	}
 
