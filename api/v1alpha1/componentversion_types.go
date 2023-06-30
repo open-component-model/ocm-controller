@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -18,34 +17,36 @@ const (
 	ComponentVersionKind = "ComponentVersion"
 )
 
-// ComponentVersionSpec defines the desired state of ComponentVersion
+// ComponentVersionSpec specifies the configuration required to retrieve a
+// component descriptor for a component version.
 type ComponentVersionSpec struct {
-	// +required
-	Interval metav1.Duration `json:"interval"`
-
-	// Every Component Version has a name.
-	// Name and version are the identifier for a Component Version and therefor for the artifact set described by it.
-	// A component name SHOULD reference a location where the component’s resources (typically source code, and/or documentation) are hosted.
-	// It MUST be a DNS compliant name with lowercase characters and MUST contain a name after the domain.
-	// Examples:
-	// - github.com/pathToYourRepo
+	// Component specifies the name of the ComponentVersion.
 	// +required
 	Component string `json:"component"`
 
-	// Component versions refer to specific snapshots of a component. A common scenario being the release of a component.
+	// Version specifies the version information for the ComponentVersion.
 	// +required
 	Version Version `json:"version"`
 
+	// Repository provides details about the OCI repository from which the component
+	// descriptor can be retrieved.
 	// +required
 	Repository Repository `json:"repository"`
 
+	// Interval specifies the interval at which the Repository will be checked for updates.
+	// +required
+	Interval metav1.Duration `json:"interval"`
+
+	// Verify specifies a list signatures that should be validated before the ComponentVersion
+	// is marked Verified.
 	// +optional
 	Verify []Signature `json:"verify,omitempty"`
 
+	// References specifies configuration for the handling of nested component references.
 	// +optional
 	References ReferencesConfig `json:"references,omitempty"`
 
-	// Suspend stops all operations on this component version object.
+	// Suspend can be used to temporarily pause the reconciliation of the ComponentVersion resource.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
 
@@ -57,57 +58,70 @@ type ComponentVersionSpec struct {
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
-// Repository defines the OCM Repository.
+// Repository specifies access details for the repository that contains OCM ComponentVersions.
 type Repository struct {
-	//TODO@souleb: do we need a scheme for the url?
-	// add description for each field
-	// Do we need a type field? (e.g. oci, git, s3, etc.)
+	// URL specifies the URL of the OCI registry in which the ComponentVersion is stored.
+	// +required
 	URL string `json:"url"`
 
+	// SecretRef specifies the credentials used to access the OCI registry.
 	// +optional
 	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
-// SecretRefValue clearly denotes that the requested option is a Secret.
-type SecretRefValue struct {
+// Signature defines the details of a signature to use for verification.
+type Signature struct {
+	// Name specifies the name of the signature. An OCM component may have multiple
+	// signatures.
+	Name string `json:"name"`
+
+	// PublicKey provides a reference to a Kubernetes Secret that contains a public key
+	// which will be used to validate the named signature.
+	PublicKey SecretRef `json:"publicKey"`
+}
+
+// SecretRef specifies a reference to a Secret
+type SecretRef struct {
 	SecretRef v1.LocalObjectReference `json:"secretRef"`
 }
 
-// Signature defines the details of a signature to use for verification.
-type Signature struct {
-	// Name of the signature.
-	Name string `json:"name"`
-
-	// Key which is used for verification.
-	PublicKey SecretRefValue `json:"publicKey"`
-}
-
-// Version defines version upgrade / downgrade options.
+// Version specifies version information that can be used to resolve a Component Version
 type Version struct {
+	// Semver specifies a semantic version constraint for the Component Version.
 	// +optional
 	Semver string `json:"semver,omitempty"`
 }
 
+// ReferencesConfig specifies how component references should be handled when reconciling
+// the root component.
 type ReferencesConfig struct {
+	// Expand specifies if a Kubernetes API resource of kind ComponentDescriptor should
+	// be generated for each component reference that is present in the root ComponentVersion.
 	// +optional
 	Expand bool `json:"expand,omitempty"`
 }
 
 // Reference contains all referred components and their versions.
 type Reference struct {
+	// Name specifies the name of the referenced component.
 	// +required
 	Name string `json:"name"`
 
+	// Version specifies the version of the referenced component.
 	// +required
 	Version string `json:"version"`
 
+	// References is a list of component references.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
 	References []Reference `json:"references,omitempty"`
 
+	// ExtraIdentity specifies additional identity attributes of the referenced component.
 	// +optional
 	ExtraIdentity map[string]string `json:"extraIdentity,omitempty"`
 
+	// ComponentDescriptorRef specifies the reference for the Kubernetes object representing
+	// the ComponentDescriptor.
 	// +optional
 	ComponentDescriptorRef meta.NamespacedObjectReference `json:"componentDescriptorRef,omitempty"`
 }
@@ -118,15 +132,19 @@ type ComponentVersionStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// Conditions holds the conditions for the ComponentVersion.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
+	// ComponentDescriptor holds the ComponentDescriptor information for the ComponentVersion.
 	// +optional
 	ComponentDescriptor Reference `json:"componentDescriptor,omitempty"`
 
+	// ReconciledVersion is a string containing the version of the latest reconciled ComponentVersion.
 	// +optional
 	ReconciledVersion string `json:"reconciledVersion,omitempty"`
 
+	// Verified is a boolean indicating whether all of the specified signatures have been verified and are valid.
 	// +optional
 	Verified bool `json:"verified,omitempty"`
 }
@@ -150,13 +168,6 @@ func (in *ComponentVersion) SetConditions(conditions []metav1.Condition) {
 // reconciled again.
 func (in ComponentVersion) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
-}
-
-// LookupReferenceForIdentity returns the reference that matches up with the given identity selector.
-func (in ComponentVersion) LookupReferenceForIdentity(key ocmdesc.IdentitySelector) Reference {
-	// Loop through the reference struct in References and return the reference that matches with the
-	// given ExtraIdentity.
-	return Reference{}
 }
 
 //+kubebuilder:object:root=true

@@ -13,18 +13,15 @@ import (
 
 // ResourceSpec defines the desired state of Resource
 type ResourceSpec struct {
+	// Interval specifies the interval at which the Repository will be checked for updates.
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	// SourceRef defines the input source from which the resource
-	// will be retrieved
+	// SourceRef specifies the source object from which the resource should be retrieved.
 	// +required
 	SourceRef ObjectReference `json:"sourceRef"`
 
-	// +required
-	OutputTemplate *SnapshotTemplateSpec `json:"outputTemplate,omitempty"`
-
-	// Suspend stops all operations on this object.
+	// Suspend can be used to temporarily pause the reconciliation of the Resource.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
 }
@@ -38,20 +35,23 @@ type ResourceStatus struct {
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// Conditions holds the conditions for the ComponentVersion.
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
+	// LastAppliedResourceVersion holds the version of the resource that was last applied (if applicable).
 	// +optional
 	LastAppliedResourceVersion string `json:"lastAppliedResourceVersion,omitempty"`
 
-	// LastAppliedComponentVersion tracks the last applied component version. If there is a change
-	// we fire off a reconcile loop to get that new version.
+	// LastAppliedComponentVersion holds the version of the last applied ComponentVersion for the ComponentVersion which contains this Resource.
 	// +optional
 	LastAppliedComponentVersion string `json:"lastAppliedComponentVersion,omitempty"`
 
+	// SnapshotName specifies the name of the Snapshot that has been created to store the resource within the cluster and make it available for consumption by Flux controllers.
 	// +optional
 	SnapshotName string `json:"snapshotName,omitempty"`
 
+	// LatestSnapshotDigest is a string representation of the digest for the most recent Resource snapshot.
 	// +optional
 	LatestSnapshotDigest string `json:"latestSnapshotDigest,omitempty"`
 }
@@ -84,23 +84,22 @@ func (in *Resource) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
 }
 
-// GetRequeueAfter returns the duration after which the Resource must be
-// reconciled again.
+// GetRequeueAfter returns the duration after which the Resource should be reconciled.
 func (in Resource) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
 }
 
-// GetReferencePath returns the component reference path for the resource
+// GetReferencePath returns the component reference path for the Resource.
 func (in Resource) GetReferencePath() []ocmmetav1.Identity {
 	return in.Spec.SourceRef.ResourceRef.ReferencePath
 }
 
-// GetSnapshotName returns the key for the snapshot produced by the Configuration
+// GetSnapshotDigest returns the digest of the Resource's associated Snapshot.
 func (in Resource) GetSnapshotDigest() string {
 	return in.Status.LatestSnapshotDigest
 }
 
-// GetSnapshotName returns the key for the snapshot produced by the Configuration
+// GetSnapshotName returns the name of the Resource's associated Snapshot.
 func (in Resource) GetSnapshotName() string {
 	return in.Status.SnapshotName
 }

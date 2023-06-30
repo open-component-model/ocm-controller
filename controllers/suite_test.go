@@ -183,9 +183,6 @@ var (
 					},
 				},
 			},
-			OutputTemplate: &v1alpha1.SnapshotTemplateSpec{
-				Name: "test-localization-modified",
-			},
 		},
 	}
 	DefaultConfiguration = &v1alpha1.Configuration{

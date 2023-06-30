@@ -832,7 +832,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      localization.Spec.OutputTemplate.Name,
+						Name:      localization.Status.SnapshotName,
 						Namespace: localization.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -863,7 +863,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      localization.Spec.OutputTemplate.Name,
+						Name:      localization.Status.SnapshotName,
 						Namespace: localization.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -947,7 +947,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      localization.Spec.OutputTemplate.Name,
+						Name:      localization.Status.SnapshotName,
 						Namespace: localization.Namespace,
 					},
 					Spec:   v1alpha1.SnapshotSpec{},
@@ -995,7 +995,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				}
 				snapshot := &v1alpha1.Snapshot{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      localization.Spec.OutputTemplate.Name,
+						Name:      localization.Status.SnapshotName,
 						Namespace: localization.Namespace,
 					},
 					Spec: v1alpha1.SnapshotSpec{},

@@ -48,27 +48,12 @@ spec:
             description: ResourceSpec defines the desired state of Resource
             properties:
               interval:
+                description: Interval specifies the interval at which the Repository
+                  will be checked for updates.
                 type: string
-              outputTemplate:
-                description: SnapshotTemplateSpec defines the template used to create
-                  snapshots
-                properties:
-                  annotations:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  labels:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  name:
-                    type: string
-                required:
-                - name
-                type: object
               sourceRef:
-                description: SourceRef defines the input source from which the resource
-                  will be retrieved
+                description: SourceRef specifies the source object from which the
+                  resource should be retrieved.
                 minProperties: 1
                 properties:
                   apiVersion:
@@ -141,7 +126,8 @@ spec:
                 - name
                 type: object
               suspend:
-                description: Suspend stops all operations on this object.
+                description: Suspend can be used to temporarily pause the reconciliation
+                  of the Resource.
                 type: boolean
             required:
             - interval
@@ -153,6 +139,7 @@ spec:
             description: ResourceStatus defines the observed state of Resource
             properties:
               conditions:
+                description: Conditions holds the conditions for the ComponentVersion.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
@@ -221,19 +208,26 @@ spec:
                   type: object
                 type: array
               lastAppliedComponentVersion:
-                description: LastAppliedComponentVersion tracks the last applied component
-                  version. If there is a change we fire off a reconcile loop to get
-                  that new version.
+                description: LastAppliedComponentVersion holds the version of the
+                  last applied ComponentVersion for the ComponentVersion which contains
+                  this Resource.
                 type: string
               lastAppliedResourceVersion:
+                description: LastAppliedResourceVersion holds the version of the resource
+                  that was last applied (if applicable).
                 type: string
               latestSnapshotDigest:
+                description: LatestSnapshotDigest is a string representation of the
+                  digest for the most recent Resource snapshot.
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the last reconciled generation.
                 format: int64
                 type: integer
               snapshotName:
+                description: SnapshotName specifies the name of the Snapshot that
+                  has been created to store the resource within the cluster and make
+                  it available for consumption by Flux controllers.
                 type: string
             type: object
         type: object

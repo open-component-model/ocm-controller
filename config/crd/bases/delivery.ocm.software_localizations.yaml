@@ -48,8 +48,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: MutationSpec defines a common spec between Localization and
-              Configuration.
+            description: MutationSpec defines a common spec for Localization and Configuration
+              of OCM resources.
             properties:
               configRef:
                 description: ObjectReference defines a resource which may be accessed
@@ -127,23 +127,6 @@ spec:
                 type: object
               interval:
                 type: string
-              outputTemplate:
-                description: SnapshotTemplateSpec defines the template used to create
-                  snapshots
-                properties:
-                  annotations:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  labels:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  name:
-                    type: string
-                required:
-                - name
-                type: object
               patchStrategicMerge:
                 description: PatchStrategicMerge contains the source and target details
                   required to perform a strategic merge
