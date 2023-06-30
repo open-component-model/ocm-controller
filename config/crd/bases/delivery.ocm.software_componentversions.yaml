@@ -64,7 +64,7 @@ spec:
                 properties:
                   expand:
                     description: Expand specifies if a Kubernetes API resource of
-                      kind ComponentDescriptor should be be generated for each component
+                      kind ComponentDescriptor should be generated for each component
                       reference that is present in the root ComponentVersion.
                     type: boolean
                 type: object
@@ -180,7 +180,7 @@ spec:
                     description: References is a list of component references.
                     x-kubernetes-preserve-unknown-fields: true
                   version:
-                    description: Version specifies the version of the referened component.
+                    description: Version specifies the version of the referenced component.
                     type: string
                 required:
                 - name
@@ -264,8 +264,8 @@ spec:
                   of the latest reconciled ComponentVersion.
                 type: string
               verified:
-                description: Verified is a boolean indiciating whether all of the
-                  specified signatures have been verified and are valid.
+                description: Verified is a boolean indicating whether all of the specified
+                  signatures have been verified and are valid.
                 type: boolean
             type: object
         type: object

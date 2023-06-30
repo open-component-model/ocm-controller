@@ -382,7 +382,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Verified is a boolean indiciating whether all of the specified signatures have been verified and are valid.</p>
+<p>Verified is a boolean indicating whether all of the specified signatures have been verified and are valid.</p>
 </td>
 </tr>
 </tbody>
@@ -459,19 +459,6 @@ ObjectReference
 <em>
 <a href="#delivery.ocm.software/v1alpha1.ObjectReference">
 ObjectReference
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>outputTemplate</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.SnapshotTemplateSpec">
-SnapshotTemplateSpec
 </a>
 </em>
 </td>
@@ -877,19 +864,6 @@ ObjectReference
 </tr>
 <tr>
 <td>
-<code>outputTemplate</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.SnapshotTemplateSpec">
-SnapshotTemplateSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
 <code>values</code><br>
 <em>
 <a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1#JSON">
@@ -1009,19 +983,6 @@ ObjectReference
 <em>
 <a href="#delivery.ocm.software/v1alpha1.ObjectReference">
 ObjectReference
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>outputTemplate</code><br>
-<em>
-<a href="#delivery.ocm.software/v1alpha1.SnapshotTemplateSpec">
-SnapshotTemplateSpec
 </a>
 </em>
 </td>
@@ -1393,7 +1354,7 @@ string
 </em>
 </td>
 <td>
-<p>Version specifies the version of the referened component.</p>
+<p>Version specifies the version of the referenced component.</p>
 </td>
 </tr>
 <tr>
@@ -1467,7 +1428,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Expand specifies if a Kubernetes API resource of kind ComponentDescriptor should be
+<p>Expand specifies if a Kubernetes API resource of kind ComponentDescriptor should
 be generated for each component reference that is present in the root ComponentVersion.</p>
 </td>
 </tr>
