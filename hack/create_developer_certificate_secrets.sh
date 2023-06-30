@@ -40,9 +40,9 @@ fi
 echo -n "creating secret..."
 sudo kubectl create secret generic \
   -n ocm-system registry-certs \
-  --from-file=ca.pem="${rootCAPath}" \
-  --from-file=cert.pem="${certPath}" \
-  --from-file=key.pem="${keyPath}" \
+  --from-file=caFile="${rootCAPath}" \
+  --from-file=certFile="${certPath}" \
+  --from-file=keyFile="${keyPath}" \
   --dry-run=client -o yaml > ./hack/certs/registry_certs_secret.yaml
 
 cat ./hack/certs/registry_certs_secret.yaml

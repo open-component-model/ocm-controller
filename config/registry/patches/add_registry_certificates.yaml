@@ -30,11 +30,11 @@ spec:
       volumes:
         - name: "registry-certs"
           secret:
-            secretName: "registry-cert"
+            secretName: "registry-certs"
             items:
-              - key: "cert.pem"
+              - key: "certFile"
                 path: "cert.pem"
-              - key: "key.pem"
+              - key: "keyFile"
                 path: "key.pem"
-              - key: "ca.pem"
+              - key: "caFile"
                 path: "ca.pem"

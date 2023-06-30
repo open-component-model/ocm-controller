@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	ociname "github.com/google/go-containerregistry/pkg/name"
@@ -24,7 +23,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apitypes "k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -50,24 +52,10 @@ type ResourceOptions struct {
 // If the certificate isn't defined, we will use `WithInsecure`.
 type ClientOptsFunc func(opts *Client)
 
-// WithCertFileLocation defines location of the cert file.
-func WithCertFileLocation(loc string) ClientOptsFunc {
+// WithCertificateSecret defines the name of the secret holding the certificates.
+func WithCertificateSecret(name string) ClientOptsFunc {
 	return func(opts *Client) {
-		opts.CertLocation = loc
-	}
-}
-
-// WithKeyFileLocation defines location of the key file.
-func WithKeyFileLocation(loc string) ClientOptsFunc {
-	return func(opts *Client) {
-		opts.KeyLocation = loc
-	}
-}
-
-// WithCAFileLocation defines location of the ca file.
-func WithCAFileLocation(loc string) ClientOptsFunc {
-	return func(opts *Client) {
-		opts.CALocation = loc
+		opts.CertSecretName = name
 	}
 }
 
@@ -85,14 +73,20 @@ func WithInsecureSkipVerify(value bool) ClientOptsFunc {
 	}
 }
 
+// WithClient sets up certificates for the client.
+func WithClient(client client.Client) ClientOptsFunc {
+	return func(opts *Client) {
+		opts.Client = client
+	}
+}
+
 // Client implements the caching layer and the OCI layer.
 type Client struct {
+	Client             client.Client
 	OCIRepositoryAddr  string
-	CertLocation       string
-	KeyLocation        string
-	CALocation         string
 	InsecureSkipVerify bool
 	Namespace          string
+	CertSecretName     string
 
 	certPem []byte
 	keyPem  []byte
@@ -104,24 +98,33 @@ func (c *Client) WithTransport() Option {
 	return func(o *options) error {
 		tlsConfig := &tls.Config{}
 		if c.certPem == nil && c.keyPem == nil {
-			certPem, err := os.ReadFile(c.CertLocation)
-			if err != nil {
-				return fmt.Errorf("cert data not found in registry certificate secret: %w", err)
+			if c.Client == nil {
+				return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
 			}
 
-			keyPem, err := os.ReadFile(c.KeyLocation)
-			if err != nil {
-				return fmt.Errorf("key data not found in registry certificate secret: %w", err)
+			registryCerts := &corev1.Secret{}
+			if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertSecretName, Namespace: c.Namespace}, registryCerts); err != nil {
+				return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
 			}
 
-			ca, err := os.ReadFile(c.CALocation)
-			if err != nil {
-				return fmt.Errorf("ca data not found in registry certificate secret: %w", err)
+			certFile, ok := registryCerts.Data["certFile"]
+			if !ok {
+				return fmt.Errorf("server.pem data not found in registry certificate secret")
 			}
 
-			c.certPem = certPem
-			c.keyPem = keyPem
-			c.ca = ca
+			keyFile, ok := registryCerts.Data["keyFile"]
+			if !ok {
+				return fmt.Errorf("server-key.pem data not found in registry certificate secret")
+			}
+
+			caFile, ok := registryCerts.Data["caFile"]
+			if !ok {
+				return fmt.Errorf("ca.pem data not found in registry certificate secret")
+			}
+
+			c.certPem = certFile
+			c.keyPem = keyFile
+			c.ca = caFile
 		}
 
 		caCertPool := x509.NewCertPool()

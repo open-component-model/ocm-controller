@@ -105,14 +105,14 @@ for o in objects:
         if settings.get('debug').get('enabled'):
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
         print('updating ocm-controller deployment to add generated certificates')
-        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'registry-certs'}]
-        o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'ca.pem', 'path': 'ca.pem'}]}}, {'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'ca.pem', 'path': 'ca.pem'}, {'key': 'cert.pem', 'path': 'cert.pem'}, {'key': 'key.pem', 'path': 'key.pem'}]}}]
+        o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'caFile', 'path': 'ca.pem'}]}}]
+        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'root-certificate'}]
 
     if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'registry':
         print('updating registry deployment to add generated certificates')
         o['spec']['template']['spec']['containers'][0]['env'] += [{'name': 'REGISTRY_HTTP_TLS_CERTIFICATE', 'value': '/certs/cert.pem'}, {'name': 'REGISTRY_HTTP_TLS_KEY', 'value': '/certs/key.pem'}, {'name': 'REGISTRY_HTTP_TLS_CLIENTCAS_0', 'value': '/certs/ca.pem'}]
         o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'registry-certs'}]
-        o['spec']['template']['spec']['volumes'] = [{'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'cert.pem', 'path': 'cert.pem'}, {'key': 'key.pem', 'path': 'key.pem'}, {'key': 'ca.pem', 'path': 'ca.pem'}]}}]
+        o['spec']['template']['spec']['volumes'] = [{'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'certFile', 'path': 'cert.pem'}, {'key': 'keyFile', 'path': 'key.pem'}, {'key': 'caFile', 'path': 'ca.pem'}]}}]
 
 updated_install = encode_yaml_stream(objects)
 

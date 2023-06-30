@@ -246,7 +246,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
 func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
-	cv, err := c.lookupComponent(ctx, octx, obj, withComponentName(name), withComponentVersion(version))
+	cv, err := c.lookupComponent(octx, obj, lookupComponentOption{name: name, version: version})
 	if err != nil {
 		return nil, fmt.Errorf("failed to look up component Version: %w", err)
 	}
@@ -257,7 +257,7 @@ func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj 
 func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
 	logger := log.FromContext(ctx)
 
-	cv, err := c.lookupComponent(ctx, octx, obj, withComponentVersion(version))
+	cv, err := c.lookupComponent(octx, obj, lookupComponentOption{name: obj.Spec.Component, version: version})
 	if err != nil {
 		return false, fmt.Errorf("failed to look up component Version: %w", err)
 	}
@@ -367,7 +367,7 @@ type Version struct {
 }
 
 func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error) {
-	cv, err := c.lookupComponent(context.Background(), octx, obj)
+	cv, err := c.lookupComponent(octx, obj, lookupComponentOption{name: obj.Spec.Component})
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup componint: %w", err)
 	}
@@ -433,29 +433,7 @@ type lookupComponentOption struct {
 	version string
 }
 
-type lookupComponentOptionFunc func(opt *lookupComponentOption)
-
-func withComponentName(name string) lookupComponentOptionFunc {
-	return func(opt *lookupComponentOption) {
-		opt.name = name
-	}
-}
-
-func withComponentVersion(version string) lookupComponentOptionFunc {
-	return func(opt *lookupComponentOption) {
-		opt.version = version
-	}
-}
-
-func (c *Client) lookupComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, opts ...lookupComponentOptionFunc) (*componentBundle, error) {
-	options := &lookupComponentOption{
-		name: obj.Spec.Component,
-	}
-
-	for _, o := range opts {
-		o(options)
-	}
-
+func (c *Client) lookupComponent(octx ocm.Context, obj *v1alpha1.ComponentVersion, opts lookupComponentOption) (*componentBundle, error) {
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL)
 	creds, err := credentials.CredentialsChain(nil).Credentials(octx.CredentialsContext())
 	if err != nil {
@@ -492,18 +470,18 @@ func (c *Client) lookupComponent(ctx context.Context, octx ocm.Context, obj *v1a
 
 	// get the component Version
 	// has to be closed at calling site.
-	cv, err := genericRepo.LookupComponent(options.name)
+	cv, err := genericRepo.LookupComponent(opts.name)
 	if err != nil {
 		return nil, fmt.Errorf("component error: %w", err)
 	}
 
-	if options.version == "" {
+	if opts.version == "" {
 		return &componentBundle{
 			list: cv,
 		}, nil
 	}
 
-	versionedComponent, err := cv.LookupVersion(options.version)
+	versionedComponent, err := cv.LookupVersion(opts.version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get version: %w", err)
 	}

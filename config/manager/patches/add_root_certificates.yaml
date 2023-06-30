@@ -21,9 +21,5 @@ spec:
           secret:
             secretName: "registry-certs"
             items:
-              - key: "cert.pem"
-                path: "cert.pem"
-              - key: "key.pem"
-                path: "key.pem"
               - key: "ca.pem"
                 path: "ca.pem"

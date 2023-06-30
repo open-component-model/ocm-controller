@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,9 +16,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
@@ -120,8 +121,8 @@ func TestRepository_StreamImage(t *testing.T) {
 
 func TestClient_FetchPush(t *testing.T) {
 	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	assert.NoError(t, v1alpha1.AddToScheme(scheme))
+	assert.NoError(t, v1.AddToScheme(scheme))
 
 	addr := strings.TrimPrefix(testServer.URL, "http://")
 	testCases := []struct {
@@ -169,11 +170,20 @@ func TestClient_FetchPush(t *testing.T) {
 		},
 	}
 
-	c := NewClient(addr,
-		WithCAFileLocation(filepath.Join("testdata", "ca.pem")),
-		WithKeyFileLocation(filepath.Join("testdata", "key.pem")),
-		WithCertFileLocation(filepath.Join("testdata", "cert.pem")),
-	)
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "registry-certs",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"caFile":   []byte("file"),
+			"certFile": []byte("file"),
+			"keyFile":  []byte("file"),
+		},
+		Type: "Opaque",
+	}
+	fakeClient := fake.NewClientBuilder().WithObjects(secret).WithScheme(scheme).Build()
+	c := NewClient(addr, WithClient(fakeClient), WithCertificateSecret("registry-certs"), WithNamespace("default"))
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -222,8 +232,8 @@ func TestClient_FetchPush(t *testing.T) {
 
 func TestClient_DeleteData(t *testing.T) {
 	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	assert.NoError(t, v1.AddToScheme(scheme))
+	assert.NoError(t, v1alpha1.AddToScheme(scheme))
 
 	addr := strings.TrimPrefix(testServer.URL, "http://")
 	testCases := []struct {
@@ -248,11 +258,20 @@ func TestClient_DeleteData(t *testing.T) {
 		},
 	}
 
-	c := NewClient(addr, WithInsecureSkipVerify(true),
-		WithCAFileLocation(filepath.Join("testdata", "ca.pem")),
-		WithKeyFileLocation(filepath.Join("testdata", "key.pem")),
-		WithCertFileLocation(filepath.Join("testdata", "cert.pem")),
-	)
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "registry-certs",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"caFile":   []byte("file"),
+			"certFile": []byte("file"),
+			"keyFile":  []byte("file"),
+		},
+		Type: "Opaque",
+	}
+	fakeClient := fake.NewClientBuilder().WithObjects(secret).WithScheme(scheme).Build()
+	c := NewClient(addr, WithClient(fakeClient), WithCertificateSecret("registry-certs"), WithNamespace("default"))
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

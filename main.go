@@ -50,14 +50,15 @@ func init() {
 
 func main() {
 	var (
-		metricsAddr                   string
-		eventsAddr                    string
-		enableLeaderElection          bool
-		probeAddr                     string
-		ociRegistryAddr               string
-		ociRegistryCertLocation       string
-		ociRegistryCertKeyLocation    string
-		ociRegistryCALocation         string
+		metricsAddr          string
+		eventsAddr           string
+		enableLeaderElection bool
+		probeAddr            string
+		ociRegistryAddr      string
+		//ociRegistryCertLocation       string
+		//ociRegistryCertKeyLocation    string
+		//ociRegistryCALocation         string
+		ociRegistryCertSecretName     string
 		ociRegistryInsecureSkipVerify bool
 		ociRegistryNamespace          string
 	)
@@ -66,9 +67,7 @@ func main() {
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
-	flag.StringVar(&ociRegistryCertLocation, "cert-file", v1alpha1.DefaultRegistryCertFileLocation, "The location of the cert file.")
-	flag.StringVar(&ociRegistryCertKeyLocation, "key-file", v1alpha1.DefaultRegistryKeyFileLocation, "The location of the key file.")
-	flag.StringVar(&ociRegistryCALocation, "ca-file", v1alpha1.DefaultRegistryCaFileLocation, "The location of the root ca file.")
+	flag.StringVar(&ociRegistryCertSecretName, "certificate-secret-name", v1alpha1.DefaultRegistryCertificateSecretName, "")
 	flag.StringVar(&ociRegistryNamespace, "oci-registry-namespace", "ocm-system", "The namespace in which the registry is running in.")
 	flag.BoolVar(&ociRegistryInsecureSkipVerify, "oci-registry-insecure-skip-verify", false, "Skip verification of the certificate that the registry is using.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -103,10 +102,9 @@ func main() {
 
 	cache := oci.NewClient(
 		ociRegistryAddr,
+		oci.WithClient(mgr.GetClient()),
 		oci.WithNamespace(ociRegistryNamespace),
-		oci.WithCAFileLocation(ociRegistryCALocation),
-		oci.WithCertFileLocation(ociRegistryCertLocation),
-		oci.WithKeyFileLocation(ociRegistryCertKeyLocation),
+		oci.WithCertificateSecret(ociRegistryCertSecretName),
 		oci.WithInsecureSkipVerify(ociRegistryInsecureSkipVerify),
 	)
 	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
@@ -200,6 +198,7 @@ func main() {
 		RetryInterval:       time.Minute,
 		DynamicClient:       dynClient,
 		RegistryServiceName: ociRegistryAddr,
+		CertSecretName:      ociRegistryCertSecretName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "FluxDeployer")
 		os.Exit(1)
