@@ -445,6 +445,15 @@ func (c *Client) lookupComponent(octx ocm.Context, obj *v1alpha1.ComponentVersio
 		return nil, fmt.Errorf("failed to parse repository url: %w", err)
 	}
 
+	if u.Scheme == "" {
+		u.Scheme = "https"
+
+		u, err = url.Parse(u.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to re-parse repository url: %w", err)
+		}
+	}
+
 	scheme := "https"
 	if c.disabledHttps {
 		scheme = "http"
