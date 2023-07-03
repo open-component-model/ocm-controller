@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-rootCA=/certs/ca.pem
+rootCA=${REGISTRY_ROOT_CERTIFICATE:-/certs/ca.pem}
 
 if [ ! -e "${rootCA}" ]; then
   echo "warning... root certificate at location ${rootCA} not found."

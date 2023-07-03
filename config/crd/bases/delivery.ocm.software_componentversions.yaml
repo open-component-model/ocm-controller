@@ -83,7 +83,7 @@ spec:
                     type: object
                   url:
                     description: URL specifies the URL of the OCI registry in which
-                      the ComponentVersion is stored.
+                      the ComponentVersion is stored. MUST NOT CONTAIN THE SCHEME.
                     type: string
                 required:
                 - url
