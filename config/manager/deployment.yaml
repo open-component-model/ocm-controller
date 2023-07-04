@@ -35,6 +35,7 @@ spec:
           capabilities:
             drop:
               - "ALL"
+
         livenessProbe:
           httpGet:
             path: /healthz

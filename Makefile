@@ -12,6 +12,9 @@ REG_TAG ?= latest
 ENVTEST_K8S_VERSION = 1.24.1
 
 GOTESTSUM ?= $(LOCALBIN)/gotestsum
+MKCERT ?= $(LOCALBIN)/mkcert
+UNAME ?= $(shell uname|tr '[:upper:]' '[:lower:]')
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -63,7 +66,6 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 tidy:  ## Run go mod tidy
 	rm -f go.sum; go mod tidy
 
-
 .PHONY: fmt
 fmt: ## Run go fmt against code.
 	go fmt ./...
@@ -72,17 +74,23 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+##@ Testing
+
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
-e2e: test-summary-tool ## Runs e2e tests
+e2e: generate-developer-certs test-summary-tool ## Runs e2e tests
 	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e
 
 .PHONY: e2e-verbose
 e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
 	$(GOTESTSUM) --format standard-verbose -- -count=1 -tags=e2e ./e2e
+
+.PHONY: generate-developer-certs
+generate-developer-certs: mkcert
+	./hack/create_developer_certificate_secrets.sh
 
 ##@ Build
 
@@ -168,12 +176,19 @@ GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs
 KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.9.0
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
+MKCERT_VERSION ?= v1.4.4
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
 	curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
+
+.PHONY: mkcert
+mkcert: $(MKCERT)
+$(MKCERT): $(LOCALBIN)
+	curl -L "https://github.com/FiloSottile/mkcert/releases/download/$(MKCERT_VERSION)/mkcert-$(MKCERT_VERSION)-$(UNAME)-amd64" -o $(LOCALBIN)/mkcert
+	chmod +x $(LOCALBIN)/mkcert
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.

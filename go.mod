@@ -2,9 +2,6 @@ module github.com/open-component-model/ocm-controller
 
 go 1.20
 
-// Something requires the naming package. :( Which was an experimental package and has been removed.
-replace google.golang.org/grpc => google.golang.org/grpc v1.29.0
-
 replace github.com/opencontainers/go-digest => github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be
 
 require (
@@ -31,7 +28,7 @@ require (
 	github.com/onsi/gomega v1.27.6
 	github.com/open-component-model/ocm v0.3.0-rc.1.0.20230607081545-8d3b8aa59b92
 	github.com/open-component-model/ocm-controllers-sdk v0.1.0
-	github.com/open-component-model/ocm-e2e-framework v0.3.3
+	github.com/open-component-model/ocm-e2e-framework v0.4.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5

@@ -61,6 +61,7 @@ type ComponentVersionSpec struct {
 // Repository specifies access details for the repository that contains OCM ComponentVersions.
 type Repository struct {
 	// URL specifies the URL of the OCI registry in which the ComponentVersion is stored.
+	// MUST NOT CONTAIN THE SCHEME.
 	// +required
 	URL string `json:"url"`
 
