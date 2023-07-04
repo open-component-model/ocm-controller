@@ -96,57 +96,67 @@ type Client struct {
 // WithTransport sets up insecure TLS so the library is forced to use HTTPS.
 func (c *Client) WithTransport() Option {
 	return func(o *options) error {
-		tlsConfig := &tls.Config{}
 		if c.certPem == nil && c.keyPem == nil {
-			if c.Client == nil {
-				return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
+			if err := c.setupCertificates(); err != nil {
+				return fmt.Errorf("failed to set up certificates for transport: %w", err)
 			}
-
-			registryCerts := &corev1.Secret{}
-			if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertSecretName, Namespace: c.Namespace}, registryCerts); err != nil {
-				return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
-			}
-
-			certFile, ok := registryCerts.Data["certFile"]
-			if !ok {
-				return fmt.Errorf("server.pem data not found in registry certificate secret")
-			}
-
-			keyFile, ok := registryCerts.Data["keyFile"]
-			if !ok {
-				return fmt.Errorf("server-key.pem data not found in registry certificate secret")
-			}
-
-			caFile, ok := registryCerts.Data["caFile"]
-			if !ok {
-				return fmt.Errorf("ca.pem data not found in registry certificate secret")
-			}
-
-			c.certPem = certFile
-			c.keyPem = keyFile
-			c.ca = caFile
 		}
 
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(c.ca)
-
-		tlsConfig.Certificates = []tls.Certificate{
-			{
-				Certificate: [][]byte{c.certPem},
-				PrivateKey:  c.keyPem,
-			},
-		}
-		tlsConfig.RootCAs = caCertPool
-		tlsConfig.InsecureSkipVerify = c.InsecureSkipVerify
-
-		// Create a new HTTP transport with the TLS configuration
-		transport := &http.Transport{
-			TLSClientConfig: tlsConfig,
-		}
-
-		o.remoteOpts = append(o.remoteOpts, remote.WithTransport(transport))
+		o.remoteOpts = append(o.remoteOpts, remote.WithTransport(c.constructTLSRoundTripper()))
 
 		return nil
+	}
+}
+
+func (c *Client) setupCertificates() error {
+	if c.Client == nil {
+		return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
+	}
+	registryCerts := &corev1.Secret{}
+	if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertSecretName, Namespace: c.Namespace}, registryCerts); err != nil {
+		return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
+	}
+
+	certFile, ok := registryCerts.Data["certFile"]
+	if !ok {
+		return fmt.Errorf("server.pem data not found in registry certificate secret")
+	}
+
+	keyFile, ok := registryCerts.Data["keyFile"]
+	if !ok {
+		return fmt.Errorf("server-key.pem data not found in registry certificate secret")
+	}
+
+	caFile, ok := registryCerts.Data["caFile"]
+	if !ok {
+		return fmt.Errorf("ca.pem data not found in registry certificate secret")
+	}
+
+	c.certPem = certFile
+	c.keyPem = keyFile
+	c.ca = caFile
+
+	return nil
+}
+
+func (c *Client) constructTLSRoundTripper() http.RoundTripper {
+	tlsConfig := &tls.Config{}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(c.ca)
+
+	tlsConfig.Certificates = []tls.Certificate{
+		{
+			Certificate: [][]byte{c.certPem},
+			PrivateKey:  c.keyPem,
+		},
+	}
+
+	tlsConfig.RootCAs = caCertPool
+	tlsConfig.InsecureSkipVerify = c.InsecureSkipVerify
+
+	// Create a new HTTP transport with the TLS configuration
+	return &http.Transport{
+		TLSClientConfig: tlsConfig,
 	}
 }
 
