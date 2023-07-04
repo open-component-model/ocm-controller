@@ -50,14 +50,11 @@ func init() {
 
 func main() {
 	var (
-		metricsAddr          string
-		eventsAddr           string
-		enableLeaderElection bool
-		probeAddr            string
-		ociRegistryAddr      string
-		//ociRegistryCertLocation       string
-		//ociRegistryCertKeyLocation    string
-		//ociRegistryCALocation         string
+		metricsAddr                   string
+		eventsAddr                    string
+		enableLeaderElection          bool
+		probeAddr                     string
+		ociRegistryAddr               string
 		ociRegistryCertSecretName     string
 		ociRegistryInsecureSkipVerify bool
 		ociRegistryNamespace          string
