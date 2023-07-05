@@ -12,6 +12,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/cpi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -288,7 +289,7 @@ func (m *mockComponent) GetResource(id ocmmetav1.Identity) (ocm.ResourceAccess, 
 }
 
 func (m *mockComponent) Repository() ocm.Repository {
-	return &genericocireg.Repository{}
+	return cpi.NewRepository(&genericocireg.RepositoryImpl{})
 }
 
 func (m *mockComponent) Dup() (ocm.ComponentVersionAccess, error) {
