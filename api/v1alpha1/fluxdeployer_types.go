@@ -5,6 +5,7 @@
 package v1alpha1
 
 import (
+	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -14,9 +15,21 @@ type FluxDeployerSpec struct {
 	// +required
 	SourceRef ObjectReference `json:"sourceRef"`
 
+	// The interval at which to reconcile the Kustomization.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
+	// +required
+	Interval metav1.Duration `json:"interval"`
+
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
-	KustomizationTemplate kustomizev1.KustomizationSpec `json:"kustomizationTemplate"`
+	// +optional
+	KustomizationTemplate *kustomizev1.KustomizationSpec `json:"kustomizationTemplate,omitempty"`
+
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
+	// +optional
+	HelmReleaseTemplate *helmv1.HelmReleaseSpec `json:"helmReleaseTemplate,omitempty"`
 }
 
 // FluxDeployerStatus defines the observed state of FluxDeployer

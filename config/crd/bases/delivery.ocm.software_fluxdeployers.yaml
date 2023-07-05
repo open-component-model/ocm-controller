@@ -44,6 +44,12 @@ spec:
           spec:
             description: FluxDeployerSpec defines the desired state of FluxDeployer
             properties:
+              helmReleaseTemplate:
+                x-kubernetes-preserve-unknown-fields: true
+              interval:
+                description: The interval at which to reconcile the Kustomization.
+                pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
+                type: string
               kustomizationTemplate:
                 x-kubernetes-preserve-unknown-fields: true
               sourceRef:
@@ -121,7 +127,7 @@ spec:
                 - name
                 type: object
             required:
-            - kustomizationTemplate
+            - interval
             - sourceRef
             type: object
           status:

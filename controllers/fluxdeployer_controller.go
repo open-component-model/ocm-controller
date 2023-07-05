@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -151,30 +152,60 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 
 	snapshotURL := fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, snapshotRepo)
 
-	// create oci registry
-	if err := r.reconcileOCIRepo(ctx, obj, snapshotURL, snapshot.Spec.Tag); err != nil {
-		msg := "failed to create or update oci repository"
-		logger.Error(err, msg)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
-		conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
-		return ctrl.Result{}, err
+	// create kustomization
+	if obj.Spec.KustomizationTemplate != nil {
+		// create oci registry
+		if err := r.createKustomizationSources(ctx, obj, snapshotURL, snapshot.Spec.Tag); err != nil {
+			msg := "failed to create kustomization sources"
+			logger.Error(err, msg)
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateKustomizationFailedReason, err.Error())
+			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateKustomizationFailedReason, err.Error())
+			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+			return ctrl.Result{}, err
+		}
 	}
 
-	// create kustomization
-	if err = r.reconcileKustomization(ctx, obj); err != nil {
-		msg := "failed to create or update kustomization"
-		logger.Error(err, msg)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
-		conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateOCIRepositoryFailedReason, err.Error())
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
-		return ctrl.Result{}, err
+	if obj.Spec.HelmReleaseTemplate != nil {
+		if err := r.createHelmSources(ctx, obj, snapshotURL); err != nil {
+			msg := "failed to create helm sources"
+			logger.Error(err, msg)
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error())
+			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error())
+			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+			return ctrl.Result{}, err
+		}
 	}
 
 	msg := fmt.Sprintf("FluxDeployer '%s' is ready", obj.Name)
 	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg)
 
 	return ctrl.Result{}, nil
+}
+
+func (r *FluxDeployerReconciler) createKustomizationSources(ctx context.Context, obj *v1alpha1.FluxDeployer, url, tag string) error {
+	// create oci registry
+	if err := r.reconcileOCIRepo(ctx, obj, url, tag); err != nil {
+		return fmt.Errorf("failed to create OCI repository: %w", err)
+	}
+
+	if err := r.reconcileKustomization(ctx, obj); err != nil {
+		return fmt.Errorf("failed to create Kustomization object :%w", err)
+	}
+
+	return nil
+}
+
+func (r *FluxDeployerReconciler) createHelmSources(ctx context.Context, obj *v1alpha1.FluxDeployer, url string) error {
+	// create oci registry
+	if err := r.reconcileHelmRepository(ctx, obj, url); err != nil {
+		return fmt.Errorf("failed to create OCI repository: %w", err)
+	}
+
+	if err := r.reconcileHelmRelease(ctx, obj); err != nil {
+		return fmt.Errorf("failed to create Kustomization object :%w", err)
+	}
+
+	return nil
 }
 
 func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1alpha1.FluxDeployer, url, tag string) error {
@@ -192,7 +223,7 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1al
 			}
 		}
 		ociRepoCR.Spec = sourcev1beta2.OCIRepositorySpec{
-			Interval: obj.Spec.KustomizationTemplate.Interval,
+			Interval: obj.Spec.Interval,
 			CertSecretRef: &meta.LocalObjectReference{
 				Name: r.CertSecretName,
 			},
@@ -225,7 +256,7 @@ func (r *FluxDeployerReconciler) reconcileKustomization(ctx context.Context, obj
 				return fmt.Errorf("failed to set owner reference on oci repository source: %w", err)
 			}
 		}
-		kust.Spec = obj.Spec.KustomizationTemplate
+		kust.Spec = *obj.Spec.KustomizationTemplate
 		kust.Spec.SourceRef.Kind = sourcev1beta2.OCIRepositoryKind
 		kust.Spec.SourceRef.Namespace = obj.GetNamespace()
 		kust.Spec.SourceRef.Name = obj.GetName()
@@ -313,4 +344,68 @@ func (r *FluxDeployerReconciler) findObjects(sourceKey string) func(client.Objec
 
 		return requests
 	}
+}
+
+func (r *FluxDeployerReconciler) reconcileHelmRelease(ctx context.Context, obj *deliveryv1alpha1.FluxDeployer) error {
+	helmRelease := &helmv1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, helmRelease, func() error {
+		if helmRelease.ObjectMeta.CreationTimestamp.IsZero() {
+			if err := controllerutil.SetOwnerReference(obj, helmRelease, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set owner reference on oci repository source: %w", err)
+			}
+		}
+		helmRelease.Spec = *obj.Spec.HelmReleaseTemplate
+		helmRelease.Spec.Chart.Spec.SourceRef = helmv1.CrossNamespaceObjectReference{
+			Kind:      "HelmRepository",
+			Name:      obj.GetName(),
+			Namespace: obj.GetNamespace(),
+		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create reconcile kustomization: %w", err)
+	}
+
+	obj.Status.Kustomization = helmRelease.GetNamespace() + "/" + helmRelease.GetName()
+
+	return nil
+}
+
+func (r *FluxDeployerReconciler) reconcileHelmRepository(ctx context.Context, obj *deliveryv1alpha1.FluxDeployer, url string) error {
+	helmRepository := &sourcev1beta2.HelmRepository{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, helmRepository, func() error {
+		if helmRepository.ObjectMeta.CreationTimestamp.IsZero() {
+			if err := controllerutil.SetOwnerReference(obj, helmRepository, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set owner reference on helm repository source: %w", err)
+			}
+		}
+		helmRepository.Spec = sourcev1beta2.HelmRepositorySpec{
+			Interval: obj.Spec.Interval,
+			SecretRef: &meta.LocalObjectReference{
+				Name: r.CertSecretName,
+			},
+			URL:  url,
+			Type: "oci",
+		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create reconcile oci repo: %w", err)
+	}
+
+	return nil
 }
