@@ -6,10 +6,13 @@ package ocm
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,6 +20,7 @@ import (
 	dcontext "github.com/distribution/distribution/v3/context"
 	"github.com/distribution/distribution/v3/registry/handlers"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/filesystem"
+	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/phayes/freeport"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,7 +32,6 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/resourcetypes"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/mime"
@@ -178,12 +181,54 @@ type Server struct {
 	config *configuration.Configuration
 }
 
+var clientCipherSuites = []uint16{
+	tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+	tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+}
+
 // New creates a new oci registry server
 func New(ctx context.Context, addr string) (*Server, error) {
 	config, err := getConfig(addr)
 	if err != nil {
 		return nil, fmt.Errorf("could not get config: %w", err)
 	}
+
+	key, err := os.ReadFile(filepath.Join("testdata", "server-key.pem"))
+	if err != nil {
+		panic(err)
+	}
+	cert, err := os.ReadFile(filepath.Join("testdata", "server.pem"))
+	if err != nil {
+		panic(err)
+	}
+	rootCA, err := os.ReadFile(filepath.Join("testdata", "ca.pem"))
+	if err != nil {
+		panic(err)
+	}
+
+	config.HTTP.TLS.Key = filepath.Join("testdata", "server-key.pem")
+	config.HTTP.TLS.Certificate = filepath.Join("testdata", "server.pem")
+	config.HTTP.TLS.ClientCAs = []string{filepath.Join("testdata", "ca.pem")}
+	config.HTTP.TLS.MinimumTLS = "tls1.2"
+
+	tlsConfig := &tls.Config{}
+	keyPair, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		panic(err)
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(rootCA)
+
+	tlsConfig.Certificates = []tls.Certificate{
+		keyPair,
+	}
+	tlsConfig.MinVersion = tls.VersionTLS12
+	tlsConfig.CipherSuites = clientCipherSuites
+	tlsConfig.RootCAs = caCertPool
+	tlsConfig.InsecureSkipVerify = true
+
 	app := handlers.NewApp(ctx, config)
 	logger := dcontext.GetLogger(app)
 	return &Server{
@@ -191,6 +236,7 @@ func New(ctx context.Context, addr string) (*Server, error) {
 			Addr:              addr,
 			Handler:           app,
 			ReadHeaderTimeout: 1 * time.Second,
+			TLSConfig:         tlsConfig,
 		},
 		logger,
 		config,
@@ -201,8 +247,7 @@ func getConfig(addr string) (*configuration.Configuration, error) {
 	config := &configuration.Configuration{}
 	config.HTTP.Addr = addr
 	config.HTTP.DrainTimeout = time.Duration(10) * time.Second
-	config.Storage = map[string]configuration.Parameters{"inmemory": map[string]interface{}{}}
-	config.HTTP.DrainTimeout = time.Duration(10) * time.Second
+	config.Storage = configuration.Storage{"inmemory": configuration.Parameters{}}
 	return config, nil
 }
 
@@ -217,7 +262,10 @@ func TestMain(m *testing.M) {
 		panic(fmt.Errorf("could not create registry server: %w", err))
 	}
 
-	env.testServer = httptest.NewServer(app.Handler)
+	server := httptest.NewUnstartedServer(app.Handler)
+	server.TLS = app.TLSConfig
+	server.StartTLS()
+	env.testServer = server
 	env.repositoryURL = env.testServer.URL
 	defer env.testServer.Close()
 

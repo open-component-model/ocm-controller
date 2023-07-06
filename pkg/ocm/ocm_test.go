@@ -22,10 +22,10 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
 
 func TestClient_GetResource(t *testing.T) {
@@ -463,15 +463,18 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			expectedVersion: "v0.0.1",
 		},
 	}
+	key, _ := os.ReadFile(filepath.Join("testdata", "key.pem"))
+	cert, _ := os.ReadFile(filepath.Join("testdata", "cert.pem"))
+	rootCA, _ := os.ReadFile(filepath.Join("testdata", "ca.pem"))
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "registry-certs",
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
+			"caFile":   rootCA,
+			"certFile": cert,
+			"keyFile":  key,
 		},
 		Type: "Opaque",
 	}
@@ -480,7 +483,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			t.Helper()
 
 			fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
-			cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"), oci.WithClient(fakeKubeClient), oci.WithNamespace("default"), oci.WithCertificateSecret("registry-certs"))
+			cache := oci.NewClient(env.repositoryURL, oci.WithClient(fakeKubeClient), oci.WithNamespace("default"), oci.WithCertificateSecret("registry-certs"))
 			ocmClient := NewClient(fakeKubeClient, cache)
 			component := "github.com/skarlso/ocm-demo-index"
 

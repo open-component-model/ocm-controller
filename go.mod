@@ -6,6 +6,8 @@ replace github.com/opencontainers/go-digest => github.com/opencontainers/go-dige
 
 replace github.com/google/go-containerregistry => github.com/google/go-containerregistry v0.14.1-0.20230409045903-ed5c185df419
 
+//replace github.com/open-component-model/ocm => ../ocm
+
 require (
 	cuelang.org/go v0.5.0
 	github.com/Masterminds/semver v1.5.0
