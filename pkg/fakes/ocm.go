@@ -2,7 +2,6 @@ package fakes
 
 import (
 	"bytes"
-	"crypto"
 	"fmt"
 	"io"
 
@@ -10,12 +9,13 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/credentials"
 	"github.com/open-component-model/ocm/pkg/contexts/datacontext"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
+	ocmsigning "github.com/open-component-model/ocm/pkg/signing"
 	"github.com/open-component-model/ocm/pkg/signing/handlers/rsa"
-	"github.com/open-component-model/ocm/pkg/signing/hasher/sha256"
-	"github.com/opencontainers/go-digest"
 )
 
 // Resource presents a simple layout for a resource that AddComponentVersionToRepository will use.
@@ -58,6 +58,7 @@ type Component struct {
 type Context struct {
 	// Make sure our context is compliant with ocm.Context. Implemented methods will be added on a need-to basis.
 	ocm.Context
+	credentialCtx credentials.Context
 
 	// Components holds all components that are added to the context.
 	components map[string][]*Component
@@ -92,6 +93,24 @@ func (c *Context) AddComponent(component *Component) error {
 	// add the component to the list of components for this repository
 	c.repo.cva = append(c.repo.cva, component)
 
+	if component.Sign != nil {
+		resolver := ocm.NewCompoundResolver(c.repo)
+		opts := signing.NewOptions(
+			signing.Sign(ocmsigning.DefaultHandlerRegistry().GetSigner(rsa.Algorithm), component.Sign.Name),
+			signing.Resolver(resolver),
+			signing.PrivateKey(component.Sign.Name, component.Sign.PrivKey),
+			signing.Update(), signing.VerifyDigests(),
+		)
+
+		if err := opts.Complete(signingattr.Get(c)); err != nil {
+			return fmt.Errorf("failed to complete signing: %w", err)
+		}
+
+		if _, err := signing.Apply(nil, nil, component, opts); err != nil {
+			return fmt.Errorf("failed to apply signing: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -101,12 +120,13 @@ var _ ocm.Context = &Context{}
 func NewFakeOCMContext() *Context {
 	// create the context
 	c := &Context{
-		components: make(map[string][]*Component),
-		attributes: &mockAttribute{},
+		components:    make(map[string][]*Component),
+		attributes:    &mockAttribute{},
+		credentialCtx: credentials.New(),
 	}
 
 	// create our repository and tie it to the context
-	repo := &mockRepository{context: c}
+	repo := &mockRepository{name: "fake-repo", version: "1.0.0", context: c}
 
 	// add the repository to the context
 	c.repo = repo
@@ -126,6 +146,10 @@ func (c *Context) GetAttributes() datacontext.Attributes {
 
 func (c *Context) GetContext() ocm.Context {
 	return c
+}
+
+func (c *Context) CredentialsContext() credentials.Context {
+	return c.credentialCtx
 }
 
 func (c *Context) LoggingContext() logging.Context {
@@ -171,30 +195,6 @@ func (c *Context) constructComponentDescriptor(component *Component) (*compdesc.
 		},
 	}
 
-	if component.Sign != nil {
-		d := digest.FromBytes([]byte(component.Sign.Digest))
-		sig, err := rsa.Handler{}.Sign(credentials.New(), d.Hex(), crypto.SHA256, "", component.Sign.PrivKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create signature: %w", err)
-		}
-
-		compd.Signatures = ocmmetav1.Signatures{
-			{
-				Name: component.Sign.Name,
-				Digest: ocmmetav1.DigestSpec{
-					HashAlgorithm:          sha256.Algorithm,
-					NormalisationAlgorithm: compdesc.JsonNormalisationV1,
-					Value:                  component.Sign.Digest,
-				},
-				Signature: ocmmetav1.SignatureSpec{
-					Algorithm: sig.Algorithm,
-					Value:     sig.Value,
-					MediaType: sig.MediaType,
-				},
-			},
-		}
-	}
-
 	return compd, nil
 }
 
@@ -211,6 +211,8 @@ func (m *mockAttribute) GetAttribute(name string, def ...any) any {
 
 type mockRepository struct {
 	ocm.Repository
+	name    string
+	version string
 
 	context *Context
 	cva     []*Component
@@ -239,6 +241,14 @@ func (m *mockRepository) LookupComponent(name string) (ocm.ComponentAccess, erro
 
 func (m *mockRepository) Close() error {
 	return nil
+}
+
+func (m *mockRepository) GetName() string {
+	return m.name
+}
+
+func (m *mockRepository) GetVersion() string {
+	return m.version
 }
 
 var _ ocm.Repository = &mockRepository{}

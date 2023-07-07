@@ -22,12 +22,10 @@ import (
 
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
-	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
 
 func TestClient_GetResource(t *testing.T) {
@@ -83,7 +81,7 @@ func TestClient_GetResource(t *testing.T) {
 				Semver: "v0.0.1",
 			},
 			Repository: v1alpha1.Repository{
-				URL: env.repositoryURL,
+				URL: "localhost",
 			},
 		},
 		Status: v1alpha1.ComponentVersionStatus{
@@ -147,7 +145,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 				Semver: "v0.0.1",
 			},
 			Repository: v1alpha1.Repository{
-				URL: env.repositoryURL,
+				URL: "localhost",
 			},
 		},
 		Status: v1alpha1.ComponentVersionStatus{
@@ -300,7 +298,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 							Semver: ">v0.0.1",
 						},
 						Repository: v1alpha1.Repository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
@@ -330,7 +328,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 							Semver: "v0.0.1",
 						},
 						Repository: v1alpha1.Repository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
@@ -359,7 +357,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 							Semver: "<=v0.0.2",
 						},
 						Repository: v1alpha1.Repository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
@@ -388,7 +386,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 							Semver: "=v0.0.1",
 						},
 						Repository: v1alpha1.Repository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
@@ -471,7 +469,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 				Semver: "v0.0.1",
 			},
 			Repository: v1alpha1.Repository{
-				URL: env.repositoryURL,
+				URL: "localhost",
 			},
 			Verify: []v1alpha1.Signature{
 				{
@@ -497,7 +495,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
 	require.NoError(t, err)
 
-	secretName := "sign-secret-2"
+	secretName := "sign-secret"
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
@@ -507,33 +505,24 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 			Signature: publicKey2,
 		},
 	}
-	certSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
-			Namespace: "default",
-		},
-		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
-		},
-		Type: "Opaque",
-	}
-
-	fakeKubeClient := env.FakeKubeClient(WithObjects(secret, certSecret))
-	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"), oci.WithClient(fakeKubeClient), oci.WithNamespace("default"), oci.WithCertificateSecret("registry-certs"))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
+	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
 	component := "github.com/skarlso/ocm-demo-index"
 
-	err = env.AddComponentVersionToRepository(Component{
+	octx := ocmcontext.NewFakeOCMContext()
+
+	c := &ocmcontext.Component{
 		Name:    component,
 		Version: "v0.0.1",
-		Sign: &Sign{
-			Name: Signature,
-			Key:  privateKey,
+		Sign: &ocmcontext.Sign{
+			Name:    Signature,
+			PrivKey: privateKey,
+			PubKey:  publicKey2,
+			Digest:  "3d879ecdea45acb7f8d85b89fd653288d84af4476eac4141822142ec59c13745",
 		},
-	})
-	require.NoError(t, err)
+	}
+	require.NoError(t, octx.AddComponent(c))
 
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
@@ -546,10 +535,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 				Semver: "v0.0.1",
 			},
 			Repository: v1alpha1.Repository{
-				URL: env.repositoryURL,
-				SecretRef: &corev1.LocalObjectReference{
-					Name: secretName,
-				},
+				URL: "localhost",
 			},
 			Verify: []v1alpha1.Signature{
 				{
@@ -564,7 +550,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifyComponent(context.Background(), ocm.New(), cv, "v0.0.1")
+	verified, err := ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
 	require.Error(t, err)
 	assert.False(t, verified, "verified should have been false, but it did not")
 }
