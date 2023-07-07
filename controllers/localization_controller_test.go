@@ -736,50 +736,49 @@ localization:
 			}, snapshotOutput)
 			require.NoError(t, err)
 			args := cache.PushDataCallingArgumentsOnCall(0)
-			data, name, version := args[0], args[1], args[2]
-			assert.Equal(t, "sha-18322151501422808564", name)
-			assert.Equal(t, "999", version)
+			assert.Equal(t, "sha-18322151501422808564", args.Name)
+			assert.Equal(t, "999", args.Version)
 
 			t.Log("extracting the passed in data and checking if the localization worked")
 			require.NoError(t, err)
 			assert.Contains(
 				t,
-				data.(string),
+				args.Content,
 				"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
 				"the image should have been altered during localization",
 			)
 
 			assert.Contains(
 				t,
-				data.(string),
+				args.Content,
 				"registry: ghcr.io",
 				"the registry should have been altered during localization",
 			)
 
 			assert.Contains(
 				t,
-				data.(string),
+				args.Content,
 				"repository: mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
 				"the repository should have been altered during localization",
 			)
 
 			assert.Contains(
 				t,
-				data.(string),
+				args.Content,
 				"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
 				"the reference should have been altered during localization",
 			)
 
 			assert.Contains(
 				t,
-				data.(string),
+				args.Content,
 				"version: v0.0.1",
 				"the labels should have been added via the localization mapping",
 			)
 
 			assert.Contains(
 				t,
-				data.(string),
+				args.Content,
 				"name: introspect-image-sha256-1.0.0",
 				"the custome resource spec.values should have been updated via the localization mapping",
 			)

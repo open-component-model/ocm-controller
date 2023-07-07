@@ -36,17 +36,23 @@ func TestClient_GetResource(t *testing.T) {
 	resourceVersion := "v0.0.1"
 	data := "testdata"
 
-	res := Resource{
-		Name:    resource,
-		Version: resourceVersion,
-		Data:    data,
-	}
+	octx := ocmcontext.NewFakeOCMContext()
 
-	err := env.AddComponentVersionToRepository(Component{
+	comp := &ocmcontext.Component{
 		Name:    component,
 		Version: "v0.0.1",
-	}, res)
-	require.NoError(t, err)
+	}
+	res := &ocmcontext.Resource{
+		Name:      resource,
+		Version:   resourceVersion,
+		Data:      []byte(data),
+		Component: comp,
+		Kind:      "localBlob",
+		Type:      "ociBlob",
+	}
+	comp.Resources = append(comp.Resources, res)
+
+	octx.AddComponent(comp)
 
 	cd := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -58,26 +64,14 @@ func TestClient_GetResource(t *testing.T) {
 		},
 	}
 
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
-			Namespace: "default",
-		},
-		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
-		},
-		Type: "Opaque",
-	}
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cd))
+	cache := &fakes.FakeCache{}
+	cache.IsCachedReturns(false, nil)
+	cache.FetchDataByDigestReturns(io.NopCloser(strings.NewReader("mockdata")), nil)
+	cache.PushDataReturns("sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", nil)
 
-	fakeKubeClient := env.FakeKubeClient(WithObjects(secret, cd))
-	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"),
-		oci.WithClient(fakeKubeClient),
-		oci.WithNamespace("default"),
-		oci.WithCertificateSecret("registry-certs"),
-	)
 	ocmClient := NewClient(fakeKubeClient, cache)
+
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -112,12 +106,20 @@ func TestClient_GetResource(t *testing.T) {
 		},
 	}
 
-	reader, digest, err := ocmClient.GetResource(context.Background(), ocm.New(), cv, resourceRef)
+	reader, digest, err := ocmClient.GetResource(context.Background(), octx, cv, resourceRef)
 	assert.NoError(t, err)
 	content, err := io.ReadAll(reader)
 	require.NoError(t, err)
-	assert.Equal(t, data, string(content))
+	assert.Equal(t, "mockdata", string(content))
 	assert.Equal(t, "sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", digest)
+
+	// verify that the cache has been called with the right resource data to cache.
+	args := cache.PushDataCallingArgumentsOnCall(0)
+
+	assert.Equal(t, data, args.Content)
+
+	assert.Equal(t, "sha-2705577397727487661", args.Name, "pushed name did not match constructed name from identity of the resource")
+	assert.Equal(t, resourceRef.Version, args.Version)
 }
 
 func TestClient_GetComponentVersion(t *testing.T) {

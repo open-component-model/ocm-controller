@@ -24,7 +24,7 @@ type FakeCache struct {
 	isCachedCalledWith            [][]any
 	pushDataString                string
 	pushDataErr                   error
-	pushDataCalledWith            [][]any
+	pushDataCalledWith            []PushDataArguments
 	fetchDataByIdentityReader     io.ReadCloser
 	fetchDataByIdentityDigest     string
 	fetchDataByIdentityErr        error
@@ -59,7 +59,8 @@ func (f *FakeCache) PushData(ctx context.Context, data io.ReadCloser, name, tag 
 	if err != nil {
 		return "", fmt.Errorf("failed to read read closer: %w", err)
 	}
-	f.pushDataCalledWith = append(f.pushDataCalledWith, []any{string(content), name, tag})
+
+	f.pushDataCalledWith = append(f.pushDataCalledWith, PushDataArguments{Content: string(content), Name: name, Version: tag})
 	return f.pushDataString, f.pushDataErr
 }
 
@@ -68,7 +69,13 @@ func (f *FakeCache) PushDataReturns(digest string, err error) {
 	f.pushDataErr = err
 }
 
-func (f *FakeCache) PushDataCallingArgumentsOnCall(i int) []any {
+type PushDataArguments struct {
+	Name    string
+	Version string
+	Content string
+}
+
+func (f *FakeCache) PushDataCallingArgumentsOnCall(i int) PushDataArguments {
 	return f.pushDataCalledWith[i]
 }
 

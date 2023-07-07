@@ -817,7 +817,7 @@ configuration:
 			if tt.patchStrategicMerge != nil {
 				t.Log("verifying that the strategic merge was performed")
 				args := cache.PushDataCallingArgumentsOnCall(0)
-				data := args[0].(string)
+				data := args.Content
 				sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(data))), "merge-target.yaml")
 				deployment := appsv1.Deployment{}
 				err = yaml.Unmarshal(sourceFile, &deployment)
@@ -828,12 +828,11 @@ configuration:
 			} else {
 				t.Log("extracting the passed in data and checking if the configuration worked")
 				args := cache.PushDataCallingArgumentsOnCall(0)
-				data, name, version := args[0], args[1], args[2]
-				assert.Equal(t, "sha-18322151501422808564", name)
-				assert.Equal(t, "999", version)
+				assert.Equal(t, "sha-18322151501422808564", args.Name)
+				assert.Equal(t, "999", args.Version)
 				assert.Contains(
 					t,
-					data.(string),
+					args.Content,
 					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
 					"the configuration data should have been applied",
 				)
