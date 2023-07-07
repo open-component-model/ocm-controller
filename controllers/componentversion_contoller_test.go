@@ -24,7 +24,6 @@ import (
 	"github.com/open-component-model/ocm/pkg/common/accessobj"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/comparch"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
@@ -280,7 +279,7 @@ func (m *mockComponent) GetDescriptor() *ocmdesc.ComponentDescriptor {
 }
 
 // how to get resource access for resource?
-func (m *mockComponent) GetResource(id ocmmetav1.Identity) (ocm.ResourceAccess, error) {
+func (m *mockComponent) GetResource(id v1.Identity) (ocm.ResourceAccess, error) {
 	r, err := m.descriptor.GetResourceByIdentity(id)
 	if err != nil {
 		return nil, err

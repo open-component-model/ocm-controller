@@ -123,29 +123,18 @@ func TestClient_GetResource(t *testing.T) {
 }
 
 func TestClient_GetComponentVersion(t *testing.T) {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
-			Namespace: "default",
-		},
-		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
-		},
-		Type: "Opaque",
-	}
-
-	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
-	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"), oci.WithClient(fakeKubeClient))
-	ocmClient := NewClient(fakeKubeClient, cache)
 	component := "github.com/skarlso/ocm-demo-index"
-
-	err := env.AddComponentVersionToRepository(Component{
+	octx := ocmcontext.NewFakeOCMContext()
+	comp := &ocmcontext.Component{
 		Name:    component,
 		Version: "v0.0.1",
-	})
-	require.NoError(t, err)
+	}
+
+	require.NoError(t, octx.AddComponent(comp))
+
+	fakeKubeClient := env.FakeKubeClient()
+	cache := &fakes.FakeCache{}
+	ocmClient := NewClient(fakeKubeClient, cache)
 
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
@@ -166,7 +155,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 		},
 	}
 
-	cva, err := ocmClient.GetComponentVersion(context.Background(), ocm.New(), cv, component, "v0.0.1")
+	cva, err := ocmClient.GetComponentVersion(context.Background(), octx, cv, component, "v0.0.1")
 	assert.NoError(t, err)
 	assert.Equal(t, cv.Spec.Component, cva.GetName())
 }
@@ -181,7 +170,7 @@ func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
 		Spec: v1alpha1.ComponentVersionSpec{
 			Component: component,
 			Repository: v1alpha1.Repository{
-				URL: env.repositoryURL,
+				URL: "localhost",
 				SecretRef: &corev1.LocalObjectReference{
 					Name: "test-secret",
 				},
@@ -202,35 +191,16 @@ func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
 		Type: corev1.SecretTypeDockerConfigJson,
 	}
 
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
-			Namespace: "default",
-		},
-		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
-		},
-		Type: "Opaque",
-	}
-	trimmedURL := strings.TrimPrefix(env.repositoryURL, "http://")
-	fakeKubeClient := env.FakeKubeClient(WithObjects(secret, cs, testSecret))
-	cache := oci.NewClient(trimmedURL, oci.WithClient(fakeKubeClient))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cs, testSecret))
+	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-
-	err := env.AddComponentVersionToRepository(Component{
-		Name:    component,
-		Version: "v0.0.1",
-	})
-	require.NoError(t, err)
 
 	octx, err := ocmClient.CreateAuthenticatedOCMContext(context.Background(), cs)
 	require.NoError(t, err)
 
 	id := cpi.ConsumerIdentity{
 		cpi.ID_TYPE:            identity.CONSUMER_TYPE,
-		identity.ID_HOSTNAME:   trimmedURL,
+		identity.ID_HOSTNAME:   "localhost",
 		identity.ID_PATHPREFIX: "skarlso",
 	}
 
@@ -253,7 +223,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 		Spec: v1alpha1.ComponentVersionSpec{
 			Component: "github.com/skarlso/ocm-demo-index",
 			Repository: v1alpha1.Repository{
-				URL: env.repositoryURL,
+				URL: "localhost",
 			},
 			ServiceAccountName: "test-service-account",
 		},
@@ -277,7 +247,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 		Data: map[string][]byte{
 			".dockerconfigjson": []byte(`{
   "auths": {
-    "ghcr.io": {
+    "localhost": {
       "username": "skarlso",
       "password": "password",
       "auth": "c2thcmxzbzpwYXNzd29yZAo="
@@ -287,37 +257,16 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 		},
 		Type: corev1.SecretTypeDockerConfigJson,
 	}
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
-			Namespace: "default",
-		},
-		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
-		},
-		Type: "Opaque",
-	}
 
-	fakeKubeClient := env.FakeKubeClient(WithObjects(secret, cs, serviceAccount, testSecret))
-	trimmedURL := strings.TrimPrefix(env.repositoryURL, "http://")
-	cache := oci.NewClient(trimmedURL, oci.WithClient(fakeKubeClient))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cs, serviceAccount, testSecret))
+	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/skarlso/ocm-demo-index"
-
-	err := env.AddComponentVersionToRepository(Component{
-		Name:    component,
-		Version: "v0.0.1",
-	})
-	require.NoError(t, err)
-
 	octx, err := ocmClient.CreateAuthenticatedOCMContext(context.Background(), cs)
 	require.NoError(t, err)
 
 	id := cpi.ConsumerIdentity{
 		cpi.ID_TYPE:            identity.CONSUMER_TYPE,
-		identity.ID_HOSTNAME:   "ghcr.io",
+		identity.ID_HOSTNAME:   "localhost",
 		identity.ID_PATHPREFIX: "skarlso",
 	}
 	creds, err := octx.CredentialsContext().GetCredentialsForConsumer(id)
@@ -327,7 +276,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 
 	assert.Equal(t, "password", consumer.Properties()["password"])
 	assert.Equal(t, "skarlso", consumer.Properties()["username"])
-	assert.Equal(t, "ghcr.io", consumer.Properties()["serverAddress"])
+	assert.Equal(t, "localhost", consumer.Properties()["serverAddress"])
 }
 
 func TestClient_GetLatestValidComponentVersion(t *testing.T) {
@@ -492,33 +441,24 @@ func TestClient_VerifyComponent(t *testing.T) {
 			Signature: publicKey1,
 		},
 	}
-	certSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
-			Namespace: "default",
-		},
-		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
-		},
-		Type: "Opaque",
-	}
-
-	fakeKubeClient := env.FakeKubeClient(WithObjects(secret, certSecret))
-	cache := oci.NewClient(strings.TrimPrefix(env.repositoryURL, "http://"), oci.WithClient(fakeKubeClient), oci.WithCertificateSecret("registry-certs"), oci.WithNamespace("default"))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
+	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
 	component := "github.com/skarlso/ocm-demo-index"
 
-	err = env.AddComponentVersionToRepository(Component{
+	octx := ocmcontext.NewFakeOCMContext()
+
+	c := &ocmcontext.Component{
 		Name:    component,
 		Version: "v0.0.1",
-		Sign: &Sign{
-			Name: Signature,
-			Key:  privateKey,
+		Sign: &ocmcontext.Sign{
+			Name:    Signature,
+			PrivKey: privateKey,
+			PubKey:  publicKey1,
+			Digest:  "2f397fb5022858a35ce5a667d0697eb08b62c8b26fd37e5f3ea33865f2a48477",
 		},
-	})
-	require.NoError(t, err)
+	}
+	require.NoError(t, octx.AddComponent(c))
 
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
@@ -546,8 +486,8 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifyComponent(context.Background(), ocm.New(), cv, "v0.0.1")
-	assert.NoError(t, err)
+	verified, err := ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
+	require.NoError(t, err)
 	assert.True(t, verified, "verified should have been true, but it did not")
 }
 

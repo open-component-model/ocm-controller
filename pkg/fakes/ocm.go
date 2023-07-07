@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/mandelsoft/logging"
 	"github.com/open-component-model/ocm/pkg/contexts/credentials"
+	"github.com/open-component-model/ocm/pkg/contexts/datacontext"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
+	"github.com/open-component-model/ocm/pkg/signing/handlers/rsa"
+	"github.com/open-component-model/ocm/pkg/signing/hasher/sha256"
+	"github.com/opencontainers/go-digest"
 )
 
 // Resource presents a simple layout for a resource that AddComponentVersionToRepository will use.
@@ -26,16 +31,21 @@ type Resource struct {
 
 // Sign defines the two needed values to perform a component signing.
 type Sign struct {
-	Name string
-	Key  []byte
+	Name    string
+	PubKey  []byte
+	PrivKey []byte
+	Digest  string
 }
 
 // Component presents a simple layout for a component. If `Sign` is not empty, it's used to
 // sign the component. It should be the byte representation of a private key.
 // This has to implement ocm.ComponentVersionAccess.
+// Add References. Right now, only resources are supported.
 type Component struct {
 	ocm.ComponentVersionAccess
-	repository *mockRepository
+	repository          *mockRepository
+	context             *Context
+	componentDescriptor *compdesc.ComponentDescriptor
 
 	Name      string
 	Version   string
@@ -53,11 +63,21 @@ type Context struct {
 
 	// repo contains all the configured component versions.
 	repo *mockRepository
+
+	// attributes contains attributes for this context.
+	attributes *mockAttribute
 }
 
-func (c *Context) AddComponent(component *Component) {
+func (c *Context) AddComponent(component *Component) error {
 	// set up the repository context for the component.
 	component.repository = c.repo
+	component.context = c
+
+	descriptor, err := c.constructComponentDescriptor(component)
+	if err != nil {
+		return fmt.Errorf("failed to construct component descriptor: %w", err)
+	}
+	component.componentDescriptor = descriptor
 
 	// add the component to our global list of components
 	c.components[component.Name] = append(c.components[component.Name], component)
@@ -70,6 +90,8 @@ func (c *Context) AddComponent(component *Component) {
 
 	// add the component to the list of components for this repository
 	c.repo.cva = append(c.repo.cva, component)
+
+	return nil
 }
 
 var _ ocm.Context = &Context{}
@@ -79,6 +101,7 @@ func NewFakeOCMContext() *Context {
 	// create the context
 	c := &Context{
 		components: make(map[string][]*Component),
+		attributes: &mockAttribute{},
 	}
 
 	// create our repository and tie it to the context
@@ -96,7 +119,87 @@ func (c *Context) RepositoryForSpec(spec ocm.RepositorySpec, creds ...credential
 	return c.repo, nil
 }
 
+func (c *Context) GetAttributes() datacontext.Attributes {
+	return c.attributes
+}
+
+func (c *Context) GetContext() ocm.Context {
+	return c
+}
+
+func (c *Context) LoggingContext() logging.Context {
+	return logging.NewDefault()
+}
+
 func (c *Context) Close() error {
+	return nil
+}
+
+func (c *Context) BlobDigesters() ocm.BlobDigesterRegistry {
+	return nil
+}
+
+func (c *Context) constructComponentDescriptor(component *Component) (*compdesc.ComponentDescriptor, error) {
+	var resources compdesc.Resources
+
+	for _, res := range component.Resources {
+		resources = append(resources, compdesc.Resource{
+			ResourceMeta: compdesc.ResourceMeta{
+				ElementMeta: compdesc.ElementMeta{
+					Name:    res.Name,
+					Version: res.Version,
+				},
+			},
+			Access: res.AccessSpec(),
+		})
+	}
+
+	compd := &compdesc.ComponentDescriptor{
+		Metadata: compdesc.Metadata{
+			ConfiguredVersion: "v2",
+		},
+		ComponentSpec: compdesc.ComponentSpec{
+			ObjectMeta: ocmmetav1.ObjectMeta{
+				Name:    component.Name,
+				Version: component.Version,
+			},
+			Resources: resources,
+		},
+	}
+
+	if component.Sign != nil {
+		d := digest.FromBytes([]byte(component.Sign.Digest))
+		sig, err := rsa.Handler{}.Sign(credentials.New(), d.Hex(), 0, "", component.Sign.PrivKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create signature: %w", err)
+		}
+
+		compd.Signatures = ocmmetav1.Signatures{
+			{
+				Name: component.Sign.Name,
+				Digest: ocmmetav1.DigestSpec{
+					HashAlgorithm:          sha256.Algorithm,
+					NormalisationAlgorithm: compdesc.JsonNormalisationV1,
+					Value:                  component.Sign.Digest,
+				},
+				Signature: ocmmetav1.SignatureSpec{
+					Algorithm: sig.Algorithm,
+					Value:     sig.Value,
+					MediaType: sig.MediaType,
+				},
+			},
+		}
+	}
+
+	return compd, nil
+}
+
+// ************** Mock Attribute Values **************
+type mockAttribute struct {
+	datacontext.Attributes
+}
+
+func (m *mockAttribute) GetAttribute(name string, def ...any) any {
 	return nil
 }
 
@@ -176,6 +279,24 @@ func (c *Component) Repository() ocm.Repository {
 	return c.repository
 }
 
+func (c *Component) GetDescriptor() *compdesc.ComponentDescriptor {
+	return c.componentDescriptor
+}
+
+func (c *Component) GetContext() ocm.Context {
+	return c.context
+}
+
+func (c *Component) GetResources() []ocm.ResourceAccess {
+	accesses := make([]ocm.ResourceAccess, 0, len(c.Resources))
+
+	for _, r := range c.Resources {
+		accesses = append(accesses, r)
+	}
+
+	return accesses
+}
+
 func (c *Component) GetResource(meta ocmmetav1.Identity) (ocm.ResourceAccess, error) {
 	for _, r := range c.Resources {
 		//  && r.Version == meta["version"] --> add this at some point
@@ -185,6 +306,14 @@ func (c *Component) GetResource(meta ocmmetav1.Identity) (ocm.ResourceAccess, er
 	}
 
 	return nil, fmt.Errorf("failed to find resource on component with identity: %v", meta)
+}
+
+func (c *Component) GetName() string {
+	return c.Name
+}
+
+func (c *Component) GetVersion() string {
+	return c.Version
 }
 
 // ************** Mock Resource Access Values and Functions **************
