@@ -2,6 +2,7 @@ package fakes
 
 import (
 	"bytes"
+	"crypto"
 	"fmt"
 	"io"
 
@@ -162,6 +163,9 @@ func (c *Context) constructComponentDescriptor(component *Component) (*compdesc.
 			ObjectMeta: ocmmetav1.ObjectMeta{
 				Name:    component.Name,
 				Version: component.Version,
+				Provider: ocmmetav1.Provider{
+					Name: "acme",
+				},
 			},
 			Resources: resources,
 		},
@@ -169,7 +173,7 @@ func (c *Context) constructComponentDescriptor(component *Component) (*compdesc.
 
 	if component.Sign != nil {
 		d := digest.FromBytes([]byte(component.Sign.Digest))
-		sig, err := rsa.Handler{}.Sign(credentials.New(), d.Hex(), 0, "", component.Sign.PrivKey)
+		sig, err := rsa.Handler{}.Sign(credentials.New(), d.Hex(), crypto.SHA256, "", component.Sign.PrivKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create signature: %w", err)
 		}

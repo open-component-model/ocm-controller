@@ -455,7 +455,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 			Name:    Signature,
 			PrivKey: privateKey,
 			PubKey:  publicKey1,
-			Digest:  "2f397fb5022858a35ce5a667d0697eb08b62c8b26fd37e5f3ea33865f2a48477",
+			Digest:  "3d879ecdea45acb7f8d85b89fd653288d84af4476eac4141822142ec59c13745",
 		},
 	}
 	require.NoError(t, octx.AddComponent(c))
