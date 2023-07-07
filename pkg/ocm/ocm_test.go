@@ -14,6 +14,7 @@ import (
 
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
+	ocmcontext "github.com/open-component-model/ocm-controller/pkg/fakes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,7 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/oci"
 )
 
@@ -330,7 +332,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 	testCases := []struct {
 		name             string
 		componentVersion func(name string) *v1alpha1.ComponentVersion
-		setupComponents  func(name string) error
+		setupComponents  func(name string, context *ocmcontext.Context)
 		expectedVersion  string
 	}{
 		{
@@ -352,17 +354,14 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 					},
 				}
 			},
-			setupComponents: func(name string) error {
+			setupComponents: func(name string, context *ocmcontext.Context) {
 				// v0.0.1 should not be chosen.
 				for _, v := range []string{"v0.0.1", "v0.0.5"} {
-					if err := env.AddComponentVersionToRepository(Component{
+					context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
-					}); err != nil {
-						return err
-					}
+					})
 				}
-				return nil
 			},
 			expectedVersion: "v0.0.5",
 		},
@@ -385,16 +384,13 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 					},
 				}
 			},
-			setupComponents: func(name string) error {
+			setupComponents: func(name string, context *ocmcontext.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
-					if err := env.AddComponentVersionToRepository(Component{
+					context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
-					}); err != nil {
-						return err
-					}
+					})
 				}
-				return nil
 			},
 			expectedVersion: "v0.0.1",
 		},
@@ -417,16 +413,13 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 					},
 				}
 			},
-			setupComponents: func(name string) error {
+			setupComponents: func(name string, context *ocmcontext.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
-					if err := env.AddComponentVersionToRepository(Component{
+					context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
-					}); err != nil {
-						return err
-					}
+					})
 				}
-				return nil
 			},
 			expectedVersion: "v0.0.2",
 		},
@@ -449,49 +442,32 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 					},
 				}
 			},
-			setupComponents: func(name string) error {
+			setupComponents: func(name string, context *ocmcontext.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2"} {
-					if err := env.AddComponentVersionToRepository(Component{
+					context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
-					}); err != nil {
-						return err
-					}
+					})
 				}
-				return nil
 			},
+
 			expectedVersion: "v0.0.1",
 		},
-	}
-	key, _ := os.ReadFile(filepath.Join("testdata", "key.pem"))
-	cert, _ := os.ReadFile(filepath.Join("testdata", "cert.pem"))
-	rootCA, _ := os.ReadFile(filepath.Join("testdata", "ca.pem"))
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
-			Namespace: "default",
-		},
-		Data: map[string][]byte{
-			"caFile":   rootCA,
-			"certFile": cert,
-			"keyFile":  key,
-		},
-		Type: "Opaque",
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Helper()
 
-			fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
-			cache := oci.NewClient(env.repositoryURL, oci.WithClient(fakeKubeClient), oci.WithNamespace("default"), oci.WithCertificateSecret("registry-certs"))
+			fakeKubeClient := env.FakeKubeClient()
+			cache := &fakes.FakeCache{}
 			ocmClient := NewClient(fakeKubeClient, cache)
+			octx := ocmcontext.NewFakeOCMContext()
 			component := "github.com/skarlso/ocm-demo-index"
 
-			err := tt.setupComponents(component)
-			require.NoError(t, err)
+			tt.setupComponents(component, octx)
 			cv := tt.componentVersion(component)
 
-			latest, err := ocmClient.GetLatestValidComponentVersion(context.Background(), ocm.New(), cv)
+			latest, err := ocmClient.GetLatestValidComponentVersion(context.Background(), octx, cv)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedVersion, latest)
 		})
