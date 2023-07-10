@@ -18,16 +18,37 @@ import (
 	"github.com/open-component-model/ocm/pkg/signing/handlers/rsa"
 )
 
+// AccessOptionFunc modifies the resource's access settings.
+type AccessOptionFunc func(map[string]any)
+
+// SetAccessType sets a custom access type for a resource.
+func SetAccessType(t string) AccessOptionFunc {
+	return func(m map[string]any) {
+		m["type"] = t
+	}
+}
+
+// SetAccessRef completely overrides the globalAccess field of the resource.
+func SetAccessRef(t string) AccessOptionFunc {
+	return func(m map[string]any) {
+		m["globalAccess"].(map[string]any)["ref"] = t
+	}
+}
+
 // Resource presents a simple layout for a resource that AddComponentVersionToRepository will use.
 type Resource struct {
-	Name    string
-	Version string
-	Data    []byte
-	Kind    string
-	Type    string
+	Name     string
+	Version  string
+	Data     []byte
+	Kind     string
+	Type     string
+	Relation ocmmetav1.ResourceRelation
 
 	// The component that contains this resource. This is a backlink in OCM.
 	Component *Component
+
+	// AccessOptions to modify the access of the resource.
+	AccessOptions []AccessOptionFunc
 }
 
 // Sign defines the two needed values to perform a component signing.
@@ -44,14 +65,14 @@ type Sign struct {
 // Add References. Right now, only resources are supported.
 type Component struct {
 	ocm.ComponentVersionAccess
-	repository          *mockRepository
-	context             *Context
-	componentDescriptor *compdesc.ComponentDescriptor
+	repository *mockRepository
+	context    *Context
 
-	Name      string
-	Version   string
-	Sign      *Sign
-	Resources []*Resource
+	Name                string
+	Version             string
+	Sign                *Sign
+	Resources           []*Resource
+	ComponentDescriptor *compdesc.ComponentDescriptor
 }
 
 // Context defines a mock OCM context.
@@ -79,7 +100,7 @@ func (c *Context) AddComponent(component *Component) error {
 	if err != nil {
 		return fmt.Errorf("failed to construct component descriptor: %w", err)
 	}
-	component.componentDescriptor = descriptor
+	component.ComponentDescriptor = descriptor
 
 	// add the component to our global list of components
 	c.components[component.Name] = append(c.components[component.Name], component)
@@ -174,6 +195,8 @@ func (c *Context) constructComponentDescriptor(component *Component) (*compdesc.
 					Name:    res.Name,
 					Version: res.Version,
 				},
+				Type:     res.Type,
+				Relation: res.Relation,
 			},
 			Access: res.AccessSpec(),
 		})
@@ -294,7 +317,7 @@ func (c *Component) Repository() ocm.Repository {
 }
 
 func (c *Component) GetDescriptor() *compdesc.ComponentDescriptor {
-	return c.componentDescriptor
+	return c.ComponentDescriptor
 }
 
 func (c *Component) GetContext() ocm.Context {
@@ -358,6 +381,10 @@ func (r *Resource) Access() (ocm.AccessSpec, error) {
 		"localReference": "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
 		"mediaType":      "application/vnd.docker.distribution.manifest.v2+tar+gzip",
 		"type":           "localBlob",
+	}
+
+	for _, opt := range r.AccessOptions {
+		opt(accObj)
 	}
 
 	acc, err := ocmruntime.ToUnstructuredVersionedTypedObject(

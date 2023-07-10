@@ -136,7 +136,7 @@ func TestConfigurationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
 				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -707,7 +707,7 @@ configuration:
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
 				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},

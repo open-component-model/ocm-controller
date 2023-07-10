@@ -29,6 +29,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
+	ocmfake "github.com/open-component-model/ocm-controller/pkg/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 	ocmsnapshot "github.com/open-component-model/ocm-controller/pkg/snapshot"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
@@ -141,7 +142,7 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeCache.FetchDataByDigestReturns(content, nil)
 				fakeOcm.GetResourceReturnsOnCall(0, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -190,7 +191,7 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -247,7 +248,7 @@ func TestLocalizationReconciler(t *testing.T) {
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				fakeCache.FetchDataByDigestReturns(nil, errors.New("boo"))
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -294,7 +295,7 @@ func TestLocalizationReconciler(t *testing.T) {
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				fakeOcm.GetResourceReturns(nil, "", errors.New("boo"))
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -344,7 +345,7 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, nil, errors.New("boo"))
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -394,7 +395,7 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-				cmp := getMockComponent(t, DefaultComponent, setAccessType("unknown"))
+				cmp := getMockComponent(DefaultComponent, ocmfake.SetAccessType("unknown"))
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -444,7 +445,7 @@ func TestLocalizationReconciler(t *testing.T) {
 				require.NoError(t, err)
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-				cmp := getMockComponent(t, DefaultComponent, setAccessRef("invalid:@:1.0.0"))
+				cmp := getMockComponent(DefaultComponent, ocmfake.SetAccessRef("invalid:@:1.0.0"))
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -492,7 +493,7 @@ func TestLocalizationReconciler(t *testing.T) {
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
 				fakeOcm.GetResourceReturnsOnCall(0, io.NopCloser(bytes.NewBuffer([]byte("I am not a tar file"))), nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -552,7 +553,7 @@ localization:
     name: introspect-image
 `)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(testConfigData)), nil)
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -603,7 +604,7 @@ localization:
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				testConfigData := []byte(`iaminvalidyaml`)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(testConfigData)), nil)
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
@@ -654,7 +655,7 @@ localization:
 				fakeCache.PushDataReturns("", errors.New("boo"))
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(localizationConfigData)), nil)
-				cmp := getMockComponent(t, DefaultComponent)
+				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
