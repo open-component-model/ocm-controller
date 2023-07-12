@@ -53,8 +53,7 @@ func podinfo(t *testing.T, privateKey []byte, privateKeyName string, componentNa
 	t.Helper()
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoComponentName, version),
-		Repository: podinfoName,
+		Component: getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoComponentName, version),
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.ComponentVersionRef(shared.ComponentRef{
 				Name:          backend,
@@ -99,8 +98,7 @@ func podinfoBackend(t *testing.T, privateKey []byte, privateKeyName string, comp
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoBackendComponentName, version),
-		Repository: backend,
+		Component: getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoBackendComponentName, version),
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
 				Name:    "config",
@@ -159,8 +157,7 @@ func podinfoFrontend(t *testing.T, privateKey []byte, privateKeyName string, com
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoFrontendComponentName, version),
-		Repository: frontend,
+		Component: getComponent(privateKeyName, privateKey, componentNameIdentifier, podinfoFrontendComponentName, version),
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
 				Name:    "config",
@@ -219,8 +216,7 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 	}
 
 	return setup.Component{
-		Component:  getComponent(privateKeyName, privateKey, componentNameIdentifier, redisComponentName, version),
-		Repository: redis,
+		Component: getComponent(privateKeyName, privateKey, componentNameIdentifier, redisComponentName, version),
 		ComponentVersionModifications: []shared.ComponentModification{
 			shared.BlobResource(shared.Resource{
 				Name:    "config",

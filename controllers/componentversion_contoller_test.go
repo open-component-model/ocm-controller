@@ -20,16 +20,11 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/open-component-model/ocm/pkg/common/accessobj"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/comparch"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
-
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	ocmfake "github.com/open-component-model/ocm-controller/pkg/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
@@ -45,9 +40,10 @@ func TestComponentVersionReconcile(t *testing.T) {
 		},
 	}
 	client := env.FakeKubeClient(WithObjects(secret, cv))
-	root := &mockComponent{
-		t: t,
-		descriptor: &ocmdesc.ComponentDescriptor{
+	root := &ocmfake.Component{
+		Name:    cv.Spec.Component,
+		Version: "v0.0.1",
+		ComponentDescriptor: &ocmdesc.ComponentDescriptor{
 			ComponentSpec: ocmdesc.ComponentSpec{
 				ObjectMeta: v1.ObjectMeta{
 					Name:    cv.Spec.Component,
@@ -65,8 +61,9 @@ func TestComponentVersionReconcile(t *testing.T) {
 			},
 		},
 	}
-	embedded := &mockComponent{
-		descriptor: &ocmdesc.ComponentDescriptor{
+
+	embedded := &ocmfake.Component{
+		ComponentDescriptor: &ocmdesc.ComponentDescriptor{
 			ComponentSpec: ocmdesc.ComponentSpec{
 				ObjectMeta: v1.ObjectMeta{
 					Name:    "github.com/skarlso/embedded",
@@ -78,8 +75,8 @@ func TestComponentVersionReconcile(t *testing.T) {
 
 	fakeOcm := &fakes.MockFetcher{}
 	fakeOcm.VerifyComponentReturns(true, nil)
-	fakeOcm.GetComponentVersionReturnsForName(embedded.descriptor.ComponentSpec.Name, embedded, nil)
-	fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
+	fakeOcm.GetComponentVersionReturnsForName(embedded.ComponentDescriptor.ComponentSpec.Name, embedded, nil)
+	fakeOcm.GetComponentVersionReturnsForName(root.ComponentDescriptor.ComponentSpec.Name, root, nil)
 	fakeOcm.VerifyComponentReturns(true, nil)
 	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
 	recorder := &record.FakeRecorder{
@@ -233,6 +230,8 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 	}
 	for i, tt := range semverTests {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.description), func(t *testing.T) {
+			t.Helper()
+
 			obj := DefaultComponent.DeepCopy()
 			obj.Spec.Version.Semver = tt.givenVersion
 			obj.Status.ReconciledVersion = tt.reconciledVersion
@@ -262,70 +261,4 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			}
 		})
 	}
-}
-
-type mockComponent struct {
-	ocm.ComponentVersionAccess
-	descriptor *ocmdesc.ComponentDescriptor
-	t          *testing.T
-}
-
-func (m *mockComponent) GetName() string {
-	return m.descriptor.ComponentSpec.Name
-}
-
-func (m *mockComponent) GetDescriptor() *ocmdesc.ComponentDescriptor {
-	return m.descriptor
-}
-
-// how to get resource access for resource?
-func (m *mockComponent) GetResource(id ocmmetav1.Identity) (ocm.ResourceAccess, error) {
-	r, err := m.descriptor.GetResourceByIdentity(id)
-	if err != nil {
-		return nil, err
-	}
-	return &mockResource{resource: r, ctx: ocm.DefaultContext()}, nil
-}
-
-func (m *mockComponent) Repository() ocm.Repository {
-	return &genericocireg.Repository{}
-}
-
-func (m *mockComponent) Dup() (ocm.ComponentVersionAccess, error) {
-	return m, nil
-}
-
-func (m *mockComponent) Close() error {
-	return nil
-}
-
-type mockResource struct {
-	ctx      ocm.Context
-	resource ocmdesc.Resource
-}
-
-func (r *mockResource) ComponentVersion() ocm.ComponentVersionAccess {
-	panic("implement me")
-}
-
-var _ ocm.ResourceAccess = &mockResource{}
-
-func (r *mockResource) Access() (ocm.AccessSpec, error) {
-	return r.ctx.AccessSpecForSpec(r.resource.Access)
-}
-
-func (r *mockResource) AccessMethod() (ocm.AccessMethod, error) {
-	ca, err := comparch.New(r.ctx, accessobj.ACC_CREATE, nil, nil, nil, 0600)
-	if err != nil {
-		return nil, err
-	}
-	spec, err := r.ctx.AccessSpecForSpec(r.resource.Access)
-	if err != nil {
-		return nil, err
-	}
-	return spec.AccessMethod(ca)
-}
-
-func (r *mockResource) Meta() *ocm.ResourceMeta {
-	return &ocm.ResourceMeta{ElementMeta: *r.resource.GetMeta()}
 }
