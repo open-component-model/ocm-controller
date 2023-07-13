@@ -69,4 +69,13 @@ resources:
   kind: FluxDeployer
   path: github.com/open-component-model/ocm-controller/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: ocm.software
+  group: delivery
+  kind: ResourcePipeline
+  path: github.com/open-component-model/ocm-controller/api/v1alpha1
+  version: v1alpha1
 version: "3"
