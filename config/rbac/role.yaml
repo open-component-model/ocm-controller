@@ -150,6 +150,32 @@ rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
+  - resourcepipelines
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - resourcepipelines/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - resourcepipelines/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
   - resources
   verbs:
   - create
