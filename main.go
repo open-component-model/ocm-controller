@@ -60,13 +60,43 @@ func main() {
 		ociRegistryNamespace          string
 	)
 
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(
+		&metricsAddr,
+		"metrics-bind-address",
+		":8080",
+		"The address the metric endpoint binds to.",
+	)
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&ociRegistryAddr, "oci-registry-addr", ":5000", "The address of the OCI registry.")
-	flag.StringVar(&ociRegistryCertSecretName, "certificate-secret-name", v1alpha1.DefaultRegistryCertificateSecretName, "")
-	flag.StringVar(&ociRegistryNamespace, "oci-registry-namespace", "ocm-system", "The namespace in which the registry is running in.")
-	flag.BoolVar(&ociRegistryInsecureSkipVerify, "oci-registry-insecure-skip-verify", false, "Skip verification of the certificate that the registry is using.")
+	flag.StringVar(
+		&probeAddr,
+		"health-probe-bind-address",
+		":8081",
+		"The address the probe endpoint binds to.",
+	)
+	flag.StringVar(
+		&ociRegistryAddr,
+		"oci-registry-addr",
+		":5000",
+		"The address of the OCI registry.",
+	)
+	flag.StringVar(
+		&ociRegistryCertSecretName,
+		"certificate-secret-name",
+		v1alpha1.DefaultRegistryCertificateSecretName,
+		"",
+	)
+	flag.StringVar(
+		&ociRegistryNamespace,
+		"oci-registry-namespace",
+		"ocm-system",
+		"The namespace in which the registry is running in.",
+	)
+	flag.BoolVar(
+		&ociRegistryInsecureSkipVerify,
+		"oci-registry-insecure-skip-verify",
+		false,
+		"Skip verification of the certificate that the registry is using.",
+	)
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -202,8 +232,11 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.ResourcePipelineReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		OCMClient:      ocmClient,
+		EventRecorder:  eventsRecorder,
+		SnapshotWriter: snapshotWriter,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ResourcePipeline")
 		os.Exit(1)

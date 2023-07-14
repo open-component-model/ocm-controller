@@ -41,12 +41,38 @@ const dockerConfigKey = ".dockerconfigjson"
 
 // Contract defines a subset of capabilities from the OCM library.
 type Contract interface {
-	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error)
-	GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error)
-	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
-	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
-	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
-	VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
+	CreateAuthenticatedOCMContext(
+		ctx context.Context,
+		obj *v1alpha1.ComponentVersion,
+	) (ocm.Context, error)
+	GetResource(
+		ctx context.Context,
+		octx ocm.Context,
+		cv *v1alpha1.ComponentVersion,
+		resource *v1alpha1.ResourceReference,
+	) (io.ReadCloser, string, error)
+	GetComponentVersion(
+		ctx context.Context,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentVersion,
+		name, version string,
+	) (ocm.ComponentVersionAccess, error)
+	GetLatestValidComponentVersion(
+		ctx context.Context,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentVersion,
+	) (string, error)
+	ListComponentVersions(
+		logger logr.Logger,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentVersion,
+	) ([]Version, error)
+	VerifyComponent(
+		ctx context.Context,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentVersion,
+		version string,
+	) (bool, error)
 }
 
 // Client implements the OCM fetcher interface.
@@ -65,7 +91,10 @@ func NewClient(client client.Client, cache cache.Cache) *Client {
 	}
 }
 
-func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error) {
+func (c *Client) CreateAuthenticatedOCMContext(
+	ctx context.Context,
+	obj *v1alpha1.ComponentVersion,
+) (ocm.Context, error) {
 	octx := ocm.New()
 
 	if obj.Spec.ServiceAccountName != "" {
@@ -82,7 +111,12 @@ func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha
 }
 
 // configureAccessCredentials configures access credentials if needed for a source/destination repository.
-func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Context, repository v1alpha1.Repository, namespace string) error {
+func (c *Client) configureAccessCredentials(
+	ctx context.Context,
+	ocmCtx ocm.Context,
+	repository v1alpha1.Repository,
+	namespace string,
+) error {
 	// If there are no credentials, this call is a no-op.
 	if repository.SecretRef == nil {
 		return nil
@@ -102,7 +136,11 @@ func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Cont
 	return nil
 }
 
-func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Context, serviceAccountName, namespace string) error {
+func (c *Client) configureServiceAccountAccess(
+	ctx context.Context,
+	octx ocm.Context,
+	serviceAccountName, namespace string,
+) error {
 	logger := log.FromContext(ctx)
 
 	logger.V(4).Info("configuring service account credentials")
@@ -142,20 +180,33 @@ func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Con
 }
 
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
-func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (_ io.ReadCloser, _ string, err error) {
+func (c *Client) GetResource(
+	ctx context.Context,
+	octx ocm.Context,
+	cv *v1alpha1.ComponentVersion,
+	resource *v1alpha1.ResourceReference,
+) (io.ReadCloser, string, error) {
 	logger := log.FromContext(ctx).WithName("ocm")
 	version := "latest"
 	if resource.ElementMeta.Version != "" {
 		version = resource.ElementMeta.Version
 	}
 
-	cd, err := component.GetComponentDescriptor(ctx, c.client, resource.ReferencePath, cv.Status.ComponentDescriptor)
+	cd, err := component.GetComponentDescriptor(
+		ctx,
+		c.client,
+		resource.ReferencePath,
+		cv.Status.ComponentDescriptor,
+	)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to find component descriptor for reference: %w", err)
 	}
 
 	if cd == nil {
-		return nil, "", fmt.Errorf("component descriptor not found for reference path: %+v", resource.ReferencePath)
+		return nil, "", fmt.Errorf(
+			"component descriptor not found for reference path: %+v",
+			resource.ReferencePath,
+		)
 	}
 
 	identity := ocmmetav1.Identity{
@@ -182,7 +233,8 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
-	logger.V(4).Info("object with name is NOT cached, proceeding to fetch", "resource", resource, "name", name, "Version", version)
+	logger.V(4).
+		Info("object with name is NOT cached, proceeding to fetch", "resource", resource, "name", name, "Version", version)
 
 	cva, err := c.GetComponentVersion(ctx, octx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
@@ -198,9 +250,17 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	var identities []ocmmetav1.Identity
 	identities = append(identities, resource.ReferencePath...)
 
-	res, _, err := utils.ResolveResourceReference(cva, ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities), cva.Repository())
+	res, _, err := utils.ResolveResourceReference(
+		cva,
+		ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities),
+		cva.Repository(),
+	)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %s %w", resource.Name, err)
+		return nil, "", fmt.Errorf(
+			"failed to resolve reference path to resource: %s %w",
+			resource.Name,
+			err,
+		)
 	}
 
 	reader, mediaType, err := c.fetchResourceReader(res, cva)
@@ -239,7 +299,12 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 }
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
-func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
+func (c *Client) GetComponentVersion(
+	ctx context.Context,
+	octx ocm.Context,
+	obj *v1alpha1.ComponentVersion,
+	name, version string,
+) (ocm.ComponentVersionAccess, error) {
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
@@ -255,7 +320,12 @@ func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj 
 	return cv, nil
 }
 
-func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
+func (c *Client) VerifyComponent(
+	ctx context.Context,
+	octx ocm.Context,
+	obj *v1alpha1.ComponentVersion,
+	version string,
+) (bool, error) {
 	logger := log.FromContext(ctx)
 
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
@@ -274,7 +344,12 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 	resolver := ocm.NewCompoundResolver(repo)
 
 	for _, signature := range obj.Spec.Verify {
-		cert, err := c.getPublicKey(ctx, obj.Namespace, signature.PublicKey.SecretRef.Name, signature.Name)
+		cert, err := c.getPublicKey(
+			ctx,
+			obj.Namespace,
+			signature.PublicKey.SecretRef.Name,
+			signature.Name,
+		)
 		if err != nil {
 			return false, fmt.Errorf("failed to get public key for verification: %w", err)
 		}
@@ -305,7 +380,10 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 		}
 
 		if value == "" {
-			return false, fmt.Errorf("signature with name '%s' not found in the list of provided ocm signatures", signature.Name)
+			return false, fmt.Errorf(
+				"signature with name '%s' not found in the list of provided ocm signatures",
+				signature.Name,
+			)
 		}
 
 		if dig.Value != value {
@@ -318,7 +396,10 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 	return true, nil
 }
 
-func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature string) ([]byte, error) {
+func (c *Client) getPublicKey(
+	ctx context.Context,
+	namespace, name, signature string,
+) ([]byte, error) {
 	var secret corev1.Secret
 	secretKey := client.ObjectKey{
 		Namespace: namespace,
@@ -338,7 +419,11 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 }
 
 // GetLatestValidComponentVersion gets the latest version that still matches the constraint.
-func (c *Client) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error) {
+func (c *Client) GetLatestValidComponentVersion(
+	ctx context.Context,
+	octx ocm.Context,
+	obj *v1alpha1.ComponentVersion,
+) (string, error) {
 	logger := log.FromContext(ctx)
 
 	versions, err := c.ListComponentVersions(logger, octx, obj)
@@ -375,7 +460,11 @@ type Version struct {
 	Version string
 }
 
-func (c *Client) ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error) {
+func (c *Client) ListComponentVersions(
+	logger logr.Logger,
+	octx ocm.Context,
+	obj *v1alpha1.ComponentVersion,
+) ([]Version, error) {
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
 
 	repo, err := octx.RepositoryForSpec(repoSpec)

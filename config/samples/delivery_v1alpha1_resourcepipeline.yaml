@@ -2,12 +2,21 @@ apiVersion: delivery.ocm.software/v1alpha1
 kind: ResourcePipeline
 metadata:
   name: resolver
+  namespace: ocm-system
 spec:
   interval: 10m0s
   sourceRef:
     name: podinfo
-    namespace: default
+    namespace: ocm-system
     resource: manifests
+  secrets:
+    kubeconfig:
+      secretStoreRef:
+        name: kubernetes
+        namespace: ocm-system
+      remoteRef:
+        key: kind-kubeconfig
+        property: kubeconfig
   pipelineSpec:
     steps:
       - name: resolve

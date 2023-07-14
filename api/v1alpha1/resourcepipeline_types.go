@@ -5,6 +5,10 @@
 package v1alpha1
 
 import (
+	"strings"
+	"time"
+
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,22 +20,22 @@ type ResourcePipelineSpec struct {
 	Interval metav1.Duration `json:"interval"`
 
 	// +optional
+	Suspend bool `json:"suspend,omitempty"`
+
+	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
 	// +required
-	SourceRef ResourcePipelineSource `json:"sourceRef"`
+	SourceRef ObjectReference `json:"sourceRef"`
 
 	// +optional
-	Secrets []ResourcePipelineSecretSpec `json:"secrets,omitempty"`
+	Secrets map[string]ResourcePipelineSecretSpec `json:"secrets,omitempty"`
 
 	// +optional
 	Parameters *apiextensionsv1.JSON `json:"parameters,omitempty"`
 
 	// +optional
 	PipelineSpec *PipelineSpec `json:"pipelineSpec,omitempty"`
-
-	// +optional
-	DeliverySpec *DeliverySpec `json:"deliverySpec,omitempty"`
 }
 
 // ResourcePipelineSource defines the component version and resource
@@ -51,7 +55,7 @@ type ResourcePipelineSource struct {
 // that can be used within either the pipeline or delivery stages.
 type ResourcePipelineSecretSpec struct {
 	// +required
-	Name string `json:"name"`
+	RemoteRef esv1beta1.ExternalSecretDataRemoteRef `json:"remoteRef"`
 
 	// +required
 	SecretStoreRef meta.NamespacedObjectReference `json:"secretStoreRef"`
@@ -75,16 +79,32 @@ type WasmStep struct {
 	Name string `json:"name"`
 
 	// +kubebuilder:example="ocm.software/modules:v1.0.0@kustomizer"
-	// +kubebuilder:validation:Pattern="^([A-Za-z0-9\\.\\/]+):(v[0-9\\.]+)@([a-z]+)$"
+	// +kubebuilder:validation:Pattern="^([A-Za-z0-9\\.\\/]+):(v[0-9\\.\\-a-z]+)@([a-z]+)$"
 	// +required
 	Module string `json:"module"`
 
-	// +kubebuilder:default="ghcr.io/open-component-model/delivery"
+	// +kubebuilder:default="ghcr.io/open-component-model"
 	// +optional
 	Registry string `json:"registry,omitempty"`
 
 	// +optional
+	// SECRET_STORE
+	// SECRET_VALUE_NAME ( S3_TOKEN )
+	// Take a peak at Tekton.
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
+}
+
+func (w WasmStep) GetComponent() string {
+	return strings.Split(w.Module, ":")[0]
+}
+
+func (w WasmStep) GetComponentVersion() string {
+	p1 := strings.Split(w.Module, ":")[1]
+	return strings.Split(p1, "@")[0]
+}
+
+func (w WasmStep) GetResource() string {
+	return strings.Split(w.Module, "@")[1]
 }
 
 // ResourcePipelineStatus defines the observed state of ResourcePipeline
@@ -95,6 +115,37 @@ type ResourcePipelineStatus struct {
 
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// +optional
+	LatestSnapshotDigest string `json:"latestSnapshotDigest,omitempty"`
+
+	// +optional
+	SnapshotName string `json:"snapshotName,omitempty"`
+}
+
+// GetRequeueAfter returns the duration after which the Resource should be reconciled.
+func (in ResourcePipeline) GetRequeueAfter() time.Duration {
+	return in.Spec.Interval.Duration
+}
+
+// GetSnapshotDigest returns the digest of the Resource's associated Snapshot.
+func (in ResourcePipeline) GetSnapshotDigest() string {
+	return in.Status.LatestSnapshotDigest
+}
+
+// GetSnapshotName returns the name of the Resource's associated Snapshot.
+func (in ResourcePipeline) GetSnapshotName() string {
+	return in.Status.SnapshotName
+}
+
+// GetConditions returns the conditions of the ComponentVersion.
+func (in *ResourcePipeline) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the conditions of the ComponentVersion.
+func (in *ResourcePipeline) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
 }
 
 //+kubebuilder:object:root=true

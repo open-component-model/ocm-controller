@@ -57,12 +57,17 @@ func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
 	for _, o := range opts {
 		o(t)
 	}
-
-	return fake.NewClientBuilder().WithScheme(t.scheme).WithObjects(t.obj...).Build()
+	return fake.NewClientBuilder().
+		WithScheme(t.scheme).
+		WithObjects(t.obj...).
+		WithStatusSubresource(t.obj...).
+		Build()
 }
 
 // FakeKubeClient creates a fake kube client with some defaults and optional arguments.
-func (t *testEnv) FakeDynamicKubeClient(opts ...FakeKubeClientOption) *fakedynamic.FakeDynamicClient {
+func (t *testEnv) FakeDynamicKubeClient(
+	opts ...FakeKubeClientOption,
+) *fakedynamic.FakeDynamicClient {
 	for _, o := range opts {
 		o(t)
 	}
@@ -217,7 +222,10 @@ var (
 	}
 )
 
-func getMockComponent(cv *v1alpha1.ComponentVersion, opts ...ocmfake.AccessOptionFunc) ocm.ComponentVersionAccess {
+func getMockComponent(
+	cv *v1alpha1.ComponentVersion,
+	opts ...ocmfake.AccessOptionFunc,
+) ocm.ComponentVersionAccess {
 	res := &ocmfake.Resource{
 		Name:          "introspect-image",
 		Version:       "1.0.0",

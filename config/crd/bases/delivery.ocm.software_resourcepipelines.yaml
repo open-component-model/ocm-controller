@@ -35,35 +35,6 @@ spec:
           spec:
             description: ResourcePipelineSpec defines the desired state of ResourcePipeline
             properties:
-              deliverySpec:
-                description: DeliverySpec holds a set of targets onto which the pipeline
-                  output will be deployed.
-                properties:
-                  targets:
-                    items:
-                      description: WasmStep defines the name version and location
-                        of a wasm module that is stored// in an ocm component. The
-                        format of the module name must be <component-name>:<component-version>@<resource-name>.
-                        Optionally a registry address can be specified.
-                      properties:
-                        module:
-                          pattern: ^([A-Za-z0-9\.\/]+):(v[0-9\.]+)@([a-z]+)$
-                          type: string
-                        name:
-                          type: string
-                        registry:
-                          default: ghcr.io/open-component-model/delivery
-                          type: string
-                        values:
-                          x-kubernetes-preserve-unknown-fields: true
-                      required:
-                      - module
-                      - name
-                      type: object
-                    type: array
-                required:
-                - targets
-                type: object
               interval:
                 type: string
               parameters:
@@ -79,14 +50,16 @@ spec:
                         Optionally a registry address can be specified.
                       properties:
                         module:
-                          pattern: ^([A-Za-z0-9\.\/]+):(v[0-9\.]+)@([a-z]+)$
+                          pattern: ^([A-Za-z0-9\.\/]+):(v[0-9\.\-a-z]+)@([a-z]+)$
                           type: string
                         name:
                           type: string
                         registry:
-                          default: ghcr.io/open-component-model/delivery
+                          default: ghcr.io/open-component-model
                           type: string
                         values:
+                          description: SECRET_STORE SECRET_VALUE_NAME ( S3_TOKEN )
+                            Take a peak at Tekton.
                           x-kubernetes-preserve-unknown-fields: true
                       required:
                       - module
@@ -97,13 +70,42 @@ spec:
                 - steps
                 type: object
               secrets:
-                items:
+                additionalProperties:
                   description: ResourcePipelineSecretSpec specifies access to a secret
                     resource that can be used within either the pipeline or delivery
                     stages.
                   properties:
-                    name:
-                      type: string
+                    remoteRef:
+                      description: ExternalSecretDataRemoteRef defines Provider data
+                        location.
+                      properties:
+                        conversionStrategy:
+                          default: Default
+                          description: Used to define a conversion Strategy
+                          type: string
+                        decodingStrategy:
+                          default: None
+                          description: Used to define a decoding Strategy
+                          type: string
+                        key:
+                          description: Key is the key used in the Provider, mandatory
+                          type: string
+                        metadataPolicy:
+                          description: Policy for fetching tags/labels from provider
+                            secrets, possible options are Fetch, None. Defaults to
+                            None
+                          type: string
+                        property:
+                          description: Used to select a specific property of the Provider
+                            value (if a map), if supported
+                          type: string
+                        version:
+                          description: Used to select a specific version of the Provider
+                            value, if supported
+                          type: string
+                      required:
+                      - key
+                      type: object
                     secretStoreRef:
                       description: NamespacedObjectReference contains enough information
                         to locate the referenced Kubernetes resource object in any
@@ -120,26 +122,88 @@ spec:
                       - name
                       type: object
                   required:
-                  - name
+                  - remoteRef
                   - secretStoreRef
                   type: object
-                type: array
+                type: object
               serviceAccountName:
                 type: string
               sourceRef:
-                description: ResourcePipelineSource defines the component version
-                  and resource which will be processed by the pipeline.
+                description: ObjectReference defines a resource which may be accessed
+                  via a snapshot or component version
+                minProperties: 1
                 properties:
+                  apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    type: string
                   name:
+                    description: Name of the referent.
                     type: string
                   namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
                     type: string
-                  resource:
-                    type: string
+                  resourceRef:
+                    properties:
+                      extraIdentity:
+                        additionalProperties:
+                          type: string
+                        description: ExtraIdentity is the identity of an object. An
+                          additional label with key "name" ist not allowed
+                        type: object
+                      labels:
+                        description: Labels defines an optional set of additional
+                          labels describing the object.
+                        items:
+                          description: Label is a label that can be set on objects.
+                          properties:
+                            name:
+                              description: Name is the unique name of the label.
+                              type: string
+                            signing:
+                              description: Signing describes whether the label should
+                                be included into the signature
+                              type: boolean
+                            value:
+                              description: Value is the json/yaml data of the label
+                              x-kubernetes-preserve-unknown-fields: true
+                            version:
+                              description: Version is the optional specification version
+                                of the attribute value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      name:
+                        description: Name is the context unique name of the object.
+                        type: string
+                      referencePath:
+                        items:
+                          additionalProperties:
+                            type: string
+                          description: Identity describes the identity of an object.
+                            Only ascii characters are allowed
+                          type: object
+                        type: array
+                      version:
+                        description: Version is the semver version of the object.
+                        type: string
+                    required:
+                    - name
+                    - version
+                    type: object
                 required:
+                - kind
                 - name
-                - resource
                 type: object
+              suspend:
+                type: boolean
             required:
             - interval
             - sourceRef
@@ -215,10 +279,14 @@ spec:
                   - type
                   type: object
                 type: array
+              latestSnapshotDigest:
+                type: string
               observedGeneration:
                 description: ObservedGeneration is the last reconciled generation.
                 format: int64
                 type: integer
+              snapshotName:
+                type: string
             type: object
         type: object
     served: true

@@ -1,0 +1,32 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ResourcePipeline
+metadata:
+  name: pipeline
+  namespace: ocm-system
+spec:
+  interval: 2m0s
+  sourceRef:
+    name: server
+    namespace: ocm-system
+    resource: manifests
+  secrets:
+    kubeconfig:
+      secretStoreRef:
+        name: kubernetes
+        namespace: ocm-system
+      remoteRef:
+        key: kubeconfig
+        property: kubeconfig
+  pipelineSpec:
+    steps:
+    - name: resolve
+      module: ocm.software/modules:v0.2.0-test@resolver
+      values:
+        prefix: "ocm://"
+  # deliverySpec:
+  #   targets:
+  #   - name: ssa
+  #     module: ocm.software/modules:v0.4.0-test@ssa
+  #     values:
+  #       prune: true
+  #       kubeconfig: $secrets.kubeconfig

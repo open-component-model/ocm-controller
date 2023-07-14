@@ -8,6 +8,16 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
+  - secrets
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - events
   verbs:
   - create
@@ -26,12 +36,9 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - secrets
-  - serviceaccounts
+  - serviceaccounts/token
   verbs:
-  - get
-  - list
-  - watch
+  - create
 - apiGroups:
   - apps
   resources:

@@ -38,6 +38,7 @@ func SetAccessRef(t string) AccessOptionFunc {
 // Resource presents a simple layout for a resource that AddComponentVersionToRepository will use.
 type Resource struct {
 	Name     string
+	Labels   ocmmetav1.Labels
 	Version  string
 	Data     []byte
 	Kind     string
@@ -161,6 +162,11 @@ func (c *Context) RepositoryForSpec(spec ocm.RepositorySpec, creds ...credential
 	return c.repo, nil
 }
 
+func (c *Context) AccessSpecForSpec(spec compdesc.AccessSpec) (ocm.AccessSpec, error) {
+	ctx := ocm.New()
+	return ctx.AccessSpecForSpec(spec)
+}
+
 func (c *Context) GetAttributes() datacontext.Attributes {
 	return c.attributes
 }
@@ -194,6 +200,7 @@ func (c *Context) constructComponentDescriptor(component *Component) (*compdesc.
 				ElementMeta: compdesc.ElementMeta{
 					Name:    res.Name,
 					Version: res.Version,
+					Labels:  res.Labels,
 				},
 				Type:     res.Type,
 				Relation: res.Relation,
@@ -361,6 +368,7 @@ func (r *Resource) Meta() *ocm.ResourceMeta {
 	return &ocm.ResourceMeta{ElementMeta: compdesc.ElementMeta{
 		Name:    r.Name,
 		Version: r.Version,
+		Labels:  r.Labels,
 	}}
 }
 
