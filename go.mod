@@ -6,8 +6,6 @@ replace github.com/opencontainers/go-digest => github.com/opencontainers/go-dige
 
 replace github.com/google/go-containerregistry => github.com/google/go-containerregistry v0.14.1-0.20230409045903-ed5c185df419
 
-//replace github.com/open-component-model/ocm => ../ocm
-
 require (
 	cuelang.org/go v0.5.0
 	github.com/Masterminds/semver v1.5.0
@@ -31,9 +29,9 @@ require (
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.27.6
-	github.com/open-component-model/ocm v0.3.0-rc.1.0.20230705083400-20e8f630db25
+	github.com/open-component-model/ocm v0.3.0-rc.3
 	github.com/open-component-model/ocm-controllers-sdk v0.1.0
-	github.com/open-component-model/ocm-e2e-framework v0.4.1-0.20230705151517-319378142506
+	github.com/open-component-model/ocm-e2e-framework v0.5.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc3
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
@@ -190,7 +188,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.2 // indirect
-	github.com/hashicorp/go-version v1.2.1 // indirect
+	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/in-toto/in-toto-golang v0.9.0 // indirect
