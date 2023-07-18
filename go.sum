@@ -1325,8 +1325,9 @@ github.com/hashicorp/go-sockaddr v1.0.2 h1:ztczhD1jLxIRjVejw8gFomI1BQZOe2WoVOu0S
 github.com/hashicorp/go-syslog v1.0.0/go.mod h1:qPfqrKkXGihmCqbJM2mZgkZGvKG1dFdvsLplgctolz4=
 github.com/hashicorp/go-uuid v1.0.0/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
 github.com/hashicorp/go-uuid v1.0.1/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
-github.com/hashicorp/go-version v1.2.1 h1:zEfKbn2+PDgroKdiOzqiE8rsmLqU2uwi5PB5pBJ3TkI=
 github.com/hashicorp/go-version v1.2.1/go.mod h1:fltr4n8CU8Ke44wwGCBoEymUuxUHl09ZGVZPK5anwXA=
+github.com/hashicorp/go-version v1.6.0 h1:feTTfFNnjP967rlCxM/I9g701jU+RN74YKx2mOkIeek=
+github.com/hashicorp/go-version v1.6.0/go.mod h1:fltr4n8CU8Ke44wwGCBoEymUuxUHl09ZGVZPK5anwXA=
 github.com/hashicorp/go.net v0.0.1/go.mod h1:hjKkEWcCURg++eb33jQU7oqQcI9XDCnUzHA0oac0k90=
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
@@ -1587,12 +1588,12 @@ github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAl
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
 github.com/onsi/gomega v1.27.6 h1:ENqfyGeS5AX/rlXDd/ETokDz93u0YufY1Pgxuy/PvWE=
 github.com/onsi/gomega v1.27.6/go.mod h1:PIQNjfQwkP3aQAH7lf7j87O/5FiNr+ZR8+ipb+qQlhg=
-github.com/open-component-model/ocm v0.3.0-rc.1.0.20230705083400-20e8f630db25 h1:W/ZoJEFmWMA5GxaLc6kKcuhxgsEOHUoUbEb0bEkAUnU=
-github.com/open-component-model/ocm v0.3.0-rc.1.0.20230705083400-20e8f630db25/go.mod h1:9fRnNEKGiTk3SOQWgUJ1MewxL6prwUlhx6NaNsDD0VI=
+github.com/open-component-model/ocm v0.3.0-rc.3 h1:DhRhSYWerkZiADN8bo+9Uu9aTljyp8RoitrgQusBNm4=
+github.com/open-component-model/ocm v0.3.0-rc.3/go.mod h1:LmsnU1AH/+2O4X6F6Ohoxq08GYo34v2Fv2JACDPixrA=
 github.com/open-component-model/ocm-controllers-sdk v0.1.0 h1:OA7lgwN2+MHOMFR7ov3PvqFiJO6qZNpFbmVWyNuERow=
 github.com/open-component-model/ocm-controllers-sdk v0.1.0/go.mod h1:zdEsen2qJ4HizPcMqmxYsgcGxQgspiL1Xw7fcKfjpAc=
-github.com/open-component-model/ocm-e2e-framework v0.4.1-0.20230705151517-319378142506 h1:2HNNAet12Dz38LD/Ou4n3NTw6IK9HXRVPPTsbvT1yEE=
-github.com/open-component-model/ocm-e2e-framework v0.4.1-0.20230705151517-319378142506/go.mod h1:71OBk5mUu76i1zRKs/ygqdX1i5dTJ2pF1gPnsBavEw4=
+github.com/open-component-model/ocm-e2e-framework v0.5.0 h1:pfH/cAOQ2ol2DCdmsAnN1BAVdaEaO0vBx6eRCp9O5Uk=
+github.com/open-component-model/ocm-e2e-framework v0.5.0/go.mod h1:M7OeQBkexlDL5xVomC8g/buwG22+oNi7m/Oc/N8gOhw=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be h1:f2PlhC9pm5sqpBZFvnAoKj+KzXRzbjFMA+TqXfJdgho=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/go-digest/blake3 v0.0.0-20230329235805-65fac7b55eb7 h1:oXLzQ/IDIt0CA1AUUzWlYFxqkOalXZHa8uCdIFGsmn4=
