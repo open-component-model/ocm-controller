@@ -7,9 +7,9 @@ spec:
   component: component.name.signed/podinfo
   interval: 1m
   references:
-    expand: true  
+    expand: true
   repository:
-    url: http://registry.ocm-system.svc.cluster.local:5000
+    url: registry.ocm-system.svc.cluster.local:5000
   version:
     semver: ">=v1.0.0"
   verify:

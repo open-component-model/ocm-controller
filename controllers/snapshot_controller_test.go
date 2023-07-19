@@ -71,7 +71,7 @@ func TestSnapshotReconciler(t *testing.T) {
 	assert.True(t, conditions.IsTrue(snapshot, meta.ReadyCondition))
 	assert.Equal(t, "digest-1", snapshot.Status.LastReconciledDigest)
 	assert.Equal(t, "1234", snapshot.Status.LastReconciledTag)
-	assert.Equal(t, "http://127.0.0.1:5000/sha-16038726184537443379", snapshot.Status.RepositoryURL)
+	assert.Equal(t, "https://127.0.0.1:5000/sha-16038726184537443379", snapshot.Status.RepositoryURL)
 
 	close(recorder.Events)
 	event := ""

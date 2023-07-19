@@ -49,6 +49,8 @@ type FluxDeployerReconciler struct {
 	RegistryServiceName string
 	RetryInterval       time.Duration
 	DynamicClient       dynamic.Interface
+
+	CertSecretName string
 }
 
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=fluxdeployers,verbs=get;list;watch;create;update;patch;delete
@@ -191,8 +193,10 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1al
 		}
 		ociRepoCR.Spec = sourcev1beta2.OCIRepositorySpec{
 			Interval: obj.Spec.KustomizationTemplate.Interval,
-			Insecure: true,
-			URL:      url,
+			CertSecretRef: &meta.LocalObjectReference{
+				Name: r.CertSecretName,
+			},
+			URL: url,
 			Reference: &sourcev1beta2.OCIRepositoryRef{
 				Tag: tag,
 			},

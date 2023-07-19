@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/stretchr/testify/require"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,12 +19,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	ocmfake "github.com/open-component-model/ocm-controller/pkg/fakes"
 )
 
 type testEnv struct {
@@ -183,9 +182,6 @@ var (
 					},
 				},
 			},
-			OutputTemplate: &v1alpha1.SnapshotTemplateSpec{
-				Name: "test-localization-modified",
-			},
 		},
 	}
 	DefaultConfiguration = &v1alpha1.Configuration{
@@ -220,72 +216,22 @@ var (
 	}
 )
 
-type mockAccessOption func(map[string]any) error
-
-func setAccessType(t string) mockAccessOption {
-	return func(m map[string]any) error {
-		m["type"] = t
-		return nil
+func getMockComponent(cv *v1alpha1.ComponentVersion, opts ...ocmfake.AccessOptionFunc) ocm.ComponentVersionAccess {
+	res := &ocmfake.Resource{
+		Name:          "introspect-image",
+		Version:       "1.0.0",
+		Type:          "ociImage",
+		Relation:      "local",
+		AccessOptions: opts,
 	}
-}
-
-func setAccessRef(t string) mockAccessOption {
-	return func(m map[string]any) error {
-		m["globalAccess"].(map[string]any)["ref"] = t
-		return nil
+	comp := &ocmfake.Component{
+		Name:      cv.Spec.Component,
+		Version:   cv.Spec.Version.Semver,
+		Resources: []*ocmfake.Resource{res},
 	}
-}
+	res.Component = comp
 
-func getMockComponent(t *testing.T, cv *v1alpha1.ComponentVersion, opts ...mockAccessOption) *mockComponent {
-	accObj := map[string]any{
-		"globalAccess": map[string]any{
-			"digest":    "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
-			"mediaType": "application/vnd.docker.distribution.manifest.v2+tar+gzip",
-			"ref":       "ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
-			"size":      29047129,
-			"type":      "ociBlob",
-		},
-		"localReference": "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
-		"mediaType":      "application/vnd.docker.distribution.manifest.v2+tar+gzip",
-		"type":           "localBlob",
-	}
-
-	for _, f := range opts {
-		require.NoError(t, f(accObj))
-	}
-
-	acc, err := ocmruntime.ToUnstructuredVersionedTypedObject(
-		ocmruntime.UnstructuredTypedObject{
-			Object: accObj,
-		},
-	)
-	require.NoError(t, err)
-
-	cmp := &mockComponent{
-		t: t,
-		descriptor: &ocmdesc.ComponentDescriptor{
-			ComponentSpec: ocmdesc.ComponentSpec{
-				ObjectMeta: v1.ObjectMeta{
-					Name:    cv.Spec.Component,
-					Version: cv.Spec.Version.Semver,
-				},
-				Resources: []ocmdesc.Resource{
-					{
-						ResourceMeta: ocmdesc.ResourceMeta{
-							ElementMeta: ocmdesc.ElementMeta{
-								Name:    "introspect-image",
-								Version: "1.0.0",
-							},
-							Type:     "ociImage",
-							Relation: "local",
-						},
-						Access: acc,
-					},
-				},
-			},
-		},
-	}
-	return cmp
+	return comp
 }
 
 var env *testEnv

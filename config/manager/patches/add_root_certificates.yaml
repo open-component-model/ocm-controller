@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocm-controller
+  labels:
+    control-plane: controller
+spec:
+  selector:
+    matchLabels:
+      app: ocm-controller
+  template:
+    spec:
+      containers:
+        - name: manager
+          image: open-component-model/ocm-controller
+          env:
+            - name: REGISTRY_ROOT_CERTIFICATE # optionally define to override default location
+              value: /certs/ca.pem
+          volumeMounts:
+            - mountPath: "/certs"
+              name: "certificates"
+      volumes:
+        - name: "certificates"
+          secret:
+            secretName: "registry-certs"
+            items:
+              - key: "ca.pem"
+                path: "ca.pem"

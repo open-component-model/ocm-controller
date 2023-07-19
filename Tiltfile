@@ -90,6 +90,9 @@ bootstrap_or_install_flux()
 # check if installing unpacker is needed
 install_unpacker()
 
+print('applying generated secrets')
+k8s_yaml('./hack/certs/registry_certs_secret.yaml')
+
 # Use kustomize to build the install yaml files
 install = kustomize('config/default')
 
@@ -101,7 +104,15 @@ for o in objects:
         o['spec']['template']['spec']['securityContext']['runAsNonRoot'] = False
         if settings.get('debug').get('enabled'):
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
-        break
+        print('updating ocm-controller deployment to add generated certificates')
+        o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'caFile', 'path': 'ca.pem'}]}}]
+        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'root-certificate'}]
+
+    if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'registry':
+        print('updating registry deployment to add generated certificates')
+        o['spec']['template']['spec']['containers'][0]['env'] += [{'name': 'REGISTRY_HTTP_TLS_CERTIFICATE', 'value': '/certs/cert.pem'}, {'name': 'REGISTRY_HTTP_TLS_KEY', 'value': '/certs/key.pem'}, {'name': 'REGISTRY_HTTP_TLS_CLIENTCAS_0', 'value': '/certs/ca.pem'}]
+        o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'registry-certs'}]
+        o['spec']['template']['spec']['volumes'] = [{'name': 'registry-certs', 'secret': {'secretName': 'registry-certs', 'items': [{'key': 'certFile', 'path': 'cert.pem'}, {'key': 'keyFile', 'path': 'key.pem'}, {'key': 'caFile', 'path': 'ca.pem'}]}}]
 
 updated_install = encode_yaml_stream(objects)
 
@@ -134,8 +145,10 @@ local_resource(
         "api",
         "controllers",
         "pkg",
+        "hack/entrypoint.sh",
     ],
 )
+
 
 # Build the docker image for our controller. We use a specific Dockerfile
 # since tilt can't run on a scratch container.
@@ -143,7 +156,7 @@ local_resource(
 # on _any_ file change. We only want to monitor the binary.
 # If debugging is enabled, we switch to a different docker file using
 # the delve port.
-entrypoint = ['/manager']
+entrypoint = ['/entrypoint.sh', '/manager']
 dockerfile = 'tilt.dockerfile'
 if settings.get('debug').get('enabled'):
     k8s_resource('ocm-controller', port_forwards=[
@@ -160,8 +173,10 @@ docker_build_with_restart(
     entrypoint = entrypoint,
     only=[
       './bin',
+      './hack/entrypoint.sh',
     ],
     live_update = [
+        sync('./hack/entrypoint.sh', '/entrypoint.sh'),
         sync('./bin/manager', '/manager'),
     ],
 )
@@ -169,4 +184,3 @@ docker_build_with_restart(
 
 if settings.get('forward_registry'):
     k8s_resource('ocm-controller', extra_pod_selectors = [{'app': 'registry'}], port_forwards='5000:5000')
-

@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+  labels:
+    app: registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+        - name: registry
+          image: registry:2
+          env:
+            - name: REGISTRY_HTTP_TLS_CERTIFICATE
+              value: "/certs/cert.pem"
+            - name: REGISTRY_HTTP_TLS_KEY
+              value: "/certs/key.pem"
+            - name: REGISTRY_HTTP_TLS_CLIENTCAS_0
+              value: "/certs/ca.pem"
+          volumeMounts:
+            - mountPath: "/certs"
+              name: "registry-certs"
+      volumes:
+        - name: "registry-certs"
+          secret:
+            secretName: "registry-certs"
+            items:
+              - key: "certFile"
+                path: "cert.pem"
+              - key: "keyFile"
+                path: "key.pem"
+              - key: "caFile"
+                path: "ca.pem"

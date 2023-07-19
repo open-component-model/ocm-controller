@@ -274,13 +274,14 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 			signing.VerifySignature(signature.Name),
 		)
 
-		if err := opts.Complete(signingattr.Get(octx)); err != nil {
+		get := signingattr.Get(octx)
+		if err := opts.Complete(get); err != nil {
 			return false, fmt.Errorf("failed to complete signature check: %w", err)
 		}
 
 		dig, err := signing.Apply(nil, nil, cv, opts)
 		if err != nil {
-			return false, fmt.Errorf("failed to apply signing: %w", err)
+			return false, fmt.Errorf("failed to apply signing while verifying component: %w", err)
 		}
 
 		var value string

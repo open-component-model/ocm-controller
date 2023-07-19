@@ -12,6 +12,9 @@ REG_TAG ?= latest
 ENVTEST_K8S_VERSION = 1.24.1
 
 GOTESTSUM ?= $(LOCALBIN)/gotestsum
+MKCERT ?= $(LOCALBIN)/mkcert
+UNAME ?= $(shell uname|tr '[:upper:]' '[:lower:]')
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -63,7 +66,6 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 tidy:  ## Run go mod tidy
 	rm -f go.sum; go mod tidy
 
-
 .PHONY: fmt
 fmt: ## Run go fmt against code.
 	go fmt ./...
@@ -72,17 +74,23 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+##@ Testing
+
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
-e2e: test-summary-tool ## Runs e2e tests 
-	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e 
+e2e: generate-developer-certs test-summary-tool ## Runs e2e tests
+	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e
 
 .PHONY: e2e-verbose
 e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
 	$(GOTESTSUM) --format standard-verbose -- -count=1 -tags=e2e ./e2e
+
+.PHONY: generate-developer-certs
+generate-developer-certs: mkcert
+	./hack/create_developer_certificate_secrets.sh
 
 ##@ Build
 
@@ -141,7 +149,7 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 .PHONY: dev-deploy
 dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernetes cluster in ~/.kube/config
 	mkdir -p config/dev && cp -R config/default/* config/dev
-	cd config/dev && kustomize edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
+	cd config/dev && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
 	&& $(KUSTOMIZE) edit add patch --path ./patches/init-container.yaml \
 	&& $(KUSTOMIZE) edit set image open-component-model/ocm-registry=$(REG_IMG):$(REG_TAG)
 	$(KUSTOMIZE) build config/dev | kubectl apply -f -
@@ -151,18 +159,24 @@ dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernete
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
+##@ Documentation
+
+api-docs: gen-crd-api-reference-docs  ## Generate API reference documentation
+	$(GEN_CRD_API_REFERENCE_DOCS) -api-dir=./api/v1alpha1 -config=./hack/api-docs/config.json -template-dir=./hack/api-docs/template -out-file=./docs/api/v1alpha1/ocm.md
+
 ##@ Build Dependencies
-
-
 
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
+GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.9.0
+GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
+MKCERT_VERSION ?= v1.4.4
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -170,17 +184,29 @@ kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
 	curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN)
 
+.PHONY: mkcert
+mkcert: $(MKCERT)
+$(MKCERT): $(LOCALBIN)
+	curl -L "https://github.com/FiloSottile/mkcert/releases/download/$(MKCERT_VERSION)/mkcert-$(MKCERT_VERSION)-$(UNAME)-amd64" -o $(LOCALBIN)/mkcert
+	chmod +x $(LOCALBIN)/mkcert
+
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+# Find or download gen-crd-api-reference-docs
+.PHONY: gen-crd-api-reference-docs
+gen-crd-api-reference-docs: $(GEN_CRD_API_REFERENCE_DOCS)
+$(GEN_CRD_API_REFERENCE_DOCS): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/ahmetb/gen-crd-api-reference-docs@$(GEN_API_REF_DOCS_VERSION)
 
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-.PHONY: test-summary-tool 
+.PHONY: test-summary-tool
 test-summary-tool: ## Download gotestsum locally if necessary.
 	GOBIN=$(LOCALBIN) go install gotest.tools/gotestsum@${TAG}
 

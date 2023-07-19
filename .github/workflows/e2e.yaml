@@ -71,39 +71,26 @@ jobs:
                 {
                   "type": "section",
                   "fields": [
+                   {
+                      "type": "mrkdwn",
+                      "text": "*Repository:* ${{ github.server_url }}/${{ github.repository }}"
+                    },
                     {
                       "type": "mrkdwn",
-                      "text": "*Status:* ${{ steps.e2e-tests.conclusion }} " 
+                      "text": "*Status:* ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }}" 
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:* ${{ github.ref_name }}"
                     },
                     {
                       "type": "mrkdwn",
                       "text": "*Github Action:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e>"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Branch:* ${{ github.head_ref }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Repository:* ${{ github.server_url }}/${{ github.repository }}"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                   {
-                      "type": "mrkdwn",
-                      "text": "\n*Last change by:* ${{ github.actor }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Tests Triggered By:* ${{ github.triggering_actor }}"
                     }
                   ]
                 }
