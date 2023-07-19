@@ -148,7 +148,7 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Teardown(shared.DeleteSecret(keyName))
 
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
-		WithStep("create valid rsa key secret", 1, shared.CreateSecret(keyName, publicKey)).
+		WithStep("create valid rsa key secret", 1, shared.CreateSecret(keyName, map[string][]byte{keyName: publicKey}, nil, "")).
 		Assess("Check that component version "+cvName+" is ready and signature was verified", checkIsComponentVersionReady(cvName))
 
 	testEnv.Test(t,
