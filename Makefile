@@ -33,6 +33,9 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
+TINYGOROOT ?= /usr/lib/tinygo
+TINYGOFLAGS = -panic=trap -scheduler=none -target=wasi
+
 .PHONY: all
 all: build
 
@@ -92,6 +95,16 @@ e2e-verbose: test-summary-tool ## Runs e2e tests in verbose
 generate-developer-certs: mkcert
 	./hack/create_developer_certificate_secrets.sh
 
+.PHONY: build-wasm-testdata
+build-wasm-testdata:
+	tinygo build $(TINYGOFLAGS) \
+		-o ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.go
+
+	tinygo build $(TINYGOFLAGS) \
+		-o ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.go
+
+	tinygo build $(TINYGOFLAGS) \
+		-o ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.go
 ##@ Build
 
 .PHONY: build

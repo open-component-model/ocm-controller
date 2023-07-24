@@ -44,17 +44,15 @@ func getResourceURL(cv ocm.ComponentVersionAccess) types.HostFunc {
 }
 
 func getReference(octx ocm.Context, res ocm.ResourceAccess) (string, error) {
+	var err error
 	accSpec, err := res.Access()
 	if err != nil {
 		return "", err
 	}
 
-	var (
-		ref    string
-		refErr error
-	)
+	var ref string
 
-	for ref == "" && refErr == nil {
+	for ref == "" && err == nil {
 		switch x := accSpec.(type) {
 		case *ociartifact.AccessSpec:
 			ref = x.ImageReference
@@ -62,14 +60,14 @@ func getReference(octx ocm.Context, res ocm.ResourceAccess) (string, error) {
 			ref = fmt.Sprintf("%s@%s", x.Reference, x.Digest)
 		case *localblob.AccessSpec:
 			if x.GlobalAccess == nil {
-				refErr = errors.New("cannot determine image digest")
+				err = errors.New("cannot determine image digest")
 			} else {
-				accSpec, refErr = octx.AccessSpecForSpec(x.GlobalAccess)
+				accSpec, err = octx.AccessSpecForSpec(x.GlobalAccess)
 			}
 		default:
-			refErr = errors.New("cannot determine access spec type")
+			err = errors.New("cannot determine access spec type")
 		}
 	}
 
-	return ref, nil
+	return ref, err
 }
