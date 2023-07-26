@@ -6,16 +6,16 @@ import (
 	"io"
 
 	"github.com/mandelsoft/logging"
-	"github.com/open-component-model/ocm/pkg/contexts/credentials"
-	"github.com/open-component-model/ocm/pkg/contexts/datacontext"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
-	ocmsigning "github.com/open-component-model/ocm/pkg/signing"
-	"github.com/open-component-model/ocm/pkg/signing/handlers/rsa"
+	"github.com/open-component-model/ocm/v2/api"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/credentials"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/datacontext"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc"
+	ocmmetav1 "github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm/signing"
+	ocmruntime "github.com/open-component-model/ocm/v2/pkg/runtime"
+	ocmsigning "github.com/open-component-model/ocm/v2/pkg/signing"
+	"github.com/open-component-model/ocm/v2/pkg/signing/handlers/rsa"
 )
 
 // AccessOptionFunc modifies the resource's access settings.
@@ -123,11 +123,8 @@ func (c *Context) AddComponent(component *Component) error {
 			signing.Update(), signing.VerifyDigests(),
 		)
 
-		if err := opts.Complete(signingattr.Get(c)); err != nil {
-			return fmt.Errorf("failed to complete signing: %w", err)
-		}
-
-		if _, err := signing.Apply(nil, nil, component, opts); err != nil {
+		signer := &api.ComponentSigningVerifier{}
+		if _, err := signer.Sign(component, api.WithSignerOptions(component.GetContext(), opts)); err != nil {
 			return fmt.Errorf("failed to apply signing: %w", err)
 		}
 	}
@@ -166,6 +163,10 @@ func (c *Context) GetAttributes() datacontext.Attributes {
 }
 
 func (c *Context) GetContext() ocm.Context {
+	return c
+}
+
+func (c *Context) OCMContext() ocm.Context {
 	return c
 }
 
@@ -321,6 +322,10 @@ func (c *Component) GetDescriptor() *compdesc.ComponentDescriptor {
 }
 
 func (c *Component) GetContext() ocm.Context {
+	return c.context
+}
+
+func (c *Component) OCMContext() ocm.Context {
 	return c.context
 }
 

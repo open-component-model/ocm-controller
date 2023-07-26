@@ -15,20 +15,18 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/go-logr/logr"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/open-component-model/ocm/v2/api"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
-
-	csdk "github.com/open-component-model/ocm-controllers-sdk"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/credentials/repositories/dockerconfig"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm"
+	ocmmetav1 "github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm/repositories/ocireg"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm/signing"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm/utils"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -88,7 +86,7 @@ func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Cont
 
 	logger := log.FromContext(ctx)
 
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, repository.SecretRef.Name, namespace); err != nil {
+	if err := ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, repository.SecretRef.Name, namespace); err != nil {
 		logger.V(4).Error(err, "failed to find credentials")
 
 		// we don't ignore not found errors
@@ -274,12 +272,8 @@ func (c *Client) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1a
 			signing.VerifySignature(signature.Name),
 		)
 
-		get := signingattr.Get(octx)
-		if err := opts.Complete(get); err != nil {
-			return false, fmt.Errorf("failed to complete signature check: %w", err)
-		}
-
-		dig, err := signing.Apply(nil, nil, cv, opts)
+		signer := &api.ComponentSigningVerifier{}
+		dig, err := signer.Sign(cv, api.WithSignerOptions(octx, opts))
 		if err != nil {
 			return false, fmt.Errorf("failed to apply signing while verifying component: %w", err)
 		}

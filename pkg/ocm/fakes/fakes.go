@@ -10,7 +10,7 @@ import (
 	"io"
 
 	"github.com/go-logr/logr"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	ocmctrl "github.com/open-component-model/ocm-controller/pkg/ocm"

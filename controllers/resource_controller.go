@@ -36,7 +36,7 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	ocmmetav1 "github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 // ResourceReconciler reconciles a Resource object

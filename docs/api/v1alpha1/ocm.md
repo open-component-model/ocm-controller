@@ -1599,8 +1599,8 @@ ResourceStatus
 <td>
 <code>ElementMeta</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm%5c.software/v3alpha1%5c.ElementMeta">
-github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1.ElementMeta
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/versions/ocm%5c.software/v3alpha1%5c.ElementMeta">
+github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1.ElementMeta
 </a>
 </em>
 </td>
@@ -1614,8 +1614,8 @@ github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.softw
 <td>
 <code>referencePath</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Identity">
-[]github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/meta/v1/Identity">
+[]github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/meta/v1.Identity
 </a>
 </em>
 </td>

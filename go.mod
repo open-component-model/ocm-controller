@@ -29,9 +29,8 @@ require (
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.27.6
-	github.com/open-component-model/ocm v0.3.0-rc.3
-	github.com/open-component-model/ocm-controllers-sdk v0.1.0
 	github.com/open-component-model/ocm-e2e-framework v0.5.0
+	github.com/open-component-model/ocm/v2 v2.0.0-20230726095724-98cc13141b27
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc3
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
@@ -222,6 +221,7 @@ require (
 	github.com/mozillazg/docker-credential-acr-helper v0.3.0 // indirect
 	github.com/mpvl/unique v0.0.0-20150818121801-cbe035fff7de // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/open-component-model/ocm v0.3.0-rc.3 // indirect
 	github.com/opencontainers/go-digest/blake3 v0.0.0-20230329235805-65fac7b55eb7 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect

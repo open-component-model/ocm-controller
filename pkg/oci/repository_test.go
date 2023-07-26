@@ -24,8 +24,8 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+	ocmmetav1 "github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
 
 func TestRepository_Blob(t *testing.T) {

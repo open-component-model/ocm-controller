@@ -27,9 +27,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm"
+	ocmdesc "github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc"
+	compdesc "github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/component"

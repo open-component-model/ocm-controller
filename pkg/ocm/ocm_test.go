@@ -20,9 +20,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
-	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/credentials/cpi"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/oci/identity"
+	"github.com/open-component-model/ocm/v2/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
