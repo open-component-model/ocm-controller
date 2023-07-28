@@ -5,6 +5,9 @@
 package v1alpha1
 
 import (
+	"strings"
+	"time"
+
 	"github.com/fluxcd/pkg/apis/meta"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,6 +90,19 @@ type WasmStep struct {
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
+func (w WasmStep) GetComponent() string {
+	return strings.Split(w.Module, ":")[0]
+}
+
+func (w WasmStep) GetComponentVersion() string {
+	p1 := strings.Split(w.Module, ":")[1]
+	return strings.Split(p1, "@")[0]
+}
+
+func (w WasmStep) GetResource() string {
+	return strings.Split(w.Module, "@")[1]
+}
+
 // ResourcePipelineStatus defines the observed state of ResourcePipeline
 type ResourcePipelineStatus struct {
 	// ObservedGeneration is the last reconciled generation.
@@ -95,6 +111,11 @@ type ResourcePipelineStatus struct {
 
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// GetRequeueAfter returns the duration after which the Resource should be reconciled.
+func (in ResourcePipeline) GetRequeueAfter() time.Duration {
+	return in.Spec.Interval.Duration
 }
 
 //+kubebuilder:object:root=true

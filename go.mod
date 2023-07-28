@@ -22,6 +22,7 @@ require (
 	github.com/fluxcd/pkg/runtime v0.35.0
 	github.com/fluxcd/pkg/tar v0.2.0
 	github.com/fluxcd/source-controller/api v1.0.0-rc.1
+	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/google/go-containerregistry v0.15.2
 	github.com/mandelsoft/logging v0.0.0-20230331123830-36542ef18f6f
 	github.com/mandelsoft/spiff v1.7.0-beta-5
@@ -156,7 +157,6 @@ require (
 	github.com/go-chi/chi v4.1.2+incompatible // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
-	github.com/go-git/go-billy/v5 v5.4.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect

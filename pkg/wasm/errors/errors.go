@@ -15,6 +15,7 @@ const (
 	ErrDecodingYAML
 	ErrEncodingJSON
 	ErrEncodingYAML
+	ErrConfig
 )
 
 var (
@@ -30,6 +31,7 @@ var (
 	ErrDecodingYAMLMessage          = "yaml is not valid"
 	ErrEncodingJSONMessage          = "json is not valid"
 	ErrEncodingYAMLMessage          = "yaml is not valid"
+	ErrConfigMessage                = "config is not valid"
 )
 
 // Check examines whether the exit code matches an defined error and if so
@@ -60,6 +62,8 @@ func Check(result []uint64) error {
 		return errors.New(ErrEncodingJSONMessage)
 	case ErrEncodingYAML:
 		return errors.New(ErrEncodingYAMLMessage)
+	case ErrConfig:
+		return errors.New(ErrConfigMessage)
 	}
 	return nil
 }
@@ -83,4 +87,38 @@ func CheckCode(result []uint64) uint64 {
 		return err
 	}
 	return 0
+}
+
+// CheckCode examines whether the exit code matches an defined error and if so
+// returns the WasmError
+func GetMessage(err uint64) string {
+	switch err {
+	case ErrExit:
+		return ErrExitMessage
+	case ErrInvalid:
+		return ErrInvalidMessage
+	case ErrFile:
+		return ErrFileMessage
+	case ErrMemoryAllocation:
+		return ErrMemoryAllocationMessage
+	case ErrWrite:
+		return ErrWriteMessage
+	case ErrResourceNotFound:
+		return ErrResourceNotFoundMessage
+	case ErrResourceNotAccessible:
+		return ErrResourceNotAccessibleMessage
+	case ErrFileNotFound:
+		return ErrFileNotFoundMessage
+	case ErrDecodingJSON:
+		return ErrDecodingJSONMessage
+	case ErrDecodingYAML:
+		return ErrDecodingYAMLMessage
+	case ErrEncodingJSON:
+		return ErrEncodingJSONMessage
+	case ErrEncodingYAML:
+		return ErrEncodingYAMLMessage
+	case ErrConfig:
+		return ErrConfigMessage
+	}
+	return "unknown error"
 }
