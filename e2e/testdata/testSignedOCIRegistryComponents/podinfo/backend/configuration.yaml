@@ -4,7 +4,7 @@ metadata:
   name: configuration-signed-backend
   namespace: ocm-system
 spec:
-  interval: 1m
+  interval: 5s
   sourceRef:
     kind: Localization
     name: localization-signed-backend

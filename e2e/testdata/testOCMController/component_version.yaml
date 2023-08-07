@@ -5,7 +5,7 @@ metadata:
   namespace: ocm-system
 spec:
   component: component.name.pipeline/podinfo
-  interval: 1m
+  interval: 5s
   references:
     expand: true
   repository:

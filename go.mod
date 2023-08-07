@@ -348,11 +348,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0
 )
-
-replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
-
-replace github.com/open-component-model/ocm => ../ocm
-
-replace github.com/google/go-containerregistry v0.15.2 => github.com/google/go-containerregistry v0.14.1-0.20230409045903-ed5c185df419
-
-replace github.com/open-component-model/ocm-controllers-sdk => ../ocm-controllers-sdk

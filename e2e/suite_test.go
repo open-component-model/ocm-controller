@@ -20,7 +20,7 @@ import (
 var (
 	testEnv           env.Environment
 	kindClusterName   string
-	namespace         string
+	ocmNamespace      string
 	registryPort      = 5000
 	gitRepositoryPort = 3000
 	hostUrl           = "localhost"
@@ -35,15 +35,15 @@ func TestMain(m *testing.M) {
 	cfg, _ := envconf.NewFromFlags()
 	testEnv = env.NewWithConfig(cfg)
 	kindClusterName = envconf.RandomName("ocm-ctrl-e2e", 32)
-	namespace = "ocm-system"
+	ocmNamespace = "ocm-system"
 
 	stopChannelRegistry := make(chan struct{}, 1)
 	stopChannelGitea := make(chan struct{}, 1)
 
 	testEnv.Setup(
 		envfuncs.CreateKindCluster(kindClusterName),
-		envfuncs.CreateNamespace(namespace),
-		shared.StartGitServer(namespace),
+		envfuncs.CreateNamespace(ocmNamespace),
+		shared.StartGitServer(ocmNamespace),
 		shared.InstallFlux("latest"),
 		shared.RunTiltForControllers("ocm-controller"),
 		shared.ForwardPortForAppName(localOciRegistry, registryPort, stopChannelRegistry),
@@ -51,11 +51,11 @@ func TestMain(m *testing.M) {
 	)
 
 	testEnv.Finish(
-		//shared.RemoveGitServer(namespace),
+		shared.RemoveGitServer(ocmNamespace),
 		shared.ShutdownPortForward(stopChannelRegistry),
 		shared.ShutdownPortForward(stopChannelGitea),
-		//envfuncs.DeleteNamespace(namespace),
-		//envfuncs.DestroyKindCluster(kindClusterName),
+		envfuncs.DeleteNamespace(ocmNamespace),
+		envfuncs.DestroyKindCluster(kindClusterName),
 	)
 
 	os.Exit(testEnv.Run(m))

@@ -70,7 +70,7 @@ func TestOCMController(t *testing.T) {
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
 		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
 		Setup(setup.AddGitRepository(testRepoName)).
-		Setup(setup.AddFluxSyncForRepo(testRepoName, destinationPrefix, namespace))
+		Setup(setup.AddFluxSyncForRepo(testRepoName, destinationPrefix, ocmNamespace))
 
 	cvName := getYAMLField(filepath.Join(testOCMControllerPath, cvFile), identifier)
 
@@ -82,7 +82,7 @@ func TestOCMController(t *testing.T) {
 
 	componentVersion := features.New("Create Manifests").
 		Setup(setup.AddFilesToGitRepository(getManifests(testOCMControllerPath, testRepoName)...)).
-		Assess("check that component version "+cvName+" is ready and valid", checkIsComponentVersionReady(cvName))
+		Assess("check that component version "+cvName+" is ready and valid", checkIsComponentVersionReady(cvName, ocmNamespace))
 
 	componentDescriptor := features.New("Check component-descriptors exist").
 		Assess("check that component version "+cvName+" has Component Descriptors", checkCompDescriptorsExistForCompVersion(cvName, componentNamePrefix+componentNameIdentifier))
@@ -137,7 +137,7 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
 		Setup(setup.AddGitRepository(testRepoSignedName)).
 		Setup(setup.AddFilesToGitRepository(getManifests(testSignedComponentsPath, testRepoSignedName)...)).
-		Setup(setup.AddFluxSyncForRepo(testRepoSignedName, destinationPrefix, namespace)).
+		Setup(setup.AddFluxSyncForRepo(testRepoSignedName, destinationPrefix, ocmNamespace)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
@@ -149,7 +149,7 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
 		WithStep("create valid rsa key secret", 1, shared.CreateSecret(keyName, map[string][]byte{keyName: publicKey}, nil, "")).
-		Assess("Check that component version "+cvName+" is ready and signature was verified", checkIsComponentVersionReady(cvName))
+		Assess("Check that component version "+cvName+" is ready and signature was verified", checkIsComponentVersionReady(cvName, ocmNamespace))
 
 	testEnv.Test(t,
 		setupComponent.Feature(),
@@ -159,9 +159,9 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 	)
 }
 
-func checkIsComponentVersionReady(name string) features.Func {
+func checkIsComponentVersionReady(name, namespace string) features.Func {
 	return checkObjectCondition(&v1alpha1.ComponentVersion{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 	}, func(obj fconditions.Getter) bool {
 		return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, meta.SucceededReason)
 	})
@@ -321,7 +321,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 
 		t.Logf("checking readiness of Flux Deployer with name: %s...", name)
 		gr := &v1alpha1.FluxDeployer{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ocmNamespace},
 		}
 
 		err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
@@ -338,7 +338,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 
 		t.Logf("checking if oci repository %s is ready...", name)
 		sourceGR := &sourcev1.OCIRepository{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ocmNamespace},
 		}
 
 		err = wait.For(conditions.New(client.Resources()).ResourceMatch(sourceGR, func(object k8s.Object) bool {
@@ -355,7 +355,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 
 		t.Logf("checking if kustomization %s is ready...", name)
 		kustomizeGR := &kustomizev1.Kustomization{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ocmNamespace},
 		}
 
 		err = wait.For(conditions.New(client.Resources()).ResourceMatch(kustomizeGR, func(object k8s.Object) bool {
@@ -401,9 +401,9 @@ func checkCompDescriptorsExistForCompVersion(componentVersionName string, compon
 			t.Fatal(err)
 		}
 		gr := &v1alpha1.ComponentVersion{
-			ObjectMeta: metav1.ObjectMeta{Name: componentVersionName, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: componentVersionName, Namespace: ocmNamespace},
 		}
-		err = client.Resources().Get(ctx, componentVersionName, namespace, gr)
+		err = client.Resources().Get(ctx, componentVersionName, ocmNamespace, gr)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -456,7 +456,7 @@ func checkDeploymentReadiness(deploymentName string, imageName string) *features
 					t.Fatal(err)
 				}
 				gr := &appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Namespace: namespace},
+					ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Namespace: ocmNamespace},
 				}
 				err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
 					obj, ok := object.(*appsv1.Deployment)
@@ -482,7 +482,7 @@ func checkConfigMapReadiness(configmapName string, message string) *features.Fea
 					t.Fatal(err)
 				}
 				gr := &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{Name: configmapName, Namespace: namespace},
+					ObjectMeta: metav1.ObjectMeta{Name: configmapName, Namespace: ocmNamespace},
 				}
 				err = wait.For(conditions.New(client.Resources()).ResourceMatch(gr, func(object k8s.Object) bool {
 					obj, ok := object.(*corev1.ConfigMap)

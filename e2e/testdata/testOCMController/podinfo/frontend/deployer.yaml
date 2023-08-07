@@ -8,7 +8,7 @@ spec:
     kind: Configuration
     name: configuration-pipeline-frontend
   kustomizationTemplate:
-    interval: 1m0s
+    interval: 5s
     path: ./
     prune: true
     targetNamespace: ocm-system
