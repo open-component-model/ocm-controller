@@ -28,8 +28,6 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 
-	csdk "github.com/open-component-model/ocm-controllers-sdk"
-
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/component"
@@ -88,7 +86,7 @@ func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Cont
 
 	logger := log.FromContext(ctx)
 
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, repository.SecretRef.Name, namespace); err != nil {
+	if err := ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, repository.SecretRef.Name, namespace); err != nil {
 		logger.V(4).Error(err, "failed to find credentials")
 
 		// we don't ignore not found errors
