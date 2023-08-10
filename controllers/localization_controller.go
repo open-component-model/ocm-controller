@@ -83,15 +83,15 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Localization{}, configKey, func(rawObj client.Object) []string {
 		loc := rawObj.(*v1alpha1.Localization)
-		var ns = ""
-
-		if loc.Spec.ConfigRef != nil && len(loc.Spec.ConfigRef.Namespace) != 0 {
-			ns = loc.Spec.ConfigRef.Namespace
+		ns := loc.GetNamespace()
+		name := loc.GetName()
+		if loc.Spec.ConfigRef != nil {
+			name = loc.Spec.ConfigRef.Name
+			if len(loc.Spec.ConfigRef.Namespace) > 0 {
+				ns = loc.Spec.ConfigRef.Namespace
+			}
 		}
-		if len(ns) == 0 {
-			ns = loc.GetNamespace()
-		}
-		return []string{fmt.Sprintf("%s", ns)}
+		return []string{fmt.Sprintf("%s/%s", ns, name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
