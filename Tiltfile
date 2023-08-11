@@ -90,6 +90,7 @@ bootstrap_or_install_flux()
 # check if installing unpacker is needed
 install_unpacker()
 
+# https registry
 print('applying generated secrets')
 k8s_yaml('./hack/certs/registry_certs_secret.yaml', allow_duplicates = True)
 
@@ -137,7 +138,7 @@ if settings.get('debug').get('enabled'):
 
 local_resource(
     'ocm-controller-binary',
-    "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags '{gcflags}' -o bin/manager ./".format(gcflags=gcflags),
+    "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags '{gcflags}' -v -o bin/manager ./".format(gcflags=gcflags),
     deps = [
         "main.go",
         "go.mod",

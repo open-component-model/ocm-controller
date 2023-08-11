@@ -4,7 +4,7 @@ metadata:
   name: resource-pipeline-backend
   namespace: ocm-system
 spec:
-  interval: 1m
+  interval: 5s
   sourceRef:
     kind: ComponentVersion
     name: podinfo-pipeline
