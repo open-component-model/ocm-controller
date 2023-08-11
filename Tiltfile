@@ -92,8 +92,7 @@ install_unpacker()
 
 # https registry
 print('applying generated secrets')
-if os.path.exists('./hack/certs/registry_certs_secret.yaml'):
-    k8s_yaml('./hack/certs/registry_certs_secret.yaml', allow_duplicates=True)
+k8s_yaml('./hack/certs/registry_certs_secret.yaml', allow_duplicates = True)
 
 # Use kustomize to build the install yaml files
 install = kustomize('config/default')

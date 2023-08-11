@@ -86,10 +86,12 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if loc.Spec.ConfigRef == nil {
 			return nil
 		}
+
 		ns := loc.Spec.ConfigRef.Namespace
 		if ns == "" {
 			ns = loc.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, loc.Spec.ConfigRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
