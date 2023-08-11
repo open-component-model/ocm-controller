@@ -43,6 +43,7 @@ https://docs.github.com/en/free-pro-team@latest/github/managing-your-work-on-git
 - [ ] 👍 yes
 - [ ] 🙅 no, because they aren't needed
 - [ ] 🙋 no, because I need help
+- [ ] Separate ticket for tests # (issue/pr)
 
 Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
 
