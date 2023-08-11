@@ -91,7 +91,7 @@ bootstrap_or_install_flux()
 install_unpacker()
 
 print('applying generated secrets')
-k8s_yaml('./hack/certs/registry_certs_secret.yaml')
+k8s_yaml('./hack/certs/registry_certs_secret.yaml', allow_duplicates = True)
 
 # Use kustomize to build the install yaml files
 install = kustomize('config/default')
