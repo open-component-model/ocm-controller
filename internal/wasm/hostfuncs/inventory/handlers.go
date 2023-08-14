@@ -1,20 +1,20 @@
-package logging
+package inventory
 
 import (
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/internal/wasm/hostfuncs/types"
 	"github.com/tetratelabs/wazero"
-	"golang.org/x/exp/slog"
 )
 
-type handlerFunc func(*slog.Logger) types.HostFunc
+type handlerFunc func(*v1alpha1.ResourcePipeline) types.HostFunc
 
 var handlers = make(map[string]handlerFunc)
 
 // AddHandlers adds the registered handlers to the builder.
-func AddHandlers(b wazero.HostModuleBuilder, logger *slog.Logger) {
+func AddHandlers(b wazero.HostModuleBuilder, obj *v1alpha1.ResourcePipeline) {
 	for name, f := range handlers {
 		b.NewFunctionBuilder().
-			WithFunc(f(logger)).
+			WithFunc(f(obj)).
 			Export(name)
 	}
 }

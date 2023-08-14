@@ -141,7 +141,7 @@ func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha
 			return ctrl.Result{}, err
 		}
 
-		mod := wasmruntime.NewModule(step.Name, logger, cv, dir)
+		mod := wasmruntime.NewModule(step.Name, logger, obj, cv, dir)
 		defer mod.Close()
 
 		if err := mod.Run(ctx, step.Values.Raw, data); err != nil {

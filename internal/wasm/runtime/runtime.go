@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/internal/wasm/hostfuncs"
 	wasmerr "github.com/open-component-model/ocm-controller/pkg/wasm/errors"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
@@ -17,17 +18,19 @@ var (
 )
 
 type Module struct {
-	resource   string
 	logger     *slog.Logger
+	object     *v1alpha1.ResourcePipeline
 	cv         ocm.ComponentVersionAccess
+	resource   string
 	dir        string
 	finalizers []func() error
 }
 
-func NewModule(resource string, logger *slog.Logger, cv ocm.ComponentVersionAccess, dir string) *Module {
+func NewModule(resource string, logger *slog.Logger, obj *v1alpha1.ResourcePipeline, cv ocm.ComponentVersionAccess, dir string) *Module {
 	return &Module{
 		resource:   resource,
 		logger:     logger,
+		object:     obj,
 		cv:         cv,
 		dir:        dir,
 		finalizers: make([]func() error, 0),
@@ -49,7 +52,7 @@ func (m *Module) Run(ctx context.Context, config, binary []byte) error {
 		WithFSConfig(fsConfig)
 
 	builder := runtime.NewHostModuleBuilder(moduleName)
-	builder = hostfuncs.ForBuilder(builder, m.cv, m.logger)
+	builder = hostfuncs.ForBuilder(builder, m.object, m.cv, m.logger)
 	if _, err := builder.Instantiate(ctx); err != nil {
 		return err
 	}
