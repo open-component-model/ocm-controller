@@ -150,6 +150,11 @@ type ComponentVersionStatus struct {
 	Verified bool `json:"verified,omitempty"`
 }
 
+// GetComponentName returns the name of the component
+func (in *ComponentVersion) GetComponentName() string {
+	return in.Spec.Component
+}
+
 // GetVersion returns the reconciled version for the component
 func (in *ComponentVersion) GetVersion() string {
 	return in.Status.ReconciledVersion

@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/mandelsoft/vfs/pkg/projectionfs"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -113,21 +112,21 @@ func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha
 	// - get the module
 	// - verify the signature
 	// - execute
-	for _, s := range obj.Spec.PipelineSpec.Steps {
+	for _, step := range obj.Spec.PipelineSpec.Steps {
 		octx := ocmcore.New()
-		repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(s.Registry, nil))
+		repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(step.Registry, nil))
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 		defer repo.Close()
 
-		ocmWASMCV, err := repo.LookupComponentVersion(s.GetComponent(), s.GetComponentVersion())
+		ocmWASMCV, err := repo.LookupComponentVersion(step.GetComponent(), step.GetComponentVersion())
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 		defer ocmWASMCV.Close()
 
-		wasmRes, err := ocmWASMCV.GetResource(ocmmetav1.NewIdentity(s.GetResource()))
+		wasmRes, err := ocmWASMCV.GetResource(ocmmetav1.NewIdentity(step.GetResource()))
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -142,10 +141,10 @@ func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha
 			return ctrl.Result{}, err
 		}
 
-		mod := wasmruntime.NewModule(s.Name, logger, cv, dir)
+		mod := wasmruntime.NewModule(step.Name, logger, cv, dir)
 		defer mod.Close()
 
-		if err := mod.Run(ctx, nil, data); err != nil {
+		if err := mod.Run(ctx, step.Values.Raw, data); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -177,5 +176,5 @@ func (r ResourcePipelineReconciler) getComponentVersionAccess(ctx context.Contex
 		return nil, err
 	}
 
-	return r.OCMClient.GetComponentVersion(octx, &componentVersion)
+	return r.OCMClient.GetComponentVersion(ctx, octx, &componentVersion, componentVersion.GetComponentName(), componentVersion.GetVersion())
 }

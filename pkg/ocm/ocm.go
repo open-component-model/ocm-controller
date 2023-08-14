@@ -41,7 +41,7 @@ const dockerConfigKey = ".dockerconfigjson"
 type Contract interface {
 	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error)
 	GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error)
-	GetComponentVersion(octx ocm.Context, obj *v1alpha1.ComponentVersion) (ocm.ComponentVersionAccess, error)
+	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
 	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
 	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 	VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
@@ -227,7 +227,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 }
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
-func (c *Client) GetComponentVersion(octx ocm.Context, obj *v1alpha1.ComponentVersion) (ocm.ComponentVersionAccess, error) {
+func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error) {
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
