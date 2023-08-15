@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/runtime/events"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -45,6 +46,7 @@ func init() {
 	utilruntime.Must(sourcev1.AddToScheme(scheme))
 	utilruntime.Must(sourcev1beta2.AddToScheme(scheme))
 	utilruntime.Must(kustomizev1.AddToScheme(scheme))
+	utilruntime.Must(esv1beta1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -201,8 +203,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.ResourcePipelineReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		OCMClient:     ocmClient,
+		EventRecorder: eventsRecorder,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ResourcePipeline")
 		os.Exit(1)

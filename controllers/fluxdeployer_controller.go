@@ -10,6 +10,16 @@ import (
 	"fmt"
 	"time"
 
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/patch"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/event"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -26,18 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
-	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/fluxcd/pkg/runtime/patch"
-	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/event"
-	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // FluxDeployerReconciler reconciles a FluxDeployer object
@@ -85,7 +83,7 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deliveryv1alpha1.FluxDeployer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &v1alpha1.Snapshot{}},
+			&v1alpha1.Snapshot{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey)),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
@@ -281,8 +279,8 @@ func (r *FluxDeployerReconciler) getSnapshot(ctx context.Context, obj *v1alpha1.
 	return snapshot, nil
 }
 
-func (r *FluxDeployerReconciler) findObjects(sourceKey string) func(client.Object) []reconcile.Request {
-	return func(obj client.Object) []reconcile.Request {
+func (r *FluxDeployerReconciler) findObjects(sourceKey string) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var selectorTerm string
 		switch obj.(type) {
 		case *v1alpha1.Snapshot:

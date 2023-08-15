@@ -10,7 +10,11 @@ import (
 	"fmt"
 	"time"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
+	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"golang.org/x/exp/slices"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,12 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
-	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
-	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -131,17 +129,17 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Configuration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &v1alpha1.ComponentVersion{}},
+			&v1alpha1.ComponentVersion{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &v1alpha1.Snapshot{}},
+			&v1alpha1.Snapshot{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &sourcev1.GitRepository{}},
+			&sourcev1.GitRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey, valuesSourceKey)),
 			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).
@@ -319,8 +317,8 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 // or a Snapshot. If it's a ComponentVersion, we look for all Configurations that reference
 // it by name. If it's a Snapshot, we first identify its owner and then look for Configurations
 // that reference the parent object.
-func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) func(client.Object) []reconcile.Request {
-	return func(obj client.Object) []reconcile.Request {
+func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var selectorTerm string
 
 		switch obj.(type) {
@@ -354,8 +352,8 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) func(
 }
 
 // this function will enqueue a reconciliation
-func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) func(client.Object) []reconcile.Request {
-	return func(obj client.Object) []reconcile.Request {
+func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		cfgs := &v1alpha1.ConfigurationList{}
 		for _, key := range keys {
 			result := &v1alpha1.ConfigurationList{}
@@ -430,10 +428,17 @@ func (r *ConfigurationReconciler) checkFluxSourceReadiness(ctx context.Context, 
 }
 
 func makeRequestsForConfigurations(ll ...v1alpha1.Configuration) []reconcile.Request {
-	slices.SortFunc(ll, func(a, b v1alpha1.Configuration) bool {
+	slices.SortFunc(ll, func(a, b v1alpha1.Configuration) int {
 		aKey := fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName())
 		bKey := fmt.Sprintf("%s/%s", b.GetNamespace(), b.GetName())
-		return aKey < bKey
+
+		switch {
+		case aKey < bKey:
+			return -1
+		case aKey == bKey:
+			return 0
+		}
+		return 1
 	})
 
 	refs := slices.CompactFunc(ll, func(a, b v1alpha1.Configuration) bool {

@@ -10,16 +10,22 @@ import (
 	"fmt"
 	"os"
 
+	esapi "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
+	"github.com/external-secrets/external-secrets/pkg/controllers/secretstore"
+	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"golang.org/x/exp/slog"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/mandelsoft/vfs/pkg/projectionfs"
@@ -48,6 +54,7 @@ func (r *ResourcePipelineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resourcepipelines,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=external-secrets.io,resources=secretstores;secretstores/status,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resourcepipelines/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=resourcepipelines/finalizers,verbs=update
 
@@ -74,38 +81,94 @@ func (r *ResourcePipelineReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha1.ResourcePipeline) (ctrl.Result, error) {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := log.FromContext(ctx)
+	wasmlogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	// TODO: Fetch secrets and construct the secrets Config Map that is passed in as values to the WASM runtime.
+	// DO THIS AFTER THE COMPONENT VERSION THING BUT I DON'T CARE ABOUT THAT RIGHT NOW.
+	// I fear this might not be possible without the external-secrets controller.
+	secretManager := secretstore.NewManager(r.Client, "default", true)
+	defer secretManager.Close(ctx)
+	//values := map[string]map[string]string{
+	//	"secrets": {},
+	//}
+
+	for _, secret := range obj.Spec.Secrets {
+		store := &esv1beta1.SecretStore{}
+		if err := r.Get(ctx, types.NamespacedName{
+			Name:      secret.SecretStoreRef.Name,
+			Namespace: secret.SecretStoreRef.Namespace,
+		}, store); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to find secret store: %w", err)
+		}
+
+		storeProvider, err := esapi.GetProvider(store)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get store provider: %w", err)
+		}
+
+		secretPatchers := patch.NewSerialPatcher(store, r.Client)
+
+		msgStoreValidated := "store validated"
+		cond := secretstore.NewSecretStoreCondition(esapi.SecretStoreReady, v1.ConditionTrue, esapi.ReasonStoreValid, msgStoreValidated)
+		status := store.GetStatus()
+		status.Conditions = append(status.Conditions, *cond)
+		status.Capabilities = storeProvider.Capabilities()
+		store.SetStatus(status)
+		if err := secretPatchers.Patch(ctx, store); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to patch store: %w", err)
+		}
+
+		secrets, err := secretManager.Get(ctx, esv1beta1.SecretStoreRef{
+			Name: secret.SecretStoreRef.Name,
+			Kind: "SecretStore",
+		}, secret.SecretStoreRef.Namespace, nil)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to retrieve secrets: %w", err)
+		}
+
+		values, err := secrets.GetAllSecrets(ctx, esv1beta1.ExternalSecretFind{
+			Name: &esv1beta1.FindName{
+				RegExp: ".*",
+			},
+		})
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get all secrets: %w", err)
+		}
+
+		logger.Info("found a bunch of secrets", "value", values)
+	}
 
 	// get the component
 	cv, err := r.getComponentVersionAccess(ctx, obj)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("component version not found: %w", err)
 	}
 	defer cv.Close()
 
 	// get the resource
 	res, err := cv.GetResource(ocmmetav1.NewIdentity(obj.Spec.SourceRef.Resource))
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("resource not found: %w", err)
 	}
 
 	// prepare VFS
 	dir, err := os.MkdirTemp("", "wasm-tmp-")
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get temp folder: %w", err)
 	}
 	defer os.RemoveAll(dir)
 
 	tmpfs, err := projectionfs.New(osfs.New(), dir)
 	if err != nil {
 		os.Remove(dir)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to create temp folder: %w", err)
 	}
 
 	// download resource to VFS
 	_, _, err = dirtree.New().Download(common.NewPrinter(os.Stdout), res, "", tmpfs)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to download resource: %w", err)
 	}
 
 	// for each WASM step
@@ -141,7 +204,7 @@ func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha
 			return ctrl.Result{}, err
 		}
 
-		mod := wasmruntime.NewModule(step.Name, logger, obj, cv, dir)
+		mod := wasmruntime.NewModule(step.Name, wasmlogger, obj, cv, dir)
 		defer mod.Close()
 
 		if err := mod.Run(ctx, step.Values.Raw, data); err != nil {
@@ -152,7 +215,7 @@ func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-func (r ResourcePipelineReconciler) getComponentVersionAccess(ctx context.Context, obj *v1alpha1.ResourcePipeline) (ocmcore.ComponentVersionAccess, error) {
+func (r *ResourcePipelineReconciler) getComponentVersionAccess(ctx context.Context, obj *v1alpha1.ResourcePipeline) (ocmcore.ComponentVersionAccess, error) {
 	var componentVersion v1alpha1.ComponentVersion
 	key := types.NamespacedName{
 		Name:      obj.Spec.SourceRef.Name,

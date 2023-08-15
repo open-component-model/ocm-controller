@@ -235,7 +235,7 @@ func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj 
 	}
 	defer repo.Close()
 
-	cv, err := repo.LookupComponentVersion(obj.Spec.Component, obj.Status.ReconciledVersion)
+	cv, err := repo.LookupComponentVersion(name, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to look up component Version: %w", err)
 	}

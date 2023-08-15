@@ -8,6 +8,16 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
+  - secrets
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - events
   verbs:
   - create
@@ -26,12 +36,9 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - secrets
-  - serviceaccounts
+  - serviceaccounts/token
   verbs:
-  - get
-  - list
-  - watch
+  - create
 - apiGroups:
   - apps
   resources:
@@ -225,6 +232,19 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - external-secrets.io
+  resources:
+  - secretstores
+  - secretstores/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - kustomize.toolkit.fluxcd.io
   resources:

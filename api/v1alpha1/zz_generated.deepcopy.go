@@ -839,8 +839,10 @@ func (in *ResourcePipelineSpec) DeepCopyInto(out *ResourcePipelineSpec) {
 	out.SourceRef = in.SourceRef
 	if in.Secrets != nil {
 		in, out := &in.Secrets, &out.Secrets
-		*out = make([]ResourcePipelineSecretSpec, len(*in))
-		copy(*out, *in)
+		*out = make(map[string]ResourcePipelineSecretSpec, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.Parameters != nil {
 		in, out := &in.Parameters, &out.Parameters

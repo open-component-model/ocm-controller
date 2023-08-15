@@ -26,7 +26,7 @@ type ResourcePipelineSpec struct {
 	SourceRef ResourcePipelineSource `json:"sourceRef"`
 
 	// +optional
-	Secrets []ResourcePipelineSecretSpec `json:"secrets,omitempty"`
+	Secrets map[string]ResourcePipelineSecretSpec `json:"secrets,omitempty"`
 
 	// +optional
 	Parameters *apiextensionsv1.JSON `json:"parameters,omitempty"`
@@ -54,9 +54,6 @@ type ResourcePipelineSource struct {
 // ResourcePipelineSecretSpec specifies access to a secret resource
 // that can be used within either the pipeline or delivery stages.
 type ResourcePipelineSecretSpec struct {
-	// +required
-	Name string `json:"name"`
-
 	// +required
 	SecretStoreRef meta.NamespacedObjectReference `json:"secretStoreRef"`
 }
@@ -88,6 +85,9 @@ type WasmStep struct {
 	Registry string `json:"registry,omitempty"`
 
 	// +optional
+	// SECRET_STORE
+	// SECRET_VALUE_NAME ( S3_TOKEN )
+	// Take a peak at Tekton.
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 }
 

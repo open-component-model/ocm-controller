@@ -55,6 +55,8 @@ spec:
                           default: ghcr.io/open-component-model/delivery
                           type: string
                         values:
+                          description: SECRET_STORE SECRET_VALUE_NAME ( S3_TOKEN )
+                            Take a peak at Tekton.
                           x-kubernetes-preserve-unknown-fields: true
                       required:
                       - module
@@ -87,6 +89,8 @@ spec:
                           default: ghcr.io/open-component-model/delivery
                           type: string
                         values:
+                          description: SECRET_STORE SECRET_VALUE_NAME ( S3_TOKEN )
+                            Take a peak at Tekton.
                           x-kubernetes-preserve-unknown-fields: true
                       required:
                       - module
@@ -97,13 +101,11 @@ spec:
                 - steps
                 type: object
               secrets:
-                items:
+                additionalProperties:
                   description: ResourcePipelineSecretSpec specifies access to a secret
                     resource that can be used within either the pipeline or delivery
                     stages.
                   properties:
-                    name:
-                      type: string
                     secretStoreRef:
                       description: NamespacedObjectReference contains enough information
                         to locate the referenced Kubernetes resource object in any
@@ -120,10 +122,9 @@ spec:
                       - name
                       type: object
                   required:
-                  - name
                   - secretStoreRef
                   type: object
-                type: array
+                type: object
               serviceAccountName:
                 type: string
               sourceRef:
