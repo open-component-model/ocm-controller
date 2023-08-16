@@ -11,6 +11,9 @@ spec:
     resource: manifests
   secrets:
     k8s:
+      remoteRef:
+        key: test-secret
+        property: token
       secretStoreRef:
         name: test-secret-store
         namespace: ocm-system

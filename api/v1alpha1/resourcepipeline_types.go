@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	wasmapi "github.com/open-component-model/ocm-controller/pkg/wasm/api/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -54,6 +55,8 @@ type ResourcePipelineSource struct {
 // ResourcePipelineSecretSpec specifies access to a secret resource
 // that can be used within either the pipeline or delivery stages.
 type ResourcePipelineSecretSpec struct {
+	// +required
+	RemoteRef esv1beta1.ExternalSecretDataRemoteRef `json:"remoteRef"`
 	// +required
 	SecretStoreRef meta.NamespacedObjectReference `json:"secretStoreRef"`
 }

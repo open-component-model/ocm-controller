@@ -106,6 +106,37 @@ spec:
                     resource that can be used within either the pipeline or delivery
                     stages.
                   properties:
+                    remoteRef:
+                      description: ExternalSecretDataRemoteRef defines Provider data
+                        location.
+                      properties:
+                        conversionStrategy:
+                          default: Default
+                          description: Used to define a conversion Strategy
+                          type: string
+                        decodingStrategy:
+                          default: None
+                          description: Used to define a decoding Strategy
+                          type: string
+                        key:
+                          description: Key is the key used in the Provider, mandatory
+                          type: string
+                        metadataPolicy:
+                          description: Policy for fetching tags/labels from provider
+                            secrets, possible options are Fetch, None. Defaults to
+                            None
+                          type: string
+                        property:
+                          description: Used to select a specific property of the Provider
+                            value (if a map), if supported
+                          type: string
+                        version:
+                          description: Used to select a specific version of the Provider
+                            value, if supported
+                          type: string
+                      required:
+                      - key
+                      type: object
                     secretStoreRef:
                       description: NamespacedObjectReference contains enough information
                         to locate the referenced Kubernetes resource object in any
@@ -122,6 +153,7 @@ spec:
                       - name
                       type: object
                   required:
+                  - remoteRef
                   - secretStoreRef
                   type: object
                 type: object

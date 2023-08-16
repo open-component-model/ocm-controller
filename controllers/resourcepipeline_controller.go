@@ -127,16 +127,12 @@ func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha
 			return ctrl.Result{}, fmt.Errorf("failed to retrieve secrets: %w", err)
 		}
 
-		values, err := secrets.GetAllSecrets(ctx, esv1beta1.ExternalSecretFind{
-			Name: &esv1beta1.FindName{
-				RegExp: ".*",
-			},
-		})
+		values, err := secrets.GetSecret(ctx, secret.RemoteRef)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to get all secrets: %w", err)
 		}
 
-		logger.Info("found a bunch of secrets", "value", values)
+		logger.Info("found the right secret", "secret", string(values))
 	}
 
 	// get the component
