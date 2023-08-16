@@ -6,17 +6,19 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	esapi "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
 	"github.com/external-secrets/external-secrets/pkg/controllers/secretstore"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/mandelsoft/vfs/pkg/osfs"
-	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	"github.com/mandelsoft/vfs/pkg/projectionfs"
 	"golang.org/x/exp/slog"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,17 +27,16 @@ import (
 	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/fluxcd/pkg/runtime/conditions"
-	"github.com/mandelsoft/vfs/pkg/projectionfs"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	wasmruntime "github.com/open-component-model/ocm-controller/internal/wasm/runtime"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm/pkg/common"
+	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/download/handlers/dirtree"
+	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 )
 
 // ResourcePipelineReconciler reconciles a ResourcePipeline object
@@ -81,59 +82,7 @@ func (r *ResourcePipelineReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha1.ResourcePipeline) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-	wasmlogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	// TODO: Fetch secrets and construct the secrets Config Map that is passed in as values to the WASM runtime.
-	// DO THIS AFTER THE COMPONENT VERSION THING BUT I DON'T CARE ABOUT THAT RIGHT NOW.
-	// I fear this might not be possible without the external-secrets controller.
-	secretManager := secretstore.NewManager(r.Client, "default", true)
-	defer secretManager.Close(ctx)
-	//values := map[string]map[string]string{
-	//	"secrets": {},
-	//}
-
-	for _, secret := range obj.Spec.Secrets {
-		store := &esv1beta1.SecretStore{}
-		if err := r.Get(ctx, types.NamespacedName{
-			Name:      secret.SecretStoreRef.Name,
-			Namespace: secret.SecretStoreRef.Namespace,
-		}, store); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to find secret store: %w", err)
-		}
-
-		storeProvider, err := esapi.GetProvider(store)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to get store provider: %w", err)
-		}
-
-		secretPatchers := patch.NewSerialPatcher(store, r.Client)
-
-		msgStoreValidated := "store validated"
-		cond := secretstore.NewSecretStoreCondition(esapi.SecretStoreReady, v1.ConditionTrue, esapi.ReasonStoreValid, msgStoreValidated)
-		status := store.GetStatus()
-		status.Conditions = append(status.Conditions, *cond)
-		status.Capabilities = storeProvider.Capabilities()
-		store.SetStatus(status)
-		if err := secretPatchers.Patch(ctx, store); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to patch store: %w", err)
-		}
-
-		secrets, err := secretManager.Get(ctx, esv1beta1.SecretStoreRef{
-			Name: secret.SecretStoreRef.Name,
-			Kind: "SecretStore",
-		}, secret.SecretStoreRef.Namespace, nil)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to retrieve secrets: %w", err)
-		}
-
-		values, err := secrets.GetSecret(ctx, secret.RemoteRef)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to get all secrets: %w", err)
-		}
-
-		logger.Info("found the right secret", "secret", string(values))
-	}
+	wasmLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// get the component
 	cv, err := r.getComponentVersionAccess(ctx, obj)
@@ -167,6 +116,61 @@ func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha
 		return ctrl.Result{}, fmt.Errorf("failed to download resource: %w", err)
 	}
 
+	// Build the secret store manager and start building up a map of secret values.
+	secretManager := secretstore.NewManager(r.Client, "default", true)
+	defer secretManager.Close(ctx)
+
+	secretMap := make(map[string]any)
+
+	for k, secret := range obj.Spec.Secrets {
+		store := &esv1beta1.SecretStore{}
+		if err := r.Get(ctx, types.NamespacedName{
+			Name:      secret.SecretStoreRef.Name,
+			Namespace: secret.SecretStoreRef.Namespace,
+		}, store); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to find secret store: %w", err)
+		}
+
+		storeProvider, err := esapi.GetProvider(store)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get store provider: %w", err)
+		}
+
+		secretPatchers := patch.NewSerialPatcher(store, r.Client)
+
+		// taken from ESO's validation status messages.
+		msgStoreValidated := "store validated"
+		cond := secretstore.NewSecretStoreCondition(esapi.SecretStoreReady, v1.ConditionTrue, esapi.ReasonStoreValid, msgStoreValidated)
+		status := store.GetStatus()
+		status.Conditions = append(status.Conditions, *cond)
+		status.Capabilities = storeProvider.Capabilities()
+		store.SetStatus(status)
+		if err := secretPatchers.Patch(ctx, store); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to patch store: %w", err)
+		}
+
+		secrets, err := secretManager.Get(ctx, esv1beta1.SecretStoreRef{
+			Name: secret.SecretStoreRef.Name,
+			Kind: store.Kind,
+		}, secret.SecretStoreRef.Namespace, nil)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to retrieve secret: %w", err)
+		}
+
+		value, err := secrets.GetSecret(ctx, secret.RemoteRef)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to get secret: %w", err)
+		}
+
+		// build up a map of key/property values.
+		secretMap[k] = string(value)
+	}
+
+	parameters := map[string]any{}
+	if err := json.Unmarshal(obj.Spec.Parameters.Raw, &parameters); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to parse parameters: %w", err)
+	}
+
 	// for each WASM step
 	// - get the module
 	// - verify the signature
@@ -175,36 +179,50 @@ func (r *ResourcePipelineReconciler) reconcile(ctx context.Context, obj *v1alpha
 		octx := ocmcore.New()
 		repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(step.Registry, nil))
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to get repositroy for step %s: %w", step.Name, err)
 		}
 		defer repo.Close()
 
 		ocmWASMCV, err := repo.LookupComponentVersion(step.GetComponent(), step.GetComponentVersion())
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to lookup verions for step %s: %w", step.Name, err)
 		}
 		defer ocmWASMCV.Close()
 
 		wasmRes, err := ocmWASMCV.GetResource(ocmmetav1.NewIdentity(step.GetResource()))
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to get resource for step %s: %w", step.Name, err)
 		}
 
 		meth, err := wasmRes.AccessMethod()
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to run access method for step %s: %w", step.Name, err)
 		}
 
 		data, err := meth.Get()
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to get resource data for step %s: %w", step.Name, err)
 		}
 
-		mod := wasmruntime.NewModule(step.Name, wasmlogger, obj, cv, dir)
+		mod := wasmruntime.NewModule(step.Name, wasmLogger, obj, cv, dir)
 		defer mod.Close()
 
-		if err := mod.Run(ctx, step.Values.Raw, data); err != nil {
-			return ctrl.Result{}, err
+		values := map[string]any{}
+		if err := json.Unmarshal(step.Values.Raw, &values); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to parse raw values: %w", err)
+		}
+
+		if err := processValueFunctions(secretMap, parameters, values); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to process value functions: %w", err)
+		}
+
+		mergedValues, err := json.Marshal(values)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed interpret values functions for step %s: %w", step.Name, err)
+		}
+
+		if err := mod.Run(ctx, mergedValues, data); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to run step %s: %w", step.Name, err)
 		}
 	}
 
@@ -236,4 +254,89 @@ func (r *ResourcePipelineReconciler) getComponentVersionAccess(ctx context.Conte
 	}
 
 	return r.OCMClient.GetComponentVersion(ctx, octx, &componentVersion, componentVersion.GetComponentName(), componentVersion.GetVersion())
+}
+
+const (
+	secretsInjectKey    = "$secrets"
+	parametersInjectKey = "$parameters"
+)
+
+func parametersInjectFunc(parameters map[string]any, key string) (any, error) {
+	if v, ok := parameters[key]; ok {
+		return v, nil
+	}
+
+	return nil, fmt.Errorf("parameter with key %s not found", key)
+}
+
+func secretsInjectFunc(secrets map[string]any, key string) (any, error) {
+	if v, ok := secrets[key]; ok {
+		return v, nil
+	}
+
+	return nil, fmt.Errorf("secret with key %s not found", key)
+}
+
+func injectValue(secrets, parameters map[string]any, value string) (any, error) {
+	idx := strings.Index(value, ".")
+	if idx < 0 {
+		return nil, fmt.Errorf("expected inject function name to be of format $func.key but was %s", value)
+	}
+
+	if idx+1 >= len(value) {
+		return nil, fmt.Errorf("missing value from func key: %s", value)
+	}
+
+	funcName, key := value[:idx], value[idx+1:]
+
+	switch {
+	case strings.HasPrefix(funcName, secretsInjectKey):
+		return secretsInjectFunc(secrets, key)
+	case strings.HasPrefix(funcName, parametersInjectKey):
+		return parametersInjectFunc(parameters, key)
+	}
+
+	return nil, fmt.Errorf("unknown inject function: %s", funcName)
+}
+
+// processValueFunctions takes a secret map and parameters map then starts updating the values
+// based on placeholders in the values like `$secrets.kubeconfig` or `$parameters.replicas`.
+func processValueFunctions(secretMap map[string]any, parameters map[string]any, values map[string]any) error {
+	for k, v := range values {
+		switch t := v.(type) {
+		case string:
+			if strings.HasPrefix(t, "$") {
+				inject, err := injectValue(secretMap, parameters, t)
+				if err != nil {
+					return fmt.Errorf("failed to inject value: %w", err)
+				}
+
+				values[k] = inject
+			}
+		case map[string]any:
+			if err := processValueFunctions(secretMap, parameters, t); err != nil {
+				return fmt.Errorf("failed to process values: %w", err)
+			}
+		case []any:
+			for i, e := range t {
+				switch et := e.(type) {
+				case string:
+					if strings.HasPrefix(et, "$") {
+						inject, err := injectValue(secretMap, parameters, et)
+						if err != nil {
+							return fmt.Errorf("failed to create inject value: %w", err)
+						}
+
+						t[i] = inject
+					}
+				case map[string]any:
+					if err := processValueFunctions(secretMap, parameters, et); err != nil {
+						return fmt.Errorf("failed to process values: %w", err)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }

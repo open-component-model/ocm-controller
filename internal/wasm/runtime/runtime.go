@@ -56,7 +56,7 @@ func (m *Module) Run(ctx context.Context, config, binary []byte) error {
 		return err
 	}
 
-	_, err = runtime.InstantiateWithConfig(ctx, binary, modConfig)
+	_, err := runtime.InstantiateWithConfig(ctx, binary, modConfig)
 	if err != nil {
 		return err
 	}
