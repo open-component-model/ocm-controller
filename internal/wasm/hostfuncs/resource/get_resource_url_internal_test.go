@@ -35,11 +35,7 @@ func Test_getResourceURL(t *testing.T) {
 		require.NoError(t, err)
 
 		result := &bytes.Buffer{}
-		mod, err := runtime.InstantiateWithConfig(ctx, binary, wazero.NewModuleConfig().WithStdout(result))
-		require.NoError(t, err)
-
-		handler := mod.ExportedFunction("handler")
-		_, err = handler.Call(ctx)
+		_, err = runtime.InstantiateWithConfig(ctx, binary, wazero.NewModuleConfig().WithStdout(result))
 		require.NoError(t, err)
 		require.Equal(t, "ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2", result.String())
 	}

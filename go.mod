@@ -22,7 +22,6 @@ require (
 	github.com/fluxcd/pkg/runtime v0.35.0
 	github.com/fluxcd/pkg/tar v0.2.0
 	github.com/fluxcd/source-controller/api v1.0.0-rc.1
-	github.com/go-git/go-billy/v5 v5.4.1
 	github.com/google/go-containerregistry v0.15.2
 	github.com/mandelsoft/logging v0.0.0-20230331123830-36542ef18f6f
 	github.com/mandelsoft/spiff v1.7.0-beta-5
@@ -43,6 +42,7 @@ require (
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
 	k8s.io/apimachinery v0.26.3
 	k8s.io/client-go v0.26.3
+	sigs.k8s.io/cli-utils v0.34.0
 	sigs.k8s.io/controller-runtime v0.14.6
 	sigs.k8s.io/e2e-framework v0.2.0
 	sigs.k8s.io/kustomize/api v0.12.1
@@ -157,6 +157,7 @@ require (
 	github.com/go-chi/chi v4.1.2+incompatible // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
+	github.com/go-git/go-billy/v5 v5.4.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
@@ -287,7 +288,6 @@ require (
 	k8s.io/cli-runtime v0.26.3 // indirect
 	k8s.io/kubectl v0.26.3 // indirect
 	oras.land/oras-go v1.2.3 // indirect
-	sigs.k8s.io/cli-utils v0.34.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
 	sigs.k8s.io/release-utils v0.7.4 // indirect
 )

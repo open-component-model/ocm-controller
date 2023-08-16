@@ -30,3 +30,23 @@ func Get() map[string]string {
 
 	return config
 }
+
+// GetValue returns the configuration data passed to WASM Module
+func GetValue(key string) string {
+	if len(os.Args) == 0 {
+		return nil
+	}
+	payload := []byte(os.Args[1])
+
+	var config map[string]string
+	if err := yaml.Unmarshal(payload, &config); err != nil {
+		return nil
+	}
+
+	val, ok := config[key]
+	if !ok {
+		return ""
+	}
+
+	return val
+}

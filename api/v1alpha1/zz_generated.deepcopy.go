@@ -10,6 +10,7 @@
 package v1alpha1
 
 import (
+	apiv1alpha1 "github.com/open-component-model/ocm-controller/pkg/wasm/api/v1alpha1"
 	compdescmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -876,6 +877,21 @@ func (in *ResourcePipelineStatus) DeepCopyInto(out *ResourcePipelineStatus) {
 		*out = make([]metav1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.DeployerInventories != nil {
+		in, out := &in.DeployerInventories, &out.DeployerInventories
+		*out = make(map[string]*apiv1alpha1.ResourceInventory, len(*in))
+		for key, val := range *in {
+			var outVal *apiv1alpha1.ResourceInventory
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = new(apiv1alpha1.ResourceInventory)
+				(*in).DeepCopyInto(*out)
+			}
+			(*out)[key] = outVal
 		}
 	}
 }

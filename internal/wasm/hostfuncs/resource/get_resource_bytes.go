@@ -40,6 +40,6 @@ func getResourceBytes(cv ocm.ComponentVersionAccess) types.HostFunc {
 			return wasmerr.ErrResourceNotAccessible
 		}
 
-		return wasmio.Write(ctx, m, data)
+		return wasmio.Write(ctx, m, offset+size, data)
 	}
 }

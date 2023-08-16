@@ -1,5 +1,3 @@
-//go:build tinygo.wasm
-
 package main
 
 import (
@@ -7,32 +5,24 @@ import (
 	"fmt"
 	"os"
 
-	wasmerr "github.com/open-component-model/ocm-controller/pkg/wasm/errors"
 	"github.com/open-component-model/ocm-controller/pkg/wasm/ocm"
 )
-
-// build using:
-// tinygo build -o ./get_resource_labels.wasm -panic=trap -scheduler=none -target=wasi ./get_resource_labels.go
-
-func main() {}
 
 type label struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
 
-//export handler
-func handler() uint64 {
+func main() {
 	var labels []label
 	labelData, err := ocm.GetResourceLabels("data")
 	if err != 0 {
-		return err
+		panic(err)
 	}
 	if err := json.Unmarshal(labelData, &labels); err != nil {
-		return wasmerr.ErrDecodingJSON
+		panic(err)
 	}
 	for _, l := range labels {
 		fmt.Fprintf(os.Stdout, l.Name+l.Value)
 	}
-	return 0
 }

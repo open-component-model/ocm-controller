@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	wasmapi "github.com/open-component-model/ocm-controller/pkg/wasm/api/v1alpha1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -111,11 +112,29 @@ type ResourcePipelineStatus struct {
 
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// +optional
+	DeployerInventories map[string]*wasmapi.ResourceInventory `json:"deployerInventories,omitempty"`
 }
 
 // GetRequeueAfter returns the duration after which the Resource should be reconciled.
 func (in ResourcePipeline) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
+}
+
+func (in ResourcePipeline) GetInventory(step string) *wasmapi.ResourceInventory {
+	result, ok := in.Status.DeployerInventories[step]
+	if !ok {
+		return nil
+	}
+	return result
+}
+
+func (in *ResourcePipeline) SetInventory(step string, inventory *wasmapi.ResourceInventory) {
+	if in.Status.DeployerInventories == nil {
+		in.Status.DeployerInventories = make(map[string]*wasmapi.ResourceInventory)
+	}
+	in.Status.DeployerInventories[step] = inventory
 }
 
 //+kubebuilder:object:root=true

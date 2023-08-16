@@ -33,8 +33,8 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
-TINYGOROOT ?= /usr/lib/tinygo
-TINYGOFLAGS = -panic=trap -scheduler=none -target=wasi
+GO_WASM_VARS = CGO_ENABLED=0 GOARCH=wasm GOOS=wasip1
+GO_WASM_BUILD = ${GO_WASM_VARS} go build -ldflags="-s -w" -o
 
 .PHONY: all
 all: build
@@ -64,7 +64,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..." paths="./controllers/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..." paths="./controllers/..." paths="./pkg/wasm/api/..."
 
 tidy:  ## Run go mod tidy
 	rm -f go.sum; go mod tidy
@@ -80,7 +80,7 @@ vet: ## Run go vet against code.
 ##@ Testing
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: manifests generate fmt vet build-wasm-testdata envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
@@ -97,14 +97,11 @@ generate-developer-certs: mkcert
 
 .PHONY: build-wasm-testdata
 build-wasm-testdata:
-	tinygo build $(TINYGOFLAGS) \
-		-o ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.go
-
-	tinygo build $(TINYGOFLAGS) \
-		-o ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.go
-
-	tinygo build $(TINYGOFLAGS) \
-		-o ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.go
+	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.go
+	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.go
+	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.go
+	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/inventory/testdata/set_inventory.wasm ./internal/wasm/hostfuncs/inventory/testdata/set_inventory_wasip1.go
+	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/inventory/testdata/get_inventory.wasm ./internal/wasm/hostfuncs/inventory/testdata/get_inventory_wasip1.go
 ##@ Build
 
 .PHONY: build

@@ -39,7 +39,7 @@ func getResourceURL(cv ocm.ComponentVersionAccess) types.HostFunc {
 			return wasmerr.ErrResourceNotAccessible
 		}
 
-		return wasmio.Write(ctx, m, []byte(ref))
+		return wasmio.Write(ctx, m, offset+size, []byte(ref))
 	}
 }
 

@@ -43,11 +43,7 @@ nested:
 		require.NoError(t, err)
 
 		result := &bytes.Buffer{}
-		mod, err := runtime.InstantiateWithConfig(ctx, binary, wazero.NewModuleConfig().WithStdout(result))
-		require.NoError(t, err)
-
-		handler := mod.ExportedFunction("handler")
-		_, err = handler.Call(ctx)
+		_, err = runtime.InstantiateWithConfig(ctx, binary, wazero.NewModuleConfig().WithStdout(result))
 		require.NoError(t, err)
 		require.Equal(t, string(tt.data), result.String())
 	}

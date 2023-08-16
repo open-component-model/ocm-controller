@@ -6,7 +6,6 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/internal/wasm/hostfuncs"
-	wasmerr "github.com/open-component-model/ocm-controller/pkg/wasm/errors"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
@@ -57,19 +56,19 @@ func (m *Module) Run(ctx context.Context, config, binary []byte) error {
 		return err
 	}
 
-	mod, err := runtime.InstantiateWithConfig(ctx, binary, modConfig)
+	_, err = runtime.InstantiateWithConfig(ctx, binary, modConfig)
 	if err != nil {
 		return err
 	}
 
-	handler := mod.ExportedFunction("handler")
-	result, err := handler.Call(ctx)
-	if err != nil {
-		return err
-	}
-	if err := wasmerr.Check(result); err != nil {
-		return err
-	}
+	// handler := mod.ExportedFunction("handler")
+	// result, err := handler.Call(ctx)
+	// if err != nil {
+	//     return err
+	// }
+	// if err := wasmerr.Check(result); err != nil {
+	//     return err
+	// }
 
 	return nil
 }
