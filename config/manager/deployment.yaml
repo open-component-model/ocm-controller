@@ -22,8 +22,9 @@ spec:
           type: RuntimeDefault
       containers:
       - command:
-        - /manager
+        - /entrypoint.sh
         args:
+        - --manager
         - --zap-log-level=4
         - --leader-elect
         - --oci-registry-addr=registry.ocm-system.svc.cluster.local:5000
@@ -35,7 +36,6 @@ spec:
           capabilities:
             drop:
               - "ALL"
-
         livenessProbe:
           httpGet:
             path: /healthz

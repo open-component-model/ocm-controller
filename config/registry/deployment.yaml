@@ -14,6 +14,10 @@ spec:
       labels:
         app: registry
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       enableServiceLinks: true
       containers:
         - name: registry
