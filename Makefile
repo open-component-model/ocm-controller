@@ -142,16 +142,12 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/default && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
-	&& $(KUSTOMIZE) edit add patch --path ./patches/init-container.yaml \
-	&& $(KUSTOMIZE) edit set image open-component-model/ocm-registry=$(REG_IMG):$(REG_TAG)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: dev-deploy
 dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernetes cluster in ~/.kube/config
 	mkdir -p config/dev && cp -R config/default/* config/dev
 	cd config/dev && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
-	&& $(KUSTOMIZE) edit add patch --path ./patches/init-container.yaml \
-	&& $(KUSTOMIZE) edit set image open-component-model/ocm-registry=$(REG_IMG):$(REG_TAG)
 	$(KUSTOMIZE) build config/dev | kubectl apply -f -
 	rm -rf config/dev
 

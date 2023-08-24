@@ -8,9 +8,10 @@ resources:
 - ../registry
 - namespace.yaml
 transformers:
-  - labels.yaml
+- labels.yaml
 images:
-  - name: open-component-model/ocm-controller
-    newName: ghcr.io/open-component-model/ocm-controller
-  - name: registry
-    newName: registry
+- name: open-component-model/ocm-controller
+  newName: ghcr.io/open-component-model/ocm-controller
+  newTag: latest
+- name: registry
+  newName: registry
