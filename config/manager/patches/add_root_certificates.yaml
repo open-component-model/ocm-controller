@@ -20,7 +20,7 @@ spec:
       volumes:
         - name: "certificates"
           secret:
-            secretName: "registry-certs"
+            secretName: "ocm-registry-tls-certs"
             items:
               - key: "caFile"
                 path: "registry-root.pem"
