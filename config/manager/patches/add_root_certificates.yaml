@@ -17,11 +17,10 @@ spec:
             - mountPath: "/etc/ssl/certs/registry-root.pem"
               subPath: "registry-root.pem"
               name: "certificates"
-              readOnly: false
       volumes:
         - name: "certificates"
           secret:
             secretName: "registry-certs"
             items:
               - key: "caFile"
-                path: "ca.pem"
+                path: "registry-root.pem"
