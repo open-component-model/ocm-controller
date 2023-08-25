@@ -4,10 +4,7 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/open-component-model/ocm-controller
-# Registry server image URL to use all building/pushing image targets
-REG_IMG ?= ghcr.io/open-component-model/ocm-registry
-TAG ?= latest
-REG_TAG ?= latest
+TAG ?= v0.11.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.1
 
@@ -110,21 +107,6 @@ docker-build: ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}:${TAG}
 
-.PHONY: registry-server
-registry-server: cd pkg/oci/registry
-	go build -o bin/registry-server main.go
-
-.PHONY: docker-registry-server
-docker-registry-server:
-	docker buildx build \
-	-t ${REG_IMG}:${REG_TAG} \
-	-f registry-server.dockerfile \
-	.
-
-.PHONY: docker-registry-server-push
-docker-registry-server-push: docker-registry-server ## Push docker image with the manager.
-	docker push ${REG_IMG}:${REG_TAG}
-
 ##@ Deployment
 
 ifndef ignore-not-found
@@ -141,13 +123,13 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/default && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
+	cd config/default && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: dev-deploy
 dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernetes cluster in ~/.kube/config
 	mkdir -p config/dev && cp -R config/default/* config/dev
-	cd config/dev && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG) \
+	cd config/dev && $(KUSTOMIZE) edit set image open-component-model/ocm-controller=$(IMG):$(TAG)
 	$(KUSTOMIZE) build config/dev | kubectl apply -f -
 	rm -rf config/dev
 
@@ -204,7 +186,7 @@ $(ENVTEST): $(LOCALBIN)
 
 .PHONY: test-summary-tool
 test-summary-tool: ## Download gotestsum locally if necessary.
-	GOBIN=$(LOCALBIN) go install gotest.tools/gotestsum@${TAG}
+	GOBIN=$(LOCALBIN) go install gotest.tools/gotestsum@latest
 
 .PHONY: generate-license
 generate-license:

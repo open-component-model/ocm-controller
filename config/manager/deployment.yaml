@@ -22,9 +22,8 @@ spec:
           type: RuntimeDefault
       containers:
       - command:
-        - /entrypoint.sh
+        - /manager
         args:
-        - --manager
         - --zap-log-level=4
         - --leader-elect
         - --oci-registry-addr=registry.ocm-system.svc.cluster.local:5000
