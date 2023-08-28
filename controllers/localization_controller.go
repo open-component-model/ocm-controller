@@ -139,7 +139,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	obj := &v1alpha1.Localization{}
 	if err = r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("localization object has been deleted, skipping reconcile")
+			logger.V(4).Info("localization object has been deleted, skipping reconcile")
 			return ctrl.Result{}, nil
 		}
 
@@ -291,7 +291,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		return ctrl.Result{}, err
 	}
 
-	logger.Info("done updating localization object")
+	logger.V(4).Info("finished updating localization object")
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
 	// Remove any stale Ready condition, most likely False, set above. Its value
