@@ -139,6 +139,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	obj := &v1alpha1.Localization{}
 	if err = r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
+			logger.V(4).Info("localization object has been deleted, skipping reconcile")
 			return ctrl.Result{}, nil
 		}
 
@@ -251,7 +252,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if obj.GetSnapshotName() == "" {
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to get snapshot name: %w", err)
 		}
 		obj.Status.SnapshotName = name
 		return ctrl.Result{Requeue: true}, nil
@@ -263,6 +264,7 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Localization) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
 
 	if obj.Generation != obj.Status.ObservedGeneration {
@@ -272,6 +274,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 
 	if err := r.MutationReconciler.ReconcileMutationObject(ctx, obj); err != nil {
 		if apierrors.IsNotFound(err) {
+			logger.Error(err, "mutation object is not found, skipping reconcile loop")
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
@@ -288,6 +291,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 		return ctrl.Result{}, err
 	}
 
+	logger.V(4).Info("finished updating localization object")
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
 	// Remove any stale Ready condition, most likely False, set above. Its value
