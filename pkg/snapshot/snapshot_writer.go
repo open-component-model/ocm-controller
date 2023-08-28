@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Writer creates a snapshot using an artifact path as location for the snapshot
@@ -39,6 +40,9 @@ func NewOCIWriter(client client.Client, cache cache.Cache, scheme *runtime.Schem
 }
 
 func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, sourceDir string, identity ocmmetav1.Identity) (digest string, err error) {
+	logger := log.FromContext(ctx).WithName("snapshot-writer")
+
+	logger.Info("creating snapshot for identity", "identity", identity)
 	artifactPath, err := os.CreateTemp("", "snapshot-artifact-*.tgz")
 	if err != nil {
 		return "", fmt.Errorf("fs error: %w", err)
@@ -47,6 +51,8 @@ func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, so
 	if err := buildTar(artifactPath.Name(), sourceDir); err != nil {
 		return "", fmt.Errorf("build tar error: %w", err)
 	}
+
+	logger.Info("built tar file")
 
 	file, err := os.Open(artifactPath.Name())
 	if err != nil {
@@ -67,10 +73,14 @@ func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, so
 		return "", fmt.Errorf("failed to construct name: %w", err)
 	}
 
+	logger.Info("repository name constructed", "name", name)
+
 	snapshotDigest, err := w.Cache.PushData(ctx, file, name, owner.GetResourceVersion())
 	if err != nil {
 		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
+
+	logger.Info("pushed data to the cache with digest", "digest", snapshotDigest)
 
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
@@ -96,6 +106,8 @@ func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, so
 	if err != nil {
 		return "", fmt.Errorf("failed to create or update component descriptor: %w", err)
 	}
+
+	logger.Info("snapshot successfully created/updated", "digest", snapshotDigest, "snapshot", snapshotCR)
 
 	return snapshotDigest, nil
 }
