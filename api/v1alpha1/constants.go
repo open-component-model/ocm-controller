@@ -2,5 +2,5 @@ package v1alpha1
 
 const (
 	// DefaultRegistryCertificateSecretName is the name of the of certificate secret for client and registry.
-	DefaultRegistryCertificateSecretName = "registry-certs"
+	DefaultRegistryCertificateSecretName = "ocm-registry-tls-certs"
 )

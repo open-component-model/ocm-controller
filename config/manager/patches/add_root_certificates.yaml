@@ -13,16 +13,14 @@ spec:
       containers:
         - name: manager
           image: open-component-model/ocm-controller
-          env:
-            - name: REGISTRY_ROOT_CERTIFICATE # optionally define to override default location
-              value: /certs/ca.pem
           volumeMounts:
-            - mountPath: "/certs"
+            - mountPath: "/etc/ssl/certs/registry-root.pem"
+              subPath: "registry-root.pem"
               name: "certificates"
       volumes:
         - name: "certificates"
           secret:
-            secretName: "registry-certs"
+            secretName: "ocm-registry-tls-certs"
             items:
-              - key: "ca.pem"
-                path: "ca.pem"
+              - key: "caFile"
+                path: "registry-root.pem"

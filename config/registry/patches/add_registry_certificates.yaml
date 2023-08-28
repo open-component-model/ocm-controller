@@ -26,11 +26,11 @@ spec:
               value: "/certs/ca.pem"
           volumeMounts:
             - mountPath: "/certs"
-              name: "registry-certs"
+              name: "ocm-registry-tls-certs"
       volumes:
-        - name: "registry-certs"
+        - name: "ocm-registry-tls-certs"
           secret:
-            secretName: "registry-certs"
+            secretName: "ocm-registry-tls-certs"
             items:
               - key: "certFile"
                 path: "cert.pem"

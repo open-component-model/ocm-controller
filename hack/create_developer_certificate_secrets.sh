@@ -8,7 +8,7 @@ if [[ "${path}" == *hack* ]]; then
   exit 1
 fi
 
-if [ "$(kubectl get secret -n ocm-system registry-certs)" ]; then
+if [ "$(kubectl get secret -n ocm-system ocm-registry-tls-certs)" ]; then
   echo "secret already exist, no need to re-run"
 
   exit 0
@@ -39,7 +39,7 @@ fi
 
 echo -n "creating secret..."
 kubectl create secret generic \
-  -n ocm-system registry-certs \
+  -n ocm-system ocm-registry-tls-certs \
   --from-file=caFile="${rootCAPath}" \
   --from-file=certFile="${certPath}" \
   --from-file=keyFile="${keyPath}" \

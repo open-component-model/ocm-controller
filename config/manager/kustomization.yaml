@@ -4,5 +4,5 @@ resources:
 - deployment.yaml
 
 # Uncomment to enable HTTPS for the registry
-#patches:
-#- path: ./patches/add_root_certificates.yaml
+patches:
+- path: ./patches/add_root_certificates.yaml

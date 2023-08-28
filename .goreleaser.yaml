@@ -37,8 +37,6 @@ changelog:
 # for more information on what this target does: https://goreleaser.com/errors/docker-build/
 dockers:
   - id: linux-build
-    extra_files:
-    - ./hack/entrypoint.sh
     image_templates:
     - "{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:{{ .Tag }}"
     - "{{ .Env.REGISTRY }}/open-component-model/{{ .ProjectName }}:latest"

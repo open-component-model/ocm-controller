@@ -172,7 +172,7 @@ func TestClient_FetchPush(t *testing.T) {
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
+			Name:      "ocm-registry-tls-certs",
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
@@ -183,7 +183,7 @@ func TestClient_FetchPush(t *testing.T) {
 		Type: "Opaque",
 	}
 	fakeClient := fake.NewClientBuilder().WithObjects(secret).WithScheme(scheme).Build()
-	c := NewClient(addr, WithClient(fakeClient), WithCertificateSecret("registry-certs"), WithNamespace("default"))
+	c := NewClient(addr, WithClient(fakeClient), WithCertificateSecret("ocm-registry-tls-certs"), WithNamespace("default"))
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -260,7 +260,7 @@ func TestClient_DeleteData(t *testing.T) {
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "registry-certs",
+			Name:      "ocm-registry-tls-certs",
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
@@ -271,7 +271,7 @@ func TestClient_DeleteData(t *testing.T) {
 		Type: "Opaque",
 	}
 	fakeClient := fake.NewClientBuilder().WithObjects(secret).WithScheme(scheme).Build()
-	c := NewClient(addr, WithClient(fakeClient), WithCertificateSecret("registry-certs"), WithNamespace("default"))
+	c := NewClient(addr, WithClient(fakeClient), WithCertificateSecret("ocm-registry-tls-certs"), WithNamespace("default"))
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
