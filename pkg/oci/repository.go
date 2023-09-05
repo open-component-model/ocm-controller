@@ -117,19 +117,19 @@ func (c *Client) setupCertificates() error {
 		return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
 	}
 
-	certFile, ok := registryCerts.Data["certFile"]
+	certFile, ok := registryCerts.Data["tls.crt"]
 	if !ok {
-		return fmt.Errorf("server.pem data not found in registry certificate secret")
+		return fmt.Errorf("tls.crt data not found in registry certificate secret")
 	}
 
-	keyFile, ok := registryCerts.Data["keyFile"]
+	keyFile, ok := registryCerts.Data["tls.key"]
 	if !ok {
-		return fmt.Errorf("server-key.pem data not found in registry certificate secret")
+		return fmt.Errorf("tls.key data not found in registry certificate secret")
 	}
 
-	caFile, ok := registryCerts.Data["caFile"]
+	caFile, ok := registryCerts.Data["ca.crt"]
 	if !ok {
-		return fmt.Errorf("ca.pem data not found in registry certificate secret")
+		return fmt.Errorf("ca.crt data not found in registry certificate secret")
 	}
 
 	c.certPem = certFile

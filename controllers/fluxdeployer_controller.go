@@ -60,8 +60,9 @@ type FluxDeployerReconciler struct {
 
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots,verbs=get;list;watch;create;update;patch;delete
 
-// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories;helmrepositories,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kustomize.toolkit.fluxcd.io,resources=kustomizations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -394,7 +395,7 @@ func (r *FluxDeployerReconciler) reconcileHelmRepository(ctx context.Context, ob
 		}
 		helmRepository.Spec = sourcev1beta2.HelmRepositorySpec{
 			Interval: obj.Spec.Interval,
-			SecretRef: &meta.LocalObjectReference{
+			CertSecretRef: &meta.LocalObjectReference{
 				Name: r.CertSecretName,
 			},
 			URL:  url,

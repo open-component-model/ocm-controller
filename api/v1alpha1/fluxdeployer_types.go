@@ -64,7 +64,7 @@ func (in *FluxDeployer) SetConditions(conditions []metav1.Condition) {
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 
-// FluxDeployer is the Schema for the fluxdeployers API
+// FluxDeployer is the Schema for the FluxDeployers API
 type FluxDeployer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

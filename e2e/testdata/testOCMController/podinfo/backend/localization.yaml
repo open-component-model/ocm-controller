@@ -14,5 +14,5 @@ spec:
     resourceRef:
       name: config
       version: 1.0.0
-      referencePath: 
+      referencePath:
         - name: backend

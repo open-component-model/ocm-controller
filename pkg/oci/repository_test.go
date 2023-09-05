@@ -176,9 +176,9 @@ func TestClient_FetchPush(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
+			"ca.crt":  []byte("file"),
+			"tls.crt": []byte("file"),
+			"tls.key": []byte("file"),
 		},
 		Type: "Opaque",
 	}
@@ -264,9 +264,9 @@ func TestClient_DeleteData(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
+			"ca.crt":  []byte("file"),
+			"tls.crt": []byte("file"),
+			"tls.key": []byte("file"),
 		},
 		Type: "Opaque",
 	}

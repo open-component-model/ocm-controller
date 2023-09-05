@@ -27,7 +27,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: FluxDeployer is the Schema for the fluxdeployers API
+        description: FluxDeployer is the Schema for the FluxDeployers API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
