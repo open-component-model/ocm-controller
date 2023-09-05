@@ -1,10 +1,24 @@
 module github.com/open-component-model/ocm-controller
 
-go 1.20
+go 1.21
 
 replace github.com/opencontainers/go-digest => github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be
 
 replace github.com/google/go-containerregistry => github.com/google/go-containerregistry v0.14.1-0.20230409045903-ed5c185df419
+
+// Flux dependent re-writes. These are needed to be compatible with the flux version at all times.
+replace (
+	k8s.io/api => k8s.io/api v0.26.3
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.26.3
+	k8s.io/apimachinery => k8s.io/apimachinery v0.26.3
+	k8s.io/cli-runtime => k8s.io/cli-runtime v0.26.3
+	k8s.io/client-go => k8s.io/client-go v0.26.3
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230109183929-3758b55a6596
+	k8s.io/kubectl => k8s.io/kubectl v0.26.3
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.14.6
+	sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.12.1
+	sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.13.9
+)
 
 require (
 	cuelang.org/go v0.5.0
@@ -17,9 +31,9 @@ require (
 	github.com/fluxcd/kustomize-controller/api v1.0.0-rc.1
 	github.com/fluxcd/pkg/apis/event v0.5.2
 	github.com/fluxcd/pkg/apis/meta v1.1.2
-	github.com/fluxcd/pkg/http/fetch v0.5.0
+	github.com/fluxcd/pkg/http/fetch v0.5.2
 	github.com/fluxcd/pkg/kustomize v1.1.1
-	github.com/fluxcd/pkg/runtime v0.42.0
+	github.com/fluxcd/pkg/runtime v0.35.0
 	github.com/fluxcd/pkg/tar v0.2.0
 	github.com/fluxcd/source-controller/api v1.1.0
 	github.com/google/go-containerregistry v0.15.2
@@ -145,10 +159,10 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.1.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.1.1 // indirect
 	github.com/fluxcd/pkg/sourceignore v0.3.3 // indirect
-	github.com/fluxcd/pkg/ssa v0.32.0 // indirect
+	github.com/fluxcd/pkg/ssa v0.27.0 // indirect
 	github.com/fluxcd/pkg/untar v0.2.0 // indirect
 	github.com/fluxcd/pkg/version v0.2.1 // indirect
-	github.com/fvbommel/sortorder v1.0.2 // indirect
+	github.com/fvbommel/sortorder v1.1.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-chi/chi v4.1.2+incompatible // indirect
@@ -173,7 +187,7 @@ require (
 	github.com/gomodule/redigo v1.8.2 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/certificate-transparency-go v1.1.4 // indirect
-	github.com/google/gnostic-models v0.6.8 // indirect
+	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-github/v45 v45.2.0 // indirect
 	github.com/google/go-github/v50 v50.2.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
@@ -306,7 +320,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect

@@ -58,7 +58,7 @@ func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
 		o(t)
 	}
 
-	return fake.NewClientBuilder().WithScheme(t.scheme).WithObjects(t.obj...).WithStatusSubresource(t.obj...).Build()
+	return fake.NewClientBuilder().WithScheme(t.scheme).WithObjects(t.obj...).Build()
 }
 
 // FakeKubeClient creates a fake kube client with some defaults and optional arguments.
