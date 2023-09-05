@@ -14,6 +14,13 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/component"
+	"github.com/open-component-model/ocm-controller/pkg/event"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm-controller/pkg/snapshot"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -28,15 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/cache"
-	"github.com/open-component-model/ocm-controller/pkg/component"
-	"github.com/open-component-model/ocm-controller/pkg/event"
-	"github.com/open-component-model/ocm-controller/pkg/ocm"
-	"github.com/open-component-model/ocm-controller/pkg/snapshot"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 // ResourceReconciler reconciles a Resource object
@@ -74,7 +72,7 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Resource{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &v1alpha1.ComponentVersion{}},
+			&v1alpha1.ComponentVersion{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(resourceKey)),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
@@ -308,8 +306,8 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 // this function will enqueue a reconciliation for any snapshot which is referenced
 // in the .spec.sourceRef or spec.configRef field of a Localization
-func (r *ResourceReconciler) findObjects(key string) func(client.Object) []reconcile.Request {
-	return func(obj client.Object) []reconcile.Request {
+func (r *ResourceReconciler) findObjects(key string) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		resources := &v1alpha1.ResourceList{}
 		if err := r.List(context.TODO(), resources, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),

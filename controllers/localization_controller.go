@@ -10,7 +10,11 @@ import (
 	"fmt"
 	"time"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
+	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/fluxcd/source-controller/api/v1beta2"
 	"golang.org/x/exp/slices"
@@ -29,12 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
-	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
-	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -114,17 +112,17 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Localization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &v1alpha1.ComponentVersion{}},
+			&v1alpha1.ComponentVersion{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &v1alpha1.Snapshot{}},
+			&v1alpha1.Snapshot{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &v1beta2.GitRepository{}},
+			&v1beta2.GitRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey)),
 			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).
@@ -307,8 +305,8 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 // or a Snapshot. If it's a ComponentVersion, we look for all Configurations that reference
 // it by name. If it's a Snapshot, we first identify its owner and then look for Localization
 // that reference the parent object.
-func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) func(client.Object) []reconcile.Request {
-	return func(obj client.Object) []reconcile.Request {
+func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var selectorTerm string
 
 		switch obj.(type) {
@@ -342,8 +340,8 @@ func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) func(c
 
 // this function will enqueue a reconciliation for any component version which is referenced
 // in the .spec.sourceRef or spec.configRef field of a Localization
-func (r *LocalizationReconciler) findObjectsForGitRepository(key string) func(client.Object) []reconcile.Request {
-	return func(obj client.Object) []reconcile.Request {
+func (r *LocalizationReconciler) findObjectsForGitRepository(key string) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		patchRefs := &v1alpha1.LocalizationList{}
 		if err := r.List(context.TODO(), patchRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
