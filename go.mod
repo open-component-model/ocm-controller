@@ -11,7 +11,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/containers/image/v5 v5.23.0
-	github.com/cyphar/filepath-securejoin v0.2.3
+	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/distribution/distribution/v3 v3.0.0-20230327091844-0c958010ace2
 	github.com/fluxcd/helm-controller/api v0.32.1
 	github.com/fluxcd/kustomize-controller/api v1.0.0-rc.1
