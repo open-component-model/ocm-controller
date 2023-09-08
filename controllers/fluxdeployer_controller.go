@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
@@ -151,6 +152,11 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 		return ctrl.Result{}, err
 	}
 
+	// If the type is HelmChart we need to cut off the last part of the snapshot url that will contain
+	// the chart name.
+	if _, ok := snapshot.Spec.Identity[deliveryv1alpha1.ResourceHelmChartNameKey]; ok {
+		snapshotRepo = snapshotRepo[0:strings.Index(snapshotRepo, "/")]
+	}
 	snapshotURL := fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, snapshotRepo)
 
 	// create kustomization

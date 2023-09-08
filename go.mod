@@ -43,7 +43,7 @@ require (
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.27.10
-	github.com/open-component-model/ocm v0.3.0-rc.3
+	github.com/open-component-model/ocm v0.3.0
 	github.com/open-component-model/ocm-e2e-framework v0.6.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc3
@@ -52,6 +52,7 @@ require (
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
 	github.com/xeipuuv/gojsonschema v1.2.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	helm.sh/helm/v3 v3.12.3
 	k8s.io/apimachinery v0.28.1
 	k8s.io/client-go v0.28.1
 	sigs.k8s.io/controller-runtime v0.16.1
@@ -298,7 +299,6 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	helm.sh/helm/v3 v3.12.3 // indirect
 	k8s.io/cli-runtime v0.28.1 // indirect
 	k8s.io/kubectl v0.27.3 // indirect
 	oras.land/oras-go v1.2.3 // indirect

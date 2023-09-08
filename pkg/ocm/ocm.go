@@ -15,6 +15,7 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/go-logr/logr"
 	"github.com/mitchellh/hashstructure/v2"
+	"helm.sh/helm/v3/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -210,7 +211,13 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		logger.V(4).Info("resource data was automatically decompressed")
 	}
 
-	digest, err := c.cache.PushData(ctx, decompressedReader, name, version)
+	var mediaType string
+	if res.Meta().Type == "helmChart" {
+		mediaType = registry.ChartLayerMediaType
+	}
+
+	// We need to push the media type... And construct the right layers I guess.
+	digest, err := c.cache.PushData(ctx, decompressedReader, mediaType, name, version)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to cache blob: %w", err)
 	}
@@ -403,6 +410,12 @@ func ConstructRepositoryName(identity ocmmetav1.Identity) (string, error) {
 	repositoryName, err := HashIdentity(identity)
 	if err != nil {
 		return "", fmt.Errorf("failed to create hash for identity: %w", err)
+	}
+
+	// Append the name of the helm chart to the repository. That's because flux helm resolver
+	// doesn't look at the root of an OCI repository, it appends the name of the chart at the end.
+	if v, ok := identity[v1alpha1.ResourceHelmChartNameKey]; ok {
+		repositoryName = fmt.Sprintf("%s/%s", repositoryName, v)
 	}
 
 	return repositoryName, nil

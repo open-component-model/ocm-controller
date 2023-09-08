@@ -54,7 +54,7 @@ func (f *FakeCache) IsCachedWasNotCalled() bool {
 	return len(f.isCachedCalledWith) == 0
 }
 
-func (f *FakeCache) PushData(ctx context.Context, data io.ReadCloser, name, tag string) (string, error) {
+func (f *FakeCache) PushData(ctx context.Context, data io.ReadCloser, mediaType, name, tag string) (string, error) {
 	content, err := io.ReadAll(data)
 	if err != nil {
 		return "", fmt.Errorf("failed to read read closer: %w", err)

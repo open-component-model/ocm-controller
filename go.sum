@@ -1644,8 +1644,8 @@ github.com/onsi/gomega v1.22.1/go.mod h1:x6n7VNe4hw0vkyYUM4mjIXx3JbLiPaBPNgB7PRQ
 github.com/onsi/gomega v1.23.0/go.mod h1:Z/NWtiqwBrwUt4/2loMmHL63EDLnYHmVbuBpDr2vQAg=
 github.com/onsi/gomega v1.27.10 h1:naR28SdDFlqrG6kScpT8VWpu1xWY5nJRCF3XaYyBjhI=
 github.com/onsi/gomega v1.27.10/go.mod h1:RsS8tutOdbdgzbPtzzATp12yT7kM5I5aElG3evPbQ0M=
-github.com/open-component-model/ocm v0.3.0-rc.3 h1:DhRhSYWerkZiADN8bo+9Uu9aTljyp8RoitrgQusBNm4=
-github.com/open-component-model/ocm v0.3.0-rc.3/go.mod h1:LmsnU1AH/+2O4X6F6Ohoxq08GYo34v2Fv2JACDPixrA=
+github.com/open-component-model/ocm v0.3.0 h1:zZdURdgEPe5GjDPc9dKa6dek+VkTMpJwZM0IDooLdmw=
+github.com/open-component-model/ocm v0.3.0/go.mod h1:9XrUXuL5Ev1CKcNKk//pJWWaAwWIKEXtFtGS/VQ+Oos=
 github.com/open-component-model/ocm-e2e-framework v0.6.0 h1:SGUnTXPy7yXpXEbsV0N7dCZvQ5mzI+72lMoWauWw1p8=
 github.com/open-component-model/ocm-e2e-framework v0.6.0/go.mod h1:+JNqNksMIH03PxJ1LyEFbr+tYD2JZtpNMgumE3Gq1hg=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be h1:f2PlhC9pm5sqpBZFvnAoKj+KzXRzbjFMA+TqXfJdgho=

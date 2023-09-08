@@ -50,7 +50,7 @@ func TestClient_GetResource(t *testing.T) {
 	}
 	comp.Resources = append(comp.Resources, res)
 
-	octx.AddComponent(comp)
+	_ = octx.AddComponent(comp)
 
 	cd := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
@@ -306,7 +306,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			setupComponents: func(name string, context *ocmcontext.Context) {
 				// v0.0.1 should not be chosen.
 				for _, v := range []string{"v0.0.1", "v0.0.5"} {
-					context.AddComponent(&ocmcontext.Component{
+					_ = context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
 					})
@@ -335,7 +335,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			},
 			setupComponents: func(name string, context *ocmcontext.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
-					context.AddComponent(&ocmcontext.Component{
+					_ = context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
 					})
@@ -364,7 +364,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			},
 			setupComponents: func(name string, context *ocmcontext.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
-					context.AddComponent(&ocmcontext.Component{
+					_ = context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
 					})
@@ -393,7 +393,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			},
 			setupComponents: func(name string, context *ocmcontext.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2"} {
-					context.AddComponent(&ocmcontext.Component{
+					_ = context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
 					})
