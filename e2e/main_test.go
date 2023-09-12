@@ -46,6 +46,7 @@ var (
 	timeoutDuration            = time.Minute * 2
 	testRepoName               = "ocm-controller-test"
 	testRepoSignedName         = "ocm-controller-signed-test"
+	testRepoHelmName           = "ocm-controller-helm-test"
 	testHelmChartBasedResource = "testHelmChartResource"
 	testOCMControllerPath      = "testOCMController"
 	testSignedComponentsPath   = "testSignedOCIRegistryComponents"

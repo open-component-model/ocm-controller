@@ -47,11 +47,11 @@ func TestHelmChartResource(t *testing.T) {
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
 		Setup(setup.AddScheme(kustomizev1.AddToScheme)).
-		Setup(setup.AddGitRepository(testRepoName)).
-		Setup(setup.AddFluxSyncForRepo(testRepoName, destinationPrefix, ocmNamespace))
+		Setup(setup.AddGitRepository(testRepoHelmName)).
+		Setup(setup.AddFluxSyncForRepo(testRepoHelmName, destinationPrefix, ocmNamespace))
 
 	componentVersion := features.New("Create Manifests").
-		Setup(setup.AddFilesToGitRepository(getHelmManifests(testHelmChartBasedResource, testRepoName)...)).
+		Setup(setup.AddFilesToGitRepository(getHelmManifests(testHelmChartBasedResource, testRepoHelmName)...)).
 		Assess("check that component version is ready and valid", checkIsComponentVersionReady("ocm-with-helm", ocmNamespace))
 
 	validationDeploymentBackend := checkDeploymentReadiness("fluxdeployer-podinfo-pipeline-backend", "ghcr.io/stefanprodan/podinfo")
