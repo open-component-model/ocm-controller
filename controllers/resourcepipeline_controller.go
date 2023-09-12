@@ -12,9 +12,6 @@ import (
 	"os"
 	"strings"
 
-	esapi "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
-	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
-	"github.com/external-secrets/external-secrets/pkg/controllers/secretstore"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
@@ -22,7 +19,6 @@ import (
 	"github.com/mandelsoft/vfs/pkg/projectionfs"
 	"golang.org/x/exp/slog"
 	"gopkg.in/yaml.v2"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -214,12 +210,6 @@ func (r *ResourcePipelineReconciler) reconcile(
 		return ctrl.Result{}, fmt.Errorf("failed to download resource: %w", err)
 	}
 
-	// Build the secret store manager and start building up a map of secret values.
-	secrets, err := r.createSecretMap(ctx, obj)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create secret map: %w", err)
-	}
-
 	parameters := map[string]any{}
 	if obj.Spec.Parameters != nil {
 		if err := json.Unmarshal(obj.Spec.Parameters.Raw, &parameters); err != nil {
@@ -228,7 +218,7 @@ func (r *ResourcePipelineReconciler) reconcile(
 	}
 
 	for _, step := range obj.Spec.PipelineSpec.Steps {
-		if err := r.executePipelineStep(ctx, step, nil, cv, dir, secrets, parameters); err != nil {
+		if err := r.executePipelineStep(ctx, step, nil, cv, dir, parameters); err != nil {
 			return ctrl.Result{}, fmt.Errorf(
 				"failed to execute pipeline step %s: %w",
 				step.Name,
@@ -291,68 +281,6 @@ func (r *ResourcePipelineReconciler) getComponentVersionAccess(
 	)
 }
 
-func (r *ResourcePipelineReconciler) createSecretMap(
-	ctx context.Context,
-	obj *deliveryv1alpha1.ResourcePipeline,
-) (_ map[string]any, err error) {
-	secretManager := secretstore.NewManager(r.Client, "default", true)
-	defer func() {
-		if cerr := secretManager.Close(ctx); cerr != nil {
-			err = errors.Join(err, cerr)
-		}
-	}()
-
-	secretMap := make(map[string]any)
-
-	for k, secret := range obj.Spec.Secrets {
-		store := &esv1beta1.SecretStore{}
-		if err := r.Get(ctx, types.NamespacedName{
-			Name:      secret.SecretStoreRef.Name,
-			Namespace: secret.SecretStoreRef.Namespace,
-		}, store); err != nil {
-			return nil, fmt.Errorf("failed to find secret store: %w", err)
-		}
-		storeProvider, err := esapi.GetProvider(store)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get store provider: %w", err)
-		}
-
-		secretPatchers := patch.NewSerialPatcher(store, r.Client)
-
-		cond := secretstore.NewSecretStoreCondition(
-			esapi.SecretStoreReady,
-			v1.ConditionTrue,
-			esapi.ReasonStoreValid,
-			msgStoreValidated,
-		)
-		status := store.GetStatus()
-		status.Conditions = append(status.Conditions, *cond)
-		status.Capabilities = storeProvider.Capabilities()
-		store.SetStatus(status)
-		if err := secretPatchers.Patch(ctx, store); err != nil {
-			return nil, fmt.Errorf("failed to patch store: %w", err)
-		}
-
-		secrets, err := secretManager.Get(ctx, esv1beta1.SecretStoreRef{
-			Name: secret.SecretStoreRef.Name,
-			Kind: store.Kind,
-		}, secret.SecretStoreRef.Namespace, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve secret: %w", err)
-		}
-
-		value, err := secrets.GetSecret(ctx, secret.RemoteRef)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get secret: %w", err)
-		}
-
-		// build up a map of key/property values.
-		secretMap[k] = string(value)
-	}
-
-	return secretMap, nil
-}
-
 // for each WASM step
 // - get the module
 // - verify the signature
@@ -363,7 +291,7 @@ func (r *ResourcePipelineReconciler) executePipelineStep(
 	obj *deliveryv1alpha1.ResourcePipeline,
 	cv ocmcore.ComponentVersionAccess,
 	dir string,
-	secrets, parameters map[string]any,
+	parameters map[string]any,
 ) error {
 	data, err := r.fetchWasmBlob(step)
 	if err != nil {
@@ -386,7 +314,7 @@ func (r *ResourcePipelineReconciler) executePipelineStep(
 			return fmt.Errorf("failed to parse raw values: %w", err)
 		}
 	}
-	if err := processValueFunctions(secrets, parameters, values); err != nil {
+	if err := processValueFunctions(parameters, values); err != nil {
 		return fmt.Errorf("failed to process value functions: %w", err)
 	}
 
@@ -450,7 +378,6 @@ func (r *ResourcePipelineReconciler) fetchWasmBlob(
 }
 
 const (
-	secretsInjectKey    = "$secrets"
 	parametersInjectKey = "$parameters"
 )
 
@@ -462,15 +389,7 @@ func parametersInjectFunc(parameters map[string]any, key string) (any, error) {
 	return nil, fmt.Errorf("parameter with key %s not found", key)
 }
 
-func secretsInjectFunc(secrets map[string]any, key string) (any, error) {
-	if v, ok := secrets[key]; ok {
-		return v, nil
-	}
-
-	return nil, fmt.Errorf("secret with key %s not found", key)
-}
-
-func injectValue(secrets, parameters map[string]any, value string) (any, error) {
+func injectValue(parameters map[string]any, value string) (any, error) {
 	idx := strings.Index(value, ".")
 	if idx < 0 {
 		return nil, fmt.Errorf(
@@ -486,8 +405,6 @@ func injectValue(secrets, parameters map[string]any, value string) (any, error) 
 	funcName, key := value[:idx], value[idx+1:]
 
 	switch {
-	case strings.HasPrefix(funcName, secretsInjectKey):
-		return secretsInjectFunc(secrets, key)
 	case strings.HasPrefix(funcName, parametersInjectKey):
 		return parametersInjectFunc(parameters, key)
 	}
@@ -501,7 +418,6 @@ func injectValue(secrets, parameters map[string]any, value string) (any, error) 
 // nested values. This is true for secrets as secrets contains a Key, but parameters is
 // technically an arbitrary structure.
 func processValueFunctions(
-	secretMap map[string]any,
 	parameters map[string]any,
 	values map[string]any,
 ) error {
@@ -509,7 +425,7 @@ func processValueFunctions(
 		switch t := v.(type) {
 		case string:
 			if strings.HasPrefix(t, "$") {
-				inject, err := injectValue(secretMap, parameters, t)
+				inject, err := injectValue(parameters, t)
 				if err != nil {
 					return fmt.Errorf("failed to inject value: %w", err)
 				}
@@ -517,7 +433,7 @@ func processValueFunctions(
 				values[k] = inject
 			}
 		case map[string]any:
-			if err := processValueFunctions(secretMap, parameters, t); err != nil {
+			if err := processValueFunctions(parameters, t); err != nil {
 				return fmt.Errorf("failed to process values: %w", err)
 			}
 		case []any:
@@ -525,7 +441,7 @@ func processValueFunctions(
 				switch et := e.(type) {
 				case string:
 					if strings.HasPrefix(et, "$") {
-						inject, err := injectValue(secretMap, parameters, et)
+						inject, err := injectValue(parameters, et)
 						if err != nil {
 							return fmt.Errorf("failed to create inject value: %w", err)
 						}
@@ -533,7 +449,7 @@ func processValueFunctions(
 						t[i] = inject
 					}
 				case map[string]any:
-					if err := processValueFunctions(secretMap, parameters, et); err != nil {
+					if err := processValueFunctions(parameters, et); err != nil {
 						return fmt.Errorf("failed to process values: %w", err)
 					}
 				}

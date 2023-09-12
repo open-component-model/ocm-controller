@@ -10,7 +10,6 @@ import (
 func TestProcessValueFunctions(t *testing.T) {
 	testCases := []struct {
 		name           string
-		secrets        map[string]any
 		parameters     map[string]any
 		values         map[string]any
 		expectedValues map[string]any
@@ -18,21 +17,16 @@ func TestProcessValueFunctions(t *testing.T) {
 	}{
 		{
 			name: "should inject values",
-			secrets: map[string]any{
-				"key": "secret",
-			},
 			parameters: map[string]any{
 				"key": "parameter",
 			},
 			values: map[string]any{
 				"key":  "value",
 				"key2": "$parameters.key",
-				"key3": "$secrets.key",
 			},
 			expectedValues: map[string]any{
 				"key":  "value",
 				"key2": "parameter",
-				"key3": "secret",
 			},
 		},
 		{
@@ -47,9 +41,9 @@ func TestProcessValueFunctions(t *testing.T) {
 			name: "fails if inject key can't be found",
 			values: map[string]any{
 				"key":  "value",
-				"key2": "$secrets.key",
+				"key2": "$parameters.key",
 			},
-			err: "failed to inject value: secret with key key not found",
+			err: "failed to inject value: parameter with key key not found",
 		},
 		{
 			name: "fails if inject value is of invalid format",
@@ -63,15 +57,12 @@ func TestProcessValueFunctions(t *testing.T) {
 			name: "fails if inject value is missing from func key exp: `$secrets.`",
 			values: map[string]any{
 				"key":  "value",
-				"key2": "$secrets.",
+				"key2": "$parameters.",
 			},
-			err: "failed to inject value: missing value from func key: $secrets.",
+			err: "failed to inject value: missing value from func key: $parameters.",
 		},
 		{
 			name: "all in all with complex objects",
-			secrets: map[string]any{
-				"key": "secret",
-			},
 			parameters: map[string]any{
 				"key": "parameter",
 			},
@@ -81,10 +72,10 @@ func TestProcessValueFunctions(t *testing.T) {
 					"key": []any{
 						1,
 						2,
-						"$secrets.key",
+						"$parameters.key",
 						"3",
 						map[string]any{
-							"key":  "$secrets.key",
+							"key":  "$parameters.key",
 							"key2": "value",
 						},
 					},
@@ -99,10 +90,10 @@ func TestProcessValueFunctions(t *testing.T) {
 					"key": []any{
 						1,
 						2,
-						"secret",
+						"parameter",
 						"3",
 						map[string]any{
-							"key":  "secret",
+							"key":  "parameter",
 							"key2": "value",
 						},
 					},
@@ -119,7 +110,7 @@ func TestProcessValueFunctions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Helper()
 
-			err := processValueFunctions(tc.secrets, tc.parameters, tc.values)
+			err := processValueFunctions(tc.parameters, tc.values)
 			if tc.err == "" {
 				require.NoError(t, err)
 				assert.Equal(t, tc.expectedValues, tc.values)

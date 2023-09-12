@@ -10,7 +10,6 @@ resources:
 - bases/delivery.ocm.software_configurations.yaml
 - bases/delivery.ocm.software_fluxdeployers.yaml
 - bases/delivery.ocm.software_resourcepipelines.yaml
-- vendored/external-secrets.io_secretstores.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	esv1beta1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1beta1"
-	"github.com/fluxcd/pkg/apis/meta"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,9 +27,6 @@ type ResourcePipelineSpec struct {
 	SourceRef ObjectReference `json:"sourceRef"`
 
 	// +optional
-	Secrets map[string]ResourcePipelineSecretSpec `json:"secrets,omitempty"`
-
-	// +optional
 	Parameters *apiextensionsv1.JSON `json:"parameters,omitempty"`
 
 	// +optional
@@ -49,16 +44,6 @@ type ResourcePipelineSource struct {
 
 	// +required
 	Resource string `json:"resource"`
-}
-
-// ResourcePipelineSecretSpec specifies access to a secret resource
-// that can be used within either the pipeline or delivery stages.
-type ResourcePipelineSecretSpec struct {
-	// +required
-	RemoteRef esv1beta1.ExternalSecretDataRemoteRef `json:"remoteRef"`
-
-	// +required
-	SecretStoreRef meta.NamespacedObjectReference `json:"secretStoreRef"`
 }
 
 // PipelineSpec holds the steps that constitute the pipeline.
