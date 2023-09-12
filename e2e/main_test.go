@@ -43,20 +43,21 @@ import (
 )
 
 var (
-	timeoutDuration          = time.Minute * 2
-	testRepoName             = "ocm-controller-test"
-	testRepoSignedName       = "ocm-controller-signed-test"
-	testOCMControllerPath    = "testOCMController"
-	testSignedComponentsPath = "testSignedOCIRegistryComponents"
-	keyName                  = "rsa"
-	cvFile                   = "component_version.yaml"
-	localizationFile         = "localization.yaml"
-	resourceFile             = "resource.yaml"
-	configurationFile        = "configuration.yaml"
-	deployerFile             = "deployer.yaml"
-	destinationPrefix        = "apps/"
-	identifier               = "metadata.name"
-	version1                 = "1.0.0"
+	timeoutDuration            = time.Minute * 2
+	testRepoName               = "ocm-controller-test"
+	testRepoSignedName         = "ocm-controller-signed-test"
+	testHelmChartBasedResource = "testHelmChartResource"
+	testOCMControllerPath      = "testOCMController"
+	testSignedComponentsPath   = "testSignedOCIRegistryComponents"
+	keyName                    = "rsa"
+	cvFile                     = "component_version.yaml"
+	localizationFile           = "localization.yaml"
+	resourceFile               = "resource.yaml"
+	configurationFile          = "configuration.yaml"
+	deployerFile               = "deployer.yaml"
+	destinationPrefix          = "apps/"
+	identifier                 = "metadata.name"
+	version1                   = "1.0.0"
 )
 
 func TestOCMController(t *testing.T) {
@@ -449,7 +450,7 @@ func checkCustomResourcesReadiness(path string) *features.FeatureBuilder {
 
 func checkDeploymentReadiness(deploymentName string, imageName string) *features.FeatureBuilder {
 	return features.New("Validate OCM Pipeline: Deployment").
-		Assess("check that deployment "+deploymentName+" was localized",
+		Assess("check that deployment "+deploymentName+" is ready",
 			func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 				client, err := cfg.NewClient()
 				if err != nil {

@@ -1,0 +1,16 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Resource
+metadata:
+  name: ocm-with-helm-deployment
+  namespace: ocm-system
+spec:
+  interval: 10m
+  sourceRef:
+    kind: ComponentVersion
+    name: ocm-with-helm
+    namespace: ocm-system
+    resourceRef:
+      name: charts
+      version: 6.3.5
+      extraIdentity:
+        helmChart: podinfo

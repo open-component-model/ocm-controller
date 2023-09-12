@@ -5,6 +5,7 @@
 package ocm
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containers/image/v5/pkg/compression"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
 	ocmcontext "github.com/open-component-model/ocm-controller/pkg/fakes"
@@ -115,6 +117,103 @@ func TestClient_GetResource(t *testing.T) {
 	args := cache.PushDataCallingArgumentsOnCall(0)
 
 	assert.Equal(t, data, args.Content)
+
+	assert.Equal(t, "sha-2705577397727487661", args.Name, "pushed name did not match constructed name from identity of the resource")
+	assert.Equal(t, resourceRef.Version, args.Version)
+}
+
+func TestClient_GetHelmResource(t *testing.T) {
+	component := "github.com/skarlso/ocm-demo-index"
+	resource := "remote-controller-demo"
+	resourceVersion := "v0.0.1"
+	data, err := os.ReadFile(filepath.Join("testdata", "podinfo-6.3.5.tgz"))
+	require.NoError(t, err)
+
+	octx := ocmcontext.NewFakeOCMContext()
+
+	comp := &ocmcontext.Component{
+		Name:    component,
+		Version: "v0.0.1",
+	}
+	res := &ocmcontext.Resource{
+		Name:      resource,
+		Version:   resourceVersion,
+		Data:      data,
+		Component: comp,
+		Kind:      "helmChart",
+		Type:      "helm",
+	}
+	comp.Resources = append(comp.Resources, res)
+
+	_ = octx.AddComponent(comp)
+
+	cd := &v1alpha1.ComponentDescriptor{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "github.com-skarlso-ocm-demo-index-v0.0.1-12345",
+		},
+		Spec: v1alpha1.ComponentDescriptorSpec{
+			Version: "v0.0.1",
+		},
+	}
+
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cd))
+	cache := &fakes.FakeCache{}
+	cache.IsCachedReturns(false, nil)
+	cache.FetchDataByDigestReturns(io.NopCloser(strings.NewReader("mockdata")), nil)
+	cache.PushDataReturns("sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", nil)
+
+	ocmClient := NewClient(fakeKubeClient, cache)
+
+	cv := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: component,
+			Version: v1alpha1.Version{
+				Semver: "v0.0.1",
+			},
+			Repository: v1alpha1.Repository{
+				URL: "localhost",
+			},
+		},
+		Status: v1alpha1.ComponentVersionStatus{
+			ReconciledVersion: "v0.0.1",
+			ComponentDescriptor: v1alpha1.Reference{
+				Name:    component,
+				Version: "v0.0.1",
+				ComponentDescriptorRef: meta.NamespacedObjectReference{
+					Name:      "github.com-skarlso-ocm-demo-index-v0.0.1-12345",
+					Namespace: "default",
+				},
+			},
+		},
+	}
+
+	resourceRef := &v1alpha1.ResourceReference{
+		ElementMeta: v3alpha1.ElementMeta{
+			Name:    "remote-controller-demo",
+			Version: "v0.0.1",
+		},
+	}
+
+	reader, digest, err := ocmClient.GetResource(context.Background(), octx, cv, resourceRef)
+	assert.NoError(t, err)
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	assert.Equal(t, "mockdata", string(content))
+	assert.Equal(t, "sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", digest)
+
+	// verify that the cache has been called with the right resource data to cache.
+	args := cache.PushDataCallingArgumentsOnCall(0)
+
+	decompressedDataReader, _, err := compression.AutoDecompress(bytes.NewBuffer(data))
+	require.NoError(t, err)
+	decompressedData, err := io.ReadAll(decompressedDataReader)
+	require.NoError(t, err)
+	assert.Equal(t, string(decompressedData), args.Content)
 
 	assert.Equal(t, "sha-2705577397727487661", args.Name, "pushed name did not match constructed name from identity of the resource")
 	assert.Equal(t, resourceRef.Version, args.Version)
