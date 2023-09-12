@@ -74,6 +74,12 @@ type WasmStep struct {
 
 	// +optional
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
+
+	// +kubebuilder:default="30s"
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m))+$"
+	// +optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
 
 func (w WasmStep) GetComponent() string {

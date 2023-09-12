@@ -4,7 +4,7 @@ metadata:
   name: pipeline
   namespace: ocm-system
 spec:
-  interval: 2m0s
+  interval: 1m0s
   sourceRef:
     kind: ComponentVersion
     name: server
@@ -14,8 +14,8 @@ spec:
   pipelineSpec:
     steps:
     - name: resolve
-      module: ocm.software/modules:v0.0.1@resolver
+      module: ocm.software/modules:v0.6.0-test@resolver
     - name: configure
-      module: ocm.software/modules:v0.0.1@configure
+      module: ocm.software/modules:v0.6.0-test@configure
       values:
-        replicas: 2
+        replicas: 3

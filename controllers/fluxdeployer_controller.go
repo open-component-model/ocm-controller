@@ -28,6 +28,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/patch"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/event"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // FluxDeployerReconciler reconciles a FluxDeployer object
@@ -64,7 +76,7 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if !ok {
 			return []string{}
 		}
-		var ns = obj.Spec.SourceRef.Namespace
+		ns := obj.Spec.SourceRef.Namespace
 		if ns == "" {
 			ns = obj.GetNamespace()
 		}
@@ -76,14 +88,17 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deliveryv1alpha1.FluxDeployer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&v1alpha1.Snapshot{},
+			&source.Kind{Type: &v1alpha1.Snapshot{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey)),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *FluxDeployerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *FluxDeployerReconciler) Reconcile(
+	ctx context.Context,
+	req ctrl.Request,
+) (ctrl.Result, error) {
 	obj := &v1alpha1.FluxDeployer{}
 	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -117,7 +132,10 @@ func (r *FluxDeployerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return r.reconcile(ctx, obj)
 }
 
-func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.FluxDeployer) (ctrl.Result, error) {
+func (r *FluxDeployerReconciler) reconcile(
+	ctx context.Context,
+	obj *v1alpha1.FluxDeployer,
+) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
 	logger.Info("reconciling flux-deployer", "name", obj.GetName())
@@ -148,7 +166,9 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 	snapshotURL := fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, snapshotRepo)
 
 	if obj.Spec.KustomizationTemplate != nil && obj.Spec.HelmReleaseTemplate != nil {
-		return ctrl.Result{}, fmt.Errorf("can't define both kustomization template and helm release template")
+		return ctrl.Result{}, fmt.Errorf(
+			"can't define both kustomization template and helm release template",
+		)
 	}
 
 	// create kustomization
@@ -157,8 +177,17 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 		if err := r.createKustomizationSources(ctx, obj, snapshotURL, snapshot.Spec.Tag); err != nil {
 			msg := "failed to create kustomization sources"
 			logger.Error(err, msg)
-			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateKustomizationFailedReason, err.Error())
-			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateKustomizationFailedReason, err.Error())
+			conditions.MarkFalse(
+				obj,
+				meta.ReadyCondition,
+				v1alpha1.CreateOrUpdateKustomizationFailedReason,
+				err.Error(),
+			)
+			conditions.MarkStalled(
+				obj,
+				v1alpha1.CreateOrUpdateKustomizationFailedReason,
+				err.Error(),
+			)
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 			return ctrl.Result{}, err
 		}
@@ -168,7 +197,12 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 		if err := r.createHelmSources(ctx, obj, snapshotURL); err != nil {
 			msg := "failed to create helm sources"
 			logger.Error(err, msg)
-			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error())
+			conditions.MarkFalse(
+				obj,
+				meta.ReadyCondition,
+				v1alpha1.CreateOrUpdateHelmFailedReason,
+				err.Error(),
+			)
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error())
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 			return ctrl.Result{}, err
@@ -181,7 +215,11 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 	return ctrl.Result{}, nil
 }
 
-func (r *FluxDeployerReconciler) createKustomizationSources(ctx context.Context, obj *v1alpha1.FluxDeployer, url, tag string) error {
+func (r *FluxDeployerReconciler) createKustomizationSources(
+	ctx context.Context,
+	obj *v1alpha1.FluxDeployer,
+	url, tag string,
+) error {
 	// create oci registry
 	if err := r.reconcileOCIRepo(ctx, obj, url, tag); err != nil {
 		return fmt.Errorf("failed to create OCI repository: %w", err)
@@ -194,7 +232,11 @@ func (r *FluxDeployerReconciler) createKustomizationSources(ctx context.Context,
 	return nil
 }
 
-func (r *FluxDeployerReconciler) createHelmSources(ctx context.Context, obj *v1alpha1.FluxDeployer, url string) error {
+func (r *FluxDeployerReconciler) createHelmSources(
+	ctx context.Context,
+	obj *v1alpha1.FluxDeployer,
+	url string,
+) error {
 	// create oci registry
 	if err := r.reconcileHelmRepository(ctx, obj, url); err != nil {
 		return fmt.Errorf("failed to create OCI repository: %w", err)
@@ -207,7 +249,11 @@ func (r *FluxDeployerReconciler) createHelmSources(ctx context.Context, obj *v1a
 	return nil
 }
 
-func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1alpha1.FluxDeployer, url, tag string) error {
+func (r *FluxDeployerReconciler) reconcileOCIRepo(
+	ctx context.Context,
+	obj *v1alpha1.FluxDeployer,
+	url, tag string,
+) error {
 	ociRepoCR := &sourcev1beta2.OCIRepository{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
@@ -233,7 +279,6 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1al
 		}
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to create reconcile oci repo: %w", err)
 	}
@@ -241,7 +286,10 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(ctx context.Context, obj *v1al
 	return nil
 }
 
-func (r *FluxDeployerReconciler) reconcileKustomization(ctx context.Context, obj *v1alpha1.FluxDeployer) error {
+func (r *FluxDeployerReconciler) reconcileKustomization(
+	ctx context.Context,
+	obj *v1alpha1.FluxDeployer,
+) error {
 	kust := &kustomizev1.Kustomization{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
@@ -261,7 +309,6 @@ func (r *FluxDeployerReconciler) reconcileKustomization(ctx context.Context, obj
 		kust.Spec.SourceRef.Name = obj.GetName()
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to create reconcile kustomization: %w", err)
 	}
@@ -271,7 +318,10 @@ func (r *FluxDeployerReconciler) reconcileKustomization(ctx context.Context, obj
 	return nil
 }
 
-func (r *FluxDeployerReconciler) getSnapshot(ctx context.Context, obj *v1alpha1.FluxDeployer) (*v1alpha1.Snapshot, error) {
+func (r *FluxDeployerReconciler) getSnapshot(
+	ctx context.Context,
+	obj *v1alpha1.FluxDeployer,
+) (*v1alpha1.Snapshot, error) {
 	if obj.Spec.SourceRef.APIVersion == "" {
 		obj.Spec.SourceRef.APIVersion = v1alpha1.GroupVersion.String()
 	}
@@ -311,8 +361,10 @@ func (r *FluxDeployerReconciler) getSnapshot(ctx context.Context, obj *v1alpha1.
 	return snapshot, nil
 }
 
-func (r *FluxDeployerReconciler) findObjects(sourceKey string) handler.MapFunc {
-	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *FluxDeployerReconciler) findObjects(
+	sourceKey string,
+) func(client.Object) []reconcile.Request {
+	return func(obj client.Object) []reconcile.Request {
 		var selectorTerm string
 		switch obj.(type) {
 		case *v1alpha1.Snapshot:
@@ -345,7 +397,10 @@ func (r *FluxDeployerReconciler) findObjects(sourceKey string) handler.MapFunc {
 	}
 }
 
-func (r *FluxDeployerReconciler) reconcileHelmRelease(ctx context.Context, obj *deliveryv1alpha1.FluxDeployer) error {
+func (r *FluxDeployerReconciler) reconcileHelmRelease(
+	ctx context.Context,
+	obj *deliveryv1alpha1.FluxDeployer,
+) error {
 	helmRelease := &helmv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
@@ -367,7 +422,6 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(ctx context.Context, obj *
 		}
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to create reconcile kustomization: %w", err)
 	}
@@ -377,7 +431,11 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(ctx context.Context, obj *
 	return nil
 }
 
-func (r *FluxDeployerReconciler) reconcileHelmRepository(ctx context.Context, obj *deliveryv1alpha1.FluxDeployer, url string) error {
+func (r *FluxDeployerReconciler) reconcileHelmRepository(
+	ctx context.Context,
+	obj *deliveryv1alpha1.FluxDeployer,
+	url string,
+) error {
 	helmRepository := &sourcev1beta2.HelmRepository{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
@@ -388,7 +446,10 @@ func (r *FluxDeployerReconciler) reconcileHelmRepository(ctx context.Context, ob
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, helmRepository, func() error {
 		if helmRepository.ObjectMeta.CreationTimestamp.IsZero() {
 			if err := controllerutil.SetOwnerReference(obj, helmRepository, r.Scheme); err != nil {
-				return fmt.Errorf("failed to set owner reference on helm repository source: %w", err)
+				return fmt.Errorf(
+					"failed to set owner reference on helm repository source: %w",
+					err,
+				)
 			}
 		}
 		helmRepository.Spec = sourcev1beta2.HelmRepositorySpec{
@@ -401,7 +462,6 @@ func (r *FluxDeployerReconciler) reconcileHelmRepository(ctx context.Context, ob
 		}
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to create reconcile oci repo: %w", err)
 	}

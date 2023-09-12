@@ -233,6 +233,19 @@ rules:
   - patch
   - update
 - apiGroups:
+  - external-secrets.io
+  resources:
+  - secretstores
+  - secretstores/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - helm.toolkit.fluxcd.io
   resources:
   - helmreleases

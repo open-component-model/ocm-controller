@@ -192,7 +192,7 @@ func TestClient_GetHelmResource(t *testing.T) {
 	}
 
 	resourceRef := &v1alpha1.ResourceReference{
-		ElementMeta: v3alpha1.ElementMeta{
+		ElementMeta: v1alpha1.ElementMeta{
 			Name:    "remote-controller-demo",
 			Version: "v0.0.1",
 		},

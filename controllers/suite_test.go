@@ -60,7 +60,6 @@ func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
 	return fake.NewClientBuilder().
 		WithScheme(t.scheme).
 		WithObjects(t.obj...).
-		WithStatusSubresource(t.obj...).
 		Build()
 }
 

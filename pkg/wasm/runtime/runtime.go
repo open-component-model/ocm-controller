@@ -13,63 +13,67 @@ import (
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
-type module struct {
-	name   string
-	wasm   []byte
-	object *v1alpha1.ResourcePipeline
-	cv     ocm.ComponentVersionAccess
-	dir    string
-	logger *slog.Logger
+type Runtime struct {
+	runtime wazero.Runtime
+	object  *v1alpha1.ResourcePipeline
+	cv      ocm.ComponentVersionAccess
+	dir     string
+	logger  *slog.Logger
 }
 
-func New(name string, wasm []byte) *module {
-	return &module{
-		name: name,
-		wasm: wasm,
-	}
+func New() *Runtime {
+	return &Runtime{}
 }
 
-func (m *module) WithLogger(l *slog.Logger) *module {
+func (m *Runtime) WithLogger(l *slog.Logger) *Runtime {
 	m.logger = l
 	return m
 }
 
-func (m *module) WithComponent(cv ocm.ComponentVersionAccess) *module {
+func (m *Runtime) WithComponent(cv ocm.ComponentVersionAccess) *Runtime {
 	m.cv = cv
 	return m
 }
 
-func (m *module) WithObject(obj *v1alpha1.ResourcePipeline) *module {
+func (m *Runtime) WithObject(obj *v1alpha1.ResourcePipeline) *Runtime {
 	m.object = obj
 	return m
 }
 
-func (m *module) WithDir(path string) *module {
+func (m *Runtime) WithDir(path string) *Runtime {
 	m.dir = path
 	return m
 }
 
-func (m *module) Run(ctx context.Context, args ...string) error {
-	runtime := wazero.NewRuntime(ctx)
-	defer runtime.Close(ctx)
+func (m *Runtime) Close(ctx context.Context) error {
+	return m.runtime.Close(ctx)
+}
 
-	if err := hostfuncs.Export(ctx, runtime, m.object, m.cv, m.logger); err != nil {
+func (m *Runtime) Init(ctx context.Context) error {
+	r := wazero.NewRuntimeWithConfig(ctx,
+		wazero.NewRuntimeConfig().WithCloseOnContextDone(true))
+
+	if err := hostfuncs.Export(ctx, r, m.object, m.cv, m.logger); err != nil {
 		return err
 	}
-	if _, err := wasi_snapshot_preview1.Instantiate(ctx, runtime); err != nil {
+	if _, err := wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
 		return err
 	}
+	m.runtime = r
+	return nil
+}
 
+func (m *Runtime) Call(ctx context.Context, name string, wasm []byte, args ...string) error {
 	cfg := wazero.NewModuleConfig().
 		WithStdout(os.Stdout).
-		WithArgs(m.name, args[0]).
+		WithArgs(name, args[0]).
 		WithFSConfig(wazero.NewFSConfig().WithDirMount(m.dir, "/data"))
 
 	if m.dir != "" {
 		cfg = cfg.WithEnv("OCM_SOFTWARE_DATA_DIR", "/data")
 	}
 
-	mod, err := runtime.InstantiateWithConfig(ctx, m.wasm, cfg)
+	mod, err := m.runtime.InstantiateWithConfig(ctx, wasm, cfg)
 	if err != nil {
 		return err
 	}

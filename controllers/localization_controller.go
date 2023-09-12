@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -70,7 +71,7 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Localization{}, sourceKey, func(rawObj client.Object) []string {
 		loc := rawObj.(*v1alpha1.Localization)
-		var ns = loc.Spec.SourceRef.Namespace
+		ns := loc.Spec.SourceRef.Namespace
 		if ns == "" {
 			ns = loc.GetNamespace()
 		}
@@ -100,7 +101,7 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if loc.Spec.PatchStrategicMerge == nil {
 			return nil
 		}
-		var ns = loc.Spec.PatchStrategicMerge.Source.SourceRef.Namespace
+		ns := loc.Spec.PatchStrategicMerge.Source.SourceRef.Namespace
 		if ns == "" {
 			ns = loc.GetNamespace()
 		}
@@ -112,17 +113,17 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Localization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&v1alpha1.ComponentVersion{},
+			&source.Kind{Type: &v1alpha1.ComponentVersion{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
 		Watches(
-			&v1alpha1.Snapshot{},
+			&source.Kind{Type: &v1alpha1.Snapshot{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Watches(
-			&v1beta2.GitRepository{},
+			&source.Kind{Type: &v1beta2.GitRepository{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey)),
 			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).
@@ -131,7 +132,10 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
+func (r *LocalizationReconciler) Reconcile(
+	ctx context.Context,
+	req ctrl.Request,
+) (result ctrl.Result, err error) {
 	logger := log.FromContext(ctx).WithName("localization-controller")
 
 	obj := &v1alpha1.Localization{}
@@ -163,7 +167,8 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return
 		}
 
-		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
+		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil &&
+			condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
 		}
 
@@ -174,7 +179,9 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			conditions.Delete(obj, meta.ReconcilingCondition)
 
 			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
-			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
+			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil &&
+				ready.Status == metav1.ConditionFalse &&
+				!conditions.IsStalled(obj) {
 				err = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
 				event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 			}
@@ -191,15 +198,33 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// If not reconciling or stalled than mark Ready=True
 		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
 			err == nil && result.RequeueAfter == obj.GetRequeueAfter() {
-			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation succeeded", nil)
+			conditions.MarkTrue(
+				obj,
+				meta.ReadyCondition,
+				meta.SucceededReason,
+				"Reconciliation success",
+			)
+			event.New(
+				r.EventRecorder,
+				obj,
+				eventv1.EventSeverityInfo,
+				"Reconciliation succeeded",
+				nil,
+			)
 		}
 
 		// Set status observed generation option if the object is stalled or ready.
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
-				map[string]string{v1alpha1.GroupVersion.Group + "/localization_digest": obj.Status.LatestSnapshotDigest})
+			event.New(
+				r.EventRecorder,
+				obj,
+				eventv1.EventSeverityInfo,
+				fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
+				map[string]string{
+					v1alpha1.GroupVersion.Group + "/localization_digest": obj.Status.LatestSnapshotDigest,
+				},
+			)
 		}
 
 		if perr := patchHelper.Patch(ctx, obj); perr != nil {
@@ -214,7 +239,11 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 	if !ready {
-		logger.Info("source ref object is not ready", "source", obj.Spec.SourceRef.GetNamespacedName())
+		logger.Info(
+			"source ref object is not ready",
+			"source",
+			obj.Spec.SourceRef.GetNamespacedName(),
+		)
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
@@ -225,7 +254,11 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 		if !ready {
-			logger.Info("config ref object is not ready", "source", obj.Spec.SourceRef.GetNamespacedName())
+			logger.Info(
+				"config ref object is not ready",
+				"source",
+				obj.Spec.SourceRef.GetNamespacedName(),
+			)
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 	}
@@ -239,8 +272,11 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		if !ready {
 			ref := obj.Spec.PatchStrategicMerge.Source.SourceRef
-			logger.Info("patch git repository object is not ready",
-				"gitrepository", (types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}).String())
+			logger.Info(
+				"patch git repository object is not ready",
+				"gitrepository",
+				(types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}).String(),
+			)
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 	}
@@ -261,13 +297,22 @@ func (r *LocalizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return r.reconcile(ctx, obj)
 }
 
-func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Localization) (ctrl.Result, error) {
+func (r *LocalizationReconciler) reconcile(
+	ctx context.Context,
+	obj *v1alpha1.Localization,
+) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
 
 	if obj.Generation != obj.Status.ObservedGeneration {
-		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
-			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
+		rreconcile.ProgressiveStatus(
+			false,
+			obj,
+			meta.ProgressingReason,
+			"processing object: new generation %d -> %d",
+			obj.Status.ObservedGeneration,
+			obj.Generation,
+		)
 	}
 
 	if err := r.MutationReconciler.ReconcileMutationObject(ctx, obj); err != nil {
@@ -278,12 +323,22 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 
 		if errors.Is(err, errTar) {
 			err = fmt.Errorf("source resource is not a tar archive: %w", err)
-			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
+			conditions.MarkFalse(
+				obj,
+				meta.ReadyCondition,
+				v1alpha1.SourceReasonNotATarArchiveReason,
+				err.Error(),
+			)
 			return ctrl.Result{}, err
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
+		conditions.MarkFalse(
+			obj,
+			meta.ReadyCondition,
+			v1alpha1.ReconcileMutationObjectFailedReason,
+			err.Error(),
+		)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 
 		return ctrl.Result{}, err
@@ -306,7 +361,7 @@ func (r *LocalizationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Lo
 // it by name. If it's a Snapshot, we first identify its owner and then look for Localization
 // that reference the parent object.
 func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) handler.MapFunc {
-	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+	return func(obj client.Object) []reconcile.Request {
 		var selectorTerm string
 
 		switch obj.(type) {
@@ -341,7 +396,7 @@ func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) handle
 // this function will enqueue a reconciliation for any component version which is referenced
 // in the .spec.sourceRef or spec.configRef field of a Localization
 func (r *LocalizationReconciler) findObjectsForGitRepository(key string) handler.MapFunc {
-	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+	return func(obj client.Object) []reconcile.Request {
 		patchRefs := &v1alpha1.LocalizationList{}
 		if err := r.List(context.TODO(), patchRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
@@ -352,7 +407,11 @@ func (r *LocalizationReconciler) findObjectsForGitRepository(key string) handler
 	}
 }
 
-func (r *LocalizationReconciler) checkReadiness(ctx context.Context, ns string, obj *v1alpha1.ObjectReference) (bool, error) {
+func (r *LocalizationReconciler) checkReadiness(
+	ctx context.Context,
+	ns string,
+	obj *v1alpha1.ObjectReference,
+) (bool, error) {
 	var ref conditions.Getter
 	switch obj.Kind {
 	case v1alpha1.ComponentVersionKind:
@@ -376,7 +435,9 @@ func (r *LocalizationReconciler) checkReadiness(ctx context.Context, ns string, 
 		// the dynamic client needs to know the GroupVersionResource for the object it's trying to fetch
 		// so construct that and fetch the unstructured object
 		gvr := obj.GetGVR()
-		src, err := r.DynamicClient.Resource(gvr).Namespace(obj.Namespace).Get(ctx, obj.Name, metav1.GetOptions{})
+		src, err := r.DynamicClient.Resource(gvr).
+			Namespace(obj.Namespace).
+			Get(ctx, obj.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to check readiness: %w", err)
 		}
@@ -397,7 +458,10 @@ func (r *LocalizationReconciler) checkReadiness(ctx context.Context, ns string, 
 	return conditions.IsReady(ref), nil
 }
 
-func (r *LocalizationReconciler) checkFluxSourceReadiness(ctx context.Context, obj meta.NamespacedObjectKindReference) (bool, error) {
+func (r *LocalizationReconciler) checkFluxSourceReadiness(
+	ctx context.Context,
+	obj meta.NamespacedObjectKindReference,
+) (bool, error) {
 	var ref conditions.Getter
 	switch obj.Kind {
 	case sourcev1.GitRepositoryKind:
@@ -412,21 +476,22 @@ func (r *LocalizationReconciler) checkFluxSourceReadiness(ctx context.Context, o
 }
 
 func makeRequestsForLocalizations(ll ...v1alpha1.Localization) []reconcile.Request {
-	slices.SortFunc(ll, func(a, b v1alpha1.Localization) int {
+	slices.SortFunc(ll, func(a, b v1alpha1.Localization) bool {
 		aKey := fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName())
 		bKey := fmt.Sprintf("%s/%s", b.GetNamespace(), b.GetName())
-
-		switch {
-		case aKey < bKey:
-			return -1
-		case aKey == bKey:
-			return 0
-		}
-		return 1
+		return aKey < bKey
 	})
 
 	refs := slices.CompactFunc(ll, func(a, b v1alpha1.Localization) bool {
-		return fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()) == fmt.Sprintf("%s/%s", b.GetNamespace(), b.GetName())
+		return fmt.Sprintf(
+			"%s/%s",
+			a.GetNamespace(),
+			a.GetName(),
+		) == fmt.Sprintf(
+			"%s/%s",
+			b.GetNamespace(),
+			b.GetName(),
+		)
 	})
 
 	requests := make([]reconcile.Request, len(refs))

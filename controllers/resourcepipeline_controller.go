@@ -42,12 +42,6 @@ import (
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 )
 
-const (
-	// taken from ESO's validation status messages.
-	// this value is not exposed in the library, so this is a copy of it as is.
-	msgStoreValidated = "store validated"
-)
-
 // ResourcePipelineReconciler reconciles a ResourcePipeline object
 type ResourcePipelineReconciler struct {
 	client.Client
@@ -181,7 +175,13 @@ func (r *ResourcePipelineReconciler) reconcile(
 	// get the component
 	cv, err := r.getComponentVersionAccess(ctx, obj)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("component version not found: %w", err)
+		if apierrors.IsNotFound(err) || err == errCVNotReady {
+			logger.Info("cv not found or not ready: retrying", "msg", err.Error())
+			return ctrl.Result{
+				RequeueAfter: obj.GetRequeueAfter(),
+			}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("could not get component verison: %w", err)
 	}
 	defer cv.Close()
 
@@ -217,8 +217,17 @@ func (r *ResourcePipelineReconciler) reconcile(
 		}
 	}
 
+	wasmRun := wasmruntime.New().
+		WithLogger(slog.New(slog.NewJSONHandler(os.Stdout))).
+		WithComponent(cv).
+		WithDir(dir)
+	if err := wasmRun.Init(ctx); err != nil {
+		return ctrl.Result{}, fmt.Errorf("could not create wasm runtime: %w", err)
+	}
+	defer wasmRun.Close(ctx)
+
 	for _, step := range obj.Spec.PipelineSpec.Steps {
-		if err := r.executePipelineStep(ctx, step, nil, cv, dir, parameters); err != nil {
+		if err := r.executePipelineStepWithTimeout(ctx, wasmRun, step, parameters); err != nil {
 			return ctrl.Result{}, fmt.Errorf(
 				"failed to execute pipeline step %s: %w",
 				step.Name,
@@ -245,6 +254,8 @@ func (r *ResourcePipelineReconciler) reconcile(
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
+var errCVNotReady = errors.New("component version not ready")
+
 func (r *ResourcePipelineReconciler) getComponentVersionAccess(
 	ctx context.Context,
 	obj *v1alpha1.ResourcePipeline,
@@ -255,21 +266,16 @@ func (r *ResourcePipelineReconciler) getComponentVersionAccess(
 		Namespace: obj.Spec.SourceRef.Namespace,
 	}
 	if err := r.Get(ctx, key, &componentVersion); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, err
-		}
-
-		err = fmt.Errorf("failed to get component version: %w", err)
 		return nil, err
 	}
 
 	if !conditions.IsReady(&componentVersion) {
-		return nil, errors.New("component is not ready")
+		return nil, errCVNotReady
 	}
 
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, &componentVersion)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create auth context: %w", err)
 	}
 
 	return r.OCMClient.GetComponentVersion(
@@ -281,31 +287,29 @@ func (r *ResourcePipelineReconciler) getComponentVersionAccess(
 	)
 }
 
+func (r *ResourcePipelineReconciler) executePipelineStepWithTimeout(ctx context.Context,
+	wr *wasmruntime.Runtime,
+	step deliveryv1alpha1.WasmStep,
+	parameters map[string]any,
+) error {
+	ctx, cancel := context.WithTimeout(ctx, step.Timeout.Duration)
+	defer cancel()
+	return r.executePipelineStep(ctx, wr, step, parameters)
+}
+
 // for each WASM step
 // - get the module
-// - verify the signature
+// - TODO: verify the signature
 // - execute
 func (r *ResourcePipelineReconciler) executePipelineStep(
 	ctx context.Context,
+	wr *wasmruntime.Runtime,
 	step deliveryv1alpha1.WasmStep,
-	obj *deliveryv1alpha1.ResourcePipeline,
-	cv ocmcore.ComponentVersionAccess,
-	dir string,
 	parameters map[string]any,
 ) error {
 	data, err := r.fetchWasmBlob(step)
 	if err != nil {
 		return fmt.Errorf("failed to fetch wasm script for %s: %w", step.Name, err)
-	}
-
-	wasmLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	mod := wasmruntime.New(step.Name, data).
-		WithLogger(wasmLogger).
-		WithComponent(cv).
-		WithDir(dir)
-
-	if obj != nil {
-		mod = mod.WithObject(obj)
 	}
 
 	values := map[string]any{}
@@ -323,7 +327,7 @@ func (r *ResourcePipelineReconciler) executePipelineStep(
 		return fmt.Errorf("failed interpret values functions for step %s: %w", step.Name, err)
 	}
 
-	if err := mod.Run(ctx, string(mergedValues)); err != nil {
+	if err := wr.Call(ctx, step.Name, data, string(mergedValues)); err != nil {
 		return fmt.Errorf("failed to run step %s: %w", step.Name, err)
 	}
 
@@ -484,6 +488,11 @@ func (r *ResourcePipelineReconciler) getIdentity(
 		v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
 		v1alpha1.ResourceNameKey:     obj.ResourceRef.Name,
 		v1alpha1.ResourceVersionKey:  obj.ResourceRef.Version,
+	}
+
+	// apply the extra identity fields if provided
+	for k, v := range obj.ResourceRef.ExtraIdentity {
+		id[k] = v
 	}
 
 	return id, err
