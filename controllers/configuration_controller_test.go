@@ -33,14 +33,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
+	apiv1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 	ocmsnapshot "github.com/open-component-model/ocm-controller/pkg/snapshot"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
-
-	apiv1 "github.com/fluxcd/source-controller/api/v1"
 )
 
 var configurationConfigData = []byte(`kind: ConfigData
@@ -172,7 +170,7 @@ func TestConfigurationReconciler(t *testing.T) {
 						Namespace:  cv.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -272,7 +270,7 @@ func TestConfigurationReconciler(t *testing.T) {
 						Namespace:  cv.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -316,7 +314,7 @@ func TestConfigurationReconciler(t *testing.T) {
 						Namespace:  cv.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -363,7 +361,7 @@ func TestConfigurationReconciler(t *testing.T) {
 						Namespace:  cv.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -434,7 +432,7 @@ configuration:
 						Namespace:  cv.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -505,7 +503,7 @@ configuration:
 						Namespace:  cv.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -553,7 +551,7 @@ configuration:
 						Namespace:  cv.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -879,7 +877,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				configuration.Status.LatestSourceVersion = "v0.0.1"
 				configuration.Status.LatestConfigVersion = "v0.0.1"
 				configuration.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name: "name",
 					},
 				}
@@ -909,7 +907,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				configuration.Status.LatestSourceVersion = "v0.0.1"
 				configuration.Status.LatestConfigVersion = "v0.0.1"
 				configuration.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name: "name",
 					},
 				}
@@ -940,7 +938,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				configuration.Status.LatestSourceVersion = "v0.0.1"
 				configuration.Status.LatestConfigVersion = "v0.0.1"
 				configuration.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name: "name",
 					},
 				}
@@ -1042,7 +1040,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 						Namespace: configuration.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name: "test",
 						},
 					},
@@ -1098,7 +1096,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 						Namespace: configuration.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name: "test",
 						},
 					},
@@ -1143,7 +1141,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 						Namespace: configuration.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name: "test",
 						},
 					},

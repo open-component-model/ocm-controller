@@ -25,7 +25,6 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
 
 func TestRepository_Blob(t *testing.T) {
@@ -138,7 +137,7 @@ func TestClient_FetchPush(t *testing.T) {
 			blob:     []byte("image"),
 			expected: []byte("image"),
 			resource: v1alpha1.ResourceReference{
-				ElementMeta: v3alpha1.ElementMeta{
+				ElementMeta: v1alpha1.ElementMeta{
 					Name:    "test-resource-1",
 					Version: "v0.0.1",
 				},
@@ -150,7 +149,7 @@ func TestClient_FetchPush(t *testing.T) {
 			blob:     []byte(""),
 			expected: []byte(""),
 			resource: v1alpha1.ResourceReference{
-				ElementMeta: v3alpha1.ElementMeta{
+				ElementMeta: v1alpha1.ElementMeta{
 					Name:    "test-resource-2",
 					Version: "v0.0.2",
 				},
@@ -162,7 +161,7 @@ func TestClient_FetchPush(t *testing.T) {
 			blob:     []byte(""),
 			expected: []byte(""),
 			resource: v1alpha1.ResourceReference{
-				ElementMeta: v3alpha1.ElementMeta{
+				ElementMeta: v1alpha1.ElementMeta{
 					Name:    "test-resource-2",
 					Version: "v0.0.3",
 				},
@@ -249,7 +248,7 @@ func TestClient_DeleteData(t *testing.T) {
 			blob:     []byte("image"),
 			expected: []byte("image"),
 			resource: v1alpha1.ResourceReference{
-				ElementMeta: v3alpha1.ElementMeta{
+				ElementMeta: v1alpha1.ElementMeta{
 					Name:    "test-resource-1",
 					Version: "v0.0.1",
 				},

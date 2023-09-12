@@ -113,7 +113,7 @@ var (
 					Namespace: "default",
 				},
 				ResourceRef: &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name:    "introspect-image",
 						Version: "1.0.0",
 					},
@@ -182,7 +182,7 @@ var (
 					Namespace: DefaultComponent.Namespace,
 				},
 				ResourceRef: &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name:    "introspect-image",
 						Version: "1.0.0",
 					},
@@ -204,7 +204,7 @@ var (
 					Namespace: DefaultComponent.Namespace,
 				},
 				ResourceRef: &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name:    "introspect-image",
 						Version: "1.0.0",
 					},
