@@ -5,6 +5,7 @@
 package ocm
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -14,7 +15,10 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/go-logr/logr"
+	"github.com/mandelsoft/vfs/pkg/memoryfs"
+	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/download"
 	"helm.sh/helm/v3/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -139,7 +143,7 @@ func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Con
 }
 
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
-func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error) {
+func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (_ io.ReadCloser, _ string, err error) {
 	logger := log.FromContext(ctx).WithName("ocm")
 	version := "latest"
 	if resource.ElementMeta.Version != "" {
@@ -182,7 +186,11 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get component Version: %w", err)
 	}
-	defer cva.Close()
+	defer func() {
+		if cerr := cva.Close(); cerr != nil {
+			err = errors.Join(err, cerr)
+		}
+	}()
 
 	var identities []ocmmetav1.Identity
 	identities = append(identities, resource.ReferencePath...)
@@ -192,16 +200,62 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %s %w", resource.Name, err)
 	}
 
-	access, err := res.AccessMethod()
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch access spec: %w", err)
+	// If resource is of type Helm we need to use a Downloader.
+	var (
+		mediaType string
+		reader    io.ReadCloser
+	)
+	// We add this decision because OCM is storing the Helm artifact as an ociArtifact at the
+	// time of this writing. This means, when fetching the resource via the normal route
+	// it will return an OCI blob instead of the actual helm chart content.
+	// Because of that, we need to create our own downloader when we are dealing with
+	// helm charts.
+	if res.Meta().Type == "helmChart" {
+
+		mediaType = registry.ChartLayerMediaType
+		// use downloader to fetch the blob for the helm chart content
+
+		vf := vfs.New(memoryfs.New())
+		defer func() {
+			if rerr := vf.RemoveAll(""); rerr != nil {
+				err = errors.Join(err, rerr)
+			}
+		}()
+
+		d := download.For(cva.GetContext())
+		// Note that helm downloader does _NOT_ return the path element of the Downloader's output.
+		if _, _, err := d.Download(nil, res, "downloaded", vf); err != nil {
+			return nil, "", fmt.Errorf("failed to download helm chart content: %w", err)
+		}
+
+		// The `downloaded` comes from the path and a combination of internal settings.
+		//chart = path
+		//if !strings.HasSuffix(chart, ".tgz") {
+		//	chart += ".tgz"
+		//}
+		content, err := vf.ReadFile("downloaded.tgz")
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to fetch the downloaded: %w", err)
+		}
+		reader = io.NopCloser(bytes.NewBuffer(content))
+	} else {
+		// use the plain resource reader
+		access, err := res.AccessMethod()
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to fetch access spec: %w", err)
+		}
+
+		reader, err = access.Reader()
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to fetch reader: %w", err)
+		}
 	}
 
-	reader, err := access.Reader()
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch reader: %w", err)
-	}
-	defer reader.Close()
+	defer func() {
+		if cerr := reader.Close(); cerr != nil {
+			err = errors.Join(err, cerr)
+		}
+	}()
 
 	decompressedReader, decompressed, err := compression.AutoDecompress(reader)
 	if err != nil {
@@ -209,11 +263,6 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	}
 	if decompressed {
 		logger.V(4).Info("resource data was automatically decompressed")
-	}
-
-	var mediaType string
-	if res.Meta().Type == "helmChart" {
-		mediaType = registry.ChartLayerMediaType
 	}
 
 	// We need to push the media type... And construct the right layers I guess.
@@ -228,6 +277,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to fetch resource: %w", err)
 	}
+
 	return dataReader, digest, nil
 }
 
