@@ -88,9 +88,6 @@ type WasmStep struct {
 	Registry string `json:"registry,omitempty"`
 
 	// +optional
-	// SECRET_STORE
-	// SECRET_VALUE_NAME ( S3_TOKEN )
-	// Take a peak at Tekton.
 	Values *apiextensionsv1.JSON `json:"values,omitempty"`
 }
 
@@ -150,6 +147,10 @@ func (in *ResourcePipeline) SetConditions(conditions []metav1.Condition) {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=rp
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+//+kubebuilder:printcolumn:name="Digest",type="string",JSONPath=".status.latestSnapshotDigest",description=""
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 
 // ResourcePipeline is the Schema for the resourcepipelines API
 type ResourcePipeline struct {

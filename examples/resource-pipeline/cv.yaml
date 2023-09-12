@@ -6,6 +6,6 @@ spec:
   interval: 10m0s
   component: phoban.io/pipeline-demo
   version:
-    semver: "v1.0.0"
+    semver: "v1.1.0"
   repository:
     url: ghcr.io/phoban01

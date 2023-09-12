@@ -12,10 +12,22 @@ spec:
     kind: ResourcePipeline
     listKind: ResourcePipelineList
     plural: resourcepipelines
+    shortNames:
+    - rp
     singular: resourcepipeline
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .status.latestSnapshotDigest
+      name: Digest
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ResourcePipeline is the Schema for the resourcepipelines API
@@ -58,8 +70,6 @@ spec:
                           default: ghcr.io/open-component-model
                           type: string
                         values:
-                          description: SECRET_STORE SECRET_VALUE_NAME ( S3_TOKEN )
-                            Take a peak at Tekton.
                           x-kubernetes-preserve-unknown-fields: true
                       required:
                       - module
@@ -152,12 +162,11 @@ spec:
                       extraIdentity:
                         additionalProperties:
                           type: string
-                        description: ExtraIdentity is the identity of an object. An
-                          additional label with key "name" ist not allowed
+                        description: Identity describes the identity of an object.
+                          Only ascii characters are allowed
                         type: object
                       labels:
-                        description: Labels defines an optional set of additional
-                          labels describing the object.
+                        description: Labels describe a list of labels
                         items:
                           description: Label is a label that can be set on objects.
                           properties:
@@ -181,7 +190,6 @@ spec:
                           type: object
                         type: array
                       name:
-                        description: Name is the context unique name of the object.
                         type: string
                       referencePath:
                         items:
@@ -192,11 +200,9 @@ spec:
                           type: object
                         type: array
                       version:
-                        description: Version is the semver version of the object.
                         type: string
                     required:
                     - name
-                    - version
                     type: object
                 required:
                 - kind

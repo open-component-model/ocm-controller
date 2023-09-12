@@ -1,5 +1,5 @@
 name: phoban.io/pipeline-demo
-version: v1.0.0
+version: v1.1.0
 provider:
   name: phoban.io
 resources:

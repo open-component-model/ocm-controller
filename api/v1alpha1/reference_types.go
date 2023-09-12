@@ -13,7 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
 
 // ObjectReference defines a resource which may be accessed via a snapshot or component version
@@ -27,10 +26,20 @@ type ObjectReference struct {
 
 type ResourceReference struct {
 	// +required
-	v3alpha1.ElementMeta `json:",inline"`
+	ElementMeta `json:",inline"`
 
 	// +optional
 	ReferencePath []ocmmetav1.Identity `json:"referencePath,omitempty"`
+}
+
+type ElementMeta struct {
+	Name string `json:"name"`
+
+	Version string `json:"version,omitempty"`
+
+	ExtraIdentity ocmmetav1.Identity `json:"extraIdentity,omitempty"`
+
+	Labels ocmmetav1.Labels `json:"labels,omitempty"`
 }
 
 func (o *ObjectReference) GetNamespacedName() string {

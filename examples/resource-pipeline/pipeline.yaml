@@ -6,27 +6,16 @@ metadata:
 spec:
   interval: 2m0s
   sourceRef:
+    kind: ComponentVersion
     name: server
     namespace: ocm-system
-    resource: manifests
-  secrets:
-    kubeconfig:
-      secretStoreRef:
-        name: kubernetes
-        namespace: ocm-system
-      remoteRef:
-        key: kubeconfig
-        property: kubeconfig
+    resourceRef: 
+      name: manifests
   pipelineSpec:
     steps:
     - name: resolve
-      module: ocm.software/modules:v0.2.0-test@resolver
+      module: ocm.software/modules:v0.0.1@resolver
+    - name: configure
+      module: ocm.software/modules:v0.0.1@configure
       values:
-        prefix: "ocm://"
-  # deliverySpec:
-  #   targets:
-  #   - name: ssa
-  #     module: ocm.software/modules:v0.4.0-test@ssa
-  #     values:
-  #       prune: true
-  #       kubeconfig: $secrets.kubeconfig
+        replicas: 2
