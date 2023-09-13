@@ -50,7 +50,7 @@ func TestHelmChartResource(t *testing.T) {
 		Setup(setup.AddGitRepository(testRepoHelmName)).
 		Setup(setup.AddFluxSyncForRepo(testRepoHelmName, destinationPrefix, ocmNamespace))
 
-	componentVersion := features.New("Create Manifests").
+	manifestFiles := features.New("Create Manifests and add them to the flux repository").
 		Setup(setup.AddFilesToGitRepository(getHelmManifests(testHelmChartBasedResource, testRepoHelmName)...)).
 		Assess("check that component version is ready and valid", checkIsComponentVersionReady("ocm-with-helm", ocmNamespace))
 
@@ -59,7 +59,7 @@ func TestHelmChartResource(t *testing.T) {
 	testEnv.Test(t,
 		setupComponent.Feature(),
 		management.Feature(),
-		componentVersion.Feature(),
+		manifestFiles.Feature(),
 		validationDeploymentBackend.Feature(),
 	)
 }
