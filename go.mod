@@ -44,7 +44,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.27.10
 	github.com/open-component-model/ocm v0.3.0
-	github.com/open-component-model/ocm-e2e-framework v0.6.1-0.20230913080529-d299054dbbf6
+	github.com/open-component-model/ocm-e2e-framework v0.6.1-0.20230913082321-d7050cc55939
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc3
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
