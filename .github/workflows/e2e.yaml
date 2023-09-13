@@ -8,13 +8,13 @@ on:
       - 'Contributing.md'
     branches:
       - main
-      
+
   push:
     branches:
       - main
   schedule:
       - cron: '0 6 * * *' # 6 AM UTC everyday
-        
+
 permissions:
   contents: read # for actions/checkout to fetch code
 
@@ -45,7 +45,7 @@ jobs:
           tilt: '0.32.2'
       - name: Run E2E tests
         id: e2e-tests
-        run: make e2e
+        run: make e2e-verbose
       - name: Notify on Failure
         id: slack-notification
         uses: slackapi/slack-github-action@v1.23.0

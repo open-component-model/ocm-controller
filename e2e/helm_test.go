@@ -74,17 +74,17 @@ func getHelmManifests(testName string, gitRepositoryName string) []setup.File {
 	cvManifest := setup.File{
 		RepoName:       gitRepositoryName,
 		SourceFilepath: filepath.Join(testName, cvFile),
-		DestFilepath:   destinationPrefix + testName + cvFile,
+		DestFilepath:   destinationPrefix + testName + "/" + cvFile,
 	}
 	resourceManifest := setup.File{
 		RepoName:       gitRepositoryName,
 		SourceFilepath: filepath.Join(testName, resourceFile),
-		DestFilepath:   destinationPrefix + testName + resourceFile,
+		DestFilepath:   destinationPrefix + testName + "/" + resourceFile,
 	}
 	deployerManifestBackend := setup.File{
 		RepoName:       gitRepositoryName,
 		SourceFilepath: filepath.Join(testName, deployerFile),
-		DestFilepath:   destinationPrefix + testName + deployerFile,
+		DestFilepath:   destinationPrefix + testName + "/" + deployerFile,
 	}
 
 	return []setup.File{
