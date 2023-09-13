@@ -97,6 +97,10 @@ type Client struct {
 // WithTransport sets up insecure TLS so the library is forced to use HTTPS.
 func (c *Client) WithTransport() Option {
 	return func(o *options) error {
+		if c.InsecureSkipVerify {
+			return nil
+		}
+
 		if c.certPem == nil && c.keyPem == nil {
 			if err := c.setupCertificates(); err != nil {
 				return fmt.Errorf("failed to set up certificates for transport: %w", err)

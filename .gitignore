@@ -43,3 +43,5 @@ e2e/testdata/testSignedOCIRegistryComponents/podinfo/redis/manifests/*
 
 # ignore generated certificates
 hack/certs
+
+transport-archive

@@ -235,7 +235,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		//}
 		content, err := vf.ReadFile("downloaded.tgz")
 		if err != nil {
-			return nil, "", fmt.Errorf("failed to fetch the downloaded: %w", err)
+			return nil, "", fmt.Errorf("failed to fetch the downloaded file: %w", err)
 		}
 		reader = io.NopCloser(bytes.NewBuffer(content))
 	} else {

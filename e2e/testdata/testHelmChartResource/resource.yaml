@@ -10,7 +10,7 @@ spec:
     name: ocm-with-helm
     namespace: ocm-system
     resourceRef:
-      name: charts
+      name: podinfo
       version: 6.3.5
       extraIdentity:
         helmChart: podinfo

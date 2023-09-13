@@ -5,10 +5,10 @@ metadata:
   namespace: ocm-system
 spec:
   interval: 10m0s
-  component: github.com/skarlso/podinfo-helm
+  component: github.com/open-component-model/helm-test-component
+  references:
+    expand: true
   version:
     semver: 1.0.0
   repository:
-    url: ghcr.io/skarlso
-    secretRef:
-      name: creds
+    url: registry.ocm-system.svc.cluster.local:5000
