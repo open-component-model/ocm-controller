@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/open-component-model/ocm-e2e-framework/shared"
+	"github.com/open-component-model/ocm-e2e-framework/shared/steps/teardown"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
@@ -56,11 +57,14 @@ func TestHelmChartResource(t *testing.T) {
 
 	validationDeploymentBackend := checkDeploymentReadiness("fluxdeployer-podinfo-pipeline-backend", "ghcr.io/stefanprodan/podinfo")
 
+	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState("ocm-controller"))
+
 	testEnv.Test(t,
 		setupComponent.Feature(),
 		management.Feature(),
 		manifestFiles.Feature(),
 		validationDeploymentBackend.Feature(),
+		dumpState.Feature(),
 	)
 }
 
