@@ -15,7 +15,7 @@ type FluxDeployerSpec struct {
 	// +required
 	SourceRef ObjectReference `json:"sourceRef"`
 
-	// The interval at which to reconcile the Kustomization.
+	// The interval at which to reconcile the Kustomization and Helm Releases.
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern="^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$"
 	// +required

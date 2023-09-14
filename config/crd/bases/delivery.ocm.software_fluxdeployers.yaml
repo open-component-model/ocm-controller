@@ -47,7 +47,8 @@ spec:
               helmReleaseTemplate:
                 x-kubernetes-preserve-unknown-fields: true
               interval:
-                description: The interval at which to reconcile the Kustomization.
+                description: The interval at which to reconcile the Kustomization
+                  and Helm Releases.
                 pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h))+$
                 type: string
               kustomizationTemplate:

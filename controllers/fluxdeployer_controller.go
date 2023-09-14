@@ -159,6 +159,10 @@ func (r *FluxDeployerReconciler) reconcile(ctx context.Context, obj *v1alpha1.Fl
 	}
 	snapshotURL := fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, snapshotRepo)
 
+	if obj.Spec.KustomizationTemplate != nil && obj.Spec.HelmReleaseTemplate != nil {
+		return ctrl.Result{}, fmt.Errorf("can't define both kustomization template and helm release template")
+	}
+
 	// create kustomization
 	if obj.Spec.KustomizationTemplate != nil {
 		// create oci registry
