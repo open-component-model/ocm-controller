@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"sort"
 
 	"github.com/Masterminds/semver"
@@ -228,16 +229,39 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 			return nil, "", fmt.Errorf("failed to download helm chart content: %w", err)
 		}
 
-		// The `downloaded` comes from the path and a combination of internal settings.
-		//chart = path
-		//if !strings.HasSuffix(chart, ".tgz") {
-		//	chart += ".tgz"
-		//}
-		content, err := vf.ReadFile("downloaded.tgz")
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to fetch the downloaded file: %w", err)
+		var found bool
+		// We need to look for the first file we find until this is fix is released:
+		// https://github.com/open-component-model/ocm/issues/509
+		if err := vf.Walk("", func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return fmt.Errorf("failed to walk virtual filesystem: %w", err)
+			}
+
+			if info.IsDir() {
+				return nil
+			}
+
+			// we only care about the first file found
+			// TODO: Do something about sublayers and multiple files. Potentially tarring them up.
+			// Although that would result in a double tarred content.
+			if !found {
+				content, rerr := vf.ReadFile(path)
+				if rerr != nil {
+					return fmt.Errorf("failed to find the downloaded file: %w", rerr)
+				}
+				reader = io.NopCloser(bytes.NewBuffer(content))
+				found = true
+			}
+
+			return nil
+		}); err != nil {
+			return nil, "", fmt.Errorf("failed to find downloaded file: %w", err)
 		}
-		reader = io.NopCloser(bytes.NewBuffer(content))
+
+		if !found {
+			return nil, "", fmt.Errorf("no files found in downloaded content")
+		}
+
 	} else {
 		// use the plain resource reader
 		access, err := res.AccessMethod()
