@@ -19,20 +19,19 @@ import (
 	"github.com/mandelsoft/vfs/pkg/memoryfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/download"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	"helm.sh/helm/v3/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -166,6 +165,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		v1alpha1.ResourceNameKey:     resource.ElementMeta.Name,
 		v1alpha1.ResourceVersionKey:  version,
 	}
+
 	// Add extra identity.
 	for k, v := range resource.ElementMeta.ExtraIdentity {
 		identity[k] = v
@@ -174,10 +174,12 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to construct name: %w", err)
 	}
+
 	cached, err := c.cache.IsCached(ctx, name, version)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to check cache: %w", err)
 	}
+
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
@@ -187,6 +189,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get component Version: %w", err)
 	}
+
 	defer func() {
 		if cerr := cva.Close(); cerr != nil {
 			err = errors.Join(err, cerr)
