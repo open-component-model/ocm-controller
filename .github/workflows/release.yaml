@@ -94,6 +94,8 @@ jobs:
       run: |
         mkdir -p output
         kustomize build ./config/default > ./output/install.yaml
+    - name: Create Helm Chart
+      run: make create-helmchart-release
     - name: Run goreleaser
       uses: goreleaser/goreleaser-action@v4
       with:
