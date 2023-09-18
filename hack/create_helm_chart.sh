@@ -17,7 +17,7 @@ check_dependency() {
 
 create_helm_chart() {
   helm create "${1}/ocm-controller"
-  cd "${1}/ocm-controller"
+  cd "${1}/ocm-controller" || exit
   rm -r templates
   mkdir templates
   mkdir crds
