@@ -1,12 +1,13 @@
 #!/bin/bash
+
+CONTROLLER="ocm-controller"
+
 check_dependency() {
-  # Check if helm is installed
   if ! command -v helm &> /dev/null
   then
       echo "Helm could not be found. Please install Helm to proceed."
       exit
   fi
-  # Check if kustomize is installed
     if ! command -v kustomize &> /dev/null
     then
         echo "kustomize could not be found. Please install kustomize to proceed."
@@ -15,8 +16,8 @@ check_dependency() {
 }
 
 create_helm_chart() {
-  helm create "${1}/ocm-controller"
-  cd "${1}/ocm-controller" || exit
+  helm create "${1}/${CONTROLLER}"
+  cd "${1}/${CONTROLLER}" || exit
   rm -r templates
   mkdir templates
   mkdir crds
@@ -31,13 +32,13 @@ create_helm_chart() {
     "helm" )
       #mac
       split -p "^---$" "install.yaml" "helm_";
-      sed -i "" "s/appVersion: .*/appVersion: \"${RELEASE}\"/g" "../ocm-controller/Chart.yaml"
+      sed -i "" "s/appVersion: .*/appVersion: \"${RELEASE}\"/g" "../${CONTROLLER}/Chart.yaml"
 
       ;;
     "output" )
       #ubuntu
       csplit "install.yaml" "/^---$/" {*} --prefix "helm_" -q;
-      sed -i "s/appVersion: .*/appVersion: \"${RELEASE}\"/g" "../ocm-controller/Chart.yaml"
+      sed -i "s/appVersion: .*/appVersion: \"${RELEASE}\"/g" "../${CONTROLLER}/Chart.yaml"
       ;;
     * )
       exit
@@ -50,13 +51,13 @@ create_helm_chart() {
       FILENAME=$(cat "${input}" | grep '^  name: ' | head -1 | sed 's/name: //g' | sed 's/\./_/g' | sed 's/ //g')
       TYPE=$(cat "${input}" | grep '^kind: ' | head -1 | sed 's/kind: //g' | sed 's/\./_/g' | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
       if grep -q "kind: CustomResourceDefinition" "${input}" ; then
-          mv ${input} ../ocm-controller/crds/${FILENAME}.yaml
+          mv ${input} ../${CONTROLLER}/crds/${FILENAME}.yaml
       else
-          mv ${input} ../ocm-controller/templates/${TYPE}_${FILENAME}.yaml
+          mv ${input} ../${CONTROLLER}/templates/${TYPE}_${FILENAME}.yaml
       fi
   done
-
-  rm -rf ../helm_temp
+  cd ..
+  rm -rf helm_temp
 }
 
 create_from_local_resource_manifests() {
@@ -75,6 +76,7 @@ create_from_github_release() {
   mkdir -p "output/helm_temp"
   cp ./output/install.yaml ./output/helm_temp/install.yaml
   create_helm_chart "output"
+  tar -czf helm_chart.tar.gz ${CONTROLLER}
 }
 
 case "${1}" in
