@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -x
 check_dependency() {
   # Check if helm is installed
   if ! command -v helm &> /dev/null
