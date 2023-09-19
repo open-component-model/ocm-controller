@@ -421,7 +421,7 @@ func (c *Client) fetchResourceReader(res ocm.ResourceAccess, cva ocm.ComponentVe
 	if res.Meta().Type == "helmChart" {
 		vf := vfs.New(memoryfs.New())
 		defer func() {
-			if rerr := vf.RemoveAll(""); rerr != nil {
+			if rerr := vf.RemoveAll("downloaded"); rerr != nil {
 				err = errors.Join(err, rerr)
 			}
 		}()
