@@ -133,6 +133,32 @@ Retrieves a `ComponentVersion` from an OCM repository. Handles authentication wi
 
 Makes a resource available within the cluster as a snapshot.
 
+#### HelmChart type Resource
+
+In order to identify a Resource as a HelmChart an extra identify needs to be added. The key is `helmChart` and the
+value is the name of the chart. For example:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Resource
+metadata:
+  name: ocm-with-helm-deployment
+  namespace: ocm-system
+spec:
+  interval: 10m
+  sourceRef:
+    kind: ComponentVersion
+    name: ocm-with-helm
+    namespace: ocm-system
+    resourceRef:
+      name: charts
+      version: 6.3.5
+      extraIdentity:
+        helmChart: podinfo # name of the chart
+```
+
+This extra information is needed, because it cannot be inferred from the resource's information from OCM.
+
 ### Localization
 
 Localizes a resource using the specified configuration resource.

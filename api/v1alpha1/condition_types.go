@@ -29,8 +29,8 @@ const (
 	// ParseReferencesFailedReason is used when the resource references cannot be parsed.
 	ParseReferencesFailedReason = "ParseReferencesFailed"
 
-	// ReconcileMuationObjectFailed is used when the mutation object cannot be reconciled.
-	ReconcileMuationObjectFailedReason = "ReconcileMuationObjectFailed"
+	// ReconcileMutationObjectFailedReason is used when the mutation object cannot be reconciled.
+	ReconcileMutationObjectFailedReason = "ReconcileMutationObjectFailed"
 
 	// SourceReasonNotATarArchiveReason is used when the source resource is not a tar archive.
 	SourceReasonNotATarArchiveReason = "SourceReasonNotATarArchive"
@@ -47,18 +47,12 @@ const (
 	// CreateOrUpdateSnapshotFailedReason is used when the snapshot cannot be created or updated.
 	CreateOrUpdateSnapshotFailedReason = "CreateOrUpdateSnapshotFailed"
 
-	// CreateOrUpdateOCIRepositoryFailedReason is used when the OCIRepository cannot be created or updated.
-	CreateOrUpdateOCIRepositoryFailedReason = "CreateOrUpdateOCIRepositoryFailed"
-
 	// CreateOrUpdateKustomizationFailedReason is used when the Kustomization cannot be created or updated.
 	CreateOrUpdateKustomizationFailedReason = "CreateOrUpdateKustomizationFailed"
 
+	// CreateOrUpdateHelmFailedReason is used when the Kustomization cannot be created or updated.
+	CreateOrUpdateHelmFailedReason = "CreateOrUpdateHelmFailed"
+
 	// CreateRepositoryNameReason is used when the generating a new repository name fails.
 	CreateRepositoryNameReason = "CreateRepositoryNameFailed"
-
-	// PatchSnapshotFailedReason is used when the snapshot cannot be patched.
-	PatchSnapshotFailedReason = "PatchSnapshotFailed"
-
-	// SnapshotFailedReason is used when the snapshot cannot be created.
-	SnapshotFailedReason = "SnapshotFailed"
 )

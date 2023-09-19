@@ -10,19 +10,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	// SnapshotKind is the string representation of a Snapshot.
-	SnapshotKind = "Snapshot"
-
-	ComponentNameKey          = "component-name"
-	ComponentVersionKey       = "component-version"
-	ResourceNameKey           = "resource-name"
-	ResourceVersionKey        = "resource-version"
-	SourceNameKey             = "source-name"
-	SourceNamespaceKey        = "source-namespace"
-	SourceArtifactChecksumKey = "source-artifact-checksum"
-)
-
 // SnapshotWriter defines any object which produces a snapshot
 // +k8s:deepcopy-gen=false
 type SnapshotWriter interface {

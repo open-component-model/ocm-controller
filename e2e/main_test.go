@@ -19,44 +19,43 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fluxcd/helm-controller/api/v2beta1"
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	"github.com/fluxcd/pkg/apis/meta"
+	fconditions "github.com/fluxcd/pkg/runtime/conditions"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/open-component-model/ocm-e2e-framework/shared"
+	"github.com/open-component-model/ocm-e2e-framework/shared/steps/setup"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/fluxcd/helm-controller/api/v2beta1"
-	"github.com/open-component-model/ocm-e2e-framework/shared"
-
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
-	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
-	"github.com/fluxcd/pkg/apis/meta"
-	fconditions "github.com/fluxcd/pkg/runtime/conditions"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
-	"github.com/google/go-containerregistry/pkg/crane"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-e2e-framework/shared/steps/setup"
 )
 
 var (
-	timeoutDuration          = time.Minute * 2
-	testRepoName             = "ocm-controller-test"
-	testRepoSignedName       = "ocm-controller-signed-test"
-	testOCMControllerPath    = "testOCMController"
-	testSignedComponentsPath = "testSignedOCIRegistryComponents"
-	keyName                  = "rsa"
-	cvFile                   = "component_version.yaml"
-	localizationFile         = "localization.yaml"
-	resourceFile             = "resource.yaml"
-	configurationFile        = "configuration.yaml"
-	deployerFile             = "deployer.yaml"
-	destinationPrefix        = "apps/"
-	identifier               = "metadata.name"
-	version1                 = "1.0.0"
+	timeoutDuration            = time.Minute * 2
+	testRepoName               = "ocm-controller-test"
+	testRepoSignedName         = "ocm-controller-signed-test"
+	testRepoHelmName           = "ocm-controller-helm-test"
+	testHelmChartBasedResource = "testHelmChartResource"
+	testOCMControllerPath      = "testOCMController"
+	testSignedComponentsPath   = "testSignedOCIRegistryComponents"
+	keyName                    = "rsa"
+	cvFile                     = "component_version.yaml"
+	localizationFile           = "localization.yaml"
+	resourceFile               = "resource.yaml"
+	configurationFile          = "configuration.yaml"
+	deployerFile               = "deployer.yaml"
+	destinationPrefix          = "apps/"
+	identifier                 = "metadata.name"
+	version1                   = "1.0.0"
 )
 
 func TestOCMController(t *testing.T) {
@@ -412,7 +411,8 @@ func checkCompDescriptorsExistForCompVersion(componentVersionName string, compon
 		cdNameNested := []string{
 			strings.Join([]string{componentNamePrefix, podinfoName, backend, version1}, cdNameSeparator),
 			strings.Join([]string{componentNamePrefix, podinfoName, frontend, version1}, cdNameSeparator),
-			strings.Join([]string{componentNamePrefix, redis, version1}, cdNameSeparator)}
+			strings.Join([]string{componentNamePrefix, redis, version1}, cdNameSeparator),
+		}
 
 		if !strings.Contains(gr.Status.ComponentDescriptor.ComponentDescriptorRef.Name, cdName) {
 			t.Fatal(fmt.Sprintf("Component Descriptor %s does not exist for Component Version: %s", cdName, componentVersionName))
@@ -449,7 +449,7 @@ func checkCustomResourcesReadiness(path string) *features.FeatureBuilder {
 
 func checkDeploymentReadiness(deploymentName string, imageName string) *features.FeatureBuilder {
 	return features.New("Validate OCM Pipeline: Deployment").
-		Assess("check that deployment "+deploymentName+" was localized",
+		Assess("check that deployment "+deploymentName+" is ready",
 			func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 				client, err := cfg.NewClient()
 				if err != nil {

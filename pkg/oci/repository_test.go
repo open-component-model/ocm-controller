@@ -176,9 +176,9 @@ func TestClient_FetchPush(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
+			"ca.crt":  []byte("file"),
+			"tls.crt": []byte("file"),
+			"tls.key": []byte("file"),
 		},
 		Type: "Opaque",
 	}
@@ -214,7 +214,7 @@ func TestClient_FetchPush(t *testing.T) {
 			name, err := ocm.HashIdentity(identity)
 			g.Expect(err).NotTo(HaveOccurred())
 			if tc.push {
-				_, err := c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), name, tc.resource.Version)
+				_, err := c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), "", name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
 				blob, _, err := c.FetchDataByIdentity(context.Background(), name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
@@ -264,9 +264,9 @@ func TestClient_DeleteData(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"caFile":   []byte("file"),
-			"certFile": []byte("file"),
-			"keyFile":  []byte("file"),
+			"ca.crt":  []byte("file"),
+			"tls.crt": []byte("file"),
+			"tls.key": []byte("file"),
 		},
 		Type: "Opaque",
 	}
@@ -302,7 +302,7 @@ func TestClient_DeleteData(t *testing.T) {
 			}
 			name, err := ocm.HashIdentity(identity)
 			g.Expect(err).NotTo(HaveOccurred())
-			_, err = c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), name, tc.resource.Version)
+			_, err = c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), "", name, tc.resource.Version)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(c.DeleteData(context.Background(), name, tc.resource.Version)).To(Succeed())
 			exists, err := c.IsCached(context.Background(), name, tc.resource.Version)

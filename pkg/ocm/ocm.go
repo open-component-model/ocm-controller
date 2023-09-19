@@ -5,6 +5,7 @@
 package ocm
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -14,19 +15,22 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/go-logr/logr"
+	"github.com/mandelsoft/vfs/pkg/memoryfs"
+	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/mitchellh/hashstructure/v2"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/download"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
+	"helm.sh/helm/v3/pkg/registry"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -138,7 +142,7 @@ func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Con
 }
 
 // GetResource returns a reader for the resource data. It is the responsibility of the caller to close the reader.
-func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error) {
+func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (_ io.ReadCloser, _ string, err error) {
 	logger := log.FromContext(ctx).WithName("ocm")
 	version := "latest"
 	if resource.ElementMeta.Version != "" {
@@ -160,6 +164,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		v1alpha1.ResourceNameKey:     resource.ElementMeta.Name,
 		v1alpha1.ResourceVersionKey:  version,
 	}
+
 	// Add extra identity.
 	for k, v := range resource.ElementMeta.ExtraIdentity {
 		identity[k] = v
@@ -168,10 +173,12 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to construct name: %w", err)
 	}
+
 	cached, err := c.cache.IsCached(ctx, name, version)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to check cache: %w", err)
 	}
+
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
@@ -181,7 +188,12 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get component Version: %w", err)
 	}
-	defer cva.Close()
+
+	defer func() {
+		if cerr := cva.Close(); cerr != nil {
+			err = errors.Join(err, cerr)
+		}
+	}()
 
 	var identities []ocmmetav1.Identity
 	identities = append(identities, resource.ReferencePath...)
@@ -191,16 +203,16 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %s %w", resource.Name, err)
 	}
 
-	access, err := res.AccessMethod()
+	reader, mediaType, err := c.fetchResourceReader(res, cva)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch access spec: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch reader for resource: %w", err)
 	}
 
-	reader, err := access.Reader()
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch reader: %w", err)
-	}
-	defer reader.Close()
+	defer func() {
+		if cerr := reader.Close(); cerr != nil {
+			err = errors.Join(err, cerr)
+		}
+	}()
 
 	decompressedReader, decompressed, err := compression.AutoDecompress(reader)
 	if err != nil {
@@ -210,7 +222,8 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		logger.V(4).Info("resource data was automatically decompressed")
 	}
 
-	digest, err := c.cache.PushData(ctx, decompressedReader, name, version)
+	// We need to push the media type... And construct the right layers I guess.
+	digest, err := c.cache.PushData(ctx, decompressedReader, mediaType, name, version)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to cache blob: %w", err)
 	}
@@ -221,6 +234,7 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to fetch resource: %w", err)
 	}
+
 	return dataReader, digest, nil
 }
 
@@ -398,11 +412,62 @@ func (c *Client) ListComponentVersions(logger logr.Logger, octx ocm.Context, obj
 	return result, nil
 }
 
+// We add this decision because OCM is storing the Helm artifact as an ociArtifact at the
+// time of this writing. This means, when fetching the resource via the normal route
+// it will return an OCI blob instead of the actual helm chart content.
+// Because of that, we need to create our own downloader when we are dealing with
+// helm charts.
+func (c *Client) fetchResourceReader(res ocm.ResourceAccess, cva ocm.ComponentVersionAccess) (_ io.ReadCloser, _ string, err error) {
+	if res.Meta().Type == "helmChart" {
+		vf := vfs.New(memoryfs.New())
+		defer func() {
+			if rerr := vf.RemoveAll("downloaded"); rerr != nil {
+				err = errors.Join(err, rerr)
+			}
+		}()
+
+		d := download.For(cva.GetContext())
+		// Note that helm downloader does _NOT_ return the path element of the Downloader's output.
+		_, chart, err := d.Download(nil, res, "downloaded", vf)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to download helm chart content: %w", err)
+		}
+
+		content, rerr := vf.ReadFile(chart)
+		if rerr != nil {
+			return nil, "", fmt.Errorf("failed to find the downloaded file: %w", rerr)
+		}
+		reader := io.NopCloser(bytes.NewBuffer(content))
+
+		return reader, registry.ChartLayerMediaType, nil
+	}
+
+	// use the plain resource reader
+	access, err := res.AccessMethod()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch access spec: %w", err)
+	}
+
+	reader, err := access.Reader()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch reader: %w", err)
+	}
+
+	// Ignore the media type as we set it to a default in OCI package
+	return reader, "", nil
+}
+
 // ConstructRepositoryName hashes the name and passes it back.
 func ConstructRepositoryName(identity ocmmetav1.Identity) (string, error) {
 	repositoryName, err := HashIdentity(identity)
 	if err != nil {
 		return "", fmt.Errorf("failed to create hash for identity: %w", err)
+	}
+
+	// Append the name of the helm chart to the repository. That's because flux helm resolver
+	// doesn't look at the root of an OCI repository, it appends the name of the chart at the end.
+	if v, ok := identity[v1alpha1.ResourceHelmChartNameKey]; ok {
+		repositoryName = fmt.Sprintf("%s/%s", repositoryName, v)
 	}
 
 	return repositoryName, nil

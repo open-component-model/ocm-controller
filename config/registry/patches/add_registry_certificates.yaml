@@ -32,9 +32,9 @@ spec:
           secret:
             secretName: "ocm-registry-tls-certs"
             items:
-              - key: "certFile"
+              - key: "tls.crt"
                 path: "cert.pem"
-              - key: "keyFile"
+              - key: "tls.key"
                 path: "key.pem"
-              - key: "caFile"
+              - key: "ca.crt"
                 path: "ca.pem"
