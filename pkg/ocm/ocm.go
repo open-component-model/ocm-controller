@@ -203,51 +203,9 @@ func (c *Client) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1
 		return nil, "", fmt.Errorf("failed to resolve reference path to resource: %s %w", resource.Name, err)
 	}
 
-	// If resource is of type Helm we need to use a Downloader.
-	var (
-		mediaType string
-		reader    io.ReadCloser
-	)
-	// We add this decision because OCM is storing the Helm artifact as an ociArtifact at the
-	// time of this writing. This means, when fetching the resource via the normal route
-	// it will return an OCI blob instead of the actual helm chart content.
-	// Because of that, we need to create our own downloader when we are dealing with
-	// helm charts.
-	if res.Meta().Type == "helmChart" {
-
-		mediaType = registry.ChartLayerMediaType
-		// use downloader to fetch the blob for the helm chart content
-
-		vf := vfs.New(memoryfs.New())
-		defer func() {
-			if rerr := vf.RemoveAll(""); rerr != nil {
-				err = errors.Join(err, rerr)
-			}
-		}()
-
-		d := download.For(cva.GetContext())
-		// Note that helm downloader does _NOT_ return the path element of the Downloader's output.
-		_, chart, err := d.Download(nil, res, "downloaded", vf)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to download helm chart content: %w", err)
-		}
-
-		content, rerr := vf.ReadFile(chart)
-		if rerr != nil {
-			return nil, "", fmt.Errorf("failed to find the downloaded file: %w", rerr)
-		}
-		reader = io.NopCloser(bytes.NewBuffer(content))
-	} else {
-		// use the plain resource reader
-		access, err := res.AccessMethod()
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to fetch access spec: %w", err)
-		}
-
-		reader, err = access.Reader()
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to fetch reader: %w", err)
-		}
+	reader, mediaType, err := c.fetchResourceReader(res, cva)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch reader for resource: %w", err)
 	}
 
 	defer func() {
@@ -452,6 +410,51 @@ func (c *Client) ListComponentVersions(logger logr.Logger, octx ocm.Context, obj
 		})
 	}
 	return result, nil
+}
+
+// We add this decision because OCM is storing the Helm artifact as an ociArtifact at the
+// time of this writing. This means, when fetching the resource via the normal route
+// it will return an OCI blob instead of the actual helm chart content.
+// Because of that, we need to create our own downloader when we are dealing with
+// helm charts.
+func (c *Client) fetchResourceReader(res ocm.ResourceAccess, cva ocm.ComponentVersionAccess) (_ io.ReadCloser, _ string, err error) {
+	if res.Meta().Type == "helmChart" {
+		vf := vfs.New(memoryfs.New())
+		defer func() {
+			if rerr := vf.RemoveAll(""); rerr != nil {
+				err = errors.Join(err, rerr)
+			}
+		}()
+
+		d := download.For(cva.GetContext())
+		// Note that helm downloader does _NOT_ return the path element of the Downloader's output.
+		_, chart, err := d.Download(nil, res, "downloaded", vf)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to download helm chart content: %w", err)
+		}
+
+		content, rerr := vf.ReadFile(chart)
+		if rerr != nil {
+			return nil, "", fmt.Errorf("failed to find the downloaded file: %w", rerr)
+		}
+		reader := io.NopCloser(bytes.NewBuffer(content))
+
+		return reader, registry.ChartLayerMediaType, nil
+	}
+
+	// use the plain resource reader
+	access, err := res.AccessMethod()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch access spec: %w", err)
+	}
+
+	reader, err := access.Reader()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch reader: %w", err)
+	}
+
+	// Ignore the media type as we set it to a default in OCI package
+	return reader, "", nil
 }
 
 // ConstructRepositoryName hashes the name and passes it back.

@@ -19,27 +19,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fluxcd/helm-controller/api/v2beta1"
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	"github.com/fluxcd/pkg/apis/meta"
+	fconditions "github.com/fluxcd/pkg/runtime/conditions"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/open-component-model/ocm-e2e-framework/shared"
+	"github.com/open-component-model/ocm-e2e-framework/shared/steps/setup"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/fluxcd/helm-controller/api/v2beta1"
-	"github.com/open-component-model/ocm-e2e-framework/shared"
-
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
-	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
-	"github.com/fluxcd/pkg/apis/meta"
-	fconditions "github.com/fluxcd/pkg/runtime/conditions"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
-	"github.com/google/go-containerregistry/pkg/crane"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-e2e-framework/shared/steps/setup"
 )
 
 var (
@@ -414,7 +411,8 @@ func checkCompDescriptorsExistForCompVersion(componentVersionName string, compon
 		cdNameNested := []string{
 			strings.Join([]string{componentNamePrefix, podinfoName, backend, version1}, cdNameSeparator),
 			strings.Join([]string{componentNamePrefix, podinfoName, frontend, version1}, cdNameSeparator),
-			strings.Join([]string{componentNamePrefix, redis, version1}, cdNameSeparator)}
+			strings.Join([]string{componentNamePrefix, redis, version1}, cdNameSeparator),
+		}
 
 		if !strings.Contains(gr.Status.ComponentDescriptor.ComponentDescriptorRef.Name, cdName) {
 			t.Fatal(fmt.Sprintf("Component Descriptor %s does not exist for Component Version: %s", cdName, componentVersionName))
