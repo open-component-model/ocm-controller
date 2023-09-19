@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 check_dependency() {
   # Check if helm is installed
   if ! command -v helm &> /dev/null
@@ -23,56 +22,70 @@ create_helm_chart() {
   mkdir crds
   rm -r charts
   rm values.yaml
-  cd ../..
-
-  mkdir -p "${1}/helm_temp"
-  split -p "^---$" "${1}/install.yaml" "${1}/helm_temp/helm_";
-  HELM_FILES=($(ls -1 "${1}/helm_temp" ))
+  cd ../helm_temp || exit
 
   # Set chart app versiom to release version
-  RELEASE=$(ls -t docs/release_notes | head -1 | sed "s/v//g" | sed "s/.md//g")
-  sed -i "" "s/appVersion: .*/appVersion: \"${RELEASE}\"/g" "${1}/ocm-controller/Chart.yaml"
+  RELEASE=$(ls -t ../../docs/release_notes | head -1 | sed "s/v//g" | sed "s/.md//g")
+
+  case "${1}" in
+    "helm" )
+      #mac
+      split -p "^---$" "install.yaml" "helm_";
+      sed -i "" "s/appVersion: .*/appVersion: \"${RELEASE}\"/g" "../ocm-controller/Chart.yaml"
+
+      ;;
+    "output" )
+      #ubuntu
+      csplit "install.yaml" "/^---$/" {*} --prefix "helm_" -q;
+      sed -i "s/appVersion: .*/appVersion: \"${RELEASE}\"/g" "../ocm-controller/Chart.yaml"
+      ;;
+    * )
+      exit
+      ;;
+  esac
 
   #Move into crds & templates folders after renaming
+  HELM_FILES=($(ls ))
   for input in "${HELM_FILES[@]}";  do
-      FILENAME=$(cat "${1}/helm_temp/${input}" | grep '^  name: ' | head -1 | sed 's/name: //g' | sed 's/\./_/g' | sed 's/ //g')
-      TYPE=$(cat "${1}/helm_temp/${input}" | grep '^kind: ' | head -1 | sed 's/kind: //g' | sed 's/\./_/g' | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
-      if grep -q "kind: CustomResourceDefinition" "${1}/helm_temp/${input}" ; then
-          mv ${1}/helm_temp/${input} ${1}/ocm-controller/crds/${FILENAME}.yaml
+      FILENAME=$(cat "${input}" | grep '^  name: ' | head -1 | sed 's/name: //g' | sed 's/\./_/g' | sed 's/ //g')
+      TYPE=$(cat "${input}" | grep '^kind: ' | head -1 | sed 's/kind: //g' | sed 's/\./_/g' | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
+      if grep -q "kind: CustomResourceDefinition" "${input}" ; then
+          mv ${input} ../ocm-controller/crds/${FILENAME}.yaml
       else
-          mv ${1}/helm_temp/${input} ${1}/ocm-controller/templates/${TYPE}_${FILENAME}.yaml
+          mv ${input} ../ocm-controller/templates/${TYPE}_${FILENAME}.yaml
       fi
   done
 
-  rm -rf ${1}/helm_temp
+  rm -rf ../helm_temp
 }
 
 create_from_local_resource_manifests() {
   check_dependency
   echo "Creating from local manifests in the repository"
   rm -rf helm
-  mkdir helm
-  kustomize build ./config/default > ./helm/install.yaml
+  mkdir -p helm
+  mkdir -p "helm/helm_temp"
+  kustomize build ./config/default > ./helm/helm_temp/install.yaml
 
   create_helm_chart "helm"
-  rm helm/install.yaml
 }
 
-
 create_from_github_release() {
-  echo "Creating from the latest release available on github.com/open-component-model"
+  echo "Creating from the release"
+  mkdir -p "output/helm_temp"
+  cp ./output/install.yaml ./output/helm_temp/install.yaml
   create_helm_chart "output"
 }
 
 case "${1}" in
-    "local" )
-          create_from_local_resource_manifests
-          ;;
-    "release" )
-          create_from_github_release
-          ;;
-    * )
-          echo -n "unknown"
-          exit
-          ;;
+  "local" )
+      create_from_local_resource_manifests
+      ;;
+  "release" )
+      create_from_github_release
+      ;;
+  * )
+    echo -n "unknown"
+    exit
+    ;;
 esac
