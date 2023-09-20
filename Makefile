@@ -200,8 +200,8 @@ generate-license:
 
 .PHONY: create-helmchart
 create-helmchart:
-	./hack/create_helm_chart.sh "local"
+	./hack/create_helm_chart.sh "local" "ocm-controller"
 
 .PHONY: create-helmchart-release
 create-helmchart-release:
-	./hack/create_helm_chart.sh "release"
+	./hack/create_helm_chart.sh "release" "ocm-controller"

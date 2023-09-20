@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONTROLLER="ocm-controller"
+CONTROLLER="${2}"
 
 check_dependency() {
   if ! command -v helm &> /dev/null
@@ -44,7 +44,7 @@ create_helm_chart() {
       exit
       ;;
   esac
-
+  rm install.yaml
   #Move into crds & templates folders after renaming
   HELM_FILES=($(ls ))
   for input in "${HELM_FILES[@]}";  do
@@ -61,7 +61,6 @@ create_helm_chart() {
 }
 
 create_from_local_resource_manifests() {
-  check_dependency
   echo "Creating from local manifests in the repository"
   rm -rf helm
   mkdir -p helm
@@ -79,6 +78,7 @@ create_from_github_release() {
   tar -czf helm_chart.tar.gz ${CONTROLLER}
 }
 
+check_dependency
 case "${1}" in
   "local" )
       create_from_local_resource_manifests
