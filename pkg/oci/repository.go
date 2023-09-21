@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"helm.sh/helm/v3/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
@@ -96,6 +97,10 @@ type Client struct {
 // WithTransport sets up insecure TLS so the library is forced to use HTTPS.
 func (c *Client) WithTransport() Option {
 	return func(o *options) error {
+		if c.InsecureSkipVerify {
+			return nil
+		}
+
 		if c.certPem == nil && c.keyPem == nil {
 			if err := c.setupCertificates(); err != nil {
 				return fmt.Errorf("failed to set up certificates for transport: %w", err)
@@ -117,19 +122,19 @@ func (c *Client) setupCertificates() error {
 		return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
 	}
 
-	certFile, ok := registryCerts.Data["certFile"]
+	certFile, ok := registryCerts.Data["tls.crt"]
 	if !ok {
-		return fmt.Errorf("server.pem data not found in registry certificate secret")
+		return fmt.Errorf("tls.crt data not found in registry certificate secret")
 	}
 
-	keyFile, ok := registryCerts.Data["keyFile"]
+	keyFile, ok := registryCerts.Data["tls.key"]
 	if !ok {
-		return fmt.Errorf("server-key.pem data not found in registry certificate secret")
+		return fmt.Errorf("tls.key data not found in registry certificate secret")
 	}
 
-	caFile, ok := registryCerts.Data["caFile"]
+	caFile, ok := registryCerts.Data["ca.crt"]
 	if !ok {
-		return fmt.Errorf("ca.pem data not found in registry certificate secret")
+		return fmt.Errorf("ca.crt data not found in registry certificate secret")
 	}
 
 	c.certPem = certFile
@@ -197,14 +202,14 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 }
 
 // PushData takes a blob of data and caches it using OCI as a background.
-func (c *Client) PushData(ctx context.Context, data io.ReadCloser, name, tag string) (string, error) {
+func (c *Client) PushData(ctx context.Context, data io.ReadCloser, mediaType, name, tag string) (string, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	repo, err := NewRepository(repositoryName, c.WithTransport())
 	if err != nil {
 		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
 
-	manifest, err := repo.PushStreamingImage(tag, data, "", nil)
+	manifest, err := repo.PushStreamingImage(tag, data, mediaType, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to push image: %w", err)
 	}
@@ -390,6 +395,13 @@ func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, 
 	if len(annotations) > 0 {
 		image = mutate.Annotations(image, annotations).(v1.Image)
 	}
+
+	// These MediaTypes are required to create a Helm compliant OCI repository.
+	if mediaType == registry.ChartLayerMediaType {
+		image = mutate.ConfigMediaType(image, registry.ConfigMediaType)
+		image = mutate.MediaType(image, ocispec.MediaTypeImageManifest)
+	}
+
 	if err := r.pushImage(image, ref); err != nil {
 		return nil, fmt.Errorf("failed to push image: %w", err)
 	}

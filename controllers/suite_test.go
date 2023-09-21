@@ -57,6 +57,7 @@ func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
 	for _, o := range opts {
 		o(t)
 	}
+
 	return fake.NewClientBuilder().WithScheme(t.scheme).WithObjects(t.obj...).Build()
 }
 

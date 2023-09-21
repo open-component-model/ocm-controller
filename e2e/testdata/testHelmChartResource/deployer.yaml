@@ -6,10 +6,12 @@ metadata:
 spec:
   interval: 1m0s
   sourceRef:
-    kind: Configuration
-    name: configuration-pipeline-backend
-  kustomizationTemplate:
-    interval: 5s
-    path: ./
-    prune: true
-    targetNamespace: ocm-system
+    kind: Resource
+    name: ocm-with-helm-deployment
+  helmReleaseTemplate:
+    chart:
+      spec:
+        chart: podinfo
+        version: 6.3.5
+    interval: 5m
+

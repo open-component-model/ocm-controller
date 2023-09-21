@@ -591,7 +591,7 @@ func (m *MutationReconcileLooper) populateReferences(ctx context.Context, src cu
 		val := refList.Value()
 		index := refList.Selector()
 
-		refData, err := val.Struct()
+		refData, err := val.Struct() //nolint:staticcheck
 		if err != nil {
 			return src, err
 		}

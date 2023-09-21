@@ -10,6 +10,7 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"helm.sh/helm/v3/pkg/registry"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -75,7 +76,12 @@ func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, so
 
 	logger.V(4).Info("repository name constructed", "name", name)
 
-	snapshotDigest, err := w.Cache.PushData(ctx, file, name, owner.GetResourceVersion())
+	var mediaType string
+	if _, ok := identity[v1alpha1.ResourceHelmChartNameKey]; ok {
+		mediaType = registry.ChartLayerMediaType
+	}
+
+	snapshotDigest, err := w.Cache.PushData(ctx, file, mediaType, name, owner.GetResourceVersion())
 	if err != nil {
 		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}

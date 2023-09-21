@@ -4,6 +4,7 @@ metadata:
   name: fluxdeployer-podinfo-pipeline-redis
   namespace: ocm-system
 spec:
+  interval: 1m0s
   sourceRef:
     kind: Configuration
     name: configuration-pipeline-redis

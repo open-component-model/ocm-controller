@@ -300,7 +300,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMuationObjectFailedReason, err.Error())
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
 		return ctrl.Result{}, err
 	}
 
