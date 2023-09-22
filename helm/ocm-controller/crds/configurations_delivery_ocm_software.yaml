@@ -1,0 +1,393 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/instance: ocm-system
+    app.kubernetes.io/part-of: ocm
+  name: configurations.delivery.ocm.software
+spec:
+  group: delivery.ocm.software
+  names:
+    kind: Configuration
+    listKind: ConfigurationList
+    plural: configurations
+    shortNames:
+    - cfg
+    singular: configuration
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .status.latestSourceVersion
+      name: Source Version
+      type: string
+    - jsonPath: .status.latestConfigVersion
+      name: Config Version
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Configuration is the Schema for the configurations API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: MutationSpec defines a common spec for Localization and Configuration
+              of OCM resources.
+            properties:
+              configRef:
+                description: ObjectReference defines a resource which may be accessed
+                  via a snapshot or component version
+                minProperties: 1
+                properties:
+                  apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    type: string
+                  name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
+                    type: string
+                  resourceRef:
+                    properties:
+                      extraIdentity:
+                        additionalProperties:
+                          type: string
+                        description: ExtraIdentity is the identity of an object. An
+                          additional label with key "name" ist not allowed
+                        type: object
+                      labels:
+                        description: Labels defines an optional set of additional
+                          labels describing the object.
+                        items:
+                          description: Label is a label that can be set on objects.
+                          properties:
+                            name:
+                              description: Name is the unique name of the label.
+                              type: string
+                            signing:
+                              description: Signing describes whether the label should
+                                be included into the signature
+                              type: boolean
+                            value:
+                              description: Value is the json/yaml data of the label
+                              x-kubernetes-preserve-unknown-fields: true
+                            version:
+                              description: Version is the optional specification version
+                                of the attribute value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      name:
+                        description: Name is the context unique name of the object.
+                        type: string
+                      referencePath:
+                        items:
+                          additionalProperties:
+                            type: string
+                          description: Identity describes the identity of an object.
+                            Only ascii characters are allowed
+                          type: object
+                        type: array
+                      version:
+                        description: Version is the semver version of the object.
+                        type: string
+                    required:
+                    - name
+                    - version
+                    type: object
+                required:
+                - kind
+                - name
+                type: object
+              interval:
+                type: string
+              patchStrategicMerge:
+                description: PatchStrategicMerge contains the source and target details
+                  required to perform a strategic merge
+                properties:
+                  source:
+                    description: PatchStrategicMergeSource contains the details required
+                      to retrieve the source from a Flux source
+                    properties:
+                      path:
+                        type: string
+                      sourceRef:
+                        description: NamespacedObjectKindReference contains enough
+                          information to locate the typed referenced Kubernetes resource
+                          object in any namespace.
+                        properties:
+                          apiVersion:
+                            description: API version of the referent, if not specified
+                              the Kubernetes preferred version will be used.
+                            type: string
+                          kind:
+                            description: Kind of the referent.
+                            type: string
+                          name:
+                            description: Name of the referent.
+                            type: string
+                          namespace:
+                            description: Namespace of the referent, when not specified
+                              it acts as LocalObjectReference.
+                            type: string
+                        required:
+                        - kind
+                        - name
+                        type: object
+                    required:
+                    - path
+                    - sourceRef
+                    type: object
+                  target:
+                    description: PatchStrategicMergeTarget provides details about
+                      the merge target
+                    properties:
+                      path:
+                        type: string
+                    required:
+                    - path
+                    type: object
+                required:
+                - source
+                - target
+                type: object
+              sourceRef:
+                description: ObjectReference defines a resource which may be accessed
+                  via a snapshot or component version
+                minProperties: 1
+                properties:
+                  apiVersion:
+                    description: API version of the referent, if not specified the
+                      Kubernetes preferred version will be used.
+                    type: string
+                  kind:
+                    description: Kind of the referent.
+                    type: string
+                  name:
+                    description: Name of the referent.
+                    type: string
+                  namespace:
+                    description: Namespace of the referent, when not specified it
+                      acts as LocalObjectReference.
+                    type: string
+                  resourceRef:
+                    properties:
+                      extraIdentity:
+                        additionalProperties:
+                          type: string
+                        description: ExtraIdentity is the identity of an object. An
+                          additional label with key "name" ist not allowed
+                        type: object
+                      labels:
+                        description: Labels defines an optional set of additional
+                          labels describing the object.
+                        items:
+                          description: Label is a label that can be set on objects.
+                          properties:
+                            name:
+                              description: Name is the unique name of the label.
+                              type: string
+                            signing:
+                              description: Signing describes whether the label should
+                                be included into the signature
+                              type: boolean
+                            value:
+                              description: Value is the json/yaml data of the label
+                              x-kubernetes-preserve-unknown-fields: true
+                            version:
+                              description: Version is the optional specification version
+                                of the attribute value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      name:
+                        description: Name is the context unique name of the object.
+                        type: string
+                      referencePath:
+                        items:
+                          additionalProperties:
+                            type: string
+                          description: Identity describes the identity of an object.
+                            Only ascii characters are allowed
+                          type: object
+                        type: array
+                      version:
+                        description: Version is the semver version of the object.
+                        type: string
+                    required:
+                    - name
+                    - version
+                    type: object
+                required:
+                - kind
+                - name
+                type: object
+              suspend:
+                description: Suspend stops all operations on this object.
+                type: boolean
+              values:
+                x-kubernetes-preserve-unknown-fields: true
+              valuesFrom:
+                description: ValuesSource provides access to values from an external
+                  Source such as a ConfigMap or GitRepository. An optional subpath
+                  defines the path within the source from which the values should
+                  be resolved.
+                properties:
+                  fluxSource:
+                    properties:
+                      path:
+                        type: string
+                      sourceRef:
+                        description: NamespacedObjectKindReference contains enough
+                          information to locate the typed referenced Kubernetes resource
+                          object in any namespace.
+                        properties:
+                          apiVersion:
+                            description: API version of the referent, if not specified
+                              the Kubernetes preferred version will be used.
+                            type: string
+                          kind:
+                            description: Kind of the referent.
+                            type: string
+                          name:
+                            description: Name of the referent.
+                            type: string
+                          namespace:
+                            description: Namespace of the referent, when not specified
+                              it acts as LocalObjectReference.
+                            type: string
+                        required:
+                        - kind
+                        - name
+                        type: object
+                      subPath:
+                        type: string
+                    type: object
+                type: object
+            type: object
+          status:
+            default:
+              observedGeneration: -1
+            description: MutationStatus defines a common status for Localizations
+              and Configurations.
+            properties:
+              conditions:
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              latestConfigVersion:
+                type: string
+              latestPatchSourceVersio:
+                type: string
+              latestSnapshotDigest:
+                type: string
+              latestSourceVersion:
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the last reconciled generation.
+                format: int64
+                type: integer
+              snapshotName:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

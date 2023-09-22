@@ -1,0 +1,67 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: registry
+    app.kubernetes.io/instance: ocm-system
+    app.kubernetes.io/part-of: ocm
+  name: registry
+  namespace: ocm-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+      - env:
+        - name: REGISTRY_HTTP_TLS_CERTIFICATE
+          value: /certs/cert.pem
+        - name: REGISTRY_HTTP_TLS_KEY
+          value: /certs/key.pem
+        - name: REGISTRY_HTTP_TLS_CLIENTCAS_0
+          value: /certs/ca.pem
+        - name: REGISTRY_STORAGE_DELETE_ENABLED
+          value: "true"
+        image: registry:2
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          successThreshold: 1
+          tcpSocket:
+            port: 5000
+          timeoutSeconds: 1
+        name: registry
+        ports:
+        - containerPort: 5000
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          successThreshold: 1
+          tcpSocket:
+            port: 5000
+          timeoutSeconds: 1
+        volumeMounts:
+        - mountPath: /certs
+          name: ocm-registry-tls-certs
+      enableServiceLinks: true
+      volumes:
+      - name: ocm-registry-tls-certs
+        secret:
+          items:
+          - key: tls.crt
+            path: cert.pem
+          - key: tls.key
+            path: key.pem
+          - key: ca.crt
+            path: ca.pem
+          secretName: ocm-registry-tls-certs
+      - emptyDir: {}
+        name: registry

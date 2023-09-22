@@ -45,6 +45,3 @@ e2e/testdata/testSignedOCIRegistryComponents/podinfo/redis/manifests/*
 hack/certs
 
 transport-archive
-
-# helm
-helm/

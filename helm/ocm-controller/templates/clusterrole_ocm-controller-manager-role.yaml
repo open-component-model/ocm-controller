@@ -1,0 +1,251 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/instance: ocm-system
+    app.kubernetes.io/part-of: ocm
+  name: ocm-controller-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - componentdescriptors
+  - componentversions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - componentversions/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - componentversions/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - configurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - configurations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - configurations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - fluxdeployers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - fluxdeployers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - fluxdeployers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - localizations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - localizations/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - localizations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - resources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - resources/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - resources/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - snapshots
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - snapshots/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - snapshots/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - helm.toolkit.fluxcd.io
+  resources:
+  - helmreleases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kustomize.toolkit.fluxcd.io
+  resources:
+  - kustomizations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - source.toolkit.fluxcd.io
+  resources:
+  - buckets
+  - gitrepositories
+  - ocirepositories
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - source.toolkit.fluxcd.io
+  resources:
+  - helmrepositories
+  - ocirepositories
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
