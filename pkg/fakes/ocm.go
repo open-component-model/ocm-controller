@@ -38,6 +38,7 @@ func SetAccessRef(t string) AccessOptionFunc {
 // Resource presents a simple layout for a resource that AddComponentVersionToRepository will use.
 type Resource struct {
 	Name     string
+	Labels   ocmmetav1.Labels
 	Version  string
 	Data     []byte
 	Kind     string
@@ -117,10 +118,14 @@ func (c *Context) AddComponent(component *Component) error {
 	if component.Sign != nil {
 		resolver := ocm.NewCompoundResolver(c.repo)
 		opts := signing.NewOptions(
-			signing.Sign(ocmsigning.DefaultHandlerRegistry().GetSigner(rsa.Algorithm), component.Sign.Name),
+			signing.Sign(
+				ocmsigning.DefaultHandlerRegistry().GetSigner(rsa.Algorithm),
+				component.Sign.Name,
+			),
 			signing.Resolver(resolver),
 			signing.PrivateKey(component.Sign.Name, component.Sign.PrivKey),
-			signing.Update(), signing.VerifyDigests(),
+			signing.Update(),
+			signing.VerifyDigests(),
 		)
 
 		if err := opts.Complete(signingattr.Get(c)); err != nil {
@@ -157,8 +162,16 @@ func NewFakeOCMContext() *Context {
 
 // Setup context's repository to return. ATM we have a single repository configured that holds all the versions.
 
-func (c *Context) RepositoryForSpec(spec ocm.RepositorySpec, creds ...credentials.CredentialsSource) (ocm.Repository, error) {
+func (c *Context) RepositoryForSpec(
+	spec ocm.RepositorySpec,
+	creds ...credentials.CredentialsSource,
+) (ocm.Repository, error) {
 	return c.repo, nil
+}
+
+func (c *Context) AccessSpecForSpec(spec compdesc.AccessSpec) (ocm.AccessSpec, error) {
+	ctx := ocm.New()
+	return ctx.AccessSpecForSpec(spec)
 }
 
 func (c *Context) GetAttributes() datacontext.Attributes {
@@ -185,7 +198,9 @@ func (c *Context) BlobDigesters() ocm.BlobDigesterRegistry {
 	return nil
 }
 
-func (c *Context) constructComponentDescriptor(component *Component) (*compdesc.ComponentDescriptor, error) {
+func (c *Context) constructComponentDescriptor(
+	component *Component,
+) (*compdesc.ComponentDescriptor, error) {
 	var resources compdesc.Resources
 
 	for _, res := range component.Resources {
@@ -194,6 +209,7 @@ func (c *Context) constructComponentDescriptor(component *Component) (*compdesc.
 				ElementMeta: compdesc.ElementMeta{
 					Name:    res.Name,
 					Version: res.Version,
+					Labels:  res.Labels,
 				},
 				Type:     res.Type,
 				Relation: res.Relation,
@@ -242,14 +258,21 @@ type mockRepository struct {
 	cv      []*mockComponentAccess
 }
 
-func (m *mockRepository) LookupComponentVersion(name string, version string) (ocm.ComponentVersionAccess, error) {
+func (m *mockRepository) LookupComponentVersion(
+	name string,
+	version string,
+) (ocm.ComponentVersionAccess, error) {
 	for _, c := range m.cva {
 		if c.Name == name && c.Version == version {
 			return c, nil
 		}
 	}
 
-	return nil, fmt.Errorf("failed to find component version in mock repository with name %s and version %s", name, version)
+	return nil, fmt.Errorf(
+		"failed to find component version in mock repository with name %s and version %s",
+		name,
+		version,
+	)
 }
 
 func (m *mockRepository) LookupComponent(name string) (ocm.ComponentAccess, error) {
@@ -259,7 +282,10 @@ func (m *mockRepository) LookupComponent(name string) (ocm.ComponentAccess, erro
 		}
 	}
 
-	return nil, fmt.Errorf("component access with name '%s' not configured in mock ocm context", name)
+	return nil, fmt.Errorf(
+		"component access with name '%s' not configured in mock ocm context",
+		name,
+	)
 }
 
 func (m *mockRepository) Close() error {
@@ -361,6 +387,7 @@ func (r *Resource) Meta() *ocm.ResourceMeta {
 	return &ocm.ResourceMeta{ElementMeta: compdesc.ElementMeta{
 		Name:    r.Name,
 		Version: r.Version,
+		Labels:  r.Labels,
 	}}
 }
 

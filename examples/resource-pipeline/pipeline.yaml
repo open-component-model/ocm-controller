@@ -1,0 +1,21 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ResourcePipeline
+metadata:
+  name: pipeline
+  namespace: ocm-system
+spec:
+  interval: 1m0s
+  sourceRef:
+    kind: ComponentVersion
+    name: server
+    namespace: ocm-system
+    resourceRef: 
+      name: manifests
+  pipelineSpec:
+    steps:
+    - name: resolve
+      module: ocm.software/modules:v0.6.0-test@resolver
+    - name: configure
+      module: ocm.software/modules:v0.6.0-test@configure
+      values:
+        replicas: 3

@@ -14,6 +14,13 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/component"
+	"github.com/open-component-model/ocm-controller/pkg/event"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm-controller/pkg/snapshot"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -29,14 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/cache"
-	"github.com/open-component-model/ocm-controller/pkg/component"
-	"github.com/open-component-model/ocm-controller/pkg/event"
-	"github.com/open-component-model/ocm-controller/pkg/ocm"
-	"github.com/open-component-model/ocm-controller/pkg/snapshot"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 // ResourceReconciler reconciles a Resource object
@@ -62,7 +61,7 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Resource{}, resourceKey, func(rawObj client.Object) []string {
 		res := rawObj.(*v1alpha1.Resource)
-		var ns = res.Spec.SourceRef.Namespace
+		ns := res.Spec.SourceRef.Namespace
 		if ns == "" {
 			ns = res.GetNamespace()
 		}
@@ -83,7 +82,10 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
+func (r *ResourceReconciler) Reconcile(
+	ctx context.Context,
+	req ctrl.Request,
+) (result ctrl.Result, err error) {
 	logger := log.FromContext(ctx).WithName("resource-controller")
 
 	obj := &v1alpha1.Resource{}
@@ -113,7 +115,8 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			return
 		}
 
-		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
+		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil &&
+			condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
 		}
 
@@ -124,7 +127,9 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			conditions.Delete(obj, meta.ReconcilingCondition)
 
 			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
-			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
+			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil &&
+				ready.Status == metav1.ConditionFalse &&
+				!conditions.IsStalled(obj) {
 				err = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
 			}
 		}
@@ -140,15 +145,33 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		// If not reconciling or stalled than mark Ready=True
 		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
 			err == nil && result.RequeueAfter == obj.GetRequeueAfter() {
-			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation success", nil)
+			conditions.MarkTrue(
+				obj,
+				meta.ReadyCondition,
+				meta.SucceededReason,
+				"Reconciliation success",
+			)
+			event.New(
+				r.EventRecorder,
+				obj,
+				eventv1.EventSeverityInfo,
+				"Reconciliation success",
+				nil,
+			)
 		}
 
 		// Set status observed generation option if the object is stalled or ready.
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
-				map[string]string{v1alpha1.GroupVersion.Group + "/resource_version": obj.Status.LastAppliedResourceVersion})
+			event.New(
+				r.EventRecorder,
+				obj,
+				eventv1.EventSeverityInfo,
+				fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
+				map[string]string{
+					v1alpha1.GroupVersion.Group + "/resource_version": obj.Status.LastAppliedResourceVersion,
+				},
+			)
 		}
 
 		if perr := patchHelper.Patch(ctx, obj); perr != nil {
@@ -170,14 +193,23 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	return r.reconcile(ctx, obj)
 }
 
-func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resource) (ctrl.Result, error) {
+func (r *ResourceReconciler) reconcile(
+	ctx context.Context,
+	obj *v1alpha1.Resource,
+) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).WithName("resource-controller")
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
 
 	if obj.Generation != obj.Status.ObservedGeneration {
-		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
-			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
+		rreconcile.ProgressiveStatus(
+			false,
+			obj,
+			meta.ProgressingReason,
+			"processing object: new generation %d -> %d",
+			obj.Status.ObservedGeneration,
+			obj.Generation,
+		)
 	}
 
 	if obj.Spec.SourceRef.Namespace == "" {
@@ -195,7 +227,12 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 		}
 
 		err = fmt.Errorf("failed to get component version: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())
+		conditions.MarkFalse(
+			obj,
+			meta.ReadyCondition,
+			v1alpha1.GetResourceFailedReason,
+			err.Error(),
+		)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 
 		return ctrl.Result{}, err
@@ -210,13 +247,28 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, &componentVersion)
 	if err != nil {
 		err = fmt.Errorf("failed to create authenticated client: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
+		conditions.MarkFalse(
+			obj,
+			meta.ReadyCondition,
+			v1alpha1.AuthenticatedContextCreationFailedReason,
+			err.Error(),
+		)
 	}
 
-	reader, digest, err := r.OCMClient.GetResource(ctx, octx, &componentVersion, obj.Spec.SourceRef.ResourceRef)
+	reader, digest, err := r.OCMClient.GetResource(
+		ctx,
+		octx,
+		&componentVersion,
+		obj.Spec.SourceRef.ResourceRef,
+	)
 	if err != nil {
 		err = fmt.Errorf("failed to get resource: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetResourceFailedReason, err.Error())
+		conditions.MarkFalse(
+			obj,
+			meta.ReadyCondition,
+			v1alpha1.GetResourceFailedReason,
+			err.Error(),
+		)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 		return ctrl.Result{}, err
 	}
@@ -229,17 +281,35 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 	// This is important because THIS is the actual component for our resource. If we used ComponentVersion in the
 	// below identity, that would be the top-level component instead of the component that this resource belongs to.
-	componentDescriptor, err := component.GetComponentDescriptor(ctx, r.Client, obj.GetReferencePath(), componentVersion.Status.ComponentDescriptor)
+	componentDescriptor, err := component.GetComponentDescriptor(
+		ctx,
+		r.Client,
+		obj.GetReferencePath(),
+		componentVersion.Status.ComponentDescriptor,
+	)
 	if err != nil {
 		err = fmt.Errorf("failed to get component descriptor for resource: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
+		conditions.MarkFalse(
+			obj,
+			meta.ReadyCondition,
+			v1alpha1.GetComponentDescriptorFailedReason,
+			err.Error(),
+		)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 		return ctrl.Result{}, err
 	}
 
 	if componentDescriptor == nil {
-		err := fmt.Errorf("couldn't find component descriptor for reference '%s' or any root components", obj.GetReferencePath())
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
+		err := fmt.Errorf(
+			"couldn't find component descriptor for reference '%s' or any root components",
+			obj.GetReferencePath(),
+		)
+		conditions.MarkFalse(
+			obj,
+			meta.ReadyCondition,
+			v1alpha1.ComponentDescriptorNotFoundReason,
+			err.Error(),
+		)
 		// Mark stalled because we can't do anything until the component descriptor is available. Likely requires some sort of manual intervention.
 		conditions.MarkStalled(obj, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
@@ -285,7 +355,12 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 	})
 	if err != nil {
 		err = fmt.Errorf("failed to create or update snapshot: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateSnapshotFailedReason, err.Error())
+		conditions.MarkFalse(
+			obj,
+			meta.ReadyCondition,
+			v1alpha1.CreateOrUpdateSnapshotFailedReason,
+			err.Error(),
+		)
 		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 		return ctrl.Result{}, err
 	}
@@ -308,7 +383,7 @@ func (r *ResourceReconciler) reconcile(ctx context.Context, obj *v1alpha1.Resour
 
 // this function will enqueue a reconciliation for any snapshot which is referenced
 // in the .spec.sourceRef or spec.configRef field of a Localization
-func (r *ResourceReconciler) findObjects(key string) func(client.Object) []reconcile.Request {
+func (r *ResourceReconciler) findObjects(key string) handler.MapFunc {
 	return func(obj client.Object) []reconcile.Request {
 		resources := &v1alpha1.ResourceList{}
 		if err := r.List(context.TODO(), resources, &client.ListOptions{

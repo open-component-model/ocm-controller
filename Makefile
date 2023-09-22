@@ -30,6 +30,8 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
+GO_WASM_BUILD = tinygo build -target=wasi -panic=trap -scheduler=none -no-debug -o
+
 .PHONY: all
 all: build
 
@@ -74,7 +76,7 @@ vet: ## Run go vet against code.
 ##@ Testing
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: manifests generate fmt vet build-wasm-testdata envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
@@ -89,6 +91,11 @@ e2e-verbose: generate-developer-certs test-summary-tool ## Runs e2e tests in ver
 generate-developer-certs: mkcert
 	./hack/create_developer_certificate_secrets.sh
 
+.PHONY: build-wasm-testdata
+build-wasm-testdata:
+	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.go
+	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.go
+	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.go
 ##@ Build
 
 .PHONY: build
@@ -171,6 +178,7 @@ $(MKCERT): $(LOCALBIN)
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 # Find or download gen-crd-api-reference-docs

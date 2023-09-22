@@ -77,12 +77,11 @@ spec:
                       extraIdentity:
                         additionalProperties:
                           type: string
-                        description: ExtraIdentity is the identity of an object. An
-                          additional label with key "name" ist not allowed
+                        description: Identity describes the identity of an object.
+                          Only ascii characters are allowed
                         type: object
                       labels:
-                        description: Labels defines an optional set of additional
-                          labels describing the object.
+                        description: Labels describe a list of labels
                         items:
                           description: Label is a label that can be set on objects.
                           properties:
@@ -106,7 +105,6 @@ spec:
                           type: object
                         type: array
                       name:
-                        description: Name is the context unique name of the object.
                         type: string
                       referencePath:
                         items:
@@ -117,11 +115,9 @@ spec:
                           type: object
                         type: array
                       version:
-                        description: Version is the semver version of the object.
                         type: string
                     required:
                     - name
-                    - version
                     type: object
                 required:
                 - kind

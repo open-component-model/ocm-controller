@@ -57,12 +57,16 @@ func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
 	for _, o := range opts {
 		o(t)
 	}
-
-	return fake.NewClientBuilder().WithScheme(t.scheme).WithObjects(t.obj...).Build()
+	return fake.NewClientBuilder().
+		WithScheme(t.scheme).
+		WithObjects(t.obj...).
+		Build()
 }
 
 // FakeKubeClient creates a fake kube client with some defaults and optional arguments.
-func (t *testEnv) FakeDynamicKubeClient(opts ...FakeKubeClientOption) *fakedynamic.FakeDynamicClient {
+func (t *testEnv) FakeDynamicKubeClient(
+	opts ...FakeKubeClientOption,
+) *fakedynamic.FakeDynamicClient {
 	for _, o := range opts {
 		o(t)
 	}
@@ -108,7 +112,7 @@ var (
 					Namespace: "default",
 				},
 				ResourceRef: &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name:    "introspect-image",
 						Version: "1.0.0",
 					},
@@ -177,7 +181,7 @@ var (
 					Namespace: DefaultComponent.Namespace,
 				},
 				ResourceRef: &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name:    "introspect-image",
 						Version: "1.0.0",
 					},
@@ -199,7 +203,7 @@ var (
 					Namespace: DefaultComponent.Namespace,
 				},
 				ResourceRef: &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name:    "introspect-image",
 						Version: "1.0.0",
 					},
@@ -217,7 +221,10 @@ var (
 	}
 )
 
-func getMockComponent(cv *v1alpha1.ComponentVersion, opts ...ocmfake.AccessOptionFunc) ocm.ComponentVersionAccess {
+func getMockComponent(
+	cv *v1alpha1.ComponentVersion,
+	opts ...ocmfake.AccessOptionFunc,
+) ocm.ComponentVersionAccess {
 	res := &ocmfake.Resource{
 		Name:          "introspect-image",
 		Version:       "1.0.0",

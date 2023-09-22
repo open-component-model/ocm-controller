@@ -52,7 +52,8 @@ type ComponentVersionReconciler struct {
 //+kubebuilder:rbac:groups="",resources=services;pods,verbs=get;create;update;patch;delete
 //+kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;create;update;patch;delete
 
-// +kubebuilder:rbac:groups="",resources=secrets;serviceaccounts,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets;configmaps;serviceaccounts,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // SetupWithManager sets up the controller with the Manager.

@@ -33,7 +33,6 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 	ocmsnapshot "github.com/open-component-model/ocm-controller/pkg/snapshot"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 )
 
 var localizationConfigData = []byte(`kind: ConfigData
@@ -179,7 +178,7 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -286,7 +285,7 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -333,7 +332,7 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -383,7 +382,7 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -433,7 +432,7 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -483,7 +482,7 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -531,7 +530,7 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -591,7 +590,7 @@ localization:
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -642,7 +641,7 @@ localization:
 						Namespace:  DefaultComponent.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name:    "some-resource",
 							Version: "1.0.0",
 						},
@@ -826,7 +825,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				localization.Status.LatestSourceVersion = "v0.0.1"
 				localization.Status.LatestConfigVersion = "v0.0.1"
 				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name: "name",
 					},
 				}
@@ -857,7 +856,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				localization.Status.LatestSourceVersion = "v0.0.1"
 				localization.Status.LatestConfigVersion = "v0.0.1"
 				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name: "name",
 					},
 				}
@@ -888,7 +887,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				localization.Status.LatestSourceVersion = "v0.0.1"
 				localization.Status.LatestConfigVersion = "v0.0.1"
 				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name: "name",
 					},
 				}
@@ -909,7 +908,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				localization.Status.LatestSourceVersion = "not-last-reconciled-digest"
 				localization.Status.LatestConfigVersion = "v0.0.1"
 				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name: "name",
 					},
 				}
@@ -1031,7 +1030,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				localization.Status.LatestSourceVersion = "v0.0.1"
 				localization.Status.LatestConfigVersion = "last-reconciled-digest"
 				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v3alpha1.ElementMeta{
+					ElementMeta: v1alpha1.ElementMeta{
 						Name: "test",
 					},
 				}
@@ -1075,7 +1074,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 						Namespace: localization.Namespace,
 					},
 					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v3alpha1.ElementMeta{
+						ElementMeta: v1alpha1.ElementMeta{
 							Name: "test",
 						},
 					},

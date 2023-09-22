@@ -24,7 +24,6 @@ import (
 
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
@@ -100,7 +99,7 @@ func TestClient_GetResource(t *testing.T) {
 	}
 
 	resourceRef := &v1alpha1.ResourceReference{
-		ElementMeta: v3alpha1.ElementMeta{
+		ElementMeta: v1alpha1.ElementMeta{
 			Name:    "remote-controller-demo",
 			Version: "v0.0.1",
 		},
@@ -193,7 +192,7 @@ func TestClient_GetHelmResource(t *testing.T) {
 	}
 
 	resourceRef := &v1alpha1.ResourceReference{
-		ElementMeta: v3alpha1.ElementMeta{
+		ElementMeta: v1alpha1.ElementMeta{
 			Name:    "remote-controller-demo",
 			Version: "v0.0.1",
 		},

@@ -10,7 +10,11 @@ import (
 	"fmt"
 	"time"
 
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
+	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"golang.org/x/exp/slices"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,11 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
-	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
-	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -74,7 +73,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Configuration{}, sourceKey, func(rawObj client.Object) []string {
 		cfg := rawObj.(*v1alpha1.Configuration)
-		var ns = cfg.Spec.SourceRef.Namespace
+		ns := cfg.Spec.SourceRef.Namespace
 		if ns == "" {
 			ns = cfg.GetNamespace()
 		}
@@ -88,7 +87,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if cfg.Spec.ConfigRef == nil {
 			return nil
 		}
-		var ns = cfg.Spec.ConfigRef.Namespace
+		ns := cfg.Spec.ConfigRef.Namespace
 		if ns == "" {
 			ns = cfg.GetNamespace()
 		}
@@ -102,7 +101,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if cfg.Spec.PatchStrategicMerge == nil {
 			return nil
 		}
-		var ns = cfg.Spec.PatchStrategicMerge.Source.SourceRef.Namespace
+		ns := cfg.Spec.PatchStrategicMerge.Source.SourceRef.Namespace
 		if ns == "" {
 			ns = cfg.GetNamespace()
 		}
@@ -119,7 +118,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if cfg.Spec.ValuesFrom.FluxSource == nil {
 			return nil
 		}
-		var ns = cfg.Spec.ValuesFrom.FluxSource.SourceRef.Namespace
+		ns := cfg.Spec.ValuesFrom.FluxSource.SourceRef.Namespace
 		if ns == "" {
 			ns = cfg.GetNamespace()
 		}
@@ -150,7 +149,10 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
+func (r *ConfigurationReconciler) Reconcile(
+	ctx context.Context,
+	req ctrl.Request,
+) (result ctrl.Result, err error) {
 	logger := log.FromContext(ctx).WithName("configuration-controller")
 
 	obj := &v1alpha1.Configuration{}
@@ -181,7 +183,8 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return
 		}
 
-		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
+		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil &&
+			condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
 		}
 
@@ -192,7 +195,9 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			conditions.Delete(obj, meta.ReconcilingCondition)
 
 			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
-			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
+			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil &&
+				ready.Status == metav1.ConditionFalse &&
+				!conditions.IsStalled(obj) {
 				err = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
 				event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
 			}
@@ -209,15 +214,33 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		// If not reconciling or stalled than mark Ready=True
 		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
 			err == nil && result.RequeueAfter == obj.GetRequeueAfter() {
-			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation succeeded", nil)
+			conditions.MarkTrue(
+				obj,
+				meta.ReadyCondition,
+				meta.SucceededReason,
+				"Reconciliation success",
+			)
+			event.New(
+				r.EventRecorder,
+				obj,
+				eventv1.EventSeverityInfo,
+				"Reconciliation succeeded",
+				nil,
+			)
 		}
 
 		// Set status observed generation option if the object is stalled or ready.
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
-				map[string]string{v1alpha1.GroupVersion.Group + "/configuration_digest": obj.Status.LatestSnapshotDigest})
+			event.New(
+				r.EventRecorder,
+				obj,
+				eventv1.EventSeverityInfo,
+				fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
+				map[string]string{
+					v1alpha1.GroupVersion.Group + "/configuration_digest": obj.Status.LatestSnapshotDigest,
+				},
+			)
 		}
 
 		if perr := patchHelper.Patch(ctx, obj); perr != nil {
@@ -234,7 +257,11 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 	if !ready {
-		logger.Info("source ref object is not ready", "source", obj.Spec.SourceRef.GetNamespacedName())
+		logger.Info(
+			"source ref object is not ready",
+			"source",
+			obj.Spec.SourceRef.GetNamespacedName(),
+		)
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
@@ -245,7 +272,11 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 		if !ready {
-			logger.Info("config ref object is not ready", "source", obj.Spec.SourceRef.GetNamespacedName())
+			logger.Info(
+				"config ref object is not ready",
+				"source",
+				obj.Spec.SourceRef.GetNamespacedName(),
+			)
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 	}
@@ -259,8 +290,11 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		if !ready {
 			ref := obj.Spec.PatchStrategicMerge.Source.SourceRef
-			logger.Info("patch git repository object is not ready",
-				"gitrepository", (types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}).String())
+			logger.Info(
+				"patch git repository object is not ready",
+				"gitrepository",
+				(types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}).String(),
+			)
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 	}
@@ -279,12 +313,21 @@ func (r *ConfigurationReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return r.reconcile(ctx, obj)
 }
 
-func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.Configuration) (ctrl.Result, error) {
+func (r *ConfigurationReconciler) reconcile(
+	ctx context.Context,
+	obj *v1alpha1.Configuration,
+) (ctrl.Result, error) {
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
 
 	if obj.Generation != obj.Status.ObservedGeneration {
-		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
-			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
+		rreconcile.ProgressiveStatus(
+			false,
+			obj,
+			meta.ProgressingReason,
+			"processing object: new generation %d -> %d",
+			obj.Status.ObservedGeneration,
+			obj.Generation,
+		)
 	}
 
 	err := r.MutationReconciler.ReconcileMutationObject(ctx, obj)
@@ -295,12 +338,22 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 
 		if errors.Is(err, errTar) {
 			err = fmt.Errorf("source resource is not a tar archive: %w", err)
-			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
+			conditions.MarkFalse(
+				obj,
+				meta.ReadyCondition,
+				v1alpha1.SourceReasonNotATarArchiveReason,
+				err.Error(),
+			)
 			return ctrl.Result{}, err
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
+		conditions.MarkFalse(
+			obj,
+			meta.ReadyCondition,
+			v1alpha1.ReconcileMutationObjectFailedReason,
+			err.Error(),
+		)
 		return ctrl.Result{}, err
 	}
 
@@ -319,7 +372,7 @@ func (r *ConfigurationReconciler) reconcile(ctx context.Context, obj *v1alpha1.C
 // or a Snapshot. If it's a ComponentVersion, we look for all Configurations that reference
 // it by name. If it's a Snapshot, we first identify its owner and then look for Configurations
 // that reference the parent object.
-func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) func(client.Object) []reconcile.Request {
+func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) handler.MapFunc {
 	return func(obj client.Object) []reconcile.Request {
 		var selectorTerm string
 
@@ -354,7 +407,7 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) func(
 }
 
 // this function will enqueue a reconciliation
-func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) func(client.Object) []reconcile.Request {
+func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) handler.MapFunc {
 	return func(obj client.Object) []reconcile.Request {
 		cfgs := &v1alpha1.ConfigurationList{}
 		for _, key := range keys {
@@ -370,7 +423,11 @@ func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) fu
 	}
 }
 
-func (r *ConfigurationReconciler) checkReadiness(ctx context.Context, ns string, obj *v1alpha1.ObjectReference) (bool, error) {
+func (r *ConfigurationReconciler) checkReadiness(
+	ctx context.Context,
+	ns string,
+	obj *v1alpha1.ObjectReference,
+) (bool, error) {
 	var ref conditions.Getter
 	switch obj.Kind {
 	case v1alpha1.ComponentVersionKind:
@@ -394,7 +451,9 @@ func (r *ConfigurationReconciler) checkReadiness(ctx context.Context, ns string,
 		// the dynamic client needs to know the GroupVersionResource for the object it's trying to fetch
 		// so construct that and fetch the unstructured object
 		gvr := obj.GetGVR()
-		src, err := r.DynamicClient.Resource(gvr).Namespace(obj.Namespace).Get(ctx, obj.Name, metav1.GetOptions{})
+		src, err := r.DynamicClient.Resource(gvr).
+			Namespace(obj.Namespace).
+			Get(ctx, obj.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to check readiness: %w", err)
 		}
@@ -415,7 +474,10 @@ func (r *ConfigurationReconciler) checkReadiness(ctx context.Context, ns string,
 	return conditions.IsReady(ref), nil
 }
 
-func (r *ConfigurationReconciler) checkFluxSourceReadiness(ctx context.Context, obj meta.NamespacedObjectKindReference) (bool, error) {
+func (r *ConfigurationReconciler) checkFluxSourceReadiness(
+	ctx context.Context,
+	obj meta.NamespacedObjectKindReference,
+) (bool, error) {
 	var ref conditions.Getter
 	switch obj.Kind {
 	case sourcev1.GitRepositoryKind:
@@ -437,7 +499,15 @@ func makeRequestsForConfigurations(ll ...v1alpha1.Configuration) []reconcile.Req
 	})
 
 	refs := slices.CompactFunc(ll, func(a, b v1alpha1.Configuration) bool {
-		return fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName()) == fmt.Sprintf("%s/%s", b.GetNamespace(), b.GetName())
+		return fmt.Sprintf(
+			"%s/%s",
+			a.GetNamespace(),
+			a.GetName(),
+		) == fmt.Sprintf(
+			"%s/%s",
+			b.GetNamespace(),
+			b.GetName(),
+		)
 	})
 
 	requests := make([]reconcile.Request, len(refs))

@@ -1,0 +1,16 @@
+name: phoban.io/pipeline-demo
+version: v1.1.0
+provider:
+  name: phoban.io
+resources:
+- name: web-server
+  type: ociImage
+  input:
+    type: docker
+    path: docker.io/nginx:1.25.2
+- name: manifests
+  type: dir
+  input:
+    type: dir
+    path: manifests/
+    compress: true
