@@ -536,9 +536,102 @@ MutationStatus
 </table>
 </div>
 </div>
+<h3 id="delivery.ocm.software/v1alpha1.DeliverySpec">DeliverySpec
+</h3>
+<p>DeliverySpec holds a set of targets onto which the pipeline output will be deployed.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>targets</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.WasmStep">
+[]WasmStep
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="delivery.ocm.software/v1alpha1.ElementMeta">ElementMeta
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#delivery.ocm.software/v1alpha1.ResourceReference">ResourceReference</a>)
+</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>version</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>extraIdentity</code><br>
+<em>
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Identity">
+github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>labels</code><br>
+<em>
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Labels">
+github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Labels
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="delivery.ocm.software/v1alpha1.FluxDeployer">FluxDeployer
 </h3>
-<p>FluxDeployer is the Schema for the fluxdeployers API</p>
+<p>FluxDeployer is the Schema for the FluxDeployers API</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -590,6 +683,19 @@ ObjectReference
 </tr>
 <tr>
 <td>
+<code>interval</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<p>The interval at which to reconcile the Kustomization and Helm Releases.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>kustomizationTemplate</code><br>
 <em>
 <a href="https://pkg.go.dev/github.com/fluxcd/kustomize-controller/api/v1beta2#KustomizationSpec">
@@ -598,6 +704,20 @@ github.com/fluxcd/kustomize-controller/api/v1beta2.KustomizationSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>helmReleaseTemplate</code><br>
+<em>
+<a href="https://pkg.go.dev/github.com/fluxcd/helm-controller/api/v2betapkg1#HelmReleaseSpec">
+github.com/fluxcd/helm-controller/api/v2beta1.HelmReleaseSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </table>
@@ -650,6 +770,19 @@ ObjectReference
 </tr>
 <tr>
 <td>
+<code>interval</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<p>The interval at which to reconcile the Kustomization and Helm Releases.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>kustomizationTemplate</code><br>
 <em>
 <a href="https://pkg.go.dev/github.com/fluxcd/kustomize-controller/api/v1beta2#KustomizationSpec">
@@ -658,6 +791,20 @@ github.com/fluxcd/kustomize-controller/api/v1beta2.KustomizationSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>helmReleaseTemplate</code><br>
+<em>
+<a href="https://pkg.go.dev/github.com/fluxcd/helm-controller/api/v2betapkg1#HelmReleaseSpec">
+github.com/fluxcd/helm-controller/api/v2beta1.HelmReleaseSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -1153,6 +1300,7 @@ string
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.FluxDeployerSpec">FluxDeployerSpec</a>, 
 <a href="#delivery.ocm.software/v1alpha1.MutationSpec">MutationSpec</a>, 
+<a href="#delivery.ocm.software/v1alpha1.ResourcePipelineSpec">ResourcePipelineSpec</a>, 
 <a href="#delivery.ocm.software/v1alpha1.ResourceSpec">ResourceSpec</a>)
 </p>
 <p>ObjectReference defines a resource which may be accessed via a snapshot or component version</p>
@@ -1317,6 +1465,39 @@ string
 </table>
 </div>
 </div>
+<h3 id="delivery.ocm.software/v1alpha1.PipelineSpec">PipelineSpec
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#delivery.ocm.software/v1alpha1.ResourcePipelineSpec">ResourcePipelineSpec</a>)
+</p>
+<p>PipelineSpec holds the steps that constitute the pipeline.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>steps</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.WasmStep">
+[]WasmStep
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="delivery.ocm.software/v1alpha1.Reference">Reference
 </h3>
 <p>
@@ -1461,7 +1642,8 @@ string
 </em>
 </td>
 <td>
-<p>URL specifies the URL of the OCI registry in which the ComponentVersion is stored.</p>
+<p>URL specifies the URL of the OCI registry in which the ComponentVersion is stored.
+MUST NOT CONTAIN THE SCHEME.</p>
 </td>
 </tr>
 <tr>
@@ -1579,6 +1761,347 @@ ResourceStatus
 </table>
 </div>
 </div>
+<h3 id="delivery.ocm.software/v1alpha1.ResourcePipeline">ResourcePipeline
+</h3>
+<p>ResourcePipeline is the Schema for the resourcepipelines API</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadata</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.ResourcePipelineSpec">
+ResourcePipelineSpec
+</a>
+</em>
+</td>
+<td>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>interval</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>suspend</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccountName</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>sourceRef</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.ObjectReference">
+ObjectReference
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>parameters</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1#JSON">
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>pipelineSpec</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.PipelineSpec">
+PipelineSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.ResourcePipelineStatus">
+ResourcePipelineStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="delivery.ocm.software/v1alpha1.ResourcePipelineSource">ResourcePipelineSource
+</h3>
+<p>ResourcePipelineSource defines the component version and resource
+which will be processed by the pipeline.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>resource</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="delivery.ocm.software/v1alpha1.ResourcePipelineSpec">ResourcePipelineSpec
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#delivery.ocm.software/v1alpha1.ResourcePipeline">ResourcePipeline</a>)
+</p>
+<p>ResourcePipelineSpec defines the desired state of ResourcePipeline</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>interval</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>suspend</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccountName</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>sourceRef</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.ObjectReference">
+ObjectReference
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>parameters</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1#JSON">
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>pipelineSpec</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.PipelineSpec">
+PipelineSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="delivery.ocm.software/v1alpha1.ResourcePipelineStatus">ResourcePipelineStatus
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#delivery.ocm.software/v1alpha1.ResourcePipeline">ResourcePipeline</a>)
+</p>
+<p>ResourcePipelineStatus defines the observed state of ResourcePipeline</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>observedGeneration</code><br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ObservedGeneration is the last reconciled generation.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>conditions</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Condition">
+[]Kubernetes meta/v1.Condition
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>latestSnapshotDigest</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>snapshotName</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="delivery.ocm.software/v1alpha1.ResourceReference">ResourceReference
 </h3>
 <p>
@@ -1599,8 +2122,8 @@ ResourceStatus
 <td>
 <code>ElementMeta</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm%5c.software/v3alpha1%5c.ElementMeta">
-github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1.ElementMeta
+<a href="#delivery.ocm.software/v1alpha1.ElementMeta">
+ElementMeta
 </a>
 </em>
 </td>
@@ -1923,6 +2446,85 @@ string
 <td>
 <em>(Optional)</em>
 <p>Semver specifies a semantic version constraint for the Component Version.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="delivery.ocm.software/v1alpha1.WasmStep">WasmStep
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#delivery.ocm.software/v1alpha1.DeliverySpec">DeliverySpec</a>, 
+<a href="#delivery.ocm.software/v1alpha1.PipelineSpec">PipelineSpec</a>)
+</p>
+<p>WasmStep defines the name version and location of a wasm module that is stored// in an ocm component. The format of the module name must be <component-name>:<component-version>@<resource-name>. Optionally a registry address can be specified.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>module</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>registry</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>values</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1#JSON">
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>timeout</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
