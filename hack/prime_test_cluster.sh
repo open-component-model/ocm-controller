@@ -20,7 +20,7 @@ echo -n 'waiting for root certificate to be generated...'
 kubectl wait --for=condition=Ready=true Certificate/mpas-bootstrap-certificate -n cert-manager --timeout=60s
 echo 'done'
 
-kubectl get secret ocm-registry-tls-certs -n cert-manager -o jsonpath="{.data['tls\.crt']}" | base64 -D > hack/rootCA.pem
+kubectl get secret ocm-registry-tls-certs -n cert-manager -o jsonpath="{.data['tls\.crt']}" | base64 -d > hack/rootCA.pem
 echo -n 'installing root certificate into local trust store...'
 CAROOT=hack ./bin/mkcert -install
 rootCAPath="./hack/rootCA.pem"

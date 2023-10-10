@@ -82,7 +82,7 @@ def create_verification_keys():
 bootstrap_or_install_flux()
 
 print('install certificate bootstrap')
-k8s_yaml(read_file('e2e/certmanager/bootstrap.yaml'))
+k8s_yaml(read_file('e2e/certmanager/bootstrap.yaml'), allow_duplicates = True)
 
 # Use kustomize to build the install yaml files
 install = kustomize('config/default')
