@@ -22,6 +22,12 @@ echo 'done'
 
 kubectl get secret ocm-registry-tls-certs -n cert-manager -o jsonpath="{.data['tls\.crt']}" | base64 -D > hack/rootCA.pem
 echo -n 'installing root certificate into local trust store...'
-CAROOT=hack mkcert -install
+CAROOT=hack ./bin/mkcert -install
+rootCAPath="./hack/rootCA.pem"
+
+if [ -e '/etc/ssl/certs/ca-certificates.crt' ]; then
+  echo "updating root certificate"
+  sudo cat "${rootCAPath}" | sudo tee -a /etc/ssl/certs/ca-certificates.crt || echo "failed to append to ca-certificates. Ignoring the failure"
+fi
 
 echo 'done'
