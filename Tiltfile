@@ -81,9 +81,8 @@ def create_verification_keys():
 # check if flux is needed
 bootstrap_or_install_flux()
 
-# https registry
-print('applying generated secrets')
-k8s_yaml('./hack/certs/registry_certs_secret.yaml', allow_duplicates = True)
+print('install certificate bootstrap')
+k8s_yaml(read_file('e2e/certmanager/bootstrap.yaml'))
 
 # Use kustomize to build the install yaml files
 install = kustomize('config/default')
