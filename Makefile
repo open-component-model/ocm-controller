@@ -80,16 +80,16 @@ test: manifests generate fmt vet build-wasm-testdata envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
-e2e: generate-developer-certs test-summary-tool ## Runs e2e tests
+e2e: prime-test-cluster test-summary-tool ## Runs e2e tests
 	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e
 
 .PHONY: e2e-verbose
-e2e-verbose: generate-developer-certs test-summary-tool ## Runs e2e tests in verbose
+e2e-verbose: prime-test-cluster test-summary-tool ## Runs e2e tests in verbose
 	$(GOTESTSUM) --format standard-verbose -- -count=1 -tags=e2e ./e2e
 
-.PHONY: generate-developer-certs
-generate-developer-certs: mkcert
-	./hack/create_developer_certificate_secrets.sh
+.PHONY: prime-test-cluster
+prime-test-cluster: mkcert
+	./hack/prime_test_cluster.sh
 
 .PHONY: build-wasm-testdata
 build-wasm-testdata:
