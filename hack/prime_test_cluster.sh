@@ -3,6 +3,13 @@
 # cleanup
 rm -fr hack/rootCA.pem
 
+CERT_MANAGER_VERSION=${CERT_MANAGER_VERSION:-v1.13.1}
+
+if [ ! -e 'hack/cert-manager.yaml' ]; then
+  echo "fetching cert-manager manifest for version ${CERT_MANAGER_VERSION}"
+  curl -L https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml -o hack/cert-manager.yaml
+fi
+
 kind create cluster --name=e2e-test-cluster
 
 echo -n 'installing cert-manager'
