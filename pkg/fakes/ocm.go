@@ -384,11 +384,15 @@ func (c *Component) GetVersion() string {
 var _ ocm.ResourceAccess = &Resource{}
 
 func (r *Resource) Meta() *ocm.ResourceMeta {
-	return &ocm.ResourceMeta{ElementMeta: compdesc.ElementMeta{
-		Name:    r.Name,
-		Version: r.Version,
-		Labels:  r.Labels,
-	}}
+	return &ocm.ResourceMeta{
+		ElementMeta: compdesc.ElementMeta{
+			Name:    r.Name,
+			Version: r.Version,
+			Labels:  r.Labels,
+		},
+		Type:     r.Type,
+		Relation: r.Relation,
+	}
 }
 
 func (r *Resource) ComponentVersion() ocm.ComponentVersionAccess {
