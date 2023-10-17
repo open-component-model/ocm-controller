@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 
 	"github.com/Masterminds/semver"
@@ -511,7 +512,10 @@ func (c *Client) fetchResourceReader(res ocm.ResourceAccess, cva ocm.ComponentVe
 		vf := vfs.New(memoryfs.New())
 		defer func() {
 			if rerr := vf.RemoveAll("downloaded"); rerr != nil {
-				err = errors.Join(err, rerr)
+				// ignore not exist errors that vfs implementation can throw sometimes.
+				if !errors.Is(rerr, os.ErrNotExist) {
+					err = errors.Join(err, rerr)
+				}
 			}
 		}()
 
