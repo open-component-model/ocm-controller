@@ -13,7 +13,7 @@ on:
     branches:
       - main
   schedule:
-      - cron: '0 6 * * *' # 6 AM UTC everyday
+      - cron: '0 6 * * *' # 6 AM UTC everyday for default branch
 
 permissions:
   contents: read # for actions/checkout to fetch code
@@ -49,7 +49,7 @@ jobs:
       - name: Notify on Failure
         id: slack-notification
         uses: slackapi/slack-github-action@v1.23.0
-        if: ${{ github.ref_name  == 'main' }}
+        if: ${{ github.ref_name  == 'main' && github.event_name == 'schedule' }}
         with:
           # Slack channel id, channel name, or user id to post message.
           # See also: https://api.slack.com/methods/chat.postMessage#channels
