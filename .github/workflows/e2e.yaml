@@ -61,36 +61,11 @@ jobs:
               "text": "${{ github.repository }} e2e Tests Status: ${{ steps.e2e-tests.conclusion }}",
               "blocks": [
                 {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "${{ github.repository }} e2e Tests",
-                    "emoji": true
-                  }
-                },
-                {
                   "type": "section",
                   "fields": [
                    {
                       "type": "mrkdwn",
-                      "text": "*Repository:* ${{ github.server_url }}/${{ github.repository }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Status:* ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }}" 
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Branch:* ${{ github.ref_name }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Github Action:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e>"
+                      "text": "e2e Test for OCM Controller  ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }}  <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|Github Action>"
                     }
                   ]
                 }
