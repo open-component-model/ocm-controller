@@ -62,12 +62,11 @@ jobs:
               "blocks": [
                 {
                   "type": "section",
-                  "fields": [
+                  "text":
                    {
                       "type": "mrkdwn",
                       "text": "e2e Test for OCM Controller  ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }}  <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|Github Action>"
                     }
-                  ]
                 }
               ]
             }
