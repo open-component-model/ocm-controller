@@ -50,10 +50,20 @@ type MutationSpec struct {
 type ValuesSource struct {
 	// +optional
 	FluxSource *FluxValuesSource `json:"fluxSource,omitempty"`
-
-	// TODO
-	// ConfigMap meta.LocalObjectReference
+	// +optional
+	ConfigMapSource *ConfigMapSource `json:"configMapSource,omitempty"`
+	// +optional
+	Key string `json:"key,omitempty"`
 	// Secret meta.LocalObjectReference
+}
+
+type ConfigMapSource struct {
+	// +required
+	SourceRef meta.LocalObjectReference `json:"sourceRef,omitempty"`
+	// +required
+	Key string `json:"key,omitempty"`
+	// +optional
+	SubPath string `json:"subPath,omitempty"`
 }
 
 type FluxValuesSource struct {

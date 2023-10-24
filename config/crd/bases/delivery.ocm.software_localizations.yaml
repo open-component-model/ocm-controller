@@ -254,6 +254,23 @@ spec:
                   defines the path within the source from which the values should
                   be resolved.
                 properties:
+                  configMapSource:
+                    properties:
+                      key:
+                        type: string
+                      sourceRef:
+                        description: LocalObjectReference contains enough information
+                          to locate the referenced Kubernetes resource object.
+                        properties:
+                          name:
+                            description: Name of the referent.
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      subPath:
+                        type: string
+                    type: object
                   fluxSource:
                     properties:
                       path:
@@ -284,6 +301,8 @@ spec:
                       subPath:
                         type: string
                     type: object
+                  key:
+                    type: string
                 type: object
             type: object
           status:
