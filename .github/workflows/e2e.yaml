@@ -23,9 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version-file: '${{ github.workspace }}/go.mod'
       - name: Restore Go cache
@@ -48,7 +48,7 @@ jobs:
         run: make e2e-verbose
       - name: Notify on Failure
         id: slack-notification
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.24.0
         if: ${{ github.ref_name  == 'main' && github.event_name == 'schedule' }}
         with:
           # Slack channel id, channel name, or user id to post message.
@@ -61,38 +61,12 @@ jobs:
               "text": "${{ github.repository }} e2e Tests Status: ${{ steps.e2e-tests.conclusion }}",
               "blocks": [
                 {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "${{ github.repository }} e2e Tests",
-                    "emoji": true
-                  }
-                },
-                {
                   "type": "section",
-                  "fields": [
+                  "text":
                    {
                       "type": "mrkdwn",
-                      "text": "*Repository:* ${{ github.server_url }}/${{ github.repository }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Status:* ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }}" 
+                      "text": "e2e Test for OCM Controller  ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }}  <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|Github Action>"
                     }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Branch:* ${{ github.ref_name }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Github Action:* <https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml|e2e>"
-                    }
-                  ]
                 }
               ]
             }

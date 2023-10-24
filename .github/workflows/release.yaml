@@ -31,11 +31,11 @@ jobs:
       packages: 'write'
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Setup Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
     - name: Cache go-build and mod
