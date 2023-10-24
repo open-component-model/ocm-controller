@@ -52,26 +52,24 @@ type ValuesSource struct {
 	FluxSource *FluxValuesSource `json:"fluxSource,omitempty"`
 	// +optional
 	ConfigMapSource *ConfigMapSource `json:"configMapSource,omitempty"`
-	// +optional
-	Key string `json:"key,omitempty"`
 	// Secret meta.LocalObjectReference
 }
 
 type ConfigMapSource struct {
 	// +required
-	SourceRef meta.LocalObjectReference `json:"sourceRef,omitempty"`
+	SourceRef meta.LocalObjectReference `json:"sourceRef"`
 	// +required
-	Key string `json:"key,omitempty"`
+	Key string `json:"key"`
 	// +optional
 	SubPath string `json:"subPath,omitempty"`
 }
 
 type FluxValuesSource struct {
 	// +required
-	SourceRef meta.NamespacedObjectKindReference `json:"sourceRef,omitempty"`
+	SourceRef meta.NamespacedObjectKindReference `json:"sourceRef"`
 
 	// +required
-	Path string `json:"path,omitempty"`
+	Path string `json:"path"`
 
 	// +optional
 	SubPath string `json:"subPath,omitempty"`

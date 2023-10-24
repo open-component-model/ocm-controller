@@ -270,6 +270,9 @@ spec:
                         type: object
                       subPath:
                         type: string
+                    required:
+                    - key
+                    - sourceRef
                     type: object
                   fluxSource:
                     properties:
@@ -300,9 +303,10 @@ spec:
                         type: object
                       subPath:
                         type: string
+                    required:
+                    - path
+                    - sourceRef
                     type: object
-                  key:
-                    type: string
                 type: object
             type: object
           status:
