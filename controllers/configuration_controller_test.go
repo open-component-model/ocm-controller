@@ -75,6 +75,7 @@ type configurationTestCase struct {
 	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference
 	patchStrategicMerge func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
 	valuesFrom          func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
+	valuesFromType      string
 	expectError         string
 }
 
@@ -709,6 +710,76 @@ configuration:
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
 		},
+		{
+			name: "it applies config from configmap",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			valuesFrom: func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration {
+				cfg.Spec.ValuesFrom = &v1alpha1.ValuesSource{
+					ConfigMapSource: &v1alpha1.ConfigMapSource{
+						SourceRef: meta.LocalObjectReference{
+							Name: "test-config-data",
+						},
+						Key:     "values.yaml",
+						SubPath: "test.backend",
+					},
+				}
+				cfg.Spec.Values = nil
+				return cfg
+			},
+			valuesFromType: "configmap",
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				name := "test-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+				}
+				snapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: cv.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{
+						Identity: identity,
+					},
+				}
+				resource.Status.SnapshotName = name
+				return snapshot
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "Resource",
+						Name:       "test-resource",
+						Namespace:  snapshot.Namespace,
+					},
+				}
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
+				require.NoError(t, err)
+				fakeCache.FetchDataByDigestReturns(content, nil)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
+				cmp := getMockComponent(DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
+			},
+		},
 	}
 	for i, tt := range testCases[len(testCases)-1:] {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
@@ -747,15 +818,31 @@ configuration:
 			}
 
 			if tt.valuesFrom != nil {
-				path := "/file.tar.gz"
-				server := ghttp.NewServer()
-				server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
-					http.ServeFile(writer, request, "testdata/git-repo.tar.gz")
-				})
-				checksum := "87670827f3d1a10094e3226381c95168b6ce92344ac1a1c2345caaeb7cc6b7d8"
-				gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
-				configuration = tt.valuesFrom(configuration, gitRepo)
-				objs = append(objs, gitRepo)
+				if tt.valuesFromType == "configmap" {
+					valuesFile, err := os.ReadFile("testdata/values.yaml")
+					require.NoError(t, err)
+					configMap := &corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-config-data",
+							Namespace: configuration.Namespace,
+						},
+						Data: map[string]string{
+							"values.yaml": string(valuesFile),
+						},
+					}
+					configuration = tt.valuesFrom(configuration, configMap)
+					objs = append(objs, configMap)
+				} else {
+					path := "/file.tar.gz"
+					server := ghttp.NewServer()
+					server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
+						http.ServeFile(writer, request, "testdata/git-repo.tar.gz")
+					})
+					checksum := "87670827f3d1a10094e3226381c95168b6ce92344ac1a1c2345caaeb7cc6b7d8"
+					gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
+					configuration = tt.valuesFrom(configuration, gitRepo)
+					objs = append(objs, gitRepo)
+				}
 			}
 
 			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))

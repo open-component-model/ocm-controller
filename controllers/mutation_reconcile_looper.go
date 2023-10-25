@@ -29,7 +29,8 @@ import (
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	"github.com/open-component-model/ocm/pkg/utils/tarutils"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -108,7 +109,7 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 
 		// if values are not nil then this is configuration
 		if mutationSpec.Values != nil || mutationSpec.ValuesFrom != nil {
-			values, err := m.getValues(ctx, mutationSpec)
+			values, err := m.getValues(ctx, mutationSpec, obj.GetNamespace())
 			if err != nil {
 				return fmt.Errorf("failed to get values: %w", err)
 			}
@@ -764,56 +765,27 @@ func (m *MutationReconcileLooper) getComponentVersion(ctx context.Context, obj *
 
 // getValues returns values that can be used for the configuration
 // currently it only possible to use inline values OR values from an external source
-func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.MutationSpec) (*apiextensionsv1.JSON, error) {
+func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.MutationSpec, namespace string) (*apiextensionsv1.JSON, error) {
 	if obj.Values != nil {
 		return obj.Values, nil
 	}
 
+	var data map[string]any
 	if obj.ValuesFrom.FluxSource != nil {
-		source, err := m.getSource(ctx, obj.ValuesFrom.FluxSource.SourceRef)
+		content, err := m.fromFluxSource(ctx, obj)
 		if err != nil {
-			return nil, fmt.Errorf("could not get values from source: %w", err)
+			return nil, fmt.Errorf("failed to get values from flux source: %w", err)
 		}
-
-		tmpDir, err := os.MkdirTemp("", "mutation-controller-")
+		data = content
+	} else if obj.ValuesFrom.ConfigMapSource != nil {
+		content, err := m.fromConfigMapSource(ctx, obj, namespace)
 		if err != nil {
-			return nil, fmt.Errorf("could not create temporary directory: %w", err)
+			return nil, fmt.Errorf("failed to get values from configmap source: %w", err)
 		}
+		data = content
+	}
 
-		tarSize := tar.UnlimitedUntarSize
-		fetcher := fetch.NewArchiveFetcher(10, tarSize, tarSize, "")
-		artifact := source.GetArtifact()
-		if artifact == nil {
-			return nil, fmt.Errorf("could not get artifact from source: %s", obj.ValuesFrom.FluxSource.SourceRef.Name)
-		}
-		err = fetcher.Fetch(artifact.URL, source.GetArtifact().Digest, tmpDir)
-		if err != nil {
-			return nil, fmt.Errorf("could not fetch values artifact from source: %w", err)
-		}
-
-		path, err := securejoin.SecureJoin(tmpDir, obj.ValuesFrom.FluxSource.Path)
-		if err != nil {
-			return nil, fmt.Errorf("could not construct values file path: %w", err)
-		}
-
-		dataFile, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("could not read values file: %w", err)
-		}
-
-		var data map[string]any
-		if err := yaml.Unmarshal(dataFile, &data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal values: %w", err)
-		}
-
-		var found bool
-		if obj.ValuesFrom.FluxSource.SubPath != "" {
-			data, found = extractSubpath(data, obj.ValuesFrom.FluxSource.SubPath)
-			if !found {
-				return nil, errors.New("subPath not found")
-			}
-		}
-
+	if data != nil {
 		jsonData, err := json.Marshal(data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal values: %w", err)
@@ -825,6 +797,82 @@ func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.M
 	}
 
 	return nil, errors.New("no values found")
+}
+
+func (m *MutationReconcileLooper) fromConfigMapSource(ctx context.Context, obj *v1alpha1.MutationSpec, namespace string) (map[string]any, error) {
+	data := make(map[string]any)
+	cm := &corev1.ConfigMap{}
+	key := types.NamespacedName{
+		Name:      obj.ValuesFrom.ConfigMapSource.SourceRef.Name,
+		Namespace: namespace,
+	}
+	if err := m.Client.Get(ctx, key, cm); err != nil {
+		return nil, fmt.Errorf("failed to get configmap: %w", err)
+	}
+
+	content, found := cm.Data[obj.ValuesFrom.ConfigMapSource.Key]
+	if !found {
+		return nil, fmt.Errorf("key %s not found in configmap %s", obj.ValuesFrom.ConfigMapSource.Key, obj.ValuesFrom.ConfigMapSource.SourceRef.Name)
+	}
+
+	err := yaml.Unmarshal([]byte(content), &data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal values: %w", err)
+	}
+
+	if obj.ValuesFrom.ConfigMapSource.SubPath != "" {
+		data, found = extractSubpath(data, obj.ValuesFrom.ConfigMapSource.SubPath)
+		if !found {
+			return nil, errors.New("subPath not found")
+		}
+	}
+	return data, nil
+}
+
+func (m *MutationReconcileLooper) fromFluxSource(ctx context.Context, obj *v1alpha1.MutationSpec) (map[string]any, error) {
+	data := make(map[string]any)
+	source, err := m.getSource(ctx, obj.ValuesFrom.FluxSource.SourceRef)
+	if err != nil {
+		return nil, fmt.Errorf("could not get values from source: %w", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "mutation-controller-")
+	if err != nil {
+		return nil, fmt.Errorf("could not create temporary directory: %w", err)
+	}
+
+	tarSize := tar.UnlimitedUntarSize
+	fetcher := fetch.NewArchiveFetcher(10, tarSize, tarSize, "")
+	artifact := source.GetArtifact()
+	if artifact == nil {
+		return nil, fmt.Errorf("could not get artifact from source: %s", obj.ValuesFrom.FluxSource.SourceRef.Name)
+	}
+	err = fetcher.Fetch(artifact.URL, source.GetArtifact().Digest, tmpDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch values artifact from source: %w", err)
+	}
+
+	path, err := securejoin.SecureJoin(tmpDir, obj.ValuesFrom.FluxSource.Path)
+	if err != nil {
+		return nil, fmt.Errorf("could not construct values file path: %w", err)
+	}
+
+	dataFile, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("could not read values file: %w", err)
+	}
+
+	if err := yaml.Unmarshal(dataFile, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal values: %w", err)
+	}
+	var found bool
+	if obj.ValuesFrom.FluxSource.SubPath != "" {
+		data, found = extractSubpath(data, obj.ValuesFrom.FluxSource.SubPath)
+		if !found {
+			return nil, errors.New("subPath not found")
+		}
+	}
+	return data, nil
 }
 
 // Recursive function to extract the subpath from the data map
@@ -847,6 +895,8 @@ func extractSubpath(data map[string]any, subpath string) (map[string]any, bool) 
 
 		if nested, ok := value.(map[any]any); ok {
 			curr = convertMap(nested)
+		} else if nested, ok := value.(map[string]any); ok {
+			curr = nested
 		} else {
 			return nil, false
 		}

@@ -179,6 +179,10 @@ A Kubernetes resource that manages a Flux compatible single layer OCI image. Ena
 
 To run the test suite use `make test`.
 
+`Tinygo` is used to compile the test suite to a single binary. This binary is then used to run the tests.
+
+In order to install `tinygo` visit the [installation instructions](https://tinygo.org/getting-started/install/).
+
 ## Local Testing
 
 `ocm-controller` has a `Tiltfile` which can be used for rapid development. [tilt](https://tilt.dev/) is a convenient
