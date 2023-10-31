@@ -5,6 +5,7 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -145,9 +146,21 @@ type ComponentVersionStatus struct {
 	// +optional
 	ReconciledVersion string `json:"reconciledVersion,omitempty"`
 
-	// Verified is a boolean indicating whether all of the specified signatures have been verified and are valid.
+	// Verified is a boolean indicating whether all the specified signatures have been verified and are valid.
 	// +optional
 	Verified bool `json:"verified,omitempty"`
+}
+
+func (in *ComponentVersion) GetVID() map[string]string {
+	vid := fmt.Sprintf("%s:%s", in.Status.ComponentDescriptor.Name, in.Status.ReconciledVersion)
+	metadata := make(map[string]string)
+	metadata[GroupVersion.Group+"/component_version"] = vid
+
+	return metadata
+}
+
+func (in *ComponentVersion) SetObservedGeneration(v int64) {
+	in.Status.ObservedGeneration = v
 }
 
 // GetComponentName returns the name of the component
