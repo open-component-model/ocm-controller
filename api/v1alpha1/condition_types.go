@@ -20,7 +20,7 @@ const (
 	// ConvertComponentDescriptorFailedReason is used when the Component Descriptor cannot be converted.
 	ConvertComponentDescriptorFailedReason = "ConvertComponentDescriptorFailed"
 
-	// NameGenerationFailedReason is used when the componentn name could not be generated.
+	// NameGenerationFailedReason is used when the component name could not be generated.
 	NameGenerationFailedReason = "NameGenerationFailed"
 
 	// CreateOrUpdateComponentDescriptorFailedReason is used when the Component Descriptor cannot be created or updated on the resource.
@@ -43,6 +43,12 @@ const (
 
 	// ComponentDescriptorNotFoundReason is used when the component descriptor cannot be found.
 	ComponentDescriptorNotFoundReason = "ComponentDescriptorNotFound"
+
+	// ComponentVersionNotFoundReason is used when the component version cannot be found.
+	ComponentVersionNotFoundReason = "ComponentVersionNotFound"
+
+	// ComponentVersionNotReadyReason is used when the component version is not ready.
+	ComponentVersionNotReadyReason = "ComponentVersionNotReady"
 
 	// CreateOrUpdateSnapshotFailedReason is used when the snapshot cannot be created or updated.
 	CreateOrUpdateSnapshotFailedReason = "CreateOrUpdateSnapshotFailed"

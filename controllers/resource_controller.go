@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
@@ -17,7 +16,6 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/component"
-	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
@@ -32,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -86,8 +83,6 @@ func (r *ResourceReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
 ) (result ctrl.Result, err error) {
-	logger := log.FromContext(ctx).WithName("resource-controller")
-
 	obj := &v1alpha1.Resource{}
 	if err = r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -98,94 +93,34 @@ func (r *ResourceReconciler) Reconcile(
 	}
 
 	if obj.Spec.Suspend {
-		logger.Info("resource object suspended")
 		return result, nil
 	}
 
-	var patchHelper *patch.Helper
-	patchHelper, err = patch.NewHelper(obj, r.Client)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
-	}
+	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		// Patching has not been set up, or the controller errored earlier.
-		if patchHelper == nil {
-			return
-		}
-
-		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil &&
-			condition.Status == metav1.ConditionTrue {
-			conditions.Delete(obj, meta.ReconcilingCondition)
-		}
-
-		// Check if it's a successful reconciliation.
-		// We don't set Requeue in case of error, so we can safely check for Requeue.
-		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && err == nil {
-			// Remove the reconciling condition if it's set.
-			conditions.Delete(obj, meta.ReconcilingCondition)
-
-			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
-			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil &&
-				ready.Status == metav1.ConditionFalse &&
-				!conditions.IsStalled(obj) {
-				err = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
-			}
-		}
-
-		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
-		// indicate that reconciliation will be retried.
-		if conditions.IsReconciling(obj) {
-			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
-			reconciling.Reason = meta.ProgressingWithRetryReason
-			conditions.Set(obj, reconciling)
-		}
-
-		// If not reconciling or stalled than mark Ready=True
-		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
-			err == nil && result.RequeueAfter == obj.GetRequeueAfter() {
-			conditions.MarkTrue(
-				obj,
-				meta.ReadyCondition,
-				meta.SucceededReason,
-				"Reconciliation success",
-			)
-			event.New(
-				r.EventRecorder,
-				obj,
-				eventv1.EventSeverityInfo,
-				"Reconciliation success",
-				nil,
-			)
-		}
-
-		// Set status observed generation option if the object is stalled or ready.
-		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
-			obj.Status.ObservedGeneration = obj.Generation
-			event.New(
-				r.EventRecorder,
-				obj,
-				eventv1.EventSeverityInfo,
-				fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
-				map[string]string{
-					v1alpha1.GroupVersion.Group + "/resource_version": obj.Status.LastAppliedResourceVersion,
-				},
-			)
-		}
-
-		if perr := patchHelper.Patch(ctx, obj); perr != nil {
-			err = errors.Join(err, perr)
+		if derr := DeferredStatusUpdate(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+			err = errors.Join(err, derr)
 		}
 	}()
+
+	// Starts the progression by setting ReconcilingCondition.
+	// This will be checked in defer.
+	// Should only be deleted on a success.
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress for resource: %s", obj.Name)
 
 	// if the snapshot name has not been generated then
 	// generate, patch the status and requeue
 	if obj.GetSnapshotName() == "" {
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
+			err = fmt.Errorf("failed to generate snapshot name for: %s: %s", obj.GetName(), err)
+			MarkAsFailed(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
+
 			return ctrl.Result{}, err
 		}
+
 		obj.Status.SnapshotName = name
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -197,10 +132,6 @@ func (r *ResourceReconciler) reconcile(
 	ctx context.Context,
 	obj *v1alpha1.Resource,
 ) (ctrl.Result, error) {
-	logger := log.FromContext(ctx).WithName("resource-controller")
-
-	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
-
 	if obj.Generation != obj.Status.ObservedGeneration {
 		rreconcile.ProgressiveStatus(
 			false,
@@ -216,60 +147,39 @@ func (r *ResourceReconciler) reconcile(
 		obj.Spec.SourceRef.Namespace = obj.GetNamespace()
 	}
 
-	conditions.Delete(obj, meta.StalledCondition)
-
 	var componentVersion v1alpha1.ComponentVersion
 	if err := r.Get(ctx, obj.Spec.SourceRef.GetObjectKey(), &componentVersion); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("component version not found yet, waiting for it to exist...")
-
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
 		err = fmt.Errorf("failed to get component version: %w", err)
-		conditions.MarkFalse(
-			obj,
-			meta.ReadyCondition,
-			v1alpha1.GetResourceFailedReason,
-			err.Error(),
-		)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		MarkAsFailed(r.EventRecorder, obj, v1alpha1.ComponentVersionNotFoundReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
 
 	if !conditions.IsReady(&componentVersion) {
-		logger.Info("waiting for component version to be ready...")
+		MarkAsFailed(r.EventRecorder, obj, v1alpha1.ComponentVersionNotReadyReason, "component version not ready yet")
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "component version %s ready, processing ocm resource", componentVersion.Name)
+
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, &componentVersion)
 	if err != nil {
 		err = fmt.Errorf("failed to create authenticated client: %w", err)
-		conditions.MarkFalse(
-			obj,
-			meta.ReadyCondition,
-			v1alpha1.AuthenticatedContextCreationFailedReason,
-			err.Error(),
-		)
+		MarkAsFailed(r.EventRecorder, obj, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
+
+		return ctrl.Result{}, err
 	}
 
-	reader, digest, err := r.OCMClient.GetResource(
-		ctx,
-		octx,
-		&componentVersion,
-		obj.Spec.SourceRef.ResourceRef,
-	)
+	reader, digest, err := r.OCMClient.GetResource(ctx, octx, &componentVersion, obj.Spec.SourceRef.ResourceRef)
 	if err != nil {
 		err = fmt.Errorf("failed to get resource: %w", err)
-		conditions.MarkFalse(
-			obj,
-			meta.ReadyCondition,
-			v1alpha1.GetResourceFailedReason,
-			err.Error(),
-		)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		MarkAsFailed(r.EventRecorder, obj, v1alpha1.GetResourceFailedReason, err.Error())
+
 		return ctrl.Result{}, err
 	}
 	defer reader.Close()
@@ -281,21 +191,11 @@ func (r *ResourceReconciler) reconcile(
 
 	// This is important because THIS is the actual component for our resource. If we used ComponentVersion in the
 	// below identity, that would be the top-level component instead of the component that this resource belongs to.
-	componentDescriptor, err := component.GetComponentDescriptor(
-		ctx,
-		r.Client,
-		obj.GetReferencePath(),
-		componentVersion.Status.ComponentDescriptor,
-	)
+	componentDescriptor, err := component.GetComponentDescriptor(ctx, r.Client, obj.GetReferencePath(), componentVersion.Status.ComponentDescriptor)
 	if err != nil {
 		err = fmt.Errorf("failed to get component descriptor for resource: %w", err)
-		conditions.MarkFalse(
-			obj,
-			meta.ReadyCondition,
-			v1alpha1.GetComponentDescriptorFailedReason,
-			err.Error(),
-		)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		MarkAsFailed(r.EventRecorder, obj, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
+
 		return ctrl.Result{}, err
 	}
 
@@ -304,20 +204,19 @@ func (r *ResourceReconciler) reconcile(
 			"couldn't find component descriptor for reference '%s' or any root components",
 			obj.GetReferencePath(),
 		)
-		conditions.MarkFalse(
-			obj,
-			meta.ReadyCondition,
-			v1alpha1.ComponentDescriptorNotFoundReason,
-			err.Error(),
-		)
-		// Mark stalled because we can't do anything until the component descriptor is available. Likely requires some sort of manual intervention.
-		conditions.MarkStalled(obj, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		MarkAsFailed(r.EventRecorder, obj, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, err
 	}
 
-	conditions.Delete(obj, meta.StalledCondition)
+	if obj.GetSnapshotName() == "" {
+		err := errors.New("snapshot name should not be empty")
+		MarkAsFailed(r.EventRecorder, obj, "SnapshotNameEmpty", err.Error())
+
+		return ctrl.Result{}, err
+	}
+
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "resource retrieve, constructing snapshot with name %s", obj.GetSnapshotName())
 
 	identity := ocmmetav1.Identity{
 		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
@@ -327,10 +226,6 @@ func (r *ResourceReconciler) reconcile(
 	}
 	for k, v := range obj.Spec.SourceRef.ResourceRef.ExtraIdentity {
 		identity[k] = v
-	}
-
-	if obj.GetSnapshotName() == "" {
-		return ctrl.Result{}, fmt.Errorf("snapshot name should not be empty")
 	}
 
 	snapshotCR := &v1alpha1.Snapshot{
@@ -355,28 +250,21 @@ func (r *ResourceReconciler) reconcile(
 	})
 	if err != nil {
 		err = fmt.Errorf("failed to create or update snapshot: %w", err)
-		conditions.MarkFalse(
-			obj,
-			meta.ReadyCondition,
-			v1alpha1.CreateOrUpdateSnapshotFailedReason,
-			err.Error(),
-		)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		MarkAsFailed(r.EventRecorder, obj, v1alpha1.CreateOrUpdateSnapshotFailedReason, err.Error())
+
 		return ctrl.Result{}, err
 	}
-
-	logger.Info("successfully pushed snapshot for resource", "resource", obj.Spec.SourceRef.Name)
 
 	obj.Status.LastAppliedResourceVersion = obj.Spec.SourceRef.GetVersion()
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
 
-	logger.Info("successfully reconciled resource", "name", obj.GetName())
+	conditions.MarkTrue(obj,
+		meta.ReadyCondition,
+		meta.SucceededReason,
+		"Applied version: %s", obj.Status.LastAppliedComponentVersion)
 
-	// Remove any stale Ready condition, most likely False, set above. Its value
-	// is derived from the overall result of the reconciliation in the deferred
-	// block at the very end.
-	conditions.Delete(obj, meta.ReadyCondition)
+	conditions.Delete(obj, meta.ReconcilingCondition)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
@@ -394,9 +282,9 @@ func (r *ResourceReconciler) findObjects(key string) handler.MapFunc {
 
 		requests := make([]reconcile.Request, len(resources.Items))
 		for i, item := range resources.Items {
-			// if the observedgeneration is -1
-			// then the object has not been initialised yet
-			// so we should not trigger a reconcilation for sourceRef/configRefs
+			// if the observed generation is -1
+			// then the object has not been initialised yet,
+			// so we should not trigger a reconciliation for sourceRef/configRefs
 			if item.Status.ObservedGeneration != -1 {
 				requests[i] = reconcile.Request{
 					NamespacedName: types.NamespacedName{

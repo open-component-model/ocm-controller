@@ -53,6 +53,17 @@ type SnapshotStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
+func (in *Snapshot) GetVID() map[string]string {
+	metadata := make(map[string]string)
+	metadata[GroupVersion.Group+"/snapshot_digest"] = in.Status.LastReconciledDigest
+
+	return metadata
+}
+
+func (in *Snapshot) SetObservedGeneration(v int64) {
+	in.Status.ObservedGeneration = v
+}
+
 // GetComponentVersion returns the component version for the snapshot
 func (in Snapshot) GetComponentVersion() string {
 	return in.Spec.Identity[ComponentVersionKey]

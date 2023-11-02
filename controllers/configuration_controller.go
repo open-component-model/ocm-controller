@@ -10,13 +10,11 @@ import (
 	"fmt"
 	"time"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	"github.com/open-component-model/ocm-controller/pkg/event"
 	"golang.org/x/exp/slices"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -153,8 +150,6 @@ func (r *ConfigurationReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
 ) (result ctrl.Result, err error) {
-	logger := log.FromContext(ctx).WithName("configuration-controller")
-
 	obj := &v1alpha1.Configuration{}
 	if err = r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -166,8 +161,7 @@ func (r *ConfigurationReconciler) Reconcile(
 
 	// return early if obj is suspended
 	if obj.Spec.Suspend {
-		logger.Info("configuration object suspended")
-		return result, nil
+		return ctrl.Result{}, nil
 	}
 
 	patchHelper := patch.NewSerialPatcher(obj, r.Client)
@@ -187,12 +181,17 @@ func (r *ConfigurationReconciler) Reconcile(
 	// check dependencies are ready
 	ready, err := r.checkReadiness(ctx, obj.GetNamespace(), &obj.Spec.SourceRef)
 	if err != nil {
-		r.markAsFailed(obj, "SourceRefNotReadyWithError", err.Error(), "source ref not yet ready with error: %s", obj.Spec.SourceRef.Name)
+		MarkAsFailed(r.EventRecorder, obj, "SourceRefNotReadyWithError", err.Error())
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 	if !ready {
-		r.markAsFailed(obj, "SourceRefNotReady", "source not ready yet", "source ref not yet ready: %s", obj.Spec.SourceRef.Name)
+		MarkAsFailed(
+			r.EventRecorder,
+			obj,
+			"SourceRefNotReady",
+			fmt.Sprintf("source ref not yet ready: %s", obj.Spec.SourceRef.Name),
+		)
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
@@ -200,12 +199,22 @@ func (r *ConfigurationReconciler) Reconcile(
 	if obj.Spec.ConfigRef != nil {
 		ready, err := r.checkReadiness(ctx, obj.GetNamespace(), obj.Spec.ConfigRef)
 		if err != nil {
-			r.markAsFailed(obj, "ConfigRefNotReadyWithError", err.Error(), "config ref not yet ready with error: %s", obj.Spec.ConfigRef.Name)
+			MarkAsFailed(
+				r.EventRecorder,
+				obj,
+				"ConfigRefNotReadyWithError",
+				fmt.Sprintf("config ref not yet ready with error: %s: %s", obj.Spec.ConfigRef.Name, err),
+			)
 
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 		if !ready {
-			r.markAsFailed(obj, "ConfigRefNotReady", "config ref not ready", "config ref not yet ready: %s", obj.Spec.ConfigRef.Name)
+			MarkAsFailed(
+				r.EventRecorder,
+				obj,
+				"ConfigRefNotReady",
+				fmt.Sprintf("config ref not yet ready: %s", obj.Spec.ConfigRef.Name),
+			)
 
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
@@ -214,13 +223,23 @@ func (r *ConfigurationReconciler) Reconcile(
 	if obj.Spec.PatchStrategicMerge != nil {
 		ready, err := r.checkFluxSourceReadiness(ctx, obj.Spec.PatchStrategicMerge.Source.SourceRef)
 		if err != nil {
-			r.markAsFailed(obj, "PatchStrategicMergeSourceRefNotReadyWithError", err.Error(), "patch strategic merge source ref not yet ready with error: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name)
+			MarkAsFailed(
+				r.EventRecorder,
+				obj,
+				"PatchStrategicMergeSourceRefNotReadyWithError",
+				fmt.Sprintf("patch strategic merge source ref not yet ready with error: %s: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name, err),
+			)
 
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
 		if !ready {
-			r.markAsFailed(obj, "PatchStrategicMergeSourceRefNotReady", "patch strategic merge source not ready yet", "patch strategic merge source ref not yet ready: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name)
+			MarkAsFailed(
+				r.EventRecorder,
+				obj,
+				"PatchStrategicMergeSourceRefNotReady",
+				fmt.Sprintf("patch strategic merge source ref not yet ready: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name),
+			)
 
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
@@ -231,7 +250,8 @@ func (r *ConfigurationReconciler) Reconcile(
 	if obj.GetSnapshotName() == "" {
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
-			r.markAsFailed(obj, "GenerateSnapshotNameError", err.Error(), "failed to generate snapshot name for: %s", obj.GetName())
+			err := fmt.Errorf("failed to generate snapshot name for: %s: %s", obj.GetName(), err)
+			MarkAsFailed(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
@@ -248,8 +268,6 @@ func (r *ConfigurationReconciler) reconcile(
 	ctx context.Context,
 	obj *v1alpha1.Configuration,
 ) (ctrl.Result, error) {
-	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress")
-
 	if obj.Generation != obj.Status.ObservedGeneration {
 		rreconcile.ProgressiveStatus(
 			false,
@@ -269,13 +287,13 @@ func (r *ConfigurationReconciler) reconcile(
 
 		if errors.Is(err, errTar) {
 			err = fmt.Errorf("source resource is not a tar archive: %w", err)
-			r.markAsFailed(obj, v1alpha1.SourceReasonNotATarArchiveReason, err.Error(), "source is not a tar archive")
+			MarkAsFailed(r.EventRecorder, obj, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		r.markAsFailed(obj, v1alpha1.ReconcileMutationObjectFailedReason, err.Error(), "failed to reconcile mutation object")
+		MarkAsFailed(r.EventRecorder, obj, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -451,10 +469,4 @@ func makeRequestsForConfigurations(ll ...v1alpha1.Configuration) []reconcile.Req
 	}
 
 	return requests
-}
-
-func (r *ConfigurationReconciler) markAsFailed(obj *v1alpha1.Configuration, reason, msg, format string, messageArgs ...any) {
-	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, format, messageArgs...)
-	conditions.MarkFalse(obj, meta.ReadyCondition, reason, msg)
-	event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 }

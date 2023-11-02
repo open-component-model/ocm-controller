@@ -28,6 +28,17 @@ type Localization struct {
 	Status MutationStatus `json:"status,omitempty"`
 }
 
+func (in *Localization) GetVID() map[string]string {
+	metadata := make(map[string]string)
+	metadata[GroupVersion.Group+"/localization_digest"] = in.Status.LatestSnapshotDigest
+
+	return metadata
+}
+
+func (in *Localization) SetObservedGeneration(v int64) {
+	in.Status.ObservedGeneration = v
+}
+
 // GetConditions returns the conditions of the Localization.
 func (in *Localization) GetConditions() []metav1.Condition {
 	return in.Status.Conditions

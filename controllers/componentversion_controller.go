@@ -101,10 +101,11 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		// we don't fail here, because all manifests might have been applied at once or the secret
 		// for authentication is being reconciled.
-		_ = r.markAsFailed(
+		MarkAsFailed(
+			r.EventRecorder,
 			obj,
 			v1alpha1.AuthenticatedContextCreationFailedReason,
-			fmt.Errorf("authentication failed for repository: %s with error: %s", obj.Spec.Repository.URL, err),
+			fmt.Sprintf("authentication failed for repository: %s with error: %s", obj.Spec.Repository.URL, err),
 		)
 
 		return ctrl.Result{
@@ -116,10 +117,11 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	update, version, err := r.checkVersion(ctx, octx, obj)
 	if err != nil {
 		// The component might not be there yet. We don't fail but keep polling instead.
-		_ = r.markAsFailed(
+		MarkAsFailed(
+			r.EventRecorder,
 			obj,
 			v1alpha1.CheckVersionFailedReason,
-			fmt.Errorf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
+			fmt.Sprintf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
 		)
 
 		return ctrl.Result{
@@ -144,10 +146,11 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	ok, err := r.OCMClient.VerifyComponent(ctx, octx, obj, version)
 	if err != nil {
-		_ = r.markAsFailed(
+		MarkAsFailed(
+			r.EventRecorder,
 			obj,
 			v1alpha1.VerificationFailedReason,
-			fmt.Errorf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
+			fmt.Sprintf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
 		)
 
 		return ctrl.Result{
@@ -156,10 +159,11 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !ok {
-		_ = r.markAsFailed(
+		MarkAsFailed(
+			r.EventRecorder,
 			obj,
 			v1alpha1.VerificationFailedReason,
-			errors.New("attempted to verify component, but the digest didn't match"),
+			"attempted to verify component, but the digest didn't match",
 		)
 
 		return ctrl.Result{
@@ -178,11 +182,14 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 
 	cv, err := r.OCMClient.GetComponentVersion(ctx, octx, obj, obj.Spec.Component, version)
 	if err != nil {
-		return ctrl.Result{}, r.markAsFailed(
+		err = fmt.Errorf("failed to get component version: %w", err)
+		MarkAsFailed(
+			r.EventRecorder,
 			obj,
 			v1alpha1.ComponentVersionInvalidReason,
-			fmt.Errorf("failed to get component version: %w", err),
+			err.Error(),
 		)
+		return ctrl.Result{}, err
 	}
 
 	defer cv.Close()
@@ -191,11 +198,14 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 	dv := &compdesc.DescriptorVersion{}
 	cd, err := dv.ConvertFrom(cv.GetDescriptor())
 	if err != nil {
-		return ctrl.Result{}, r.markAsFailed(
+		err = fmt.Errorf("failed to convert component descriptor: %w", err)
+		MarkAsFailed(
+			r.EventRecorder,
 			obj,
 			v1alpha1.ConvertComponentDescriptorFailedReason,
-			fmt.Errorf("failed to convert component descriptor: %w", err),
+			err.Error(),
 		)
+		return ctrl.Result{}, err
 	}
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "component fetched, creating descriptors")
@@ -203,11 +213,14 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 	// setup the component descriptor kubernetes resource
 	componentName, err := component.ConstructUniqueName(cd.GetName(), cd.GetVersion(), nil)
 	if err != nil {
-		return ctrl.Result{}, r.markAsFailed(
+		err = fmt.Errorf("failed to generate name: %w", err)
+		MarkAsFailed(
+			r.EventRecorder,
 			obj,
 			v1alpha1.NameGenerationFailedReason,
-			fmt.Errorf("failed to generate name: %w", err),
+			err.Error(),
 		)
+		return ctrl.Result{}, err
 	}
 
 	descriptor := &v1alpha1.ComponentDescriptor{
@@ -237,11 +250,14 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 	})
 
 	if err != nil {
-		return ctrl.Result{}, r.markAsFailed(
+		err = fmt.Errorf("failed to create or update component descriptor: %w", err)
+		MarkAsFailed(
+			r.EventRecorder,
 			obj,
 			v1alpha1.CreateOrUpdateComponentDescriptorFailedReason,
-			fmt.Errorf("failed to create or update component descriptor: %w", err),
+			err.Error(),
 		)
+		return ctrl.Result{}, err
 	}
 
 	componentDescriptor := v1alpha1.Reference{
@@ -258,11 +274,14 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 
 		componentDescriptor.References, err = r.parseReferences(ctx, octx, obj, cv.GetDescriptor().References)
 		if err != nil {
-			return ctrl.Result{}, r.markAsFailed(
+			err = fmt.Errorf("failed to parse references: %w", err)
+			MarkAsFailed(
+				r.EventRecorder,
 				obj,
 				v1alpha1.ParseReferencesFailedReason,
-				fmt.Errorf("failed to parse references: %w", err),
+				err.Error(),
 			)
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -402,11 +421,4 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(ctx context.Conte
 	}
 
 	return descriptor, nil
-}
-
-func (r *ComponentVersionReconciler) markAsFailed(obj *v1alpha1.ComponentVersion, reason string, err error) error {
-	conditions.MarkFalse(obj, meta.ReadyCondition, reason, err.Error())
-	event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
-
-	return err
 }

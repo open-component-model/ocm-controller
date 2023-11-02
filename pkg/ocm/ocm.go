@@ -42,38 +42,12 @@ const dockerConfigKey = ".dockerconfigjson"
 
 // Contract defines a subset of capabilities from the OCM library.
 type Contract interface {
-	CreateAuthenticatedOCMContext(
-		ctx context.Context,
-		obj *v1alpha1.ComponentVersion,
-	) (ocm.Context, error)
-	GetResource(
-		ctx context.Context,
-		octx ocm.Context,
-		cv *v1alpha1.ComponentVersion,
-		resource *v1alpha1.ResourceReference,
-	) (io.ReadCloser, string, error)
-	GetComponentVersion(
-		ctx context.Context,
-		octx ocm.Context,
-		obj *v1alpha1.ComponentVersion,
-		name, version string,
-	) (ocm.ComponentVersionAccess, error)
-	GetLatestValidComponentVersion(
-		ctx context.Context,
-		octx ocm.Context,
-		obj *v1alpha1.ComponentVersion,
-	) (string, error)
-	ListComponentVersions(
-		logger logr.Logger,
-		octx ocm.Context,
-		obj *v1alpha1.ComponentVersion,
-	) ([]Version, error)
-	VerifyComponent(
-		ctx context.Context,
-		octx ocm.Context,
-		obj *v1alpha1.ComponentVersion,
-		version string,
-	) (bool, error)
+	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error)
+	GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error)
+	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
+	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
+	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
+	VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
 }
 
 // Client implements the OCM fetcher interface.
@@ -92,10 +66,7 @@ func NewClient(client client.Client, cache cache.Cache) *Client {
 	}
 }
 
-func (c *Client) CreateAuthenticatedOCMContext(
-	ctx context.Context,
-	obj *v1alpha1.ComponentVersion,
-) (ocm.Context, error) {
+func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error) {
 	octx := ocm.New()
 
 	if obj.Spec.ServiceAccountName != "" {
@@ -193,12 +164,7 @@ func (c *Client) GetResource(
 		version = resource.ElementMeta.Version
 	}
 
-	cd, err := component.GetComponentDescriptor(
-		ctx,
-		c.client,
-		resource.ReferencePath,
-		cv.Status.ComponentDescriptor,
-	)
+	cd, err := component.GetComponentDescriptor(ctx, c.client, resource.ReferencePath, cv.Status.ComponentDescriptor)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to find component descriptor for reference: %w", err)
 	}
