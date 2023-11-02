@@ -29,6 +29,17 @@ type Configuration struct {
 	Status MutationStatus `json:"status,omitempty"`
 }
 
+func (in *Configuration) GetVID() map[string]string {
+	metadata := make(map[string]string)
+	metadata[GroupVersion.Group+"/configuration_digest"] = in.Status.LatestSnapshotDigest
+
+	return metadata
+}
+
+func (in *Configuration) SetObservedGeneration(v int64) {
+	in.Status.ObservedGeneration = v
+}
+
 // GetConditions returns the conditions of the Configuration.
 func (in *Configuration) GetConditions() []metav1.Condition {
 	return in.Status.Conditions

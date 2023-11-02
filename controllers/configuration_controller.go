@@ -16,6 +16,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"github.com/open-component-model/ocm-controller/pkg/event"
 	"golang.org/x/exp/slices"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +37,6 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
-	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 )
@@ -170,113 +170,43 @@ func (r *ConfigurationReconciler) Reconcile(
 		return result, nil
 	}
 
-	var patchHelper *patch.Helper
-	patchHelper, err = patch.NewHelper(obj, r.Client)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
-	}
+	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		// Patching has not been set up, or the controller errored earlier.
-		if patchHelper == nil {
-			return
-		}
-
-		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil &&
-			condition.Status == metav1.ConditionTrue {
-			conditions.Delete(obj, meta.ReconcilingCondition)
-		}
-
-		// Check if it's a successful reconciliation.
-		// We don't set Requeue in case of error, so we can safely check for Requeue.
-		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && err == nil {
-			// Remove the reconciling condition if it's set.
-			conditions.Delete(obj, meta.ReconcilingCondition)
-
-			// Set the return err as the ready failure message is the resource is not ready, but also not reconciling or stalled.
-			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil &&
-				ready.Status == metav1.ConditionFalse &&
-				!conditions.IsStalled(obj) {
-				err = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
-				event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
-			}
-		}
-
-		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
-		// indicate that reconciliation will be retried.
-		if conditions.IsReconciling(obj) {
-			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
-			reconciling.Reason = meta.ProgressingWithRetryReason
-			conditions.Set(obj, reconciling)
-		}
-
-		// If not reconciling or stalled than mark Ready=True
-		if !conditions.IsReconciling(obj) && !conditions.IsStalled(obj) &&
-			err == nil && result.RequeueAfter == obj.GetRequeueAfter() {
-			conditions.MarkTrue(
-				obj,
-				meta.ReadyCondition,
-				meta.SucceededReason,
-				"Reconciliation success",
-			)
-			event.New(
-				r.EventRecorder,
-				obj,
-				eventv1.EventSeverityInfo,
-				"Reconciliation succeeded",
-				nil,
-			)
-		}
-
-		// Set status observed generation option if the object is stalled or ready.
-		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
-			obj.Status.ObservedGeneration = obj.Generation
-			event.New(
-				r.EventRecorder,
-				obj,
-				eventv1.EventSeverityInfo,
-				fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter()),
-				map[string]string{
-					v1alpha1.GroupVersion.Group + "/configuration_digest": obj.Status.LatestSnapshotDigest,
-				},
-			)
-		}
-
-		if perr := patchHelper.Patch(ctx, obj); perr != nil {
-			err = errors.Join(err, perr)
+		if derr := DeferredStatusUpdate(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+			err = errors.Join(err, derr)
 		}
 	}()
 
-	logger.Info("reconciling configuration")
+	// Starts the progression by setting ReconcilingCondition.
+	// This will be checked in defer.
+	// Should only be deleted on a success.
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress for configuration: %s", obj.Name)
 
 	// check dependencies are ready
 	ready, err := r.checkReadiness(ctx, obj.GetNamespace(), &obj.Spec.SourceRef)
 	if err != nil {
-		logger.Info("source ref object is not ready with error", "error", err)
+		r.markAsFailed(obj, "SourceRefNotReadyWithError", err.Error(), "source ref not yet ready with error: %s", obj.Spec.SourceRef.Name)
+
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 	if !ready {
-		logger.Info(
-			"source ref object is not ready",
-			"source",
-			obj.Spec.SourceRef.GetNamespacedName(),
-		)
+		r.markAsFailed(obj, "SourceRefNotReady", "source not ready yet", "source ref not yet ready: %s", obj.Spec.SourceRef.Name)
+
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
 	if obj.Spec.ConfigRef != nil {
 		ready, err := r.checkReadiness(ctx, obj.GetNamespace(), obj.Spec.ConfigRef)
 		if err != nil {
-			logger.Info("config ref object is not ready with error", "error", err)
+			r.markAsFailed(obj, "ConfigRefNotReadyWithError", err.Error(), "config ref not yet ready with error: %s", obj.Spec.ConfigRef.Name)
+
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 		if !ready {
-			logger.Info(
-				"config ref object is not ready",
-				"source",
-				obj.Spec.SourceRef.GetNamespacedName(),
-			)
+			r.markAsFailed(obj, "ConfigRefNotReady", "config ref not ready", "config ref not yet ready: %s", obj.Spec.ConfigRef.Name)
+
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 	}
@@ -284,17 +214,14 @@ func (r *ConfigurationReconciler) Reconcile(
 	if obj.Spec.PatchStrategicMerge != nil {
 		ready, err := r.checkFluxSourceReadiness(ctx, obj.Spec.PatchStrategicMerge.Source.SourceRef)
 		if err != nil {
-			logger.Info("source object is not ready with error", "error", err)
+			r.markAsFailed(obj, "PatchStrategicMergeSourceRefNotReadyWithError", err.Error(), "patch strategic merge source ref not yet ready with error: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name)
+
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 
 		if !ready {
-			ref := obj.Spec.PatchStrategicMerge.Source.SourceRef
-			logger.Info(
-				"patch git repository object is not ready",
-				"gitrepository",
-				(types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}).String(),
-			)
+			r.markAsFailed(obj, "PatchStrategicMergeSourceRefNotReady", "patch strategic merge source not ready yet", "patch strategic merge source ref not yet ready: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name)
+
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 	}
@@ -304,9 +231,13 @@ func (r *ConfigurationReconciler) Reconcile(
 	if obj.GetSnapshotName() == "" {
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
+			r.markAsFailed(obj, "GenerateSnapshotNameError", err.Error(), "failed to generate snapshot name for: %s", obj.GetName())
+
 			return ctrl.Result{}, err
 		}
+
 		obj.Status.SnapshotName = name
+
 		return ctrl.Result{Requeue: true}, nil
 	}
 
@@ -338,31 +269,25 @@ func (r *ConfigurationReconciler) reconcile(
 
 		if errors.Is(err, errTar) {
 			err = fmt.Errorf("source resource is not a tar archive: %w", err)
-			conditions.MarkFalse(
-				obj,
-				meta.ReadyCondition,
-				v1alpha1.SourceReasonNotATarArchiveReason,
-				err.Error(),
-			)
+			r.markAsFailed(obj, v1alpha1.SourceReasonNotATarArchiveReason, err.Error(), "source is not a tar archive")
+
 			return ctrl.Result{}, err
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		conditions.MarkFalse(
-			obj,
-			meta.ReadyCondition,
-			v1alpha1.ReconcileMutationObjectFailedReason,
-			err.Error(),
-		)
+		r.markAsFailed(obj, v1alpha1.ReconcileMutationObjectFailedReason, err.Error(), "failed to reconcile mutation object")
+
 		return ctrl.Result{}, err
 	}
 
 	obj.Status.ObservedGeneration = obj.GetGeneration()
 
-	// Remove any stale Ready condition, most likely False, set above. Its value
-	// is derived from the overall result of the reconciliation in the deferred
-	// bcfgk at the very end.
-	conditions.Delete(obj, meta.ReadyCondition)
+	conditions.MarkTrue(obj,
+		meta.ReadyCondition,
+		meta.SucceededReason,
+		"Reconciliation success")
+
+	conditions.Delete(obj, meta.ReconcilingCondition)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
@@ -526,4 +451,10 @@ func makeRequestsForConfigurations(ll ...v1alpha1.Configuration) []reconcile.Req
 	}
 
 	return requests
+}
+
+func (r *ConfigurationReconciler) markAsFailed(obj *v1alpha1.Configuration, reason, msg, format string, messageArgs ...any) {
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, format, messageArgs...)
+	conditions.MarkFalse(obj, meta.ReadyCondition, reason, msg)
+	event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
 }

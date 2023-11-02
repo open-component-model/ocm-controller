@@ -254,6 +254,8 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 	}
 
 	if obj.Spec.References.Expand {
+		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "descriptors created, expanding references")
+
 		componentDescriptor.References, err = r.parseReferences(ctx, octx, obj, cv.GetDescriptor().References)
 		if err != nil {
 			return ctrl.Result{}, r.markAsFailed(
