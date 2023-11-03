@@ -77,7 +77,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet build-wasm-testdata envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v ./... -run TestConfigurationReconciler -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
 e2e: prime-test-cluster test-summary-tool ## Runs e2e tests

@@ -270,12 +270,9 @@ spec:
                         type: object
                       subPath:
                         type: string
-<<<<<<< HEAD
                     required:
                     - key
                     - sourceRef
-=======
->>>>>>> 948ce09 (adding support for configmap in mutation reconciler)
                     type: object
                   fluxSource:
                     properties:
@@ -310,8 +307,6 @@ spec:
                     - path
                     - sourceRef
                     type: object
-                  key:
-                    type: string
                 type: object
             type: object
           status:
