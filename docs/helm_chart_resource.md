@@ -23,7 +23,7 @@ components:
       path: charts/podinfo-6.3.5.tgz
 ```
 
-This resource then can be defined for the controller like this:
+This resource then can be accessed by the ocm-controller like this:
 
 ```yaml
 apiVersion: delivery.ocm.software/v1alpha1
