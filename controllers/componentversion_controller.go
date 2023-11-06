@@ -287,7 +287,6 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 
 	obj.Status.ComponentDescriptor = componentDescriptor
 	obj.Status.ReconciledVersion = version
-	obj.Status.ObservedGeneration = obj.Generation
 
 	conditions.MarkTrue(obj,
 		meta.ReadyCondition,

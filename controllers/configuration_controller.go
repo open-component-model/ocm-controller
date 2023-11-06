@@ -298,8 +298,6 @@ func (r *ConfigurationReconciler) reconcile(
 		return ctrl.Result{}, err
 	}
 
-	obj.Status.ObservedGeneration = obj.GetGeneration()
-
 	conditions.MarkTrue(obj,
 		meta.ReadyCondition,
 		meta.SucceededReason,

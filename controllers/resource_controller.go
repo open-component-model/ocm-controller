@@ -256,7 +256,6 @@ func (r *ResourceReconciler) reconcile(
 	}
 
 	obj.Status.LastAppliedResourceVersion = obj.Spec.SourceRef.GetVersion()
-	obj.Status.ObservedGeneration = obj.GetGeneration()
 	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
 
 	conditions.MarkTrue(obj,
