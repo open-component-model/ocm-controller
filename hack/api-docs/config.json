@@ -34,6 +34,10 @@
       "docsURLTemplate": "https://pkg.go.dev/github.com/fluxcd/kustomize-controller/api/v1beta2#KustomizationSpec"
     },
     {
+      "typeMatchPrefix": "^github\\.com/fluxcd/helm-controller/api/v2beta1\\.HelmReleaseSpec$",
+      "docsURLTemplate": "https://pkg.go.dev/github.com/fluxcd/helm-controller/api/v2betapkg1#HelmReleaseSpec"
+    },
+    {
       "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm\\.software/v3alpha1\\.ComponentVersionSpec",
       "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm\\.software/v3alpha1\\.ComponentVersionSpec"
     },
@@ -44,6 +48,10 @@
     {
       "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1\\.Identity",
       "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Identity"
+    },
+    {
+      "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1\\.Labels",
+      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Labels"
     }
   ],
   "typeDisplayNamePrefixOverrides": {
