@@ -151,7 +151,7 @@ func (r *LocalizationReconciler) Reconcile(
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := DeferredStatusUpdate(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+		if derr := UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			err = errors.Join(err, derr)
 		}
 	}()
@@ -164,12 +164,13 @@ func (r *LocalizationReconciler) Reconcile(
 	// check dependencies are ready
 	ready, err := r.checkReadiness(ctx, obj.GetNamespace(), &obj.Spec.SourceRef)
 	if err != nil {
-		MarkAsFailed(r.EventRecorder, obj, "SourceRefNotReadyWithError", err.Error())
+		MarkNotReady(r.EventRecorder, obj, "SourceRefNotReadyWithError", err.Error())
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
+
 	if !ready {
-		MarkAsFailed(
+		MarkNotReady(
 			r.EventRecorder,
 			obj,
 			"SourceRefNotReady",
@@ -182,7 +183,7 @@ func (r *LocalizationReconciler) Reconcile(
 	if obj.Spec.ConfigRef != nil {
 		ready, err := r.checkReadiness(ctx, obj.GetNamespace(), obj.Spec.ConfigRef)
 		if err != nil {
-			MarkAsFailed(
+			MarkNotReady(
 				r.EventRecorder,
 				obj,
 				"ConfigRefNotReadyWithError",
@@ -192,7 +193,7 @@ func (r *LocalizationReconciler) Reconcile(
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 		if !ready {
-			MarkAsFailed(
+			MarkNotReady(
 				r.EventRecorder,
 				obj,
 				"ConfigRefNotReady",
@@ -206,7 +207,7 @@ func (r *LocalizationReconciler) Reconcile(
 	if obj.Spec.PatchStrategicMerge != nil {
 		ready, err := r.checkFluxSourceReadiness(ctx, obj.Spec.PatchStrategicMerge.Source.SourceRef)
 		if err != nil {
-			MarkAsFailed(
+			MarkNotReady(
 				r.EventRecorder,
 				obj,
 				"PatchStrategicMergeSourceRefNotReadyWithError",
@@ -217,7 +218,7 @@ func (r *LocalizationReconciler) Reconcile(
 		}
 
 		if !ready {
-			MarkAsFailed(
+			MarkNotReady(
 				r.EventRecorder,
 				obj,
 				"PatchStrategicMergeSourceRefNotReady",
@@ -234,7 +235,7 @@ func (r *LocalizationReconciler) Reconcile(
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
 			err = fmt.Errorf("failed to generate snapshot name for: %s: %s", obj.GetName(), err)
-			MarkAsFailed(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
+			MarkNotReady(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
@@ -268,13 +269,13 @@ func (r *LocalizationReconciler) reconcile(
 
 		if errors.Is(err, errTar) {
 			err = fmt.Errorf("source resource is not a tar archive: %w", err)
-			MarkAsFailed(r.EventRecorder, obj, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
+			MarkNotReady(r.EventRecorder, obj, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		MarkAsFailed(r.EventRecorder, obj, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
+		MarkNotReady(r.EventRecorder, obj, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
 
 		return ctrl.Result{}, err
 	}

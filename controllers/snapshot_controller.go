@@ -93,7 +93,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := DeferredStatusUpdate(ctx, patchHelper, obj, r.EventRecorder, 0); derr != nil {
+		if derr := UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, 0); derr != nil {
 			err = errors.Join(err, derr)
 		}
 	}()
@@ -106,7 +106,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
 	if err != nil {
 		err = fmt.Errorf("failed to construct name: %w", err)
-		MarkAsFailed(r.EventRecorder, obj, v1alpha1.CreateRepositoryNameReason, err.Error())
+		MarkNotReady(r.EventRecorder, obj, v1alpha1.CreateRepositoryNameReason, err.Error())
 
 		return ctrl.Result{}, err
 	}

@@ -4,7 +4,7 @@ metadata:
   name: ocm-with-helm-deployment
   namespace: ocm-system
 spec:
-  interval: 10m
+  interval: 5s
   sourceRef:
     kind: ComponentVersion
     name: ocm-with-helm

@@ -8,9 +8,9 @@ import (
 	kuberecorder "k8s.io/client-go/tools/record"
 )
 
-// MarkAsFailed sets the condition and progressive status of an Object to the set reason, msg, and format for the
+// MarkNotReady sets the condition and progressive status of an Object to the set reason, msg, and format for the
 // progressive status.
-func MarkAsFailed(recorder kuberecorder.EventRecorder, obj conditions.Setter, reason, msg string) {
+func MarkNotReady(recorder kuberecorder.EventRecorder, obj conditions.Setter, reason, msg string) {
 	conditions.MarkFalse(obj, meta.ReadyCondition, reason, msg)
 	event.New(recorder, obj, eventv1.EventSeverityError, msg, nil)
 }

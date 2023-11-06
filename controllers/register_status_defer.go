@@ -13,8 +13,8 @@ import (
 	kuberecorder "k8s.io/client-go/tools/record"
 )
 
-// DeferredStatusUpdate takes an object which can identify itself and updates its status including ObservedGeneration.
-func DeferredStatusUpdate(
+// UpdateStatus takes an object which can identify itself and updates its status including ObservedGeneration.
+func UpdateStatus(
 	ctx context.Context,
 	patchHelper *patch.SerialPatcher,
 	obj IdentifiableClientObject,
