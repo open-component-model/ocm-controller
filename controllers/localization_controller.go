@@ -290,7 +290,7 @@ func (r *LocalizationReconciler) reconcile(
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-// The purpose of the findRegistrySecrets function is to identify whether a given Kubernetes object
+// The purpose of the findObjects function is to identify whether a given Kubernetes object
 // is referenced by a Localization. This is done by checking whether the object is a ComponentVersion
 // or a Snapshot. If it's a ComponentVersion, we look for all Configurations that reference
 // it by name. If it's a Snapshot, we first identify its owner and then look for Localization

@@ -18,7 +18,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -27,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
@@ -83,8 +86,32 @@ func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.ComponentVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
-			handler.EnqueueRequestsFromMapFunc(findRegistrySecrets(r.Client, sourceKey, &v1alpha1.ComponentVersionList{}))).
+			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey))).
 		Complete(r)
+}
+
+// findObjects finds component versions that have a key for the secret that triggered this watch event.
+func (r *ComponentVersionReconciler) findObjects(key string) handler.MapFunc {
+	return func(obj client.Object) []reconcile.Request {
+		list := &v1alpha1.ComponentVersionList{}
+		if err := r.List(context.Background(), list, &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
+		}); err != nil {
+			return []reconcile.Request{}
+		}
+
+		requests := make([]reconcile.Request, len(list.Items))
+		for i, item := range list.Items {
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			}
+		}
+
+		return requests
+	}
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

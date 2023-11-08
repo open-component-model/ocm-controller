@@ -9,7 +9,6 @@ import (
 
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ResourceSpec defines the desired state of Resource
@@ -114,16 +113,6 @@ func (in Resource) GetSnapshotDigest() string {
 // GetSnapshotName returns the name of the Resource's associated Snapshot.
 func (in Resource) GetSnapshotName() string {
 	return in.Status.SnapshotName
-}
-
-func (in *ResourceList) List() []client.Object {
-	var result []client.Object
-	for _, o := range in.Items {
-		o := o
-		result = append(result, &o)
-	}
-
-	return result
 }
 
 //+kubebuilder:object:root=true

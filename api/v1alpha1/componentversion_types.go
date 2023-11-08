@@ -11,7 +11,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -188,16 +187,6 @@ func (in *ComponentVersion) SetConditions(conditions []metav1.Condition) {
 // reconciled again.
 func (in ComponentVersion) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
-}
-
-func (in *ComponentVersionList) List() []client.Object {
-	var result []client.Object
-	for _, o := range in.Items {
-		o := o
-		result = append(result, &o)
-	}
-
-	return result
 }
 
 //+kubebuilder:object:root=true
