@@ -100,7 +100,7 @@ func (r *ResourceReconciler) Reconcile(
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+		if derr := updateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			err = errors.Join(err, derr)
 		}
 	}()
@@ -170,9 +170,9 @@ func (r *ResourceReconciler) reconcile(
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, &componentVersion)
 	if err != nil {
 		err = fmt.Errorf("failed to create authenticated client: %w", err)
-		MarkNotReady(r.EventRecorder, obj, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
+		MarkAsStalled(r.EventRecorder, obj, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
 
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	reader, digest, err := r.OCMClient.GetResource(ctx, octx, &componentVersion, obj.Spec.SourceRef.ResourceRef)

@@ -168,7 +168,7 @@ func (r *ConfigurationReconciler) Reconcile(
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+		if derr := updateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			err = errors.Join(err, derr)
 		}
 	}()
@@ -309,7 +309,7 @@ func (r *ConfigurationReconciler) reconcile(
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-// The purpose of the findObjects function is to identify whether a given Kubernetes object
+// The purpose of the findRegistrySecrets function is to identify whether a given Kubernetes object
 // is referenced by a Configuration. This is done by checking whether the object is a ComponentVersion
 // or a Snapshot. If it's a ComponentVersion, we look for all Configurations that reference
 // it by name. If it's a Snapshot, we first identify its owner and then look for Configurations

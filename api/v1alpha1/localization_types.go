@@ -8,6 +8,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 //+kubebuilder:object:root=true
@@ -73,6 +74,16 @@ func (in *Localization) GetSpec() *MutationSpec {
 // GetStatus returns the mutation status for a Localization
 func (in *Localization) GetStatus() *MutationStatus {
 	return &in.Status
+}
+
+func (in *LocalizationList) List() []client.Object {
+	var result []client.Object
+	for _, o := range in.Items {
+		o := o
+		result = append(result, &o)
+	}
+
+	return result
 }
 
 //+kubebuilder:object:root=true

@@ -15,6 +15,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,8 +24,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
@@ -57,8 +60,30 @@ type ComponentVersionReconciler struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	const (
+		sourceKey = ".metadata.repository.secretRef"
+	)
+
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.ComponentVersion{}, sourceKey, func(rawObj client.Object) []string {
+		obj, ok := rawObj.(*v1alpha1.ComponentVersion)
+		if !ok {
+			return []string{}
+		}
+		if obj.Spec.Repository.SecretRef == nil {
+			return []string{}
+		}
+
+		ns := obj.GetNamespace()
+		return []string{fmt.Sprintf("%s/%s", ns, obj.Spec.Repository.SecretRef.Name)}
+	}); err != nil {
+		return fmt.Errorf("failed setting index fields: %w", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ComponentVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(findRegistrySecrets(r.Client, sourceKey, &v1alpha1.ComponentVersionList{}))).
 		Complete(r)
 }
 
@@ -87,7 +112,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+		if derr := updateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			retErr = errors.Join(retErr, derr)
 		}
 	}()
@@ -101,16 +126,14 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err != nil {
 		// we don't fail here, because all manifests might have been applied at once or the secret
 		// for authentication is being reconciled.
-		MarkNotReady(
+		MarkAsStalled(
 			r.EventRecorder,
 			obj,
 			v1alpha1.AuthenticatedContextCreationFailedReason,
 			fmt.Sprintf("authentication failed for repository: %s with error: %s", obj.Spec.Repository.URL, err),
 		)
 
-		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
-		}, nil
+		return ctrl.Result{}, nil
 	}
 
 	// reconcile the version before calling reconcile func
