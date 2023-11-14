@@ -74,6 +74,17 @@ type Resource struct {
 	Status ResourceStatus `json:"status,omitempty"`
 }
 
+func (in *Resource) GetVID() map[string]string {
+	metadata := make(map[string]string)
+	metadata[GroupVersion.Group+"/resource_version"] = in.Status.LastAppliedResourceVersion
+
+	return metadata
+}
+
+func (in *Resource) SetObservedGeneration(v int64) {
+	in.Status.ObservedGeneration = v
+}
+
 // GetConditions returns the conditions of the Resource.
 func (in *Resource) GetConditions() []metav1.Condition {
 	return in.Status.Conditions

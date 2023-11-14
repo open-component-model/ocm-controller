@@ -15,17 +15,23 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
+	"github.com/open-component-model/ocm-controller/pkg/status"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
@@ -58,9 +64,55 @@ type ComponentVersionReconciler struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	const (
+		sourceKey = ".metadata.repository.secretRef"
+	)
+
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.ComponentVersion{}, sourceKey, func(rawObj client.Object) []string {
+		obj, ok := rawObj.(*v1alpha1.ComponentVersion)
+		if !ok {
+			return []string{}
+		}
+		if obj.Spec.Repository.SecretRef == nil {
+			return []string{}
+		}
+
+		ns := obj.GetNamespace()
+		return []string{fmt.Sprintf("%s/%s", ns, obj.Spec.Repository.SecretRef.Name)}
+	}); err != nil {
+		return fmt.Errorf("failed setting index fields: %w", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ComponentVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey))).
 		Complete(r)
+}
+
+// findObjects finds component versions that have a key for the secret that triggered this watch event.
+func (r *ComponentVersionReconciler) findObjects(key string) handler.MapFunc {
+	return func(obj client.Object) []reconcile.Request {
+		list := &v1alpha1.ComponentVersionList{}
+		if err := r.List(context.Background(), list, &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
+		}); err != nil {
+			return []reconcile.Request{}
+		}
+
+		requests := make([]reconcile.Request, len(list.Items))
+		for i, item := range list.Items {
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			}
+		}
+
+		return requests
+	}
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -84,63 +136,44 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return
 	}
 
-	patchHelper, err := patch.NewHelper(obj, r.Client)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create patchhelper: %w", err)
-	}
+	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		// Patching has not been set up, or the controller errored earlier.
-		if patchHelper == nil {
-			return
-		}
-
-		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
-		// indicate that reconciliation will be retried.
-		if conditions.IsReconciling(obj) {
-			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
-			reconciling.Reason = meta.ProgressingWithRetryReason
-			conditions.Set(obj, reconciling)
-			msg := fmt.Sprintf("Reconciliation did not succeed, retrying in %s", obj.GetRequeueAfter())
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
-		}
-
-		// Set status observed generation option if the component is ready.
-		if conditions.IsReady(obj) {
-			obj.Status.ObservedGeneration = obj.Generation
-			msg := fmt.Sprintf("Reconciliation finished, next run in %s", obj.GetRequeueAfter())
-			vid := fmt.Sprintf("%s:%s", obj.Status.ComponentDescriptor.Name, obj.Status.ReconciledVersion)
-			metadata := make(map[string]string)
-			metadata[v1alpha1.GroupVersion.Group+"/component_version"] = vid
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, msg, metadata)
-		}
-
-		// Update the object.
-		if err := patchHelper.Patch(ctx, obj); err != nil {
-			retErr = errors.Join(retErr, err)
+		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+			retErr = errors.Join(retErr, derr)
 		}
 	}()
 
-	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconcilation in progress for component: %s", obj.Spec.Component)
+	// Starts the progression by setting ReconcilingCondition.
+	// This will be checked in defer.
+	// Should only be deleted on a success.
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress for component: %s", obj.Spec.Component)
 
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, obj)
 	if err != nil {
-		msg := fmt.Sprintf("authentication failed for repository: %s with error: %s", obj.Spec.Repository.URL, err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.AuthenticatedContextCreationFailedReason, msg)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+		// we don't fail here, because all manifests might have been applied at once or the secret
+		// for authentication is being reconciled.
+		status.MarkAsStalled(
+			r.EventRecorder,
+			obj,
+			v1alpha1.AuthenticatedContextCreationFailedReason,
+			fmt.Sprintf("authentication failed for repository: %s with error: %s", obj.Spec.Repository.URL, err),
+		)
 
-		return ctrl.Result{
-			RequeueAfter: obj.GetRequeueAfter(),
-		}, nil
+		return ctrl.Result{}, nil
 	}
 
 	// reconcile the version before calling reconcile func
 	update, version, err := r.checkVersion(ctx, octx, obj)
 	if err != nil {
-		msg := fmt.Sprintf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CheckVersionFailedReason, msg)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+		// The component might not be there yet. We don't fail but keep polling instead.
+		status.MarkNotReady(
+			r.EventRecorder,
+			obj,
+			v1alpha1.CheckVersionFailedReason,
+			fmt.Sprintf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
+		)
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -152,19 +185,24 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		conditions.MarkTrue(obj,
 			meta.ReadyCondition,
 			meta.SucceededReason,
-			fmt.Sprintf("Applied version: %s", version))
+			"Applied version: %s",
+			version)
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
 		}, nil
 	}
 
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "updating component to new version: %s: %s", obj.Spec.Component, version)
+
 	ok, err := r.OCMClient.VerifyComponent(ctx, octx, obj, version)
 	if err != nil {
-		msg := fmt.Sprintf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err)
-		conditions.Delete(obj, meta.ReconcilingCondition)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, msg)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, fmt.Sprintf("%s, retrying in %s", err.Error(), obj.GetRequeueAfter()), nil)
+		status.MarkNotReady(
+			r.EventRecorder,
+			obj,
+			v1alpha1.VerificationFailedReason,
+			fmt.Sprintf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
+		)
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -172,27 +210,23 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !ok {
-		msg := "attempted to verify component, but the digest didn't match"
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationFailedReason, msg)
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, fmt.Sprintf("%s, retrying in %s", msg, obj.GetRequeueAfter()), nil)
+		status.MarkNotReady(
+			r.EventRecorder,
+			obj,
+			v1alpha1.VerificationFailedReason,
+			"attempted to verify component, but the digest didn't match",
+		)
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
 		}, nil
 	}
 
-	// update the result for the defer call to have the latest information
-	rresult, err := r.reconcile(ctx, octx, obj, version)
-	if err != nil {
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, fmt.Sprintf("Reconciliation failed: %s, retrying in %s", err.Error(), obj.GetRequeueAfter()), nil)
-	}
-
-	return rresult, err
+	return r.reconcile(ctx, octx, obj, version)
 }
 
 func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (ctrl.Result, error) {
 	if obj.Generation != obj.Status.ObservedGeneration {
-		// don't have to patch here since we patch the object in the outer reconcile call.
 		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
 			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
 	}
@@ -200,9 +234,12 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 	cv, err := r.OCMClient.GetComponentVersion(ctx, octx, obj, obj.Spec.Component, version)
 	if err != nil {
 		err = fmt.Errorf("failed to get component version: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ComponentVersionInvalidReason, err.Error())
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
-
+		status.MarkNotReady(
+			r.EventRecorder,
+			obj,
+			v1alpha1.ComponentVersionInvalidReason,
+			err.Error(),
+		)
 		return ctrl.Result{}, err
 	}
 
@@ -213,17 +250,30 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 	cd, err := dv.ConvertFrom(cv.GetDescriptor())
 	if err != nil {
 		err = fmt.Errorf("failed to convert component descriptor: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ConvertComponentDescriptorFailedReason, err.Error())
+		status.MarkNotReady(
+			r.EventRecorder,
+			obj,
+			v1alpha1.ConvertComponentDescriptorFailedReason,
+			err.Error(),
+		)
 		return ctrl.Result{}, err
 	}
+
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "component fetched, creating descriptors")
 
 	// setup the component descriptor kubernetes resource
 	componentName, err := component.ConstructUniqueName(cd.GetName(), cd.GetVersion(), nil)
 	if err != nil {
 		err = fmt.Errorf("failed to generate name: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.NameGenerationFailedReason, err.Error())
+		status.MarkNotReady(
+			r.EventRecorder,
+			obj,
+			v1alpha1.NameGenerationFailedReason,
+			err.Error(),
+		)
 		return ctrl.Result{}, err
 	}
+
 	descriptor := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
@@ -252,8 +302,12 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 
 	if err != nil {
 		err = fmt.Errorf("failed to create or update component descriptor: %w", err)
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateOrUpdateComponentDescriptorFailedReason, err.Error())
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		status.MarkNotReady(
+			r.EventRecorder,
+			obj,
+			v1alpha1.CreateOrUpdateComponentDescriptorFailedReason,
+			err.Error(),
+		)
 		return ctrl.Result{}, err
 	}
 
@@ -267,23 +321,29 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 	}
 
 	if obj.Spec.References.Expand {
+		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "descriptors created, expanding references")
+
 		componentDescriptor.References, err = r.parseReferences(ctx, octx, obj, cv.GetDescriptor().References)
 		if err != nil {
 			err = fmt.Errorf("failed to parse references: %w", err)
-			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ParseReferencesFailedReason, err.Error())
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+			status.MarkNotReady(
+				r.EventRecorder,
+				obj,
+				v1alpha1.ParseReferencesFailedReason,
+				err.Error(),
+			)
 			return ctrl.Result{}, err
 		}
 	}
 
 	obj.Status.ComponentDescriptor = componentDescriptor
 	obj.Status.ReconciledVersion = version
-	obj.Status.ObservedGeneration = obj.Generation
 
 	conditions.MarkTrue(obj,
 		meta.ReadyCondition,
 		meta.SucceededReason,
-		fmt.Sprintf("Applied version: %s", version))
+		"Applied version: %s",
+		version)
 
 	conditions.Delete(obj, meta.ReconcilingCondition)
 
@@ -291,13 +351,13 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 }
 
 func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (bool, string, error) {
-	log := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
+	logger := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	latest, err := r.OCMClient.GetLatestValidComponentVersion(ctx, octx, obj)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to get latest component version: %w", err)
 	}
-	log.V(4).Info("got latest version of component", "version", latest)
+	logger.V(4).Info("got latest version of component", "version", latest)
 
 	latestSemver, err := semver.NewVersion(latest)
 	if err != nil {
@@ -312,11 +372,11 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.
 	if err != nil {
 		return false, "", fmt.Errorf("failed to parse reconciled version: %w", err)
 	}
-	log.V(4).Info("current reconciled version is", "reconciled", current.String())
+	logger.V(4).Info("current reconciled version is", "reconciled", current.String())
 
 	if latestSemver.Equal(current) || current.GreaterThan(latestSemver) {
-		log.V(4).Info("Reconciled version equal to or greater than newest available version", "version", latestSemver)
-		return false, "", nil
+		logger.V(4).Info("Reconciled version equal to or greater than newest available version", "version", latestSemver)
+		return false, latest, nil
 	}
 
 	event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, fmt.Sprintf("Version check succeeded, found latest version: %s", latest), nil)
@@ -380,7 +440,6 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(ctx context.Conte
 		return nil, fmt.Errorf("failed to convert component descriptor: %w", err)
 	}
 
-	log := log.FromContext(ctx)
 	// setup the component descriptor kubernetes resource
 	componentName, err := component.ConstructUniqueName(ref.ComponentName, ref.Version, ref.GetMeta().ExtraIdentity)
 	if err != nil {
@@ -397,19 +456,19 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(ctx context.Conte
 		},
 	}
 
-	if err := controllerutil.SetOwnerReference(parent, descriptor, r.Scheme); err != nil {
-		return nil, fmt.Errorf("failed to set owner reference: %w", err)
-	}
-
 	// create or update the component descriptor kubernetes resource
 	// we don't need to update it
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, descriptor, func() error {
+	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, descriptor, func() error {
+		if descriptor.ObjectMeta.CreationTimestamp.IsZero() {
+			if err := controllerutil.SetOwnerReference(parent, descriptor, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set owner reference: %w", err)
+			}
+		}
+
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, fmt.Errorf("failed to create/update component descriptor: %w", err)
 	}
-	log.V(4).Info(fmt.Sprintf("%s(ed) descriptor", op), "descriptor", klog.KObj(descriptor))
 
 	return descriptor, nil
 }

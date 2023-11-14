@@ -143,7 +143,7 @@ func (r *FluxDeployerReconciler) reconcile(
 	// get snapshot
 	snapshot, err := r.getSnapshot(ctx, obj)
 	if err != nil {
-		logger.Info("could not find source ref", "name", obj.Spec.SourceRef.Name)
+		logger.Info("could not find source ref", "name", obj.Spec.SourceRef.Name, "err", err)
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
 	}
 

@@ -10,26 +10,24 @@ import (
 	"fmt"
 	"net/http"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
+	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	kuberecorder "k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
@@ -64,10 +62,6 @@ func (r *SnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
-	log := log.FromContext(ctx).WithName("snapshot-reconcile")
-
-	log.Info("reconciling snapshot")
-
 	obj := &v1alpha1.Snapshot{}
 	if err = r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -90,52 +84,41 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 
 	if obj.Spec.Suspend {
-		log.Info("snapshot object suspended")
 		return ctrl.Result{}, nil
 	}
 
-	var patchHelper *patch.Helper
-	patchHelper, err = patch.NewHelper(obj, r.Client)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create patch helper: %w", err)
-	}
+	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
 	// AddFinalizer is not present already.
 	controllerutil.AddFinalizer(obj, snapshotFinalizer)
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		// Patching has not been set up, or the controller errored earlier.
-		if patchHelper == nil {
-			return
-		}
-
-		// Set status observed generation option if the object is stalled or ready.
-		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
-			obj.Status.ObservedGeneration = obj.Generation
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation finished",
-				map[string]string{v1alpha1.GroupVersion.Group + "/snapshot_digest": obj.Status.LastReconciledDigest})
-		}
-
-		if perr := patchHelper.Patch(ctx, obj); perr != nil {
-			err = errors.Join(err, perr)
+		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, 0); derr != nil {
+			err = errors.Join(err, derr)
 		}
 	}()
 
+	// Starts the progression by setting ReconcilingCondition.
+	// This will be checked in defer.
+	// Should only be deleted on a success.
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress for snapshot: %s", obj.Name)
+
 	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
 	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CreateRepositoryNameReason, err.Error())
-		event.New(r.EventRecorder, obj, eventv1.EventSeverityError, err.Error(), nil)
+		err = fmt.Errorf("failed to construct name: %w", err)
+		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.CreateRepositoryNameReason, err.Error())
 
-		return ctrl.Result{}, fmt.Errorf("failed to construct name: %w", err)
+		return ctrl.Result{}, err
 	}
 
 	obj.Status.LastReconciledDigest = obj.Spec.Digest
 	obj.Status.LastReconciledTag = obj.Spec.Tag
 	obj.Status.RepositoryURL = fmt.Sprintf("%s://%s/%s", scheme, r.RegistryServiceName, name)
+
 	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
 	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg)
-	log.Info("snapshot successfully reconciled", "snapshot", klog.KObj(obj))
+	conditions.Delete(obj, meta.ReconcilingCondition)
 
 	return ctrl.Result{}, nil
 }

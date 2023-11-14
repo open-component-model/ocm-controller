@@ -264,7 +264,7 @@ spec:
                   of the latest reconciled ComponentVersion.
                 type: string
               verified:
-                description: Verified is a boolean indicating whether all of the specified
+                description: Verified is a boolean indicating whether all the specified
                   signatures have been verified and are valid.
                 type: boolean
             type: object

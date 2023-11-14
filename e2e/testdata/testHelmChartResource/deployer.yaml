@@ -4,7 +4,7 @@ metadata:
   name: fluxdeployer-podinfo-pipeline-backend
   namespace: ocm-system
 spec:
-  interval: 1m0s
+  interval: 5s
   sourceRef:
     kind: Resource
     name: ocm-with-helm-deployment

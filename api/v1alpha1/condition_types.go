@@ -20,7 +20,7 @@ const (
 	// ConvertComponentDescriptorFailedReason is used when the Component Descriptor cannot be converted.
 	ConvertComponentDescriptorFailedReason = "ConvertComponentDescriptorFailed"
 
-	// NameGenerationFailedReason is used when the componentn name could not be generated.
+	// NameGenerationFailedReason is used when the component name could not be generated.
 	NameGenerationFailedReason = "NameGenerationFailed"
 
 	// CreateOrUpdateComponentDescriptorFailedReason is used when the Component Descriptor cannot be created or updated on the resource.
@@ -44,6 +44,12 @@ const (
 	// ComponentDescriptorNotFoundReason is used when the component descriptor cannot be found.
 	ComponentDescriptorNotFoundReason = "ComponentDescriptorNotFound"
 
+	// ComponentVersionNotFoundReason is used when the component version cannot be found.
+	ComponentVersionNotFoundReason = "ComponentVersionNotFound"
+
+	// ComponentVersionNotReadyReason is used when the component version is not ready.
+	ComponentVersionNotReadyReason = "ComponentVersionNotReady"
+
 	// CreateOrUpdateSnapshotFailedReason is used when the snapshot cannot be created or updated.
 	CreateOrUpdateSnapshotFailedReason = "CreateOrUpdateSnapshotFailed"
 
@@ -55,4 +61,25 @@ const (
 
 	// CreateRepositoryNameReason is used when the generating a new repository name fails.
 	CreateRepositoryNameReason = "CreateRepositoryNameFailed"
+
+	// ConfigRefNotReadyWithErrorReason is used when configuration reference is not ready yet with an error.
+	ConfigRefNotReadyWithErrorReason = "ConfigRefNotReadyWithError"
+
+	// ConfigRefNotReadyReason is used when configuration ref is not ready yet and there was no error.
+	ConfigRefNotReadyReason = "ConfigRefNotReady"
+
+	// SourceRefNotReadyWithErrorReason is used when the source ref is not ready and there was an error.
+	SourceRefNotReadyWithErrorReason = "SourceRefNotReadyWithError"
+
+	// SourceRefNotReadyReason is used when the source ref is not ready and there was no error.
+	SourceRefNotReadyReason = "SourceRefNotReady"
+
+	// PatchStrategicMergeSourceRefNotReadyWithErrorReason is used when source ref for patch strategic merge is not ready and there was an error.
+	PatchStrategicMergeSourceRefNotReadyWithErrorReason = "PatchStrategicMergeSourceRefNotReadyWithError"
+
+	// PatchStrategicMergeSourceRefNotReadyReason is used when source ref for patch strategic merge is not ready and there was no error.
+	PatchStrategicMergeSourceRefNotReadyReason = "PatchStrategicMergeSourceRefNotReady"
+
+	// SnapshotNameEmptyReason is used for a failure to generate a snapshot name.
+	SnapshotNameEmptyReason = "SnapshotNameEmpty"
 )
