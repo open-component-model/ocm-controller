@@ -1,4 +1,4 @@
-package controllers
+package status
 
 import (
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"

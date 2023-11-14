@@ -15,6 +15,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"github.com/open-component-model/ocm-controller/pkg/status"
 	"golang.org/x/exp/slices"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -168,7 +169,7 @@ func (r *ConfigurationReconciler) Reconcile(
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := updateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			err = errors.Join(err, derr)
 		}
 	}()
@@ -181,16 +182,16 @@ func (r *ConfigurationReconciler) Reconcile(
 	// check dependencies are ready
 	ready, err := r.checkReadiness(ctx, obj.GetNamespace(), &obj.Spec.SourceRef)
 	if err != nil {
-		MarkNotReady(r.EventRecorder, obj, "SourceRefNotReadyWithError", err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.SourceRefNotReadyWithErrorReason, err.Error())
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
 	if !ready {
-		MarkNotReady(
+		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
-			"SourceRefNotReady",
+			v1alpha1.SourceRefNotReadyReason,
 			fmt.Sprintf("source ref not yet ready: %s", obj.Spec.SourceRef.Name),
 		)
 
@@ -200,20 +201,20 @@ func (r *ConfigurationReconciler) Reconcile(
 	if obj.Spec.ConfigRef != nil {
 		ready, err := r.checkReadiness(ctx, obj.GetNamespace(), obj.Spec.ConfigRef)
 		if err != nil {
-			MarkNotReady(
+			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
-				"ConfigRefNotReadyWithError",
+				v1alpha1.ConfigRefNotReadyWithErrorReason,
 				fmt.Sprintf("config ref not yet ready with error: %s: %s", obj.Spec.ConfigRef.Name, err),
 			)
 
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
 		if !ready {
-			MarkNotReady(
+			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
-				"ConfigRefNotReady",
+				v1alpha1.ConfigRefNotReadyReason,
 				fmt.Sprintf("config ref not yet ready: %s", obj.Spec.ConfigRef.Name),
 			)
 
@@ -224,10 +225,10 @@ func (r *ConfigurationReconciler) Reconcile(
 	if obj.Spec.PatchStrategicMerge != nil {
 		ready, err := r.checkFluxSourceReadiness(ctx, obj.Spec.PatchStrategicMerge.Source.SourceRef)
 		if err != nil {
-			MarkNotReady(
+			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
-				"PatchStrategicMergeSourceRefNotReadyWithError",
+				v1alpha1.PatchStrategicMergeSourceRefNotReadyWithErrorReason,
 				fmt.Sprintf("patch strategic merge source ref not yet ready with error: %s: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name, err),
 			)
 
@@ -235,10 +236,10 @@ func (r *ConfigurationReconciler) Reconcile(
 		}
 
 		if !ready {
-			MarkNotReady(
+			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
-				"PatchStrategicMergeSourceRefNotReady",
+				v1alpha1.PatchStrategicMergeSourceRefNotReadyReason,
 				fmt.Sprintf("patch strategic merge source ref not yet ready: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name),
 			)
 
@@ -252,7 +253,7 @@ func (r *ConfigurationReconciler) Reconcile(
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
 			err := fmt.Errorf("failed to generate snapshot name for: %s: %s", obj.GetName(), err)
-			MarkNotReady(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
+			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
@@ -288,13 +289,13 @@ func (r *ConfigurationReconciler) reconcile(
 
 		if errors.Is(err, errTar) {
 			err = fmt.Errorf("source resource is not a tar archive: %w", err)
-			MarkNotReady(r.EventRecorder, obj, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
+			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		MarkNotReady(r.EventRecorder, obj, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
 
 		return ctrl.Result{}, err
 	}

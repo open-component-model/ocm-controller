@@ -16,6 +16,7 @@ import (
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	kuberecorder "k8s.io/client-go/tools/record"
@@ -93,7 +94,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := updateStatus(ctx, patchHelper, obj, r.EventRecorder, 0); derr != nil {
+		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, 0); derr != nil {
 			err = errors.Join(err, derr)
 		}
 	}()
@@ -106,7 +107,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
 	if err != nil {
 		err = fmt.Errorf("failed to construct name: %w", err)
-		MarkNotReady(r.EventRecorder, obj, v1alpha1.CreateRepositoryNameReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.CreateRepositoryNameReason, err.Error())
 
 		return ctrl.Result{}, err
 	}

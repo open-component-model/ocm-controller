@@ -1,4 +1,4 @@
-package controllers
+package status
 
 import (
 	"context"
@@ -13,8 +13,8 @@ import (
 	kuberecorder "k8s.io/client-go/tools/record"
 )
 
-// updateStatus takes an object which can identify itself and updates its status including ObservedGeneration.
-func updateStatus(
+// UpdateStatus takes an object which can identify itself and updates its status including ObservedGeneration.
+func UpdateStatus(
 	ctx context.Context,
 	patchHelper *patch.SerialPatcher,
 	obj IdentifiableClientObject,
