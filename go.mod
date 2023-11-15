@@ -52,7 +52,7 @@ require (
 	github.com/open-component-model/ocm v0.4.0
 	github.com/open-component-model/ocm-e2e-framework v0.6.1-0.20230913082321-d7050cc55939
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc3
+	github.com/opencontainers/image-spec v1.1.0-rc5
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	github.com/stretchr/testify v1.8.4
 	github.com/tetratelabs/wazero v1.5.0
