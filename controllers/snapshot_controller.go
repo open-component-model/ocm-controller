@@ -11,7 +11,6 @@ import (
 	"net/http"
 
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
@@ -117,8 +116,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	obj.Status.RepositoryURL = fmt.Sprintf("%s://%s/%s", scheme, r.RegistryServiceName, name)
 
 	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
-	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg)
-	conditions.Delete(obj, meta.ReconcilingCondition)
+	status.MarkReady(r.EventRecorder, obj, msg)
 
 	return ctrl.Result{}, nil
 }

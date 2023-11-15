@@ -300,12 +300,7 @@ func (r *ConfigurationReconciler) reconcile(
 		return ctrl.Result{}, err
 	}
 
-	conditions.MarkTrue(obj,
-		meta.ReadyCondition,
-		meta.SucceededReason,
-		"Reconciliation success")
-
-	conditions.Delete(obj, meta.ReconcilingCondition)
+	status.MarkReady(r.EventRecorder, obj, "Reconciliation success")
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }

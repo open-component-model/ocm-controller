@@ -12,7 +12,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/pkg/status"
@@ -181,12 +180,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !update {
-		conditions.Delete(obj, meta.ReconcilingCondition)
-		conditions.MarkTrue(obj,
-			meta.ReadyCondition,
-			meta.SucceededReason,
-			"Applied version: %s",
-			version)
+		status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -339,13 +333,7 @@ func (r *ComponentVersionReconciler) reconcile(ctx context.Context, octx ocm.Con
 	obj.Status.ComponentDescriptor = componentDescriptor
 	obj.Status.ReconciledVersion = version
 
-	conditions.MarkTrue(obj,
-		meta.ReadyCondition,
-		meta.SucceededReason,
-		"Applied version: %s",
-		version)
-
-	conditions.Delete(obj, meta.ReconcilingCondition)
+	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
