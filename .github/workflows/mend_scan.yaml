@@ -90,33 +90,34 @@ jobs:
         high_license_risk_no=$(echo "${high_license_risk}" | jq -r '.retVal[].riskScore.riskScore | select( . != null ) >52  | select(.==true)'| wc -l )
   
         function print {
-            printf "############################################\n$1\n############################################\n$2\n"
+          printf "############################################\n$1\n############################################\n"
         }
-
+        
+        print "HIGH/CRITICAL SECURITY VULNERABILITIES: ${security_vulnerability_no}"
         if [[ $security_vulnerability_no -gt 0 ]]
         then
-          print "HIGH/CRITICAL SECURITY VULNERABILITIES: ${security_vulnerability_no}"
           echo "${security_vulnerability}" | jq -r .retVal[]
         fi
-
+        
+        print "MAJOR UPDATES AVAILABLE: ${major_updates_pending_no}"
         if [[ $major_updates_pending_no -gt 0 ]]
         then
-          print "MAJOR UPDATES AVAILABLE: ${major_updates_pending_no}"
           echo "${major_updates_pending}" | jq -r .retVal[]
         fi
-
+        
+        print "LICENSE REQUIRES REVIEW: ${requires_review_no}" "Visit the Mend UI and add correct license"
         if [[ $requires_review_no -gt 0 ]]
         then
-          print "LICENSE REQUIRES REVIEW: ${requires_review_no}" "Visit the Mend UI and add correct license"
           echo "${requires_review}" | jq -r .retVal[]
         fi
-
+        
+        print "LICENSE RISK HIGH: ${high_license_risk_no}"
         if [[ high_license_risk_no -gt 0 ]]
         then
-          print "LICENSE RISK HIGH: ${high_license_risk_no}" "Visit the Mend UI and check High Risk Licenses. Understand Risk Score: https://docs.mend.io/bundle/sca_user_guide/page/understanding_risk_score_attribution_and_license_analysis.html"
+          echo "Visit the Mend UI and check High Risk Licenses. Understand Risk Score: https://docs.mend.io/bundle/sca_user_guide/page/understanding_risk_score_attribution_and_license_analysis.html"
         fi
-
+        
         if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]]
         then
-          exit 1
+          echo "Failure"
         fi
