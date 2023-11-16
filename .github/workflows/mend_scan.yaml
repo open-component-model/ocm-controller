@@ -119,5 +119,5 @@ jobs:
         
         if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]]
         then
-          echo "Failure"
+          exit 1
         fi
