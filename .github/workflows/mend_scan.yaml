@@ -56,7 +56,7 @@ jobs:
     - name: Generate Report
       env:
         USER_KEY: ${{ secrets.MEND_API_USER_KEY }}
-        PROJECT_TOKEN: ${{ secrets.MEND_PROJECT_TOKEN_MPAS_PROJECT_CONTR }}
+        PROJECT_TOKEN: ${{ secrets.MEND_PROJECT_TOKEN_OCM_CONTR }}
         API_KEY: ${{ secrets.MEND_API_ORG_TOKEN }}
         EMAIL: ${{ secrets.MEND_API_EMAIL }}
       run: |
