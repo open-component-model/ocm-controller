@@ -167,7 +167,8 @@ func (r *LocalizationReconciler) Reconcile(
 	if err != nil {
 		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.SourceRefNotReadyWithErrorReason, err.Error())
 
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		// we are watching the source object which should re-trigger the reconcile loop
+		return ctrl.Result{}, nil
 	}
 
 	if !ready {
@@ -178,7 +179,8 @@ func (r *LocalizationReconciler) Reconcile(
 			fmt.Sprintf("source ref not yet ready: %s", obj.Spec.SourceRef.Name),
 		)
 
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		// we are watching the source object which should re-trigger the reconcile loop
+		return ctrl.Result{}, nil
 	}
 
 	if obj.Spec.ConfigRef != nil {
@@ -191,7 +193,8 @@ func (r *LocalizationReconciler) Reconcile(
 				fmt.Sprintf("config ref not yet ready with error: %s: %s", obj.Spec.ConfigRef.Name, err),
 			)
 
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+			// we are watching the source object which should re-trigger the reconcile loop
+			return ctrl.Result{}, nil
 		}
 		if !ready {
 			status.MarkNotReady(
@@ -201,7 +204,7 @@ func (r *LocalizationReconciler) Reconcile(
 				fmt.Sprintf("config ref not yet ready: %s", obj.Spec.ConfigRef.Name),
 			)
 
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+			return ctrl.Result{}, nil
 		}
 	}
 
@@ -215,7 +218,7 @@ func (r *LocalizationReconciler) Reconcile(
 				fmt.Sprintf("patch strategic merge source ref not yet ready with error: %s: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name, err),
 			)
 
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+			return ctrl.Result{}, nil
 		}
 
 		if !ready {
@@ -226,7 +229,7 @@ func (r *LocalizationReconciler) Reconcile(
 				fmt.Sprintf("patch strategic merge source ref not yet ready: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name),
 			)
 
-			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+			return ctrl.Result{}, nil
 		}
 	}
 
@@ -351,7 +354,7 @@ func (r *LocalizationReconciler) checkReadiness(
 		}
 		ref = &v1alpha1.ComponentVersion{}
 		if err := r.Get(ctx, obj.GetObjectKey(), ref); err != nil {
-			return false, fmt.Errorf("failed to check readiness: %w", err)
+			return false, fmt.Errorf("failed to find component version source: %w", err)
 		}
 
 	default:
@@ -370,22 +373,24 @@ func (r *LocalizationReconciler) checkReadiness(
 			Namespace(obj.Namespace).
 			Get(ctx, obj.Name, metav1.GetOptions{})
 		if err != nil {
-			return false, fmt.Errorf("failed to check readiness: %w", err)
+			return false, fmt.Errorf("failed to get resource for gvr %+v: %w", gvr, err)
 		}
 
 		snapshotName, ok, err := unstructured.NestedString(src.Object, "status", "snapshotName")
 		if err != nil {
-			return false, fmt.Errorf("failed to check readiness: %w", err)
+			return false, fmt.Errorf("failed to get snapshot name: %w", err)
 		}
 		if !ok {
-			return false, fmt.Errorf("failed to check readiness: %w", err)
+			return false, fmt.Errorf("snapshot name not found on src.Object %+v", src.GetName())
 		}
+
 		// finally get the snapshot itself
 		ref = &v1alpha1.Snapshot{}
 		if err := r.Get(ctx, types.NamespacedName{Namespace: obj.Namespace, Name: snapshotName}, ref); err != nil {
-			return false, fmt.Errorf("failed to check readiness: %w", err)
+			return false, fmt.Errorf("failed to retrieve snapshot for name %s: %w", snapshotName, err)
 		}
 	}
+
 	return conditions.IsReady(ref), nil
 }
 
@@ -427,16 +432,11 @@ func makeRequestsForLocalizations(ll ...v1alpha1.Localization) []reconcile.Reque
 
 	requests := make([]reconcile.Request, len(refs))
 	for i, item := range refs {
-		// if the ObservedGeneration is -1
-		// then the object has not been initialised yet
-		// so we should not trigger a reconciliation for sourceRef/configRefs
-		if item.Status.ObservedGeneration != -1 {
-			requests[i] = reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      item.GetName(),
-					Namespace: item.GetNamespace(),
-				},
-			}
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
 		}
 	}
 

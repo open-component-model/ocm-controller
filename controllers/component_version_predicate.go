@@ -5,9 +5,10 @@
 package controllers
 
 import (
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 type ComponentVersionChangedPredicate struct {
