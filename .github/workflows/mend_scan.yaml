@@ -87,7 +87,7 @@ jobs:
         security_vulnerability_no=$(echo "${security_vulnerability}" | jq .additionalData.totalItems )
         major_updates_pending_no=$(echo "${major_updates_pending}" | jq -r .additionalData.totalItems )
         requires_review_no=$(echo "${requires_review}" | jq -r .additionalData.totalItems )
-        high_license_risk_no=$(echo "${high_license_risk}" | jq -r '.retVal[].riskScore.riskScore | select( . != null ) >52 '| wc -l )
+        high_license_risk_no=$(echo "${high_license_risk}" | jq -r '.retVal[].riskScore.riskScore | select( . != null ) >52  | select(.==true)'| wc -l )
   
         function print {
             printf "############################################\n$1\n############################################\n$2\n"
