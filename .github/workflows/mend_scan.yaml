@@ -62,9 +62,9 @@ jobs:
       run: |
         data=$(cat <<EOF
         {
-            "email": "${email}", 
-            "orgToken": "${orgToken}", 
-            "userKey": "${userKey}"
+            "email": "${EMAIL}",
+            "orgToken": "${API_KEY}",
+            "userKey": "${USER_KEY}"
         }
         EOF
         )
@@ -73,19 +73,19 @@ jobs:
         --header 'Content-Type: application/json' --silent \
         --data "${data}" | jq -r .retVal.jwtToken )
         
-        security_vulnerability=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${projectKey}/alerts/security?search=status%3Aequals%3AACTIVE%3Bscore%3Abetween%3A6%2C10%3B" \
+        security_vulnerability=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${PROJECT_TOKEN}/alerts/security?search=status%3Aequals%3AACTIVE%3Bscore%3Abetween%3A6%2C10%3B" \
         --header 'Content-Type: application/json' --silent \
         --header "Authorization: Bearer ${login_token}")
         
-        major_updates_pending=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${projectKey}/alerts/legal?search=status%3Aequals%3AACTIVE%3BavailableVersionType%3Aequals%3AMAJOR" \
+        major_updates_pending=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${PROJECT_TOKEN}/alerts/legal?search=status%3Aequals%3AACTIVE%3BavailableVersionType%3Aequals%3AMAJOR" \
         --header 'Content-Type: application/json' --silent \
         --header "Authorization: Bearer ${login_token}" )
         
-        requires_review=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${projectKey}/libraries/licenses?search=license%3Aequals%3ARequires%20Review" \
+        requires_review=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${PROJECT_TOKEN}/libraries/licenses?search=license%3Aequals%3ARequires%20Review" \
         --header 'Content-Type: application/json' --silent \
         --header "Authorization: Bearer ${login_token}")
         
-        high_license_risk=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${projectKey}/libraries/licenses?pageSize=1000" \
+        high_license_risk=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${PROJECT_TOKEN}/libraries/licenses?pageSize=1000" \
         --header 'Content-Type: application/json' --silent \
         --header "Authorization: Bearer ${login_token}")
         
@@ -103,7 +103,7 @@ jobs:
           ret_val=""
           issue_count=0
           for key in "${!sap_restricted_licenses[@]}"; do
-            api_resp=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${projectKey}/libraries/licenses?search=license%3Aequals%3A${sap_restricted_licenses[$key]}" \
+            api_resp=$(curl -X GET "https://api-sap.whitesourcesoftware.com/api/v2.0/projects/${PROJECT_TOKEN}/libraries/licenses?search=license%3Aequals%3A${sap_restricted_licenses[$key]}" \
               --header 'Content-Type: application/json' --silent \
               --header "Authorization: Bearer ${login_token}")
         
