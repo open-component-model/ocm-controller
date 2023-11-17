@@ -12,6 +12,7 @@ import (
 	"time"
 
 	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/open-component-model/ocm-controller/pkg/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -210,7 +211,7 @@ func (r *FluxDeployerReconciler) reconcile(
 	}
 
 	msg := fmt.Sprintf("FluxDeployer '%s' is ready", obj.Name)
-	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg)
+	status.MarkReady(r.EventRecorder, obj, msg)
 
 	return ctrl.Result{}, nil
 }

@@ -259,12 +259,7 @@ func (r *ResourceReconciler) reconcile(
 	obj.Status.LastAppliedResourceVersion = obj.Spec.SourceRef.GetVersion()
 	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
 
-	conditions.MarkTrue(obj,
-		meta.ReadyCondition,
-		meta.SucceededReason,
-		"Applied version: %s", obj.Status.LastAppliedComponentVersion)
-
-	conditions.Delete(obj, meta.ReconcilingCondition)
+	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
@@ -282,16 +277,11 @@ func (r *ResourceReconciler) findObjects(key string) handler.MapFunc {
 
 		requests := make([]reconcile.Request, len(resources.Items))
 		for i, item := range resources.Items {
-			// if the observed generation is -1
-			// then the object has not been initialised yet,
-			// so we should not trigger a reconciliation for sourceRef/configRefs
-			if item.Status.ObservedGeneration != -1 {
-				requests[i] = reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				}
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
 			}
 		}
 
