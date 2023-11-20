@@ -192,10 +192,9 @@ a controller's reconcile loop.
 
 To use tilt, we'll have to first prime a test cluster. `ocm-controller` requires certificates to be present for the in-cluster
 registry that's running using https. To prime a test cluster simply execute `make prime-test-cluster`. This will spin up
-a local kind cluster, download the generated certificates and add them to the local trust-store using mkcert.
+a local KinD cluster, download the generated certificates and add them to the local trust-store using **mkcert**.
 
-This project also requires flux resources to be present in the cluster. For testing purposes, no flux repository is
-required. Simply run `flux install` to install the controllers and the CRDs.
+This project also requires Flux to be installed in the cluster. For testing purposes, there is no need to configure a Flux `Source.` Simply run `flux install` to install the controllers and the CRDs.
 
 Once that is done, we are ready to start up the controller. Run `tilt up` then hit `<space>` to enter tilt's
 ui. You should see ocm-controller starting up.
