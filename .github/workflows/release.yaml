@@ -85,7 +85,7 @@ jobs:
         git tag --annotate --message "${msg}" ${{ env.RELEASE_VERSION }}
         git push origin ${{ env.RELEASE_VERSION }}
     - name: Log in to the Container registry
-      uses: docker/login-action@v2
+      uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
@@ -95,7 +95,7 @@ jobs:
         mkdir -p output
         kustomize build ./config/default > ./output/install.yaml
     - name: Run goreleaser
-      uses: goreleaser/goreleaser-action@v4
+      uses: goreleaser/goreleaser-action@v5
       with:
         distribution: goreleaser
         version: latest
