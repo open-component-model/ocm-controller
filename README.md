@@ -190,20 +190,14 @@ little tool to spin up a controller and do some extra setup in the process condi
 the environment via a process that is called [control loop](https://docs.tilt.dev/controlloop.html); it's similar to
 a controller's reconcile loop.
 
-To use tilt, simply install it into your respective environment and run `tilt up` then hit `<space>` to enter tilt's
+To use tilt, we'll have to first prime a test cluster. `ocm-controller` requires certificates to be present for the in-cluster
+registry that's running using https. To prime a test cluster simply execute `make prime-test-cluster`. This will spin up
+a local KinD cluster, download the generated certificates and add them to the local trust-store using **mkcert**.
+
+This project also requires Flux to be installed in the cluster. For testing purposes, there is no need to configure a Flux `Source.` Simply run `flux install` to install the controllers and the CRDs.
+
+Once that is done, we are ready to start up the controller. Run `tilt up` then hit `<space>` to enter tilt's
 ui. You should see ocm-controller starting up.
-
-For additional configuration take a look at the `tilt-settings.yaml.example` file. Use this file to fine-tune what
-tilt can configure. For example, to set up `flux` to bootstrap your cluster automatically, add the following settings:
-
-```yaml
-flux:
-  enabled: true
-  bootstrap: true
-  owner: <github-user>
-  repository: <name of the flux repository>
-  path: <path to flux configuration>
-```
 
 ## Licensing
 
