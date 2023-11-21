@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//nolint:dupl // we should really consider pulling this into a single type.
 package controllers
 
 import (
@@ -40,7 +41,7 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 )
 
-// LocalizationReconciler reconciles a Localization object
+// LocalizationReconciler reconciles a Localization object.
 type LocalizationReconciler struct {
 	client.Client
 
@@ -68,18 +69,27 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	)
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Localization{}, sourceKey, func(rawObj client.Object) []string {
-		loc := rawObj.(*v1alpha1.Localization)
+		loc, ok := rawObj.(*v1alpha1.Localization)
+		if !ok {
+			return nil
+		}
+
 		ns := loc.Spec.SourceRef.Namespace
 		if ns == "" {
 			ns = loc.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, loc.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Localization{}, configKey, func(rawObj client.Object) []string {
-		loc := rawObj.(*v1alpha1.Localization)
+		loc, ok := rawObj.(*v1alpha1.Localization)
+		if !ok {
+			return nil
+		}
+
 		if loc.Spec.ConfigRef == nil {
 			return nil
 		}
@@ -95,7 +105,11 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Localization{}, patchSourceKey, func(rawObj client.Object) []string {
-		loc := rawObj.(*v1alpha1.Localization)
+		loc, ok := rawObj.(*v1alpha1.Localization)
+		if !ok {
+			return nil
+		}
+
 		if loc.Spec.PatchStrategicMerge == nil {
 			return nil
 		}
@@ -103,6 +117,7 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if ns == "" {
 			ns = loc.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, loc.Spec.PatchStrategicMerge.Source.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
@@ -238,13 +253,14 @@ func (r *LocalizationReconciler) Reconcile(
 	if obj.GetSnapshotName() == "" {
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
-			err = fmt.Errorf("failed to generate snapshot name for: %s: %s", obj.GetName(), err)
+			err = fmt.Errorf("failed to generate snapshot name for: %s: %w", obj.GetName(), err)
 			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
 
 		obj.Status.SnapshotName = name
+
 		return ctrl.Result{Requeue: true}, nil
 	}
 
@@ -323,12 +339,13 @@ func (r *LocalizationReconciler) findObjects(sourceKey, configKey string) handle
 		}); err != nil {
 			return []reconcile.Request{}
 		}
+
 		return makeRequestsForLocalizations(append(sourceRefs.Items, configRefs.Items...)...)
 	}
 }
 
 // this function will enqueue a reconciliation for any component version which is referenced
-// in the .spec.sourceRef or spec.configRef field of a Localization
+// in the .spec.sourceRef or spec.configRef field of a Localization.
 func (r *LocalizationReconciler) findObjectsForGitRepository(key string) handler.MapFunc {
 	return func(obj client.Object) []reconcile.Request {
 		patchRefs := &v1alpha1.LocalizationList{}
@@ -337,6 +354,7 @@ func (r *LocalizationReconciler) findObjectsForGitRepository(key string) handler
 		}); err != nil {
 			return []reconcile.Request{}
 		}
+
 		return makeRequestsForLocalizations(patchRefs.Items...)
 	}
 }
@@ -406,8 +424,9 @@ func (r *LocalizationReconciler) checkFluxSourceReadiness(
 			return false, fmt.Errorf("failed to check flux source readiness: %w", err)
 		}
 	default:
-		return false, fmt.Errorf("kind not compatibile: %s", obj.Kind)
+		return false, fmt.Errorf("kind not compatible: %s", obj.Kind)
 	}
+
 	return conditions.IsReady(ref), nil
 }
 
@@ -415,6 +434,7 @@ func makeRequestsForLocalizations(ll ...v1alpha1.Localization) []reconcile.Reque
 	slices.SortFunc(ll, func(a, b v1alpha1.Localization) bool {
 		aKey := fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName())
 		bKey := fmt.Sprintf("%s/%s", b.GetNamespace(), b.GetName())
+
 		return aKey < bKey
 	})
 

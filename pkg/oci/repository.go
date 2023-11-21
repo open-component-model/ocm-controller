@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/opencontainers/go-digest"
@@ -95,14 +97,14 @@ type Client struct {
 }
 
 // WithTransport sets up insecure TLS so the library is forced to use HTTPS.
-func (c *Client) WithTransport() Option {
+func (c *Client) WithTransport(ctx context.Context) Option {
 	return func(o *options) error {
 		if c.InsecureSkipVerify {
 			return nil
 		}
 
 		if c.certPem == nil && c.keyPem == nil {
-			if err := c.setupCertificates(); err != nil {
+			if err := c.setupCertificates(ctx); err != nil {
 				return fmt.Errorf("failed to set up certificates for transport: %w", err)
 			}
 		}
@@ -113,12 +115,12 @@ func (c *Client) WithTransport() Option {
 	}
 }
 
-func (c *Client) setupCertificates() error {
+func (c *Client) setupCertificates(ctx context.Context) error {
 	if c.Client == nil {
 		return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
 	}
 	registryCerts := &corev1.Secret{}
-	if err := c.Client.Get(context.Background(), apitypes.NamespacedName{Name: c.CertSecretName, Namespace: c.Namespace}, registryCerts); err != nil {
+	if err := c.Client.Get(ctx, apitypes.NamespacedName{Name: c.CertSecretName, Namespace: c.Namespace}, registryCerts); err != nil {
 		return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
 	}
 
@@ -145,7 +147,7 @@ func (c *Client) setupCertificates() error {
 }
 
 func (c *Client) constructTLSRoundTripper() http.RoundTripper {
-	tlsConfig := &tls.Config{}
+	tlsConfig := &tls.Config{} //nolint:gosec // must provide lower version for quay.io
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(c.ca)
 
@@ -198,13 +200,14 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Repository name %q: %w", repositoryName, err)
 	}
+
 	return &Repository{repo, opt}, nil
 }
 
 // PushData takes a blob of data and caches it using OCI as a background.
 func (c *Client) PushData(ctx context.Context, data io.ReadCloser, mediaType, name, tag string) (string, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
-	repo, err := NewRepository(repositoryName, c.WithTransport())
+	repo, err := NewRepository(repositoryName, c.WithTransport(ctx))
 	if err != nil {
 		return "", fmt.Errorf("failed create new repository: %w", err)
 	}
@@ -227,8 +230,8 @@ func (c *Client) PushData(ctx context.Context, data io.ReadCloser, mediaType, na
 func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, error) {
 	logger := log.FromContext(ctx).WithName("cache")
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
-	logger.V(4).Info("cache hit for data", "name", name, "tag", tag, "repository", repositoryName)
-	repo, err := NewRepository(repositoryName, c.WithTransport())
+	logger.V(v1alpha1.LevelDebug).Info("cache hit for data", "name", name, "tag", tag, "repository", repositoryName)
+	repo, err := NewRepository(repositoryName, c.WithTransport(ctx))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get repository: %w", err)
 	}
@@ -237,7 +240,7 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to fetch manifest to obtain layers: %w", err)
 	}
-	logger.V(4).Info("got the manifest", "manifest", manifest)
+	logger.V(v1alpha1.LevelDebug).Info("got the manifest", "manifest", manifest)
 	layers := manifest.Layers
 	if len(layers) == 0 {
 		return nil, "", fmt.Errorf("layers for repository is empty")
@@ -259,7 +262,7 @@ func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.
 func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io.ReadCloser, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 
-	repo, err := NewRepository(repositoryName, c.WithTransport())
+	repo, err := NewRepository(repositoryName, c.WithTransport(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository: %w", err)
 	}
@@ -278,7 +281,7 @@ func (c *Client) FetchDataByDigest(ctx context.Context, name, digest string) (io
 func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 
-	repo, err := NewRepository(repositoryName, c.WithTransport())
+	repo, err := NewRepository(repositoryName, c.WithTransport(ctx))
 	if err != nil {
 		return false, fmt.Errorf("failed to get repository: %w", err)
 	}
@@ -289,7 +292,7 @@ func (c *Client) IsCached(ctx context.Context, name, tag string) (bool, error) {
 // DeleteData removes a specific tag from the cache.
 func (c *Client) DeleteData(ctx context.Context, name, tag string) error {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
-	repo, err := NewRepository(repositoryName, c.WithTransport())
+	repo, err := NewRepository(repositoryName, c.WithTransport(ctx))
 	if err != nil {
 		return fmt.Errorf("failed create new repository: %w", err)
 	}
@@ -305,7 +308,14 @@ func (r *Repository) head(tag string) (bool, error) {
 	}
 
 	if _, err := remote.Head(reference, r.remoteOpts...); err != nil {
-		return false, nil
+		terr := &transport.Error{}
+		if ok := errors.As(err, &terr); ok {
+			if terr.StatusCode == http.StatusNotFound {
+				return false, nil
+			}
+		}
+
+		return false, err
 	}
 
 	return true, nil
@@ -333,6 +343,7 @@ func (r *Repository) deleteTag(tag string) error {
 	if err := remote.Delete(deleteRef, r.remoteOpts...); err != nil {
 		return fmt.Errorf("failed to delete ref '%s': %w", ref, err)
 	}
+
 	return nil
 }
 
@@ -342,6 +353,7 @@ func (r *Repository) fetchBlob(digest string) (v1.Layer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse digest %q: %w", digest, err)
 	}
+
 	return remote.Layer(ref, r.remoteOpts...)
 }
 
@@ -351,6 +363,7 @@ func (r *Repository) FetchBlob(digest string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch layer: %w", err)
 	}
+
 	return l.Uncompressed()
 }
 
@@ -371,6 +384,7 @@ func (r *Repository) PushStreamBlob(blob io.ReadCloser, mediaType string) (*ocis
 	if err != nil {
 		return nil, fmt.Errorf("failed to get layer descriptor: %w", err)
 	}
+
 	return desc, nil
 }
 
@@ -383,7 +397,12 @@ func (r *Repository) pushBlob(layer v1.Layer) error {
 // It accepts a media type and a byte slice as the blob.
 // Default media type is "application/vnd.oci.image.layer.v1.tar+gzip".
 // Annotations can be passed to the image manifest.
-func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, mediaType string, annotations map[string]string) (*v1.Manifest, error) {
+func (r *Repository) PushStreamingImage(
+	reference string,
+	reader io.ReadCloser,
+	mediaType string,
+	annotations map[string]string,
+) (*v1.Manifest, error) {
 	ref, err := parseReference(reference, r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse reference: %w", err)
@@ -393,7 +412,12 @@ func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, 
 		return nil, fmt.Errorf("failed to compute image: %w", err)
 	}
 	if len(annotations) > 0 {
-		image = mutate.Annotations(image, annotations).(v1.Image)
+		i, ok := mutate.Annotations(image, annotations).(v1.Image)
+		if !ok {
+			return nil, fmt.Errorf("returned object was not an Image")
+		}
+
+		image = i
 	}
 
 	// These MediaTypes are required to create a Helm compliant OCI repository.
@@ -405,6 +429,7 @@ func (r *Repository) PushStreamingImage(reference string, reader io.ReadCloser, 
 	if err := r.pushImage(image, ref); err != nil {
 		return nil, fmt.Errorf("failed to push image: %w", err)
 	}
+
 	return image.Manifest()
 }
 
@@ -430,10 +455,11 @@ func (r *Repository) FetchManifest(reference string, filters []string) (*ocispec
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get raw manifest: %w", err)
 	}
-	//check if the manifest annotations match the given filters
+
+	// check if the manifest annotations match the given filters
 	var annotations map[string]string
 	if len(filters) > 0 {
-		// get desciptor from manifest
+		// get descriptor from manifest
 		desc, err := getDescriptor(raw)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get descriptor: %w", err)
@@ -448,6 +474,7 @@ func (r *Repository) FetchManifest(reference string, filters []string) (*ocispec
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get manifest descriptor: %w", err)
 	}
+
 	return desc, raw, nil
 }
 
@@ -475,6 +502,7 @@ func manifestToOCIDescriptor(m *remote.Descriptor) (*ocispec.Manifest, error) {
 		}
 		ociManifest.Layers = append(ociManifest.Layers, *ociLayer)
 	}
+
 	return ociManifest, nil
 }
 
@@ -502,6 +530,7 @@ func parseReference(reference string, r *Repository) (ociname.Reference, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse reference: %w", err)
 	}
+
 	return ref, nil
 }
 
@@ -523,6 +552,7 @@ func layerToOCIDescriptor(layer v1.Layer) (*ocispec.Descriptor, error) {
 	ociLayer.MediaType = string(mediaType)
 	ociLayer.Digest = digest.NewDigestFromHex(d.Algorithm, d.Hex)
 	ociLayer.Size = size
+
 	return ociLayer, nil
 }
 
@@ -533,6 +563,7 @@ func makeOptions(opts ...Option) (options, error) {
 			return options{}, fmt.Errorf("failed to apply option: %w", err)
 		}
 	}
+
 	return opt, nil
 }
 
@@ -547,24 +578,21 @@ func filterAnnotations(annotations map[string]string, filters []string) map[stri
 			}
 		}
 	}
+
 	return filtered
 }
 
 func computeStreamImage(reader io.ReadCloser, mediaType string) (v1.Image, error) {
-	l, err := computeStreamBlob(reader, mediaType)
-	if err != nil {
-		return nil, err
-	}
-	return mutate.AppendLayers(empty.Image, l)
+	return mutate.AppendLayers(empty.Image, computeStreamBlob(reader, mediaType))
 }
 
-func computeStreamBlob(reader io.ReadCloser, mediaType string) (v1.Layer, error) {
+func computeStreamBlob(reader io.ReadCloser, mediaType string) v1.Layer {
 	t := types.MediaType(mediaType)
 	if t == "" {
 		t = types.OCILayer
 	}
-	l := stream.NewLayer(reader, stream.WithMediaType(t))
-	return l, nil
+
+	return stream.NewLayer(reader, stream.WithMediaType(t))
 }
 
 func getDescriptor(manifest []byte) (*v1.Descriptor, error) {
@@ -572,5 +600,6 @@ func getDescriptor(manifest []byte) (*v1.Descriptor, error) {
 	if err := json.Unmarshal(manifest, desc); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
 	}
+
 	return desc, nil
 }

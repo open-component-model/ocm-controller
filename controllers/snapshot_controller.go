@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
@@ -35,7 +34,7 @@ const (
 	scheme            = "https"
 )
 
-// SnapshotReconciler reconciles a Snapshot object
+// SnapshotReconciler reconciles a Snapshot object.
 type SnapshotReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -54,7 +53,7 @@ type SnapshotReconciler struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *SnapshotReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&deliveryv1alpha1.Snapshot{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&v1alpha1.Snapshot{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }
 
@@ -122,7 +121,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 }
 
 // reconcileDeleteSnapshot removes the cached data that the snapshot was associated with if it exists.
-func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *deliveryv1alpha1.Snapshot) error {
+func (r *SnapshotReconciler) reconcileDeleteSnapshot(ctx context.Context, obj *v1alpha1.Snapshot) error {
 	patchHelper, err := patch.NewHelper(obj, r.Client)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile delete: %w", err)

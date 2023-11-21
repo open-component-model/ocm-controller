@@ -28,7 +28,7 @@ import (
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
-	var secretName = "test-secret"
+	secretName := "test-secret"
 	cv := DefaultComponent.DeepCopy()
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -254,8 +254,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 
 			close(recorder.Events)
 			for e := range recorder.Events {
-				switch {
-				case tt.expectedUpdate:
+				if tt.expectedUpdate {
 					assert.Contains(t, e, "Version check succeeded, found latest")
 				}
 			}

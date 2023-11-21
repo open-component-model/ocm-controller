@@ -109,6 +109,7 @@ func TestResourceReconciler(t *testing.T) {
 	for e := range recorder.Events {
 		if strings.Contains(e, "Reconciliation finished, next run in") {
 			event = e
+
 			break
 		}
 	}
@@ -172,7 +173,7 @@ func XTestResourceReconcilerFailed(t *testing.T) {
 	assert.True(t, conditions.IsFalse(resource, meta.ReadyCondition))
 }
 
-// TODO: rewrite these so that they test the predicate functions
+// TODO: rewrite these so that they test the predicate functions.
 func XTestResourceShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
@@ -185,6 +186,7 @@ func XTestResourceShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			snapshot: func(resource v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -197,6 +199,7 @@ func XTestResourceShouldReconcile(t *testing.T) {
 					Status: v1alpha1.SnapshotStatus{},
 				}
 				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+
 				return snapshot
 			},
 		},
@@ -206,6 +209,7 @@ func XTestResourceShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			snapshot: func(resource v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -218,6 +222,7 @@ func XTestResourceShouldReconcile(t *testing.T) {
 					Status: v1alpha1.SnapshotStatus{},
 				}
 				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
+
 				return snapshot
 			},
 		},
@@ -227,6 +232,7 @@ func XTestResourceShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.2"
+
 				return cv
 			},
 			snapshot: func(resource v1alpha1.Resource) *v1alpha1.Snapshot {

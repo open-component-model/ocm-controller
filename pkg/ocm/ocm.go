@@ -43,8 +43,18 @@ const dockerConfigKey = ".dockerconfigjson"
 // Contract defines a subset of capabilities from the OCM library.
 type Contract interface {
 	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error)
-	GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error)
-	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, name, version string) (ocm.ComponentVersionAccess, error)
+	GetResource(
+		ctx context.Context,
+		octx ocm.Context,
+		cv *v1alpha1.ComponentVersion,
+		resource *v1alpha1.ResourceReference,
+	) (io.ReadCloser, string, error)
+	GetComponentVersion(
+		ctx context.Context,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentVersion,
+		name, version string,
+	) (ocm.ComponentVersionAccess, error)
 	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
 	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 	VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
@@ -97,13 +107,13 @@ func (c *Client) configureAccessCredentials(
 	logger := log.FromContext(ctx)
 
 	if err := ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, repository.SecretRef.Name, namespace); err != nil {
-		logger.V(4).Error(err, "failed to find credentials")
+		logger.V(v1alpha1.LevelDebug).Error(err, "failed to find credentials")
 
 		// we don't ignore not found errors
 		return fmt.Errorf("failed to configure credentials for component: %w", err)
 	}
 
-	logger.V(4).Info("credentials configured")
+	logger.V(v1alpha1.LevelDebug).Info("credentials configured")
 
 	return nil
 }
@@ -115,7 +125,7 @@ func (c *Client) configureServiceAccountAccess(
 ) error {
 	logger := log.FromContext(ctx)
 
-	logger.V(4).Info("configuring service account credentials")
+	logger.V(v1alpha1.LevelDebug).Info("configuring service account credentials")
 	account := &corev1.ServiceAccount{}
 	if err := c.client.Get(ctx, types.NamespacedName{
 		Name:      serviceAccountName,
@@ -124,7 +134,7 @@ func (c *Client) configureServiceAccountAccess(
 		return fmt.Errorf("failed to fetch service account: %w", err)
 	}
 
-	logger.V(4).Info("got service account", "name", account.GetName())
+	logger.V(v1alpha1.LevelDebug).Info("got service account", "name", account.GetName())
 
 	for _, imagePullSecret := range account.ImagePullSecrets {
 		secret := &corev1.Secret{}
@@ -200,7 +210,7 @@ func (c *Client) GetResource(
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
-	logger.V(4).
+	logger.V(v1alpha1.LevelDebug).
 		Info("object with name is NOT cached, proceeding to fetch", "resource", resource, "name", name, "Version", version)
 
 	cva, err := c.GetComponentVersion(ctx, octx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
@@ -246,7 +256,7 @@ func (c *Client) GetResource(
 		return nil, "", fmt.Errorf("failed to autodecompress content: %w", err)
 	}
 	if decompressed {
-		logger.V(4).Info("resource data was automatically decompressed")
+		logger.V(v1alpha1.LevelDebug).Info("resource data was automatically decompressed")
 	}
 
 	// We need to push the media type... And construct the right layers I guess.
@@ -255,7 +265,7 @@ func (c *Client) GetResource(
 		return nil, "", fmt.Errorf("failed to cache blob: %w", err)
 	}
 
-	logger.V(4).Info("pushed data with digest", "digest", digest)
+	logger.V(v1alpha1.LevelDebug).Info("pushed data with digest", "digest", digest)
 	// re-fetch the resource to have a streamed reader available
 	dataReader, err := c.cache.FetchDataByDigest(ctx, name, digest)
 	if err != nil {
@@ -267,7 +277,7 @@ func (c *Client) GetResource(
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
 func (c *Client) GetComponentVersion(
-	ctx context.Context,
+	_ context.Context,
 	octx ocm.Context,
 	obj *v1alpha1.ComponentVersion,
 	name, version string,
@@ -342,6 +352,7 @@ func (c *Client) VerifyComponent(
 		for _, s := range cv.GetDescriptor().Signatures {
 			if s.Name == signature.Name {
 				value = s.Digest.Value
+
 				break
 			}
 		}
@@ -465,6 +476,7 @@ func (c *Client) ListComponentVersions(
 			Version: v,
 		})
 	}
+
 	return result, nil
 }
 
@@ -475,30 +487,7 @@ func (c *Client) ListComponentVersions(
 // helm charts.
 func (c *Client) fetchResourceReader(res ocm.ResourceAccess, cva ocm.ComponentVersionAccess) (_ io.ReadCloser, _ string, err error) {
 	if res.Meta().Type == "helmChart" {
-		vf := vfs.New(memoryfs.New())
-		defer func() {
-			if rerr := vf.RemoveAll("downloaded"); rerr != nil {
-				// ignore not exist errors that vfs implementation can throw sometimes.
-				if !errors.Is(rerr, os.ErrNotExist) {
-					err = errors.Join(err, rerr)
-				}
-			}
-		}()
-
-		d := download.For(cva.GetContext())
-		// Note that helm downloader does _NOT_ return the path element of the Downloader's output.
-		_, chart, err := d.Download(nil, res, "downloaded", vf)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to download helm chart content: %w", err)
-		}
-
-		content, rerr := vf.ReadFile(chart)
-		if rerr != nil {
-			return nil, "", fmt.Errorf("failed to find the downloaded file: %w", rerr)
-		}
-		reader := io.NopCloser(bytes.NewBuffer(content))
-
-		return reader, registry.ChartLayerMediaType, nil
+		return c.fetchHelmChartResource(res, cva, err)
 	}
 
 	// use the plain resource reader
@@ -514,6 +503,33 @@ func (c *Client) fetchResourceReader(res ocm.ResourceAccess, cva ocm.ComponentVe
 
 	// Ignore the media type as we set it to a default in OCI package
 	return reader, "", nil
+}
+
+func (c *Client) fetchHelmChartResource(res ocm.ResourceAccess, cva ocm.ComponentVersionAccess, err error) (io.ReadCloser, string, error) {
+	vf := vfs.New(memoryfs.New())
+	defer func() {
+		if rerr := vf.RemoveAll("downloaded"); rerr != nil {
+			// ignore not exist errors that vfs implementation can throw sometimes.
+			if !errors.Is(rerr, os.ErrNotExist) {
+				err = errors.Join(err, rerr)
+			}
+		}
+	}()
+
+	d := download.For(cva.GetContext())
+	// Note that helm downloader does _NOT_ return the path element of the Downloader's output.
+	_, chart, err := d.Download(nil, res, "downloaded", vf)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to download helm chart content: %w", err)
+	}
+
+	content, rerr := vf.ReadFile(chart)
+	if rerr != nil {
+		return nil, "", fmt.Errorf("failed to find the downloaded file: %w", rerr)
+	}
+	reader := io.NopCloser(bytes.NewBuffer(content))
+
+	return reader, registry.ChartLayerMediaType, nil
 }
 
 // ConstructRepositoryName hashes the name and passes it back.
@@ -532,7 +548,7 @@ func ConstructRepositoryName(identity ocmmetav1.Identity) (string, error) {
 	return repositoryName, nil
 }
 
-// HashIdentity returns the string hash of an ocm identity
+// HashIdentity returns the string hash of an ocm identity.
 func HashIdentity(id ocmmetav1.Identity) (string, error) {
 	hash, err := hashstructure.Hash(id, hashstructure.FormatV2, nil)
 	if err != nil {

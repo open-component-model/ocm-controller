@@ -97,12 +97,14 @@ func TestLocalizationReconciler(t *testing.T) {
 					},
 				}
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
@@ -133,6 +135,7 @@ func TestLocalizationReconciler(t *testing.T) {
 					},
 				}
 				resource.Status.SnapshotName = name
+
 				return sourceSnapshot
 			},
 
@@ -157,12 +160,14 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -207,12 +212,14 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
@@ -243,6 +250,7 @@ func TestLocalizationReconciler(t *testing.T) {
 					},
 				}
 				resource.Status.SnapshotName = name
+
 				return sourceSnapshot
 			},
 			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
@@ -264,12 +272,14 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -311,12 +321,14 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -361,12 +373,14 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -411,12 +425,14 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -461,12 +477,14 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -509,12 +527,14 @@ func TestLocalizationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -569,12 +589,14 @@ localization:
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -620,12 +642,14 @@ localization:
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func(owner client.Object) *v1alpha1.ComponentDescriptor {
 				cd := DefaultComponentDescriptor.DeepCopy()
 				err := controllerutil.SetOwnerReference(owner, cd, env.scheme)
 				require.NoError(t, err)
+
 				return cd
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -725,6 +749,7 @@ localization:
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
 				assert.True(t, conditions.IsFalse(localization, meta.ReadyCondition))
+
 				return
 			}
 			require.NoError(t, err)
@@ -796,6 +821,7 @@ localization:
 			for e := range recorder.Events {
 				if strings.Contains(e, "Reconciliation finished, next run in") {
 					event = e
+
 					break
 				}
 			}
@@ -805,7 +831,7 @@ localization:
 	}
 }
 
-// TODO: rewrite these so that they test the predicate functions
+// TODO: rewrite these so that they test the predicate functions.
 func XTestLocalizationShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
@@ -818,6 +844,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
@@ -840,6 +867,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
 				*objs = append(*objs, localization, snapshot)
+
 				return localization
 			},
 		},
@@ -849,6 +877,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
@@ -871,6 +900,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
 				*objs = append(*objs, localization, snapshot)
+
 				return localization
 			},
 		},
@@ -880,6 +910,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.2"
+
 				return cv
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
@@ -892,6 +923,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, localization)
+
 				return localization
 			},
 		},
@@ -901,6 +933,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
@@ -923,6 +956,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, localization, sourceSnapshot)
+
 				return localization
 			},
 		},
@@ -931,6 +965,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
@@ -964,6 +999,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, localization, sourceSnapshot, snapshot)
+
 				return localization
 			},
 		},
@@ -972,6 +1008,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
@@ -1014,6 +1051,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, localization, configSnapshot, snapshot)
+
 				return localization
 			},
 		},
@@ -1023,6 +1061,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
@@ -1052,6 +1091,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, localization, configSnapshot)
+
 				return localization
 			},
 		},
@@ -1061,6 +1101,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			localization: func(objs *[]client.Object) *v1alpha1.Localization {
@@ -1090,6 +1131,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				}
 				gitrepo := createGitRepository("git-test", localization.Namespace, "url", "last-reconciled-digest")
 				*objs = append(*objs, localization, gitrepo)
+
 				return localization
 			},
 		},

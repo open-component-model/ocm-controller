@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ResourceSpec defines the desired state of Resource
+// ResourceSpec defines the desired state of Resource.
 type ResourceSpec struct {
 	// Interval specifies the interval at which the Repository will be checked for updates.
 	// +required
@@ -29,7 +29,7 @@ type ResourceSpec struct {
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 
-// ResourceStatus defines the observed state of Resource
+// ResourceStatus defines the observed state of Resource.
 type ResourceStatus struct {
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
@@ -47,7 +47,8 @@ type ResourceStatus struct {
 	// +optional
 	LastAppliedComponentVersion string `json:"lastAppliedComponentVersion,omitempty"`
 
-	// SnapshotName specifies the name of the Snapshot that has been created to store the resource within the cluster and make it available for consumption by Flux controllers.
+	// SnapshotName specifies the name of the Snapshot that has been created to store the resource
+	// within the cluster and make it available for consumption by Flux controllers.
 	// +optional
 	SnapshotName string `json:"snapshotName,omitempty"`
 
@@ -63,7 +64,7 @@ type ResourceStatus struct {
 //+kubebuilder:printcolumn:name="Source Version",type="string",JSONPath=".status.latestSourceVersion",description=""
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 
-// Resource is the Schema for the resources API
+// Resource is the Schema for the resources API.
 type Resource struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -117,7 +118,7 @@ func (in Resource) GetSnapshotName() string {
 
 //+kubebuilder:object:root=true
 
-// ResourceList contains a list of Resource
+// ResourceList contains a list of Resource.
 type ResourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

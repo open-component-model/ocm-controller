@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	wasmruntime "github.com/open-component-model/ocm-controller/pkg/wasm/runtime"
@@ -42,7 +41,7 @@ import (
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 )
 
-// ResourcePipelineReconciler reconciles a ResourcePipeline object
+// ResourcePipelineReconciler reconciles a ResourcePipeline object.
 type ResourcePipelineReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -54,7 +53,7 @@ type ResourcePipelineReconciler struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourcePipelineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&deliveryv1alpha1.ResourcePipeline{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&v1alpha1.ResourcePipeline{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }
 
@@ -82,6 +81,7 @@ func (r *ResourcePipelineReconciler) Reconcile(
 
 	if obj.Spec.Suspend {
 		logger.Info("resource object suspended")
+
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
@@ -149,6 +149,7 @@ func (r *ResourcePipelineReconciler) Reconcile(
 			return ctrl.Result{}, err
 		}
 		obj.Status.SnapshotName = name
+
 		return ctrl.Result{Requeue: true}, nil
 	}
 
@@ -175,13 +176,15 @@ func (r *ResourcePipelineReconciler) reconcile(
 	// get the component
 	cv, err := r.getComponentVersionAccess(ctx, obj)
 	if err != nil {
-		if apierrors.IsNotFound(err) || err == errCVNotReady {
+		if apierrors.IsNotFound(err) || errors.Is(err, errCVNotReady) {
 			logger.Info("cv not found or not ready: retrying", "msg", err.Error())
+
 			return ctrl.Result{
 				RequeueAfter: obj.GetRequeueAfter(),
 			}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("could not get component verison: %w", err)
+
+		return ctrl.Result{}, fmt.Errorf("could not get component version: %w", err)
 	}
 	defer cv.Close()
 
@@ -200,7 +203,6 @@ func (r *ResourcePipelineReconciler) reconcile(
 
 	tmpfs, err := projectionfs.New(osfs.New(), dir)
 	if err != nil {
-		os.Remove(dir)
 		return ctrl.Result{}, fmt.Errorf("failed to create temp folder: %w", err)
 	}
 
@@ -289,22 +291,23 @@ func (r *ResourcePipelineReconciler) getComponentVersionAccess(
 
 func (r *ResourcePipelineReconciler) executePipelineStepWithTimeout(ctx context.Context,
 	wr *wasmruntime.Runtime,
-	step deliveryv1alpha1.WasmStep,
+	step v1alpha1.WasmStep,
 	parameters map[string]any,
 ) error {
 	ctx, cancel := context.WithTimeout(ctx, step.Timeout.Duration)
 	defer cancel()
+
 	return r.executePipelineStep(ctx, wr, step, parameters)
 }
 
 // for each WASM step
 // - get the module
 // - TODO: verify the signature
-// - execute
+// - execute.
 func (r *ResourcePipelineReconciler) executePipelineStep(
 	ctx context.Context,
 	wr *wasmruntime.Runtime,
-	step deliveryv1alpha1.WasmStep,
+	step v1alpha1.WasmStep,
 	parameters map[string]any,
 ) error {
 	data, err := r.fetchWasmBlob(step)
@@ -335,7 +338,7 @@ func (r *ResourcePipelineReconciler) executePipelineStep(
 }
 
 func (r *ResourcePipelineReconciler) fetchWasmBlob(
-	step deliveryv1alpha1.WasmStep,
+	step v1alpha1.WasmStep,
 ) (_ []byte, err error) {
 	octx := ocmcore.New()
 
@@ -408,8 +411,7 @@ func injectValue(parameters map[string]any, value string) (any, error) {
 
 	funcName, key := value[:idx], value[idx+1:]
 
-	switch {
-	case strings.HasPrefix(funcName, parametersInjectKey):
+	if strings.HasPrefix(funcName, parametersInjectKey) {
 		return parametersInjectFunc(parameters, key)
 	}
 
@@ -428,13 +430,8 @@ func processValueFunctions(
 	for k, v := range values {
 		switch t := v.(type) {
 		case string:
-			if strings.HasPrefix(t, "$") {
-				inject, err := injectValue(parameters, t)
-				if err != nil {
-					return fmt.Errorf("failed to inject value: %w", err)
-				}
-
-				values[k] = inject
+			if err := injectMapValue(t, values, k, parameters); err != nil {
+				return fmt.Errorf("failed to inject value: %w", err)
 			}
 		case map[string]any:
 			if err := processValueFunctions(parameters, t); err != nil {
@@ -444,13 +441,8 @@ func processValueFunctions(
 			for i, e := range t {
 				switch et := e.(type) {
 				case string:
-					if strings.HasPrefix(et, "$") {
-						inject, err := injectValue(parameters, et)
-						if err != nil {
-							return fmt.Errorf("failed to create inject value: %w", err)
-						}
-
-						t[i] = inject
+					if err := injectSliceValue(et, t, i, parameters); err != nil {
+						return fmt.Errorf("failed to inject value: %w", err)
 					}
 				case map[string]any:
 					if err := processValueFunctions(parameters, et); err != nil {
@@ -460,6 +452,36 @@ func processValueFunctions(
 			}
 		}
 	}
+
+	return nil
+}
+
+func injectMapValue(t string, values map[string]any, k string, parameters map[string]any) error {
+	if !strings.HasPrefix(t, "$") {
+		return nil
+	}
+
+	inject, err := injectValue(parameters, t)
+	if err != nil {
+		return err
+	}
+
+	values[k] = inject
+
+	return nil
+}
+
+func injectSliceValue(t string, values []any, i int, parameters map[string]any) error {
+	if !strings.HasPrefix(t, "$") {
+		return nil
+	}
+
+	inject, err := injectValue(parameters, t)
+	if err != nil {
+		return fmt.Errorf("failed to inject value: %w", err)
+	}
+
+	values[i] = inject
 
 	return nil
 }

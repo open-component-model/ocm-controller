@@ -33,7 +33,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ComponentVersion is the Schema for the ComponentVersions API
+        description: ComponentVersion is the Schema for the ComponentVersions API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -147,7 +147,7 @@ spec:
             - version
             type: object
           status:
-            description: ComponentVersionStatus defines the observed state of ComponentVersion
+            description: ComponentVersionStatus defines the observed state of ComponentVersion.
             properties:
               componentDescriptor:
                 description: ComponentDescriptor holds the ComponentDescriptor information

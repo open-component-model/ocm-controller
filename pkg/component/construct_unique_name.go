@@ -18,7 +18,7 @@ type namingScheme struct {
 	Identity      v1.Identity
 }
 
-// ConstructUniqueName for a given component descriptor based on metadata that can be used to uniquely identify components
+// ConstructUniqueName for a given component descriptor based on metadata that can be used to uniquely identify components.
 func ConstructUniqueName(name, version string, identity v1.Identity) (string, error) {
 	h, err := hash.Hash(namingScheme{
 		ComponentName: name,
@@ -28,5 +28,6 @@ func ConstructUniqueName(name, version string, identity v1.Identity) (string, er
 	if err != nil {
 		return "", fmt.Errorf("failed to generate hash for name, version, identity: %w", err)
 	}
+
 	return fmt.Sprintf("%s-%s-%d", strings.ReplaceAll(name, "/", "-"), version, h), nil
 }

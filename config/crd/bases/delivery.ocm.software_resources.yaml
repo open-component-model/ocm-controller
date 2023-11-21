@@ -30,7 +30,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Resource is the Schema for the resources API
+        description: Resource is the Schema for the resources API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -45,7 +45,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ResourceSpec defines the desired state of Resource
+            description: ResourceSpec defines the desired state of Resource.
             properties:
               interval:
                 description: Interval specifies the interval at which the Repository
@@ -132,7 +132,7 @@ spec:
           status:
             default:
               observedGeneration: -1
-            description: ResourceStatus defines the observed state of Resource
+            description: ResourceStatus defines the observed state of Resource.
             properties:
               conditions:
                 description: Conditions holds the conditions for the ComponentVersion.

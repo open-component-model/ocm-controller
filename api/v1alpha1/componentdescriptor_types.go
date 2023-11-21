@@ -9,9 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ComponentDescriptorStatus defines the observed state of ComponentDescriptor
-type ComponentDescriptorStatus struct {
-}
+// ComponentDescriptorStatus defines the observed state of ComponentDescriptor.
+type ComponentDescriptorStatus struct{}
 
 // ComponentDescriptorSpec adds a version to the top level component descriptor definition.
 type ComponentDescriptorSpec struct {
@@ -23,7 +22,7 @@ type ComponentDescriptorSpec struct {
 //+kubebuilder:resource:shortName=cd
 //+kubebuilder:subresource:status
 
-// ComponentDescriptor is the Schema for the componentdescriptors API
+// ComponentDescriptor is the Schema for the componentdescriptors API.
 type ComponentDescriptor struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -38,14 +37,16 @@ func (in ComponentDescriptor) GetResource(name string) *v3alpha1.Resource {
 		if r.Name != name {
 			continue
 		}
+
 		return &r
 	}
+
 	return nil
 }
 
 //+kubebuilder:object:root=true
 
-// ComponentDescriptorList contains a list of ComponentDescriptor
+// ComponentDescriptorList contains a list of ComponentDescriptor.
 type ComponentDescriptorList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

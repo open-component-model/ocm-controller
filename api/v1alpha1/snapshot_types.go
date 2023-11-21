@@ -18,7 +18,7 @@ type SnapshotWriter interface {
 	GetSnapshotName() string
 }
 
-// SnapshotSpec defines the desired state of Snapshot
+// SnapshotSpec defines the desired state of Snapshot.
 type SnapshotSpec struct {
 	Identity ocmmetav1.Identity `json:"identity"`
 
@@ -31,7 +31,7 @@ type SnapshotSpec struct {
 	Suspend bool `json:"suspend,omitempty"`
 }
 
-// SnapshotStatus defines the observed state of Snapshot
+// SnapshotStatus defines the observed state of Snapshot.
 type SnapshotStatus struct {
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -64,17 +64,17 @@ func (in *Snapshot) SetObservedGeneration(v int64) {
 	in.Status.ObservedGeneration = v
 }
 
-// GetComponentVersion returns the component version for the snapshot
+// GetComponentVersion returns the component version for the snapshot.
 func (in Snapshot) GetComponentVersion() string {
 	return in.Spec.Identity[ComponentVersionKey]
 }
 
-// GetComponentResourceVersion returns the resource version for the snapshot
+// GetComponentResourceVersion returns the resource version for the snapshot.
 func (in Snapshot) GetComponentResourceVersion() string {
 	return in.Spec.Identity[ResourceVersionKey]
 }
 
-// GetDigest returns the last reconciled digest for the snapshot
+// GetDigest returns the last reconciled digest for the snapshot.
 func (in Snapshot) GetDigest() string {
 	return in.Status.LastReconciledDigest
 }
@@ -95,7 +95,7 @@ func (in *Snapshot) SetConditions(conditions []metav1.Condition) {
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 
-// Snapshot is the Schema for the snapshots API
+// Snapshot is the Schema for the snapshots API.
 type Snapshot struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -106,7 +106,7 @@ type Snapshot struct {
 
 //+kubebuilder:object:root=true
 
-// SnapshotList contains a list of Snapshot
+// SnapshotList contains a list of Snapshot.
 type SnapshotList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

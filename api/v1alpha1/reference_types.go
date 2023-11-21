@@ -62,5 +62,6 @@ func (o *ObjectReference) GetVersion() string {
 	if o.ResourceRef == nil {
 		return ""
 	}
+
 	return o.ResourceRef.Version
 }

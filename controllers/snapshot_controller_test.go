@@ -78,6 +78,7 @@ func TestSnapshotReconciler(t *testing.T) {
 	for e := range recorder.Events {
 		if strings.Contains(e, "Reconciliation finished") {
 			event = e
+
 			break
 		}
 	}

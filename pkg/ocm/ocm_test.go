@@ -16,7 +16,6 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
-	ocmcontext "github.com/open-component-model/ocm-controller/pkg/fakes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
+	fakeocm "github.com/open-component-model/ocm-controller/pkg/fakes"
 )
 
 func TestClient_GetResource(t *testing.T) {
@@ -35,13 +35,13 @@ func TestClient_GetResource(t *testing.T) {
 	resourceVersion := "v0.0.1"
 	data := "testdata"
 
-	octx := ocmcontext.NewFakeOCMContext()
+	octx := fakeocm.NewFakeOCMContext()
 
-	comp := &ocmcontext.Component{
+	comp := &fakeocm.Component{
 		Name:    component,
 		Version: "v0.0.1",
 	}
-	res := &ocmcontext.Resource{
+	res := &fakeocm.Resource{
 		Name:      resource,
 		Version:   resourceVersion,
 		Data:      []byte(data),
@@ -128,13 +128,13 @@ func TestClient_GetHelmResource(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("testdata", "podinfo-6.3.5.tgz"))
 	require.NoError(t, err)
 
-	octx := ocmcontext.NewFakeOCMContext()
+	octx := fakeocm.NewFakeOCMContext()
 
-	comp := &ocmcontext.Component{
+	comp := &fakeocm.Component{
 		Name:    component,
 		Version: "v0.0.1",
 	}
-	res := &ocmcontext.Resource{
+	res := &fakeocm.Resource{
 		Name:      resource,
 		Version:   resourceVersion,
 		Data:      data,
@@ -220,8 +220,8 @@ func TestClient_GetHelmResource(t *testing.T) {
 
 func TestClient_GetComponentVersion(t *testing.T) {
 	component := "github.com/skarlso/ocm-demo-index"
-	octx := ocmcontext.NewFakeOCMContext()
-	comp := &ocmcontext.Component{
+	octx := fakeocm.NewFakeOCMContext()
+	comp := &fakeocm.Component{
 		Name:    component,
 		Version: "v0.0.1",
 	}
@@ -379,7 +379,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 	testCases := []struct {
 		name             string
 		componentVersion func(name string) *v1alpha1.ComponentVersion
-		setupComponents  func(name string, context *ocmcontext.Context)
+		setupComponents  func(name string, context *fakeocm.Context)
 		expectedVersion  string
 	}{
 		{
@@ -401,10 +401,10 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 					},
 				}
 			},
-			setupComponents: func(name string, context *ocmcontext.Context) {
+			setupComponents: func(name string, context *fakeocm.Context) {
 				// v0.0.1 should not be chosen.
 				for _, v := range []string{"v0.0.1", "v0.0.5"} {
-					_ = context.AddComponent(&ocmcontext.Component{
+					_ = context.AddComponent(&fakeocm.Component{
 						Name:    name,
 						Version: v,
 					})
@@ -431,9 +431,9 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 					},
 				}
 			},
-			setupComponents: func(name string, context *ocmcontext.Context) {
+			setupComponents: func(name string, context *fakeocm.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
-					_ = context.AddComponent(&ocmcontext.Component{
+					_ = context.AddComponent(&fakeocm.Component{
 						Name:    name,
 						Version: v,
 					})
@@ -460,9 +460,9 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 					},
 				}
 			},
-			setupComponents: func(name string, context *ocmcontext.Context) {
+			setupComponents: func(name string, context *fakeocm.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
-					_ = context.AddComponent(&ocmcontext.Component{
+					_ = context.AddComponent(&fakeocm.Component{
 						Name:    name,
 						Version: v,
 					})
@@ -489,9 +489,9 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 					},
 				}
 			},
-			setupComponents: func(name string, context *ocmcontext.Context) {
+			setupComponents: func(name string, context *fakeocm.Context) {
 				for _, v := range []string{"v0.0.1", "v0.0.2"} {
-					_ = context.AddComponent(&ocmcontext.Component{
+					_ = context.AddComponent(&fakeocm.Component{
 						Name:    name,
 						Version: v,
 					})
@@ -508,7 +508,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			fakeKubeClient := env.FakeKubeClient()
 			cache := &fakes.FakeCache{}
 			ocmClient := NewClient(fakeKubeClient, cache)
-			octx := ocmcontext.NewFakeOCMContext()
+			octx := fakeocm.NewFakeOCMContext()
 			component := "github.com/skarlso/ocm-demo-index"
 
 			tt.setupComponents(component, octx)
@@ -542,12 +542,12 @@ func TestClient_VerifyComponent(t *testing.T) {
 	ocmClient := NewClient(fakeKubeClient, cache)
 	component := "github.com/skarlso/ocm-demo-index"
 
-	octx := ocmcontext.NewFakeOCMContext()
+	octx := fakeocm.NewFakeOCMContext()
 
-	c := &ocmcontext.Component{
+	c := &fakeocm.Component{
 		Name:    component,
 		Version: "v0.0.1",
-		Sign: &ocmcontext.Sign{
+		Sign: &fakeocm.Sign{
 			Name:    Signature,
 			PrivKey: privateKey,
 			PubKey:  publicKey1,
@@ -608,12 +608,12 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	ocmClient := NewClient(fakeKubeClient, cache)
 	component := "github.com/skarlso/ocm-demo-index"
 
-	octx := ocmcontext.NewFakeOCMContext()
+	octx := fakeocm.NewFakeOCMContext()
 
-	c := &ocmcontext.Component{
+	c := &fakeocm.Component{
 		Name:    component,
 		Version: "v0.0.1",
-		Sign: &ocmcontext.Sign{
+		Sign: &fakeocm.Sign{
 			Name:    Signature,
 			PrivKey: privateKey,
 			PubKey:  publicKey2,

@@ -26,7 +26,6 @@ func ConfigureCredentials(ctx context.Context, ocmCtx ocm.Context, c client.Clie
 		return err
 	}
 
-	// TODO: set credentials should return an error
 	ocmCtx.CredentialsContext().SetCredentialsForConsumer(consumerID, creds)
 
 	return nil

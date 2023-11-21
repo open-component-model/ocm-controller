@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// FluxDeployerSpec defines the desired state of FluxDeployer
+// FluxDeployerSpec defines the desired state of FluxDeployer.
 type FluxDeployerSpec struct {
 	// +required
 	SourceRef ObjectReference `json:"sourceRef"`
@@ -32,7 +32,7 @@ type FluxDeployerSpec struct {
 	HelmReleaseTemplate *helmv1.HelmReleaseSpec `json:"helmReleaseTemplate,omitempty"`
 }
 
-// FluxDeployerStatus defines the observed state of FluxDeployer
+// FluxDeployerStatus defines the observed state of FluxDeployer.
 type FluxDeployerStatus struct {
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
@@ -64,7 +64,7 @@ func (in *FluxDeployer) SetConditions(conditions []metav1.Condition) {
 //+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 
-// FluxDeployer is the Schema for the FluxDeployers API
+// FluxDeployer is the Schema for the FluxDeployers API.
 type FluxDeployer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -75,7 +75,7 @@ type FluxDeployer struct {
 
 //+kubebuilder:object:root=true
 
-// FluxDeployerList contains a list of FluxDeployer
+// FluxDeployerList contains a list of FluxDeployer.
 type FluxDeployerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

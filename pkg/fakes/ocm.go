@@ -31,7 +31,7 @@ func SetAccessType(t string) AccessOptionFunc {
 // SetAccessRef completely overrides the globalAccess field of the resource.
 func SetAccessRef(t string) AccessOptionFunc {
 	return func(m map[string]any) {
-		m["globalAccess"].(map[string]any)["ref"] = t
+		m["globalAccess"].(map[string]any)["ref"] = t //nolint:forcetypeassert // fake
 	}
 }
 
@@ -96,12 +96,7 @@ func (c *Context) AddComponent(component *Component) error {
 	// set up the repository context for the component.
 	component.repository = c.repo
 	component.context = c
-
-	descriptor, err := c.constructComponentDescriptor(component)
-	if err != nil {
-		return fmt.Errorf("failed to construct component descriptor: %w", err)
-	}
-	component.ComponentDescriptor = descriptor
+	component.ComponentDescriptor = c.constructComponentDescriptor(component)
 
 	// add the component to our global list of components
 	c.components[component.Name] = append(c.components[component.Name], component)
@@ -163,14 +158,15 @@ func NewFakeOCMContext() *Context {
 // Setup context's repository to return. ATM we have a single repository configured that holds all the versions.
 
 func (c *Context) RepositoryForSpec(
-	spec ocm.RepositorySpec,
-	creds ...credentials.CredentialsSource,
+	_ ocm.RepositorySpec,
+	_ ...credentials.CredentialsSource,
 ) (ocm.Repository, error) {
 	return c.repo, nil
 }
 
 func (c *Context) AccessSpecForSpec(spec compdesc.AccessSpec) (ocm.AccessSpec, error) {
 	ctx := ocm.New()
+
 	return ctx.AccessSpecForSpec(spec)
 }
 
@@ -200,7 +196,7 @@ func (c *Context) BlobDigesters() ocm.BlobDigesterRegistry {
 
 func (c *Context) constructComponentDescriptor(
 	component *Component,
-) (*compdesc.ComponentDescriptor, error) {
+) *compdesc.ComponentDescriptor {
 	var resources compdesc.Resources
 
 	for _, res := range component.Resources {
@@ -234,15 +230,16 @@ func (c *Context) constructComponentDescriptor(
 		},
 	}
 
-	return compd, nil
+	return compd
 }
 
 // ************** Mock Attribute Values **************
+
 type mockAttribute struct {
 	datacontext.Attributes
 }
 
-func (m *mockAttribute) GetAttribute(name string, def ...any) any {
+func (m *mockAttribute) GetAttribute(name string, def ...any) any { //nolint:revive // fake
 	return nil
 }
 
@@ -321,6 +318,7 @@ func (m *mockComponentAccess) ListVersions() ([]string, error) {
 	for _, v := range m.context.components[m.name] {
 		versions = append(versions, v.Version)
 	}
+
 	return versions, nil
 }
 
@@ -401,12 +399,13 @@ func (r *Resource) ComponentVersion() ocm.ComponentVersionAccess {
 
 // Access provides some canned settings. This will later on by made configurable as is in getComponentMock.
 func (r *Resource) Access() (ocm.AccessSpec, error) {
+	const size = 29047129
 	accObj := map[string]any{
 		"globalAccess": map[string]any{
 			"digest":    "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
 			"mediaType": "application/vnd.docker.distribution.manifest.v2+tar+gzip",
 			"ref":       "ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
-			"size":      29047129,
+			"size":      size,
 			"type":      "ociBlob",
 		},
 		"localReference": "sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
@@ -427,6 +426,7 @@ func (r *Resource) Access() (ocm.AccessSpec, error) {
 		return nil, err
 	}
 	ctx := ocm.New()
+
 	return ctx.AccessSpecForSpec(acc)
 }
 
