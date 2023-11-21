@@ -40,10 +40,15 @@ func NewOCIWriter(client client.Client, cache cache.Cache, scheme *runtime.Schem
 	}
 }
 
-func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, sourceDir string, identity ocmmetav1.Identity) (digest string, err error) {
+func (w *OCIWriter) Write(
+	ctx context.Context,
+	owner v1alpha1.SnapshotWriter,
+	sourceDir string,
+	identity ocmmetav1.Identity,
+) (digest string, err error) {
 	logger := log.FromContext(ctx).WithName("snapshot-writer")
 
-	logger.V(4).Info("creating snapshot for identity", "identity", identity)
+	logger.V(v1alpha1.LevelDebug).Info("creating snapshot for identity", "identity", identity)
 	artifactPath, err := os.CreateTemp("", "snapshot-artifact-*.tgz")
 	if err != nil {
 		return "", fmt.Errorf("fs error: %w", err)
@@ -53,7 +58,7 @@ func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, so
 		return "", fmt.Errorf("build tar error: %w", err)
 	}
 
-	logger.V(4).Info("built tar file")
+	logger.V(v1alpha1.LevelDebug).Info("built tar file")
 
 	file, err := os.Open(artifactPath.Name())
 	if err != nil {
@@ -74,7 +79,7 @@ func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, so
 		return "", fmt.Errorf("failed to construct name: %w", err)
 	}
 
-	logger.V(4).Info("repository name constructed", "name", name)
+	logger.V(v1alpha1.LevelDebug).Info("repository name constructed", "name", name)
 
 	var mediaType string
 	if _, ok := identity[v1alpha1.ResourceHelmChartNameKey]; ok {
@@ -86,7 +91,7 @@ func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, so
 		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
 
-	logger.V(4).Info("pushed data to the cache with digest", "digest", snapshotDigest)
+	logger.V(v1alpha1.LevelDebug).Info("pushed data to the cache with digest", "digest", snapshotDigest)
 
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
@@ -106,6 +111,7 @@ func (w *OCIWriter) Write(ctx context.Context, owner v1alpha1.SnapshotWriter, so
 			Digest:   snapshotDigest,
 			Tag:      owner.GetResourceVersion(),
 		}
+
 		return nil
 	})
 

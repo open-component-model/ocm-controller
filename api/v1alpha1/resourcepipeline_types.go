@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ResourcePipelineSpec defines the desired state of ResourcePipeline
+// ResourcePipelineSpec defines the desired state of ResourcePipeline.
 type ResourcePipelineSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
@@ -58,7 +58,8 @@ type DeliverySpec struct {
 	Targets []WasmStep `json:"targets"`
 }
 
-// WasmStep defines the name version and location of a wasm module that is stored// in an ocm component. The format of the module name must be <component-name>:<component-version>@<resource-name>. Optionally a registry address can be specified.
+// WasmStep defines the name version and location of a wasm module that is stored// in an ocm component.
+// The format of the module name must be <component-name>:<component-version>@<resource-name>. Optionally a registry address can be specified.
 type WasmStep struct {
 	// +required
 	Name string `json:"name"`
@@ -88,6 +89,7 @@ func (w WasmStep) GetComponent() string {
 
 func (w WasmStep) GetComponentVersion() string {
 	p1 := strings.Split(w.Module, ":")[1]
+
 	return strings.Split(p1, "@")[0]
 }
 
@@ -95,7 +97,7 @@ func (w WasmStep) GetResource() string {
 	return strings.Split(w.Module, "@")[1]
 }
 
-// ResourcePipelineStatus defines the observed state of ResourcePipeline
+// ResourcePipelineStatus defines the observed state of ResourcePipeline.
 type ResourcePipelineStatus struct {
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
@@ -143,7 +145,7 @@ func (in *ResourcePipeline) SetConditions(conditions []metav1.Condition) {
 //+kubebuilder:printcolumn:name="Digest",type="string",JSONPath=".status.latestSnapshotDigest",description=""
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 
-// ResourcePipeline is the Schema for the resourcepipelines API
+// ResourcePipeline is the Schema for the resourcepipelines API.
 type ResourcePipeline struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -154,7 +156,7 @@ type ResourcePipeline struct {
 
 //+kubebuilder:object:root=true
 
-// ResourcePipelineList contains a list of ResourcePipeline
+// ResourcePipelineList contains a list of ResourcePipeline.
 type ResourcePipelineList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

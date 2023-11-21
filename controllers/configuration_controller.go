@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//nolint:dupl // we should really consider pulling this into a single type.
 package controllers
 
 import (
@@ -39,7 +40,7 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 )
 
-// ConfigurationReconciler reconciles a Configuration object
+// ConfigurationReconciler reconciles a Configuration object.
 type ConfigurationReconciler struct {
 	client.Client
 
@@ -70,18 +71,27 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	)
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Configuration{}, sourceKey, func(rawObj client.Object) []string {
-		cfg := rawObj.(*v1alpha1.Configuration)
+		cfg, ok := rawObj.(*v1alpha1.Configuration)
+		if !ok {
+			return nil
+		}
+
 		ns := cfg.Spec.SourceRef.Namespace
 		if ns == "" {
 			ns = cfg.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, cfg.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Configuration{}, configKey, func(rawObj client.Object) []string {
-		cfg := rawObj.(*v1alpha1.Configuration)
+		cfg, ok := rawObj.(*v1alpha1.Configuration)
+		if !ok {
+			return nil
+		}
+
 		if cfg.Spec.ConfigRef == nil {
 			return nil
 		}
@@ -89,13 +99,18 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if ns == "" {
 			ns = cfg.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, cfg.Spec.ConfigRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Configuration{}, patchSourceKey, func(rawObj client.Object) []string {
-		cfg := rawObj.(*v1alpha1.Configuration)
+		cfg, ok := rawObj.(*v1alpha1.Configuration)
+		if !ok {
+			return nil
+		}
+
 		if cfg.Spec.PatchStrategicMerge == nil {
 			return nil
 		}
@@ -103,13 +118,18 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if ns == "" {
 			ns = cfg.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, cfg.Spec.PatchStrategicMerge.Source.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Configuration{}, valuesSourceKey, func(rawObj client.Object) []string {
-		cfg := rawObj.(*v1alpha1.Configuration)
+		cfg, ok := rawObj.(*v1alpha1.Configuration)
+		if !ok {
+			return nil
+		}
+
 		if cfg.Spec.ValuesFrom == nil {
 			return nil
 		}
@@ -120,6 +140,7 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if ns == "" {
 			ns = cfg.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, cfg.Spec.ValuesFrom.FluxSource.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
@@ -255,7 +276,7 @@ func (r *ConfigurationReconciler) Reconcile(
 	if obj.GetSnapshotName() == "" {
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
-			err := fmt.Errorf("failed to generate snapshot name for: %s: %s", obj.GetName(), err)
+			err := fmt.Errorf("failed to generate snapshot name for: %s: %w", obj.GetName(), err)
 			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
 
 			return ctrl.Result{}, err
@@ -347,7 +368,7 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) handl
 	}
 }
 
-// this function will enqueue a reconciliation
+// this function will enqueue a reconciliation.
 func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) handler.MapFunc {
 	return func(obj client.Object) []reconcile.Request {
 		cfgs := &v1alpha1.ConfigurationList{}
@@ -360,6 +381,7 @@ func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) ha
 			}
 			cfgs.Items = append(cfgs.Items, result.Items...)
 		}
+
 		return makeRequestsForConfigurations(cfgs.Items...)
 	}
 }
@@ -375,11 +397,11 @@ func (r *ConfigurationReconciler) checkReadiness(
 		if obj.Namespace == "" {
 			obj.Namespace = ns
 		}
+
 		ref = &v1alpha1.ComponentVersion{}
 		if err := r.Get(ctx, obj.GetObjectKey(), ref); err != nil {
 			return false, fmt.Errorf("failed to find component version source: %w", err)
 		}
-
 	default:
 		// if the APIVersion is not set then default to "delivery.ocm.software/v1alpha1"
 		if obj.APIVersion == "" {
@@ -403,15 +425,18 @@ func (r *ConfigurationReconciler) checkReadiness(
 		if err != nil {
 			return false, fmt.Errorf("failed to get snapshot name: %w", err)
 		}
+
 		if !ok {
 			return false, fmt.Errorf("snapshot name not found on src.Object %+v", src.GetName())
 		}
+
 		// finally get the snapshot itself
 		ref = &v1alpha1.Snapshot{}
 		if err := r.Get(ctx, types.NamespacedName{Namespace: obj.Namespace, Name: snapshotName}, ref); err != nil {
 			return false, fmt.Errorf("failed to retrieve snapshot for name %s: %w", snapshotName, err)
 		}
 	}
+
 	return conditions.IsReady(ref), nil
 }
 
@@ -427,8 +452,9 @@ func (r *ConfigurationReconciler) checkFluxSourceReadiness(
 			return false, fmt.Errorf("failed to check flux source readiness: %w", err)
 		}
 	default:
-		return false, fmt.Errorf("kind not compatibile: %s", obj.Kind)
+		return false, fmt.Errorf("kind not compatible: %s", obj.Kind)
 	}
+
 	return conditions.IsReady(ref), nil
 }
 
@@ -436,6 +462,7 @@ func makeRequestsForConfigurations(ll ...v1alpha1.Configuration) []reconcile.Req
 	slices.SortFunc(ll, func(a, b v1alpha1.Configuration) bool {
 		aKey := fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName())
 		bKey := fmt.Sprintf("%s/%s", b.GetNamespace(), b.GetName())
+
 		return aKey < bKey
 	})
 

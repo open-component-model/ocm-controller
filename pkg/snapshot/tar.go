@@ -73,27 +73,33 @@ func buildTar(artifactPath, sourceDir string) error {
 		f, err := os.Open(p)
 		if err != nil {
 			f.Close()
+
 			return err
 		}
 		if _, err := io.Copy(tw, f); err != nil {
 			f.Close()
+
 			return err
 		}
+
 		return f.Close()
 	}); err != nil {
 		tw.Close()
 		tf.Close()
+
 		return err
 	}
 	if err := tw.Close(); err != nil {
 		tf.Close()
+
 		return err
 	}
 	if err := tf.Close(); err != nil {
 		return err
 	}
 
-	if err := os.Chmod(tmpName, 0o640); err != nil {
+	const mode = 0o640
+	if err := os.Chmod(tmpName, mode); err != nil {
 		return err
 	}
 

@@ -38,12 +38,11 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	deliveryv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
-// FluxDeployerReconciler reconciles a FluxDeployer object
+// FluxDeployerReconciler reconciles a FluxDeployer object.
 type FluxDeployerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -81,13 +80,14 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if ns == "" {
 			ns = obj.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, obj.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&deliveryv1alpha1.FluxDeployer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&v1alpha1.FluxDeployer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&source.Kind{Type: &v1alpha1.Snapshot{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey)),
@@ -105,6 +105,7 @@ func (r *FluxDeployerReconciler) Reconcile(
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
+
 		return ctrl.Result{}, fmt.Errorf("failed to get deployer object: %w", err)
 	}
 
@@ -145,12 +146,14 @@ func (r *FluxDeployerReconciler) reconcile(
 	snapshot, err := r.getSnapshot(ctx, obj)
 	if err != nil {
 		logger.Info("could not find source ref", "name", obj.Spec.SourceRef.Name, "err", err)
+
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
 	}
 
 	// requeue if snapshot is not ready
 	if conditions.IsFalse(snapshot, meta.ReadyCondition) {
 		logger.Info("snapshot not ready yet", "snapshot", snapshot.Name)
+
 		return ctrl.Result{RequeueAfter: r.RetryInterval}, nil
 	}
 
@@ -161,7 +164,7 @@ func (r *FluxDeployerReconciler) reconcile(
 
 	// If the type is HelmChart we need to cut off the last part of the snapshot url that will contain
 	// the chart name.
-	if _, ok := snapshot.Spec.Identity[deliveryv1alpha1.ResourceHelmChartNameKey]; ok {
+	if _, ok := snapshot.Spec.Identity[v1alpha1.ResourceHelmChartNameKey]; ok {
 		snapshotRepo = snapshotRepo[0:strings.Index(snapshotRepo, "/")]
 	}
 	snapshotURL := fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, snapshotRepo)
@@ -190,6 +193,7 @@ func (r *FluxDeployerReconciler) reconcile(
 				err.Error(),
 			)
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+
 			return ctrl.Result{}, err
 		}
 	}
@@ -206,6 +210,7 @@ func (r *FluxDeployerReconciler) reconcile(
 			)
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error())
 			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+
 			return ctrl.Result{}, err
 		}
 	}
@@ -278,6 +283,7 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(
 				Tag: tag,
 			},
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -308,6 +314,7 @@ func (r *FluxDeployerReconciler) reconcileKustomization(
 		kust.Spec.SourceRef.Kind = sourcev1beta2.OCIRepositoryKind
 		kust.Spec.SourceRef.Namespace = obj.GetNamespace()
 		kust.Spec.SourceRef.Name = obj.GetName()
+
 		return nil
 	})
 	if err != nil {
@@ -400,7 +407,7 @@ func (r *FluxDeployerReconciler) findObjects(
 
 func (r *FluxDeployerReconciler) reconcileHelmRelease(
 	ctx context.Context,
-	obj *deliveryv1alpha1.FluxDeployer,
+	obj *v1alpha1.FluxDeployer,
 ) error {
 	helmRelease := &helmv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
@@ -421,6 +428,7 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(
 			Name:      obj.GetName(),
 			Namespace: obj.GetNamespace(),
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -434,7 +442,7 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(
 
 func (r *FluxDeployerReconciler) reconcileHelmRepository(
 	ctx context.Context,
-	obj *deliveryv1alpha1.FluxDeployer,
+	obj *v1alpha1.FluxDeployer,
 	url string,
 ) error {
 	helmRepository := &sourcev1beta2.HelmRepository{
@@ -461,6 +469,7 @@ func (r *FluxDeployerReconciler) reconcileHelmRepository(
 			URL:  url,
 			Type: "oci",
 		}
+
 		return nil
 	})
 	if err != nil {

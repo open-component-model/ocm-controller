@@ -55,8 +55,7 @@ func TestRepository_Blob(t *testing.T) {
 			g.Expect(err).NotTo(HaveOccurred())
 
 			// compute a blob
-			layer, err := computeStreamBlob(io.NopCloser(bytes.NewBuffer(tc.blob)), string(types.OCILayer))
-			g.Expect(err).NotTo(HaveOccurred())
+			layer := computeStreamBlob(io.NopCloser(bytes.NewBuffer(tc.blob)), string(types.OCILayer))
 
 			// push blob to the registry
 			err = repo.pushBlob(layer)

@@ -30,7 +30,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ResourcePipeline is the Schema for the resourcepipelines API
+        description: ResourcePipeline is the Schema for the resourcepipelines API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -45,7 +45,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ResourcePipelineSpec defines the desired state of ResourcePipeline
+            description: ResourcePipelineSpec defines the desired state of ResourcePipeline.
             properties:
               interval:
                 type: string
@@ -162,7 +162,7 @@ spec:
             - sourceRef
             type: object
           status:
-            description: ResourcePipelineStatus defines the observed state of ResourcePipeline
+            description: ResourcePipelineStatus defines the observed state of ResourcePipeline.
             properties:
               conditions:
                 items:

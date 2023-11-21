@@ -82,12 +82,12 @@ type Signature struct {
 	PublicKey SecretRef `json:"publicKey"`
 }
 
-// SecretRef specifies a reference to a Secret
+// SecretRef specifies a reference to a Secret.
 type SecretRef struct {
 	SecretRef v1.LocalObjectReference `json:"secretRef"`
 }
 
-// Version specifies version information that can be used to resolve a Component Version
+// Version specifies version information that can be used to resolve a Component Version.
 type Version struct {
 	// Semver specifies a semantic version constraint for the Component Version.
 	// +optional
@@ -128,7 +128,7 @@ type Reference struct {
 	ComponentDescriptorRef meta.NamespacedObjectReference `json:"componentDescriptorRef,omitempty"`
 }
 
-// ComponentVersionStatus defines the observed state of ComponentVersion
+// ComponentVersionStatus defines the observed state of ComponentVersion.
 type ComponentVersionStatus struct {
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
@@ -163,12 +163,12 @@ func (in *ComponentVersion) SetObservedGeneration(v int64) {
 	in.Status.ObservedGeneration = v
 }
 
-// GetComponentName returns the name of the component
+// GetComponentName returns the name of the component.
 func (in *ComponentVersion) GetComponentName() string {
 	return in.Spec.Component
 }
 
-// GetVersion returns the reconciled version for the component
+// GetVersion returns the reconciled version for the component.
 func (in *ComponentVersion) GetVersion() string {
 	return in.Status.ReconciledVersion
 }
@@ -197,7 +197,7 @@ func (in ComponentVersion) GetRequeueAfter() time.Duration {
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 
-// ComponentVersion is the Schema for the ComponentVersions API
+// ComponentVersion is the Schema for the ComponentVersions API.
 type ComponentVersion struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -208,7 +208,7 @@ type ComponentVersion struct {
 
 //+kubebuilder:object:root=true
 
-// ComponentVersionList contains a list of ComponentVersion
+// ComponentVersionList contains a list of ComponentVersion.
 type ComponentVersionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

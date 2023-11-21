@@ -1,0 +1,122 @@
+run:
+  go: "1.21"
+  timeout: 10m
+  tests: false
+  allow-parallel-runners: true
+  skip-dirs:
+    - "./*/mock"
+  skip-files:
+    - "ocm/fakes/fakes.go"
+    - "pkg/cache/fakes/cache.go"
+
+linters-settings:
+  funlen:
+    lines: 150
+    statements: 60
+  staticcheck:
+    go: "1.21"
+  stylecheck:
+    go: "1.21"
+  cyclop:
+    max-complexity: 20
+    skip-tests: true
+  gosec:
+    exclude-generated: true
+  lll:
+    line-length: 150
+  misspell:
+    locale: US
+  govet:
+    check-shadowing: true
+  nilaway:
+  nolintlint:
+    allow-unused: false
+    require-explanation: true
+    require-specific: false
+  varnamelen:
+    ignore-names:
+      - err
+      - wg
+      - fs
+      - id
+      - vm
+      - ns
+      - ip
+
+issues:
+  max-same-issues: 0
+  max-issues-per-linter: 0
+  exclude-rules:
+    - text: "should not use dot imports|don't use an underscore in package name"
+      linters:
+        - golint
+    - source: "https://"
+      linters:
+        - lll
+    - path: pkg/defaults/
+      linters:
+        - lll
+    - path: _test\.go
+      linters:
+        - goerr113
+        - gocyclo
+        - errcheck
+        - gosec
+        - dupl
+        - funlen
+        - scopelint
+        - testpackage
+        - goconst
+        - godox
+    - path: internal/version/
+      linters:
+        - gochecknoglobals
+    - path: internal/command/
+      linters:
+        - exhaustivestruct
+        - lll
+        - wrapcheck
+    - source: "// .* #\\d+"
+      linters:
+        - godox
+    - path: test/e2e/
+      linters:
+        - goerr113
+        - gomnd
+    # remove this once https://github.com/golangci/golangci-lint/issues/2649 is closed
+    - path: /
+      linters:
+        - typecheck
+
+linters:
+  enable-all: true
+  disable:
+    - gci
+    - depguard
+    - exhaustivestruct
+    - golint
+    - interfacer
+    - ireturn
+    - maligned
+    - nilnil
+    - scopelint
+    - tagliatelle
+    - gomoddirectives
+    - varcheck
+    - nosnakecase
+    - structcheck
+    - ifshort
+    - deadcode
+    - forbidigo
+    - prealloc
+    - gochecknoinits
+    - exhaustruct
+    - goerr113
+    - govet
+    - nonamedreturns
+    - varnamelen
+    - wrapcheck
+    - staticcheck
+    - gochecknoglobals
+    - paralleltest
+    - wsl

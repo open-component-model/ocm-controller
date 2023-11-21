@@ -34,7 +34,7 @@ var (
 	ErrConfigMessage                = "config is not valid"
 )
 
-// Check examines whether the exit code matches an defined error and if so
+// Check examines whether the exit code matches a defined error and if so
 // returns an error type.
 func Check(result []uint64) error {
 	switch errNo := result[0]; errNo {
@@ -65,11 +65,12 @@ func Check(result []uint64) error {
 	case ErrConfig:
 		return errors.New(ErrConfigMessage)
 	}
+
 	return nil
 }
 
 // CheckCode examines whether the exit code matches an defined error and if so
-// returns the WasmError
+// returns the WasmError.
 func CheckCode(result []uint64) uint64 {
 	switch err := result[0]; err {
 	case ErrExit:
@@ -86,11 +87,12 @@ func CheckCode(result []uint64) uint64 {
 	case ErrEncodingYAML:
 		return err
 	}
+
 	return 0
 }
 
-// CheckCode examines whether the exit code matches an defined error and if so
-// returns the WasmError
+// GetMessage examines whether the exit code matches an defined error and if so
+// returns the WasmError.
 func GetMessage(err uint64) string {
 	switch err {
 	case ErrExit:
@@ -120,5 +122,6 @@ func GetMessage(err uint64) string {
 	case ErrConfig:
 		return ErrConfigMessage
 	}
+
 	return "unknown error"
 }

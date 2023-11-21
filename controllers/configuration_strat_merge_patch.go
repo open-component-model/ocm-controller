@@ -7,7 +7,7 @@ package controllers
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -16,20 +16,20 @@ import (
 	generator "github.com/fluxcd/pkg/kustomize"
 	"github.com/fluxcd/pkg/tar"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kustypes "sigs.k8s.io/kustomize/api/types"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 // the following is influenced by https://github.com/fluxcd/kustomize-controller
-func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context,
+func (m *MutationReconcileLooper) strategicMergePatch(
 	source sourcev1.Source,
 	resource []byte,
-	tmpDir,
-	sourcePath,
-	targetPath string) (string, ocmmetav1.Identity, error) {
+	tmpDir, sourcePath, targetPath string,
+) (string, ocmmetav1.Identity, error) {
 	workDir, err := securejoin.SecureJoin(tmpDir, "work")
 	if err != nil {
 		return "", nil, err
@@ -50,7 +50,8 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context,
 	}
 
 	tarSize := tar.UnlimitedUntarSize
-	fetcher := fetch.NewArchiveFetcher(10, tarSize, tarSize, "")
+	const retries = 10
+	fetcher := fetch.NewArchiveFetcher(retries, tarSize, tarSize, "")
 	err = fetcher.Fetch(source.GetArtifact().URL, source.GetArtifact().Digest, workDir)
 	if err != nil {
 		return "", nil, err
@@ -111,9 +112,14 @@ func (m *MutationReconcileLooper) strategicMergePatch(ctx context.Context,
 		return "", nil, err
 	}
 
+	clientObject, ok := source.(client.Object)
+	if !ok {
+		return "", nil, fmt.Errorf("source object was not a client object")
+	}
+
 	identity := ocmmetav1.Identity{
-		v1alpha1.SourceNameKey:             source.(client.Object).GetName(),
-		v1alpha1.SourceNamespaceKey:        source.(client.Object).GetNamespace(),
+		v1alpha1.SourceNameKey:             clientObject.GetName(),
+		v1alpha1.SourceNamespaceKey:        clientObject.GetNamespace(),
 		v1alpha1.SourceArtifactChecksumKey: source.GetArtifact().Digest,
 	}
 

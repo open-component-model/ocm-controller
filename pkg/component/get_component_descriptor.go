@@ -25,10 +25,16 @@ func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta
 	}, componentDescriptor); err != nil {
 		return nil, fmt.Errorf("failed to find component descriptor: %w", err)
 	}
+
 	return componentDescriptor, nil
 }
 
-func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []ocmmetav1.Identity, obj v1alpha1.Reference) (*v1alpha1.ComponentDescriptor, error) {
+func GetComponentDescriptor(
+	ctx context.Context,
+	c client.Client,
+	refPath []ocmmetav1.Identity,
+	obj v1alpha1.Reference,
+) (*v1alpha1.ComponentDescriptor, error) {
 	// Return early if there was no name defined.
 	if len(refPath) == 0 {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
@@ -36,7 +42,6 @@ func GetComponentDescriptor(ctx context.Context, c client.Client, refPath []ocmm
 
 	// Handle the nested loop. If we get to this part, we check if the reference that we found
 	// is the one we were looking for.
-	//TODO: What about extra identity?
 	if referencePathContainsName(obj.Name, refPath) {
 		return getComponentDescriptorObject(ctx, c, obj.ComponentDescriptorRef)
 	}
@@ -67,5 +72,6 @@ func referencePathContainsName(name string, refPath []ocmmetav1.Identity) bool {
 			}
 		}
 	}
+
 	return false
 }

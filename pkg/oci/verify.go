@@ -11,7 +11,7 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-// Verifier is a wrapper around go-digest.Verifier
+// Verifier is a wrapper around go-digest.Verifier.
 type Verifier struct {
 	// Digest is the digest of the blob to verify.
 	digest   string
@@ -36,5 +36,6 @@ func (v *Verifier) Verify(rd io.ReadCloser) (bool, error) {
 	if _, err := io.Copy(v.verifier, rd); err != nil {
 		return false, fmt.Errorf("failed to verify blob: %w", err)
 	}
+
 	return v.verifier.Verified(), nil
 }

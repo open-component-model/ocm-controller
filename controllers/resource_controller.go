@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-// ResourceReconciler reconciles a Resource object
+// ResourceReconciler reconciles a Resource object.
 type ResourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -58,11 +58,16 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	)
 
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.Resource{}, resourceKey, func(rawObj client.Object) []string {
-		res := rawObj.(*v1alpha1.Resource)
+		res, ok := rawObj.(*v1alpha1.Resource)
+		if !ok {
+			return nil
+		}
+
 		ns := res.Spec.SourceRef.Namespace
 		if ns == "" {
 			ns = res.GetNamespace()
 		}
+
 		return []string{fmt.Sprintf("%s/%s", ns, res.Spec.SourceRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
@@ -116,13 +121,14 @@ func (r *ResourceReconciler) Reconcile(
 	if obj.GetSnapshotName() == "" {
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
-			err = fmt.Errorf("failed to generate snapshot name for: %s: %s", obj.GetName(), err)
+			err = fmt.Errorf("failed to generate snapshot name for: %s: %w", obj.GetName(), err)
 			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
 
 		obj.Status.SnapshotName = name
+
 		return ctrl.Result{Requeue: true}, nil
 	}
 
@@ -247,6 +253,7 @@ func (r *ResourceReconciler) reconcile(
 			Digest:   digest,
 			Tag:      version,
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -265,7 +272,7 @@ func (r *ResourceReconciler) reconcile(
 }
 
 // this function will enqueue a reconciliation for any snapshot which is referenced
-// in the .spec.sourceRef or spec.configRef field of a Localization
+// in the .spec.sourceRef or spec.configRef field of a Localization.
 func (r *ResourceReconciler) findObjects(key string) handler.MapFunc {
 	return func(obj client.Object) []reconcile.Request {
 		resources := &v1alpha1.ResourceList{}

@@ -8,13 +8,13 @@ const (
 	// AuthenticatedContextCreationFailedReason is used when the controller failed to create an authenticated context.
 	AuthenticatedContextCreationFailedReason = "AuthenticatedContextCreationFailed"
 
-	// CheckVersionFailedReason is used when the controller failed to check for new versions
+	// CheckVersionFailedReason is used when the controller failed to check for new versions.
 	CheckVersionFailedReason = "CheckVersionFailedReason"
 
 	// VerificationFailedReason is used when the signature verification of a component failed.
 	VerificationFailedReason = "ComponentVerificationFailed"
 
-	// ComponentVersionInvalidReason is used when the component version is invalid, or we fail to retreive it.
+	// ComponentVersionInvalidReason is used when the component version is invalid, or we fail to retrieve it.
 	ComponentVersionInvalidReason = "ComponentVersionInvalid"
 
 	// ConvertComponentDescriptorFailedReason is used when the Component Descriptor cannot be converted.

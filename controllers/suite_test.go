@@ -36,7 +36,7 @@ type testEnv struct {
 // defaults.
 type FakeKubeClientOption func(testEnv *testEnv)
 
-// WithAddToScheme adds the scheme
+// WithAddToScheme adds the scheme.
 func WithAddToScheme(addToScheme func(s *runtime.Scheme) error) FakeKubeClientOption {
 	return func(testEnv *testEnv) {
 		if err := addToScheme(testEnv.scheme); err != nil {

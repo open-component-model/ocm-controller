@@ -75,7 +75,7 @@ type FluxValuesSource struct {
 	SubPath string `json:"subPath,omitempty"`
 }
 
-// PatchStrategicMerge contains the source and target details required to perform a strategic merge
+// PatchStrategicMerge contains the source and target details required to perform a strategic merge.
 type PatchStrategicMerge struct {
 	// +required
 	Source PatchStrategicMergeSource `json:"source"`
@@ -84,7 +84,7 @@ type PatchStrategicMerge struct {
 	Target PatchStrategicMergeTarget `json:"target"`
 }
 
-// PatchStrategicMergeSource contains the details required to retrieve the source from a Flux source
+// PatchStrategicMergeSource contains the details required to retrieve the source from a Flux source.
 type PatchStrategicMergeSource struct {
 	// +required
 	SourceRef meta.NamespacedObjectKindReference `json:"sourceRef"`
@@ -93,7 +93,7 @@ type PatchStrategicMergeSource struct {
 	Path string `json:"path"`
 }
 
-// PatchStrategicMergeTarget provides details about the merge target
+// PatchStrategicMergeTarget provides details about the merge target.
 type PatchStrategicMergeTarget struct {
 	Path string `json:"path"`
 }

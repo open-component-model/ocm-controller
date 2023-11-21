@@ -27,7 +27,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Snapshot is the Schema for the snapshots API
+        description: Snapshot is the Schema for the snapshots API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -42,7 +42,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SnapshotSpec defines the desired state of Snapshot
+            description: SnapshotSpec defines the desired state of Snapshot.
             properties:
               digest:
                 type: string
@@ -63,7 +63,7 @@ spec:
             - tag
             type: object
           status:
-            description: SnapshotStatus defines the observed state of Snapshot
+            description: SnapshotStatus defines the observed state of Snapshot.
             properties:
               conditions:
                 items:

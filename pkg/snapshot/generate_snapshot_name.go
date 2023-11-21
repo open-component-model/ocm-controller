@@ -13,11 +13,16 @@ import (
 
 // GenerateSnapshotName generates a random snapshot name.
 func GenerateSnapshotName(name string) (string, error) {
-	b := make([]byte, 5)
+	const size = 5
+
+	b := make([]byte, size)
 	_, err := rand.Read(b)
 	if err != nil {
 		return "", err
 	}
-	randomString := strings.ToLower(base32.StdEncoding.EncodeToString(b)[:7])
+
+	const offset = 7
+	randomString := strings.ToLower(base32.StdEncoding.EncodeToString(b)[:offset])
+
 	return fmt.Sprintf("%s-%s", name, randomString), nil
 }

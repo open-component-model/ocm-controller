@@ -27,7 +27,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: FluxDeployer is the Schema for the FluxDeployers API
+        description: FluxDeployer is the Schema for the FluxDeployers API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -42,7 +42,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: FluxDeployerSpec defines the desired state of FluxDeployer
+            description: FluxDeployerSpec defines the desired state of FluxDeployer.
             properties:
               helmReleaseTemplate:
                 x-kubernetes-preserve-unknown-fields: true
@@ -128,7 +128,7 @@ spec:
             - sourceRef
             type: object
           status:
-            description: FluxDeployerStatus defines the observed state of FluxDeployer
+            description: FluxDeployerStatus defines the observed state of FluxDeployer.
             properties:
               conditions:
                 items:

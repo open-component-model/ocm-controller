@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//nolint:dupl // these are separated for a reason
 package v1alpha1
 
 import (
@@ -18,7 +19,7 @@ import (
 //+kubebuilder:printcolumn:name="Config Version",type="string",JSONPath=".status.latestConfigVersion",description=""
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 
-// Configuration is the Schema for the configurations API
+// Configuration is the Schema for the configurations API.
 type Configuration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -56,29 +57,29 @@ func (in Configuration) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
 }
 
-// GetSnapshotDigest returns the latest snapshot digest for the localization
+// GetSnapshotDigest returns the latest snapshot digest for the localization.
 func (in Configuration) GetSnapshotDigest() string {
 	return in.Status.LatestSnapshotDigest
 }
 
-// GetSnapshotName returns the key for the snapshot produced by the Localization
+// GetSnapshotName returns the key for the snapshot produced by the Localization.
 func (in Configuration) GetSnapshotName() string {
 	return in.Status.SnapshotName
 }
 
-// GetSpec returns the mutation spec for a Localization
+// GetSpec returns the mutation spec for a Localization.
 func (in *Configuration) GetSpec() *MutationSpec {
 	return &in.Spec
 }
 
-// GetStatus returns the mutation status for a Localization
+// GetStatus returns the mutation status for a Localization.
 func (in *Configuration) GetStatus() *MutationStatus {
 	return &in.Status
 }
 
 //+kubebuilder:object:root=true
 
-// ConfigurationList contains a list of Configuration
+// ConfigurationList contains a list of Configuration.
 type ConfigurationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

@@ -7,7 +7,8 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-func Write(ctx context.Context, m api.Module, offset uint32, data []byte) uint64 {
+// Write creates a pointer to data using data size.
+func Write(ctx context.Context, m api.Module, data []byte) (result uint64) {
 	mem := m.Memory()
 	malloc := m.ExportedFunction("malloc")
 	free := m.ExportedFunction("free")
@@ -20,7 +21,11 @@ func Write(ctx context.Context, m api.Module, offset uint32, data []byte) uint64
 	}
 
 	ptr := results[0]
-	defer free.Call(ctx, ptr)
+	defer func() {
+		if _, err := free.Call(ctx, ptr); err != nil {
+			result = wasmerr.ErrMemoryAllocation
+		}
+	}()
 
 	if !mem.Write(uint32(ptr), data) {
 		return wasmerr.ErrWrite

@@ -33,7 +33,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Localization is the Schema for the localizations API
+        description: Localization is the Schema for the localizations API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -125,11 +125,11 @@ spec:
                 type: string
               patchStrategicMerge:
                 description: PatchStrategicMerge contains the source and target details
-                  required to perform a strategic merge
+                  required to perform a strategic merge.
                 properties:
                   source:
                     description: PatchStrategicMergeSource contains the details required
-                      to retrieve the source from a Flux source
+                      to retrieve the source from a Flux source.
                     properties:
                       path:
                         type: string
@@ -162,7 +162,7 @@ spec:
                     type: object
                   target:
                     description: PatchStrategicMergeTarget provides details about
-                      the merge target
+                      the merge target.
                     properties:
                       path:
                         type: string

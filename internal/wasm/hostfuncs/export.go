@@ -7,7 +7,6 @@ import (
 	"github.com/tetratelabs/wazero"
 	"golang.org/x/exp/slog"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/internal/wasm/hostfuncs/logging"
 	"github.com/open-component-model/ocm-controller/internal/wasm/hostfuncs/resource"
 )
@@ -18,7 +17,6 @@ const module = "ocm.software"
 func Export(
 	ctx context.Context,
 	runtime wazero.Runtime,
-	obj *v1alpha1.ResourcePipeline,
 	cv ocm.ComponentVersionAccess,
 	logger *slog.Logger,
 ) error {

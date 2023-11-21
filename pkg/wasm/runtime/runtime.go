@@ -27,21 +27,25 @@ func New() *Runtime {
 
 func (m *Runtime) WithLogger(l *slog.Logger) *Runtime {
 	m.logger = l
+
 	return m
 }
 
 func (m *Runtime) WithComponent(cv ocm.ComponentVersionAccess) *Runtime {
 	m.cv = cv
+
 	return m
 }
 
 func (m *Runtime) WithObject(obj *v1alpha1.ResourcePipeline) *Runtime {
 	m.object = obj
+
 	return m
 }
 
 func (m *Runtime) WithDir(path string) *Runtime {
 	m.dir = path
+
 	return m
 }
 
@@ -53,13 +57,14 @@ func (m *Runtime) Init(ctx context.Context) error {
 	r := wazero.NewRuntimeWithConfig(ctx,
 		wazero.NewRuntimeConfig().WithCloseOnContextDone(true))
 
-	if err := hostfuncs.Export(ctx, r, m.object, m.cv, m.logger); err != nil {
+	if err := hostfuncs.Export(ctx, r, m.cv, m.logger); err != nil {
 		return err
 	}
 	if _, err := wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
 		return err
 	}
 	m.runtime = r
+
 	return nil
 }
 

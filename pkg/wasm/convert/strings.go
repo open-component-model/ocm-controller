@@ -14,6 +14,7 @@ import (
 func PointerToString(v uint64) string {
 	ptr := uint32(v >> 32)
 	size := uint32(v & 0xffffffff)
+
 	return string(pointerToByte(ptr, size))
 }
 
@@ -21,6 +22,7 @@ func PointerToString(v uint64) string {
 func PointerToByte(v uint64) []byte {
 	ptr := uint32(v >> 32)
 	size := uint32(v & 0xffffffff)
+
 	return pointerToByte(ptr, size)
 }
 
@@ -41,6 +43,7 @@ func pointerToByte(ptr, size uint32) []byte {
 	//nolint:govet
 	s.Cap = uintptr(size)
 	s.Data = uintptr(ptr)
+
 	return b
 }
 

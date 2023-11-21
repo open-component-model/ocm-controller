@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	apiv1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
@@ -296,6 +295,7 @@ func TestConfigurationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
@@ -343,6 +343,7 @@ func TestConfigurationReconciler(t *testing.T) {
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
@@ -414,6 +415,7 @@ configuration:
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
@@ -485,6 +487,7 @@ configuration:
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
@@ -533,6 +536,7 @@ configuration:
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
@@ -579,6 +583,7 @@ configuration:
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
@@ -599,6 +604,7 @@ configuration:
 					},
 				}
 				cfg.Spec.ConfigRef = nil
+
 				return cfg
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -619,6 +625,7 @@ configuration:
 					},
 				}
 				resource.Status.SnapshotName = name
+
 				return snapshot
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
@@ -651,6 +658,7 @@ configuration:
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
@@ -669,6 +677,7 @@ configuration:
 					},
 				}
 				cfg.Spec.Values = nil
+
 				return cfg
 			},
 			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
@@ -689,6 +698,7 @@ configuration:
 					},
 				}
 				resource.Status.SnapshotName = name
+
 				return snapshot
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
@@ -722,6 +732,7 @@ configuration:
 						Namespace: cv.Namespace,
 					},
 				}
+
 				return cv
 			},
 			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
@@ -738,6 +749,7 @@ configuration:
 					},
 				}
 				cfg.Spec.Values = nil
+
 				return cfg
 			},
 			valuesFromType: "configmap",
@@ -759,6 +771,7 @@ configuration:
 					},
 				}
 				resource.Status.SnapshotName = name
+
 				return snapshot
 			},
 			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
@@ -885,6 +898,7 @@ configuration:
 			if tt.expectError != "" {
 				require.ErrorContains(t, err, tt.expectError)
 				assert.True(t, conditions.IsFalse(configuration, meta.ReadyCondition))
+
 				return
 			}
 
@@ -936,6 +950,7 @@ configuration:
 			for e := range recorder.Events {
 				if strings.Contains(e, "Reconciliation finished, next run in") {
 					event = e
+
 					break
 				}
 			}
@@ -944,7 +959,7 @@ configuration:
 	}
 }
 
-// TODO: rewrite these so that they test the predicate functions
+// TODO: rewrite these so that they test the predicate functions.
 func XTestConfigurationShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
@@ -957,6 +972,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
@@ -978,6 +994,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				}
 				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 				*objs = append(*objs, configuration, snapshot)
+
 				return configuration
 			},
 		},
@@ -987,6 +1004,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
@@ -1009,6 +1027,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
 				*objs = append(*objs, configuration, snapshot)
+
 				return configuration
 			},
 		},
@@ -1018,6 +1037,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.2"
+
 				return cv
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
@@ -1030,6 +1050,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, configuration)
+
 				return configuration
 			},
 		},
@@ -1039,6 +1060,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
@@ -1063,6 +1085,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, configuration, sourceSnapshot)
+
 				return configuration
 			},
 		},
@@ -1071,6 +1094,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
@@ -1106,6 +1130,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, configuration, snapshot, sourceSnapshot)
+
 				return configuration
 			},
 		},
@@ -1114,6 +1139,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
@@ -1161,6 +1187,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, configuration, configSnapshot, snapshot)
+
 				return configuration
 			},
 		},
@@ -1170,6 +1197,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
@@ -1206,6 +1234,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 					},
 				}
 				*objs = append(*objs, configuration, configSnapshot)
+
 				return configuration
 			},
 		},
@@ -1215,6 +1244,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
+
 				return cv
 			},
 			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
@@ -1244,6 +1274,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				}
 				gitrepo := createGitRepository("git-test", configuration.Namespace, "url", "last-reconciled-digest")
 				*objs = append(*objs, configuration, gitrepo)
+
 				return configuration
 			},
 		},
@@ -1316,7 +1347,7 @@ func createGitRepository(name, namespace, artifactURL, checksum string) *sourcev
 					Message:            "Fetched revision: master/b8e362c206e3d0cbb7ed22ced771a0056455a2fb",
 				},
 			},
-			Artifact: &apiv1.Artifact{
+			Artifact: &sourcev1.Artifact{
 				Path:           "gitrepository/flux-system/test-tf-controller/b8e362c206e3d0cbb7ed22ced771a0056455a2fb.tar.gz",
 				URL:            artifactURL,
 				Revision:       "master/b8e362c206e3d0cbb7ed22ced771a0056455a2fb",
@@ -1328,6 +1359,8 @@ func createGitRepository(name, namespace, artifactURL, checksum string) *sourcev
 }
 
 func extractFileFromTarGz(t *testing.T, data io.Reader, filename string) []byte {
+	t.Helper()
+
 	tarReader := tar.NewReader(data)
 
 	result := &bytes.Buffer{}
