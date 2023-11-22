@@ -173,3 +173,21 @@ jobs:
         then
           exit 1
         fi
+    - name: Comment PR
+      uses: thollander/actions-comment-pull-request@v2
+      with:
+        message: |
+          "${GITHUB_STEP_SUMMARY}"
+        reactions: rocket
+    - name: Comment PR with execution number
+      uses: thollander/actions-comment-pull-request@v2
+      with:
+        message: |
+          _(execution **${{ github.run_id }}** / attempt **${{ github.run_attempt }}**)_
+        comment_tag: execution
+    - name: Comment PR with execution number
+      uses: thollander/actions-comment-pull-request@v2
+      with:
+        message: |
+          "${GITHUB_STEP_SUMMARY}"
+        comment_tag: execution
