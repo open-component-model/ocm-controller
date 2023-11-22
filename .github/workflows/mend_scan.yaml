@@ -170,6 +170,14 @@ jobs:
           echo "| LICENSE RISK HIGH                            | $high_license_risk_no       |"
           echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY  | $VIOLATIONS                 |"
         } >> $GITHUB_STEP_SUMMARY
+
+        
+        "security_vulnerability_no=$security_vulnerability_no" >> $GITHUB_OUTPUT 
+        "major_updates_pending_no=$major_updates_pending_no" >> $GITHUB_OUTPUT
+        "requires_review_no=$requires_review_no" >> $GITHUB_OUTPUT
+        "high_license_risk_no=$high_license_risk_no" >> $GITHUB_OUTPUT
+        "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+        
         
         if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]] || [[ violations -gt 0 ]]
         then
@@ -179,8 +187,9 @@ jobs:
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
-          _(execution https://api.github.com/repos/**${{ github.step_summary }}** / attempt **${{ github.run_attempt }}**)_
-          _(execution https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} )_
+          _( HIGH/CRITICAL SECURITY VULNERABILITIES: ${{ steps.report.outputs.security_vulnerability_no }})_
+          _ MAJOR UPDATES AVAILABLE: ${{ steps.report.outputs.major_updates_pending_no }} _
+          _( https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} )_
         #mode: recreate
         comment_tag: tag_mend_scan_1
     - name: Comment PR
