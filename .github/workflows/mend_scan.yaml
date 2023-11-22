@@ -180,15 +180,15 @@ jobs:
       with:
         message: |
           _(execution https://api.github.com/repos/**${{ github.step_summary }}** / attempt **${{ github.run_attempt }}**)_
-          _(execution https://api.github.com/repos/${{ github.repository_owner }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs )_
-        mode: recreate
+          _(execution https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} )_
+        #mode: recreate
         comment_tag: tag_mend_scan_1
     - name: Comment PR
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
           "${GITHUB_STEP_SUMMARY}"
-        mode: recreate
+        #mode: recreate
         comment_tag: tag_mend_scan_2
     - name: Comment PR with execution number
       uses: thollander/actions-comment-pull-request@v2.4.3
@@ -196,11 +196,11 @@ jobs:
         message: |
           _(execution **${{ github.run_id }}** / attempt **${{ github.run_attempt }}**)_
         comment_tag: tag_mend_scan
-        mode: recreate
+        #mode: recreate
     - name: Comment PR with execution number
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
           "${GITHUB_STEP_SUMMARY}"
         comment_tag: tag_mend_scan_3
-        mode: recreate
+        #mode: recreate
