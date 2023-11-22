@@ -179,20 +179,17 @@ jobs:
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
-          Hello
-        reactions: rocket
-    - name: Comment PR
-      uses: thollander/actions-comment-pull-request@v2.4.3
-      with:
-        message: |
-          _(execution **${{ github.step_summary }}** / attempt **${{ github.run_attempt }}**)_
-        reactions: rocket
+          _(execution https://api.github.com/repos/**${{ github.step_summary }}** / attempt **${{ github.run_attempt }}**)_
+          _(execution https://api.github.com/repos/${{ github.repository_owner }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs )_
+        mode: recreate
+        comment_tag: tag_mend_scan_1
     - name: Comment PR
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
           "${GITHUB_STEP_SUMMARY}"
-        reactions: rocket
+        mode: recreate
+        comment_tag: tag_mend_scan_2
     - name: Comment PR with execution number
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
@@ -205,4 +202,5 @@ jobs:
       with:
         message: |
           "${GITHUB_STEP_SUMMARY}"
-        comment_tag: tag_mend_scan_2
+        comment_tag: tag_mend_scan_3
+        mode: recreate
