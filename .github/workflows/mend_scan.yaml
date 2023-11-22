@@ -184,10 +184,10 @@ jobs:
       with:
         message: |
           _(execution **${{ github.run_id }}** / attempt **${{ github.run_attempt }}**)_
-        comment_tag: execution
+        comment_tag: tag_mend_scan
     - name: Comment PR with execution number
       uses: thollander/actions-comment-pull-request@v2
       with:
         message: |
           "${GITHUB_STEP_SUMMARY}"
-        comment_tag: execution
+        comment_tag: tag_mend_scan_2
