@@ -160,4 +160,4 @@ jobs:
           exit 1
         fi
 
-        echo "LICENSE RISK HIGH: ${high_license_risk_no}">> "$GITHUB_OUTPUT"
+        echo "LICENSE RISK HIGH: ${high_license_risk_no}">> $GITHUB_OUTPUT
