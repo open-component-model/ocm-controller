@@ -165,16 +165,14 @@ jobs:
           
         } >> $GITHUB_OUTPUT
     
-        {
-          echo "### Scan Summary"
-          echo "| Header                                        |                     Header2 |"
-          echo "| --------------------------------------------- | --------------------------- |"
-          echo "| HIGH/CRITICAL SECURITY VULNERABILITIES:       | $security_vulnerability_no  |"
-          echo "| MAJOR UPDATES AVAILABLE:                      | $major_updates_pending_no   |"
-          echo "| LICENSE REQUIRES REVIEW:                      | $requires_review_no         |"
-          echo "| LICENSE RISK HIGH:                            | $high_license_risk_no       |"
-          echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY:  | $violations                 |"
-        } >> $GITHUB_STEP_SUMMARY
+        echo "### Scan Summary"
+        echo "| Header                                        |                     Header2 |">> $GITHUB_STEP_SUMMARY
+        echo "| --------------------------------------------- | --------------------------- |">> $GITHUB_STEP_SUMMARY
+        echo "| HIGH/CRITICAL SECURITY VULNERABILITIES:       | $security_vulnerability_no  |">> $GITHUB_STEP_SUMMARY
+        echo "| MAJOR UPDATES AVAILABLE:                      | $major_updates_pending_no   |">> $GITHUB_STEP_SUMMARY
+        echo "| LICENSE REQUIRES REVIEW:                      | $requires_review_no         |">> $GITHUB_STEP_SUMMARY
+        echo "| LICENSE RISK HIGH:                            | $high_license_risk_no       |">> $GITHUB_STEP_SUMMARY
+        echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY:  | $violations                 |">> $GITHUB_STEP_SUMMARY
 
         if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]] || [[ violations -gt 0 ]]
         then
@@ -182,8 +180,10 @@ jobs:
         fi
         
     - run: |
-        echo "${{ steps.report.outputs.security_vulnerability_no }}"
-        echo "${{ steps.report.outputs.major_updates_pending_no }}"
-        echo "${{ steps.report.outputs.requires_review_no }}"
-        echo "${{ steps.report.outputs.high_license_risk_no }}"
-        echo "${{ steps.report.outputs.violations }}"
+        {
+          echo "### :rocket: Workflow inputs"
+          echo "| Arg                 | Value |"
+          echo "| ------------------- | ----- |"
+          echo "| Print inputs        | hello |"
+          echo "| Environment         | hello |"
+        } >> $GITHUB_STEP_SUMMARY
