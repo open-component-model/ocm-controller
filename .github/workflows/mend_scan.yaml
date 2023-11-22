@@ -148,13 +148,6 @@ jobs:
         then
           echo "Visit the Mend UI and check High Risk Licenses. Understand Risk Score: https://docs.mend.io/bundle/sca_user_guide/page/understanding_risk_score_attribution_and_license_analysis.html"
         fi
-        {
-          echo "### :rocket: Workflow inputs"
-          echo "| Arg                 | Value |"
-          echo "| ------------------- | ----- |"
-          echo "| Print inputs        | hello1 |"
-          echo "| Environment         | hello1 |"
-        } >> $GITHUB_STEP_SUMMARY
         
         restricted_license
         
