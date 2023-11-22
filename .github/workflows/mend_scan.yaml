@@ -198,7 +198,7 @@ jobs:
           | LICENSE RISK HIGH                            | ${{ steps.report.outputs.high_license_risk_no }}      |
           | RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY  | ${{ steps.report.outputs.VIOLATIONS }}                |
           
-          [Detailed Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          [Detailed Logs: mend-scan-> Generate Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           [Mend UI](https://sap.whitesourcesoftware.com/Wss/WSS.html#!login)
         comment_tag: tag_mend_scan
 
