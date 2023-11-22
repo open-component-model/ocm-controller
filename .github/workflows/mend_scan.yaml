@@ -157,19 +157,12 @@ jobs:
         } >> $GITHUB_STEP_SUMMARY
         
         restricted_license
-        print "RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY: ${violations}"
+        
+        print "RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY: ${VIOLATIONS}"
         if [[ $VIOLATIONS -gt 0 ]]
         then
           echo "${VIOLATIONS_VERBOSE}" | jq .
         fi
-        
-        {
-          echo "### :rocket: Workflow inputs"
-          echo "| Arg                 | Value |"
-          echo "| ------------------- | ----- |"
-          echo "| Print inputs        | hello2 |"
-          echo "| Environment         | hello2 |"
-        } >> $GITHUB_STEP_SUMMARY
           
         {
           echo "### Scan Summary"
