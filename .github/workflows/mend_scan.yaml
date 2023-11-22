@@ -177,6 +177,18 @@ jobs:
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
+          Hello
+        reactions: rocket
+    - name: Comment PR
+      uses: thollander/actions-comment-pull-request@v2.4.3
+      with:
+        message: |
+          _(execution **${{ github.step_summary }}** / attempt **${{ github.run_attempt }}**)_
+        reactions: rocket
+    - name: Comment PR
+      uses: thollander/actions-comment-pull-request@v2.4.3
+      with:
+        message: |
           "${GITHUB_STEP_SUMMARY}"
         reactions: rocket
     - name: Comment PR with execution number
