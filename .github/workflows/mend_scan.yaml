@@ -155,15 +155,6 @@ jobs:
         fi
         
         restricted_license
-
-        {
-          "security_vulnerability_no=$security_vulnerability_no"
-          "major_updates_pending_no=$major_updates_pending_no"
-          "requires_review_no=$requires_review_no"
-          "high_license_risk_no=$high_license_risk_no"
-          "violations=$violations"
-          
-        } >> $GITHUB_OUTPUT
     
         echo "### Scan Summary"
         echo "| Header                                        |                     Header2 |">> $GITHUB_STEP_SUMMARY
