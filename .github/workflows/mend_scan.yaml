@@ -171,7 +171,7 @@ jobs:
           echo "| Print inputs        | hello1 |"
           echo "| Environment         | hello1 |"
         } >> $GITHUB_STEP_SUMMARY
-        restricted_license 
+        issue_count=$(restricted_license)
         {
           echo "### :rocket: Workflow inputs"
           echo "| Arg                 | Value |"
