@@ -166,13 +166,14 @@ jobs:
           
         {
           echo "# Mend Scan Summary"
+          echo "[Mend Scan Tool](https://sap.whitesourcesoftware.com/Wss/WSS.html#!login)"
           echo "| VIOLATION DESCRIPTION                         | NUMBER OF VIOLATIONS        |"
           echo "| --------------------------------------------- | --------------------------- |"
-          echo "| HIGH/CRITICAL SECURITY VULNERABILITIES:       | $security_vulnerability_no  |"
-          echo "| MAJOR UPDATES AVAILABLE:                      | $major_updates_pending_no   |"
-          echo "| LICENSE REQUIRES REVIEW:                      | $requires_review_no         |"
-          echo "| LICENSE RISK HIGH:                            | $high_license_risk_no       |"
-          echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY:  | $VIOLATIONS                 |"
+          echo "| HIGH/CRITICAL SECURITY VULNERABILITIES       | $security_vulnerability_no  |"
+          echo "| MAJOR UPDATES AVAILABLE                      | $major_updates_pending_no   |"
+          echo "| LICENSE REQUIRES REVIEW                      | $requires_review_no         |"
+          echo "| LICENSE RISK HIGH                            | $high_license_risk_no       |"
+          echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY  | $VIOLATIONS                 |"
         } >> $GITHUB_STEP_SUMMARY
         
         if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]] || [[ violations -gt 0 ]]
