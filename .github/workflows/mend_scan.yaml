@@ -171,7 +171,7 @@ jobs:
           echo "| Print inputs        | hello1 |"
           echo "| Environment         | hello1 |"
         } >> $GITHUB_STEP_SUMMARY
-        issue_count=$(restricted_license)
+        # issue_count=$(restricted_license)
         {
           echo "### :rocket: Workflow inputs"
           echo "| Arg                 | Value |"
@@ -181,14 +181,14 @@ jobs:
         } >> $GITHUB_STEP_SUMMARY
           
         {
-        echo "### Scan Summary"
-        echo "| Header                                        |                     Header2 |"
-        echo "| --------------------------------------------- | --------------------------- |"
-        echo "| HIGH/CRITICAL SECURITY VULNERABILITIES:       | $security_vulnerability_no  |"
-        echo "| MAJOR UPDATES AVAILABLE:                      | $major_updates_pending_no   |"
-        echo "| LICENSE REQUIRES REVIEW:                      | $requires_review_no         |"
-        echo "| LICENSE RISK HIGH:                            | $high_license_risk_no       |"
-        echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY:  | $violations                 |"
+          echo "### Scan Summary"
+          echo "| Header                                        |                     Header2 |"
+          echo "| --------------------------------------------- | --------------------------- |"
+          echo "| HIGH/CRITICAL SECURITY VULNERABILITIES:       | $security_vulnerability_no  |"
+          echo "| MAJOR UPDATES AVAILABLE:                      | $major_updates_pending_no   |"
+          echo "| LICENSE REQUIRES REVIEW:                      | $requires_review_no         |"
+          echo "| LICENSE RISK HIGH:                            | $high_license_risk_no       |"
+          echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY:  | $violations                 |"
         } >> $GITHUB_STEP_SUMMARY
         
         if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]] || [[ violations -gt 0 ]]
