@@ -165,8 +165,8 @@ jobs:
         fi
           
         {
-          echo "### Scan Summary"
-          echo "| Header                                        |                     Header2 |"
+          echo "# Mend Scan Summary"
+          echo "| VIOLATION DESCRIPTION                         | NUMBER OF VIOLATIONS        |"
           echo "| --------------------------------------------- | --------------------------- |"
           echo "| HIGH/CRITICAL SECURITY VULNERABILITIES:       | $security_vulnerability_no  |"
           echo "| MAJOR UPDATES AVAILABLE:                      | $major_updates_pending_no   |"
