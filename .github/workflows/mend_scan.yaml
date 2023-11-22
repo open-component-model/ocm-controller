@@ -167,7 +167,7 @@ jobs:
     
         {
           echo "### Scan Summary"
-          echo " Header | Header2 |"
+          echo "| Header                                        |                     Header2 |"
           echo "| --------------------------------------------- | --------------------------- |"
           echo "| HIGH/CRITICAL SECURITY VULNERABILITIES:       | $security_vulnerability_no  |"
           echo "| MAJOR UPDATES AVAILABLE:                      | $major_updates_pending_no   |"
