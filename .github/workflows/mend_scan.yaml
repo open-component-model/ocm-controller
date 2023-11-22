@@ -56,6 +56,17 @@ jobs:
         WSS_URL: ${{ secrets.MEND_URL }}
         API_KEY: ${{ secrets.MEND_API_TOKEN }}
         CONFIG_FILE: './.github/workflows/mend.config'
+        
+    - run: |
+        echo "hello"
+        {
+          echo "### :rocket: Workflow inputs"
+          echo "| Arg                 | Value |"
+          echo "| ------------------- | ----- |"
+          echo "| Print inputs        | hello |"
+          echo "| Environment         | hello |"
+        } >> $GITHUB_STEP_SUMMARY
+        echo "hello"
 
     - name: Generate Report
       id: report
@@ -169,12 +180,3 @@ jobs:
         then
           echo "Hello # exit 1"
         fi
-        
-    - run: |
-        {
-          echo "### :rocket: Workflow inputs"
-          echo "| Arg                 | Value |"
-          echo "| ------------------- | ----- |"
-          echo "| Print inputs        | hello |"
-          echo "| Environment         | hello |"
-        } >> $GITHUB_STEP_SUMMARY
