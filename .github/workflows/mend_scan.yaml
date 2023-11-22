@@ -178,29 +178,28 @@ jobs:
         echo "high_license_risk_no=$high_license_risk_no" >> $GITHUB_OUTPUT
         echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
         
-        
         if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]] || [[ violations -gt 0 ]]
         then
-          echo "# exit 0"
+          echo "status=x" >> $GITHUB_OUTPUT
+        else 
+          echo "status=white_check_mark" >> $GITHUB_OUTPUT
         fi
-    - name: Comment PR
+        
+    - name: Comment Mend Status on PR
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
-          # Mend Scan Summary
-          [Mend Scan Tool](https://sap.whitesourcesoftware.com/Wss/WSS.html#!login)
-          HIGH/CRITICAL SECURITY VULNERABILITIES: ${{ steps.report.outputs.security_vulnerability_no }}
-          MAJOR UPDATES AVAILABLE: ${{ steps.report.outputs.major_updates_pending_no }}
+          # Mend Scan Summary: :${{ steps.report.outputs.status }}:
           | VIOLATION DESCRIPTION                        | NUMBER OF VIOLATIONS        |
           | -------------------------------------------- | --------------------------- |
-          | HIGH/CRITICAL SECURITY VULNERABILITIES       | ${{ steps.report.outputs.security_vulnerability_no  }} |
-          | MAJOR UPDATES AVAILABLE                      | ${{ steps.report.outputs.major_updates_pending_no  }}  |
-          | LICENSE REQUIRES REVIEW                      | ${{ steps.report.outputs.requires_review_no }}         |
-          | LICENSE RISK HIGH                            | ${{ steps.report.outputs.high_license_risk_no  }}      |
-          | RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY  | ${{ steps.report.outputs.VIOLATIONS  }}                |
+          | HIGH/CRITICAL SECURITY VULNERABILITIES       | ${{ steps.report.outputs.security_vulnerability_no }} |
+          | MAJOR UPDATES AVAILABLE                      | ${{ steps.report.outputs.major_updates_pending_no }}  |
+          | LICENSE REQUIRES REVIEW                      | ${{ steps.report.outputs.requires_review_no }}        |
+          | LICENSE RISK HIGH                            | ${{ steps.report.outputs.high_license_risk_no }}      |
+          | RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY  | ${{ steps.report.outputs.VIOLATIONS }}                |
           
-          https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        #mode: recreate
-        comment_tag: tag_mend_scan_1
+          [Detailed Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          ### [Mend UI](https://sap.whitesourcesoftware.com/Wss/WSS.html#!login)
+        comment_tag: tag_mend_scan
 
 
