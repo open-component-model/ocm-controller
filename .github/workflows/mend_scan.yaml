@@ -155,11 +155,6 @@ jobs:
         fi
         
         restricted_license
-        
-        if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]] || [[ violations -gt 0 ]]
-        then
-          exit 1
-        fi
 
         {
           "security_vulnerability_no=$security_vulnerability_no"
@@ -180,6 +175,12 @@ jobs:
           echo "| LICENSE RISK HIGH:                            | $high_license_risk_no       |"
           echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY:  | $violations                 |"
         } >> $GITHUB_STEP_SUMMARY
+
+        if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]] || [[ violations -gt 0 ]]
+        then
+          exit 1
+        fi
+        
     - run: |
         echo "${{ steps.report.outputs.security_vulnerability_no }}"
         echo "${{ steps.report.outputs.major_updates_pending_no }}"
