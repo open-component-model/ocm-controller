@@ -58,6 +58,7 @@ jobs:
         CONFIG_FILE: './.github/workflows/mend.config'
 
     - name: Generate Report
+      id: report
       env:
         USER_KEY: ${{ secrets.MEND_API_USER_KEY }}
         PROJECT_TOKEN: ${{ secrets.MEND_PROJECT_TOKEN_OCM_CONTR }}
@@ -160,4 +161,26 @@ jobs:
           exit 1
         fi
 
-        echo "LICENSE RISK HIGH: ${high_license_risk_no}">> $GITHUB_OUTPUT
+        {
+          "security_vulnerability_no=$security_vulnerability_no"
+          "major_updates_pending_no=$major_updates_pending_no"
+          "requires_review_no=$requires_review_no"
+          "high_license_risk_no=$high_license_risk_no"
+          "violations=$violations"
+          
+        } >> $GITHUB_OUTPUT
+    
+        {
+          echo "### Scan Summary"
+          echo "| HIGH/CRITICAL SECURITY VULNERABILITIES:       | $security_vulnerability_no  |"
+          echo "| MAJOR UPDATES AVAILABLE:                      | $major_updates_pending_no   |"
+          echo "| LICENSE REQUIRES REVIEW:                      | $requires_review_no         |"
+          echo "| LICENSE RISK HIGH:                            | $high_license_risk_no       |"
+          echo "| RESTRICTIED LICENSE FOR ON-PREMISE DELIVERY:  | $violations                 |"
+        } >> $GITHUB_STEP_SUMMARY
+    - run: |
+        echo "${{ steps.report.outputs.security_vulnerability_no }}"
+        echo "${{ steps.report.outputs.major_updates_pending_no }}"
+        echo "${{ steps.report.outputs.requires_review_no }}"
+        echo "${{ steps.report.outputs.high_license_risk_no }}"
+        echo "${{ steps.report.outputs.violations }}"
