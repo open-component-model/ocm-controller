@@ -172,11 +172,11 @@ jobs:
         } >> $GITHUB_STEP_SUMMARY
 
         
-        "security_vulnerability_no=$security_vulnerability_no" >> $GITHUB_OUTPUT 
-        "major_updates_pending_no=$major_updates_pending_no" >> $GITHUB_OUTPUT
-        "requires_review_no=$requires_review_no" >> $GITHUB_OUTPUT
-        "high_license_risk_no=$high_license_risk_no" >> $GITHUB_OUTPUT
-        "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+        echo "security_vulnerability_no=$security_vulnerability_no" >> $GITHUB_OUTPUT 
+        echo "major_updates_pending_no=$major_updates_pending_no" >> $GITHUB_OUTPUT
+        echo "requires_review_no=$requires_review_no" >> $GITHUB_OUTPUT
+        echo "high_license_risk_no=$high_license_risk_no" >> $GITHUB_OUTPUT
+        echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
         
         
         if [[ $security_vulnerability_no -gt 0 ]] || [[ $major_updates_pending_no -gt 0 ]] || [[ $requires_review_no -gt 0 ]] || [[ high_license_risk_no -gt 0 ]] || [[ violations -gt 0 ]]
