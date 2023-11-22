@@ -23,6 +23,8 @@ on:
         - debug
 jobs:
   mend-scan:
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-latest
 
     steps:
