@@ -186,6 +186,7 @@ jobs:
         fi
         
     - name: Comment Mend Status on PR
+      if: ${{ github.event.issue.pull_request }}
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
