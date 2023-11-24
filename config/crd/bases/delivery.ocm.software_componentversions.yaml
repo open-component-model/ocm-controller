@@ -127,9 +127,13 @@ spec:
                       required:
                       - secretRef
                       type: object
+                    publicKeyBlob:
+                      description: PublicKeyBlob a public key blob encoded in base64
+                        for verification.
+                      format: byte
+                      type: string
                   required:
                   - name
-                  - publicKey
                   type: object
                 type: array
               version:

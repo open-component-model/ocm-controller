@@ -79,7 +79,12 @@ type Signature struct {
 
 	// PublicKey provides a reference to a Kubernetes Secret that contains a public key
 	// which will be used to validate the named signature.
-	PublicKey SecretRef `json:"publicKey"`
+	// +optional
+	PublicKey *SecretRef `json:"publicKey,omitempty"`
+
+	// PublicKeyBlob a public key blob encoded in base64 for verification.
+	// +optional
+	PublicKeyBlob []byte `json:"publicKeyBlob,omitempty"`
 }
 
 // SecretRef specifies a reference to a Secret.
