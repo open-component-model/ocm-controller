@@ -197,8 +197,28 @@ jobs:
         GITHUB_CONTEXT: ${{ toJSON(github) }}
       run: echo "$GITHUB_CONTEXT"
         
+    - name: Check if PR exists
+      uses: 8BitJonny/gh-get-current-pr@2.2.0
+      id: PR
+
+    - run: echo "PR ${prNumber} ${prTitle} at ${prUrl} is ${prJSON}"
+      if: steps.PR.outputs.pr_found == 'true'
+      env:
+        # JSON object with the full PR object
+        # toJSON(fromJSON(...pr)) parses it into memory and then format is with pretty-print.
+        prJSON: ${{ toJSON(fromJSON(steps.PR.outputs.pr)) }}
+        # Direct access to common PR properties
+        prNumber: ${{ steps.PR.outputs.number }}
+        prUrl: ${{ steps.PR.outputs.pr_url }}
+        prTitle: ${{ steps.PR.outputs.pr_title }}
+        prBody: ${{ steps.PR.outputs.pr_body }}
+        prCreatedAt: ${{ steps.PR.outputs.pr_created_at }}
+        prMergedAt: ${{ steps.PR.outputs.pr_merged_at }}
+        prClosedAt: ${{ steps.PR.outputs.pr_closed_at }}
+        prLabel: ${{ steps.PR.outputs.pr_labels }}
+        
     - name: Comment Mend Report on PR
-      if: ${{ !github.event_name == 'schedule' && github.event_name == 'pull_request' }}
+      if: ${{ !github.event_name == 'schedule' && steps.PR.outputs.number>0 }}
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
@@ -214,5 +234,5 @@ jobs:
           [Detailed Logs: mend-scan-> Generate Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           [Mend UI](https://sap.whitesourcesoftware.com/Wss/WSS.html#!login)
         comment_tag: tag_mend_scan
-
+        pr_number: ${{ steps.PR.outputs.number }}
 
