@@ -176,6 +176,7 @@ jobs:
       id: pr_exists
       with:
         filterOutClosed: true
+        sha: ${{ github.event.pull_request.head.sha }}
     - name: echo vars
       run: |
         echo ${{ github.event_name != 'schedule'}}
