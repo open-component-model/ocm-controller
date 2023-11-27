@@ -179,10 +179,10 @@ jobs:
     - name: echo vars
       run: |
         echo ${{ github.event_name != 'schedule'}}
-        echo ${{ steps.PR.outputs.number }}
-        echo ${{ steps.PR.outputs.pr_found == 'true' }}
-        echo ${{ steps.PR.outputs.pr_found }}
-        echo ${{ github.event_name != 'schedule' && steps.PR.outputs.pr_found == 'true' }}
+        echo ${{ steps.pr_exists.outputs.number }}
+        echo ${{ steps.pr_exists.outputs.pr_found == 'true' }}
+        echo ${{ steps.pr_exists.outputs.pr_found }}
+        echo ${{ github.event_name != 'schedule' && steps.pr_exists.outputs.pr_found == 'true' }}
         
     - name: Comment Mend Status on PR
       if: ${{ github.event_name != 'schedule' && steps.pr_exists.outputs.pr_found == 'true' }}
