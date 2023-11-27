@@ -177,13 +177,6 @@ jobs:
       with:
         filterOutClosed: true
         sha: ${{ github.event.pull_request.head.sha }}
-    - name: echo vars
-      run: |
-        echo ${{ github.event_name != 'schedule'}}
-        echo ${{ steps.pr_exists.outputs.number }}
-        echo ${{ steps.pr_exists.outputs.pr_found == 'true' }}
-        echo ${{ steps.pr_exists.outputs.pr_found }}
-        echo ${{ github.event_name != 'schedule' && steps.pr_exists.outputs.pr_found == 'true' }}
         
     - name: Comment Mend Status on PR
       if: ${{ github.event_name != 'schedule' && steps.pr_exists.outputs.pr_found == 'true' }}
