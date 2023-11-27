@@ -205,19 +205,20 @@ jobs:
         prNumber: ${{ steps.PR.outputs.number }}
         prUrl: ${{ steps.PR.outputs.pr_url }}
         prTitle: ${{ steps.PR.outputs.pr_title }}
-        prBody: ${{ steps.PR.outputs.pr_body }}
         prCreatedAt: ${{ steps.PR.outputs.pr_created_at }}
         prMergedAt: ${{ steps.PR.outputs.pr_merged_at }}
         prClosedAt: ${{ steps.PR.outputs.pr_closed_at }}
         prLabel: ${{ steps.PR.outputs.pr_labels }}
     - name: echo vars
       run: |
-        echo ${{ !github.event_name == 'schedule'}}
+        echo ${{ github.event_name == 'schedule'}}
         echo ${{ steps.PR.outputs.number }}
-        echo ${{ !github.event_name == 'schedule' && steps.PR.outputs.number }}
+        echo ${{ steps.PR.outputs.state }}
+        echo ${{ steps.PR.outputs.state =='open' }}
+        echo ${{ !github.event_name == 'schedule' && steps.PR.outputs.number && steps.PR.outputs.state =='open'  }}
     
     - name: Comment Mend Report on PR
-      if: ${{ !github.event_name == 'schedule' && steps.PR.outputs.number }}
+      if: ${{ !github.event_name == 'schedule' && steps.PR.outputs.number && steps.PR.outputs.state =='open' }}
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
