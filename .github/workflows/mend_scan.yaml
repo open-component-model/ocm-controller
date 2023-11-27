@@ -186,7 +186,7 @@ jobs:
           echo "status=white_check_mark" >> $GITHUB_OUTPUT
         fi
         
-    - name: Comment Mend Status on PR
+    - name: Comment Mend Report on PR
       if: ${{ !github.event_name == 'schedule' || github.event.pull_request.synchronize || github.event.pull_request.opened || github.event.pull_request.reopened }}
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
