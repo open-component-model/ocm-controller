@@ -185,6 +185,13 @@ jobs:
         else 
           echo "status=white_check_mark" >> $GITHUB_OUTPUT
         fi
+    - name: echo vars
+      run: |
+        echo ${{ !github.event_name == 'schedule'}}
+        echo ${{ github.event.pull_request.synchronize }}
+        echo ${{ github.event.pull_request.opened }}
+        echo ${{ github.event.pull_request.reopened }}
+        echo ${{ !github.event_name == 'schedule' || github.event.pull_request.synchronize || github.event.pull_request.opened || github.event.pull_request.reopened }}
         
     - name: Comment Mend Report on PR
       if: ${{ !github.event_name == 'schedule' || github.event.pull_request.synchronize || github.event.pull_request.opened || github.event.pull_request.reopened }}
