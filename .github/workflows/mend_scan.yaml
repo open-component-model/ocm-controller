@@ -194,6 +194,8 @@ jobs:
     - name: Check if PR exists
       uses: 8BitJonny/gh-get-current-pr@2.2.0
       id: PR
+      with:
+        filterOutClosed: true
 
     - run: echo "PR ${prNumber} ${prTitle} at ${prUrl} is ${prJSON}"
       if: steps.PR.outputs.pr_found == 'true'
@@ -213,12 +215,12 @@ jobs:
       run: |
         echo ${{ github.event_name != 'schedule'}}
         echo ${{ steps.PR.outputs.number }}
-        echo ${{ steps.PR.outputs.state }}
-        echo ${{ steps.PR.outputs.state =='open' }}
-        echo ${{ github.event_name != 'schedule' && steps.PR.outputs.number && steps.PR.outputs.state =='open'  }}
+        echo ${{ steps.PR.outputs.pr_found == 'true' }}
+        echo ${{ steps.PR.outputs.pr_open =='open' }}
+        echo ${{ github.event_name != 'schedule' && steps.PR.outputs.pr_found == 'true' && steps.PR.outputs.number }}
     
     - name: Comment Mend Report on PR
-      if: ${{ github.event_name != 'schedule' && steps.PR.outputs.number && steps.PR.outputs.state =='open' }}
+      if: ${{ github.event_name != 'schedule' && steps.PR.outputs.pr_found == 'true' }}
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
