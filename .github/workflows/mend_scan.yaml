@@ -185,12 +185,6 @@ jobs:
         else 
           echo "status=white_check_mark" >> $GITHUB_OUTPUT
         fi
-    - name: echo vars
-      run: |
-        echo ${{ !github.event_name == 'schedule'}}
-        echo ${{ github.event_name }}
-        echo ${{ github.event.action}}
-        echo ${{ !github.event_name == 'schedule' && github.event_name == 'pull_request' }}
      
     - name: Dump GitHub context
       env:
@@ -216,9 +210,14 @@ jobs:
         prMergedAt: ${{ steps.PR.outputs.pr_merged_at }}
         prClosedAt: ${{ steps.PR.outputs.pr_closed_at }}
         prLabel: ${{ steps.PR.outputs.pr_labels }}
-        
+    - name: echo vars
+      run: |
+        echo ${{ !github.event_name == 'schedule'}}
+        echo ${{ steps.PR.outputs.number }}
+        echo ${{ !github.event_name == 'schedule' && steps.PR.outputs.number }}
+    
     - name: Comment Mend Report on PR
-      if: ${{ !github.event_name == 'schedule' && steps.PR.outputs.number>0 }}
+      if: ${{ !github.event_name == 'schedule' && steps.PR.outputs.number }}
       uses: thollander/actions-comment-pull-request@v2.4.3
       with:
         message: |
