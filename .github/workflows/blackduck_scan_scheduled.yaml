@@ -2,7 +2,7 @@ name: Blackduck Scan Cronjob
 on:
   schedule:
     - cron:  '5 0 * * 0'
-  
+
 permissions:
   checks: write
 
@@ -18,7 +18,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          
+
       - name: Blackduck Full Scan
         uses: mercedesbenzio/detect-action@v1
         env:
