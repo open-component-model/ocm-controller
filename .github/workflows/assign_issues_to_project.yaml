@@ -23,8 +23,9 @@ jobs:
         uses: skarlso/caretaker@v0.5.0
         with:
           command: scan
-          owner: skarlso
-          repo: test
+          owner: ocm-controller
+          repo: open-component-model
+          isOrganization: true
           token: ${{ steps.generate_token.outputs.token }}
-          statusOption: In Review
+          statusOption: 👀 In review
           pullRequestProcessedLabel: caretaker-checked # a label to mark the pull request as seen
