@@ -23,8 +23,8 @@ jobs:
         uses: skarlso/caretaker@v0.5.0
         with:
           command: scan
-          owner: ocm-controller
-          repo: open-component-model
+          owner: open-component-model
+          repo: ocm-controller
           isOrganization: true
           token: ${{ steps.generate_token.outputs.token }}
           statusOption: 👀 In review
