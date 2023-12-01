@@ -25,7 +25,7 @@ jobs:
           repo: ocm-controller
           isOrganization: true
           token: ${{ steps.generate_token.outputs.token }}
-          pullRequestNumber: ${{ github.event.issue.pull_request.number }}
+          pullRequestNumber: ${{ github.event.issue.number }}
           actor: ${{ github.actor }}
           commentBody: ${{ github.event.comment.body }}
           commentID: ${{ github.event.comment.node_id }}
