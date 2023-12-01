@@ -1,0 +1,29 @@
+name: Flip-back issues to In Progress
+
+on:
+  pull_request: {}
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  flip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.OCMBOT_APP_ID }}
+          private_key: ${{ secrets.OCMBOT_PRIV_KEY }}
+      - name: flip any related issues
+        uses: skarlso/caretaker@v0.5.0
+        with:
+          command: pull-request-updated
+          owner: open-component-model
+          repo: ocm-controller
+          isOrganization: true
+          token: ${{ steps.generate_token.outputs.token }}
+          statusOption: 🏗 In progress # this needs to be an option you want the issue to land in
+          pullRequestNumber: ${{ github.event.pull_request.number }}

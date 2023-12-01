@@ -1,0 +1,31 @@
+name: Watch for Slash commands
+
+on: issue_comment
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }}
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.OCMBOT_APP_ID }}
+          private_key: ${{ secrets.OCMBOT_PRIV_KEY }}
+      - name: watch for slash commands from users
+        uses: skarlso/caretaker@v0.5.0
+        with:
+          command: slash
+          owner: open-component-model
+          repo: ocm-controller
+          isOrganization: true
+          token: ${{ steps.generate_token.outputs.token }}
+          pullRequestNumber: ${{ github.event.pull_request.number }}
+          actor: ${{ github.actor }}
+          commentBody: ${{ github.event.comment.body }}
+          commentID: ${{ github.event.comment.node_id }}
