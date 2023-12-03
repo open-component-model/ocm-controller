@@ -40,7 +40,7 @@ require (
 	github.com/fluxcd/pkg/http/fetch v0.5.2
 	github.com/fluxcd/pkg/kustomize v1.1.1
 	github.com/fluxcd/pkg/runtime v0.35.0
-	github.com/fluxcd/pkg/tar v0.2.0
+	github.com/fluxcd/pkg/tar v0.4.0
 	github.com/fluxcd/source-controller/api v1.1.0
 	github.com/google/go-containerregistry v0.16.1
 	github.com/mandelsoft/logging v0.0.0-20230905123808-7042ee3aae45
