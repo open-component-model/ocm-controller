@@ -321,12 +321,21 @@ func (c *Client) VerifyComponent(
 	resolver := ocm.NewCompoundResolver(repo)
 
 	for _, signature := range obj.Spec.Verify {
-		cert, err := c.getPublicKey(
-			ctx,
-			obj.Namespace,
-			signature.PublicKey.SecretRef.Name,
-			signature.Name,
+		var (
+			cert []byte
+			err  error
 		)
+		if signature.PublicKeyBlob != nil {
+			cert = signature.PublicKeyBlob
+		} else {
+			cert, err = c.getPublicKey(
+				ctx,
+				obj.Namespace,
+				signature.PublicKey.SecretRef.Name,
+				signature.Name,
+			)
+		}
+
 		if err != nil {
 			return false, fmt.Errorf("failed to get public key for verification: %w", err)
 		}

@@ -127,6 +127,10 @@ spec:
                       required:
                       - secretRef
                       type: object
+                    publicKeyBlob:
+                      description: PublicKeyBlob defines an inlined public key.
+                      format: byte
+                      type: string
                   required:
                   - name
                   - publicKey
