@@ -11,7 +11,7 @@ Resource Types:
 <ul class="simple"></ul>
 <h3 id="delivery.ocm.software/v1alpha1.ComponentVersion">ComponentVersion
 </h3>
-<p>ComponentVersion is the Schema for the ComponentVersions API</p>
+<p>ComponentVersion is the Schema for the ComponentVersions API.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -310,7 +310,7 @@ it is still allowed to do so.
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.ComponentVersion">ComponentVersion</a>)
 </p>
-<p>ComponentVersionStatus defines the observed state of ComponentVersion</p>
+<p>ComponentVersionStatus defines the observed state of ComponentVersion.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -382,7 +382,60 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Verified is a boolean indicating whether all of the specified signatures have been verified and are valid.</p>
+<p>Verified is a boolean indicating whether all the specified signatures have been verified and are valid.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<h3 id="delivery.ocm.software/v1alpha1.ConfigMapSource">ConfigMapSource
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#delivery.ocm.software/v1alpha1.ValuesSource">ValuesSource</a>)
+</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>sourceRef</code><br>
+<em>
+<a href="https://pkg.go.dev/github.com/fluxcd/pkg/apis/meta#LocalObjectReference">
+github.com/fluxcd/pkg/apis/meta.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>key</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>subPath</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -391,7 +444,7 @@ bool
 </div>
 <h3 id="delivery.ocm.software/v1alpha1.Configuration">Configuration
 </h3>
-<p>Configuration is the Schema for the configurations API</p>
+<p>Configuration is the Schema for the configurations API.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -631,7 +684,7 @@ github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Labels
 </div>
 <h3 id="delivery.ocm.software/v1alpha1.FluxDeployer">FluxDeployer
 </h3>
-<p>FluxDeployer is the Schema for the FluxDeployers API</p>
+<p>FluxDeployer is the Schema for the FluxDeployers API.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -745,7 +798,7 @@ FluxDeployerStatus
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.FluxDeployer">FluxDeployer</a>)
 </p>
-<p>FluxDeployerSpec defines the desired state of FluxDeployer</p>
+<p>FluxDeployerSpec defines the desired state of FluxDeployer.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -817,7 +870,7 @@ github.com/fluxcd/helm-controller/api/v2beta1.HelmReleaseSpec
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.FluxDeployer">FluxDeployer</a>)
 </p>
-<p>FluxDeployerStatus defines the observed state of FluxDeployer</p>
+<p>FluxDeployerStatus defines the observed state of FluxDeployer.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -934,7 +987,7 @@ string
 </div>
 <h3 id="delivery.ocm.software/v1alpha1.Localization">Localization
 </h3>
-<p>Localization is the Schema for the localizations API</p>
+<p>Localization is the Schema for the localizations API.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1352,7 +1405,7 @@ ResourceReference
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.MutationSpec">MutationSpec</a>)
 </p>
-<p>PatchStrategicMerge contains the source and target details required to perform a strategic merge</p>
+<p>PatchStrategicMerge contains the source and target details required to perform a strategic merge.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1397,7 +1450,7 @@ PatchStrategicMergeTarget
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.PatchStrategicMerge">PatchStrategicMerge</a>)
 </p>
-<p>PatchStrategicMergeSource contains the details required to retrieve the source from a Flux source</p>
+<p>PatchStrategicMergeSource contains the details required to retrieve the source from a Flux source.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1440,7 +1493,7 @@ string
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.PatchStrategicMerge">PatchStrategicMerge</a>)
 </p>
-<p>PatchStrategicMergeTarget provides details about the merge target</p>
+<p>PatchStrategicMergeTarget provides details about the merge target.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1666,7 +1719,7 @@ Kubernetes core/v1.LocalObjectReference
 </div>
 <h3 id="delivery.ocm.software/v1alpha1.Resource">Resource
 </h3>
-<p>Resource is the Schema for the resources API</p>
+<p>Resource is the Schema for the resources API.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1763,7 +1816,7 @@ ResourceStatus
 </div>
 <h3 id="delivery.ocm.software/v1alpha1.ResourcePipeline">ResourcePipeline
 </h3>
-<p>ResourcePipeline is the Schema for the resourcepipelines API</p>
+<p>ResourcePipeline is the Schema for the resourcepipelines API.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -1947,7 +2000,7 @@ string
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.ResourcePipeline">ResourcePipeline</a>)
 </p>
-<p>ResourcePipelineSpec defines the desired state of ResourcePipeline</p>
+<p>ResourcePipelineSpec defines the desired state of ResourcePipeline.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -2040,7 +2093,7 @@ PipelineSpec
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.ResourcePipeline">ResourcePipeline</a>)
 </p>
-<p>ResourcePipelineStatus defines the observed state of ResourcePipeline</p>
+<p>ResourcePipelineStatus defines the observed state of ResourcePipeline.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -2156,7 +2209,7 @@ ElementMeta
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.Resource">Resource</a>)
 </p>
-<p>ResourceSpec defines the desired state of Resource</p>
+<p>ResourceSpec defines the desired state of Resource.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -2215,7 +2268,7 @@ bool
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.Resource">Resource</a>)
 </p>
-<p>ResourceStatus defines the observed state of Resource</p>
+<p>ResourceStatus defines the observed state of Resource.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -2285,7 +2338,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>SnapshotName specifies the name of the Snapshot that has been created to store the resource within the cluster and make it available for consumption by Flux controllers.</p>
+<p>SnapshotName specifies the name of the Snapshot that has been created to store the resource
+within the cluster and make it available for consumption by Flux controllers.</p>
 </td>
 </tr>
 <tr>
@@ -2310,7 +2364,7 @@ string
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.Signature">Signature</a>)
 </p>
-<p>SecretRef specifies a reference to a Secret</p>
+<p>SecretRef specifies a reference to a Secret.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -2380,6 +2434,18 @@ SecretRef
 which will be used to validate the named signature.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>publicKeyBlob</code><br>
+<em>
+[]byte
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PublicKeyBlob defines an inlined public key.</p>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -2415,6 +2481,19 @@ FluxValuesSource
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>configMapSource</code><br>
+<em>
+<a href="#delivery.ocm.software/v1alpha1.ConfigMapSource">
+ConfigMapSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -2425,7 +2504,7 @@ FluxValuesSource
 (<em>Appears on:</em>
 <a href="#delivery.ocm.software/v1alpha1.ComponentVersionSpec">ComponentVersionSpec</a>)
 </p>
-<p>Version specifies version information that can be used to resolve a Component Version</p>
+<p>Version specifies version information that can be used to resolve a Component Version.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
@@ -2459,7 +2538,8 @@ string
 <a href="#delivery.ocm.software/v1alpha1.DeliverySpec">DeliverySpec</a>, 
 <a href="#delivery.ocm.software/v1alpha1.PipelineSpec">PipelineSpec</a>)
 </p>
-<p>WasmStep defines the name version and location of a wasm module that is stored// in an ocm component. The format of the module name must be <component-name>:<component-version>@<resource-name>. Optionally a registry address can be specified.</p>
+<p>WasmStep defines the name version and location of a wasm module that is stored// in an ocm component.
+The format of the module name must be <component-name>:<component-version>@<resource-name>. Optionally a registry address can be specified.</p>
 <div class="md-typeset__scrollwrap">
 <div class="md-typeset__table">
 <table>
