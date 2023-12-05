@@ -326,9 +326,13 @@ func (c *Client) VerifyComponent(
 			err  error
 		)
 
-		if signature.PublicKey.Values != nil {
-			cert = signature.PublicKey.Values
+		if signature.PublicKey.Value != nil {
+			cert, err = signature.PublicKey.DecodePublicValue()
 		} else {
+			if signature.PublicKey.SecretRef == nil {
+				return false, fmt.Errorf("kubernetes secret reference not provided")
+			}
+
 			cert, err = c.getPublicKey(
 				ctx,
 				obj.Namespace,

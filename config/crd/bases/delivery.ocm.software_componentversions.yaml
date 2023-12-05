@@ -124,7 +124,8 @@ spec:
                               type: string
                           type: object
                         value:
-                          description: Values defines an inlined public key.
+                          description: Value defines a PEM/base64 encoded public key
+                            value.
                           format: byte
                           type: string
                       type: object

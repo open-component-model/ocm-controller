@@ -5,7 +5,10 @@
 package v1alpha1
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -88,9 +91,24 @@ type PublicKey struct {
 	// +optional
 	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
 
-	// Values defines an inlined public key.
+	// Value defines a PEM/base64 encoded public key value.
 	// +optional
-	Values []byte `json:"value,omitempty"`
+	Value []byte `json:"value,omitempty"`
+}
+
+func (p *PublicKey) DecodePublicValue() ([]byte, error) {
+	if len(p.Value) == 0 {
+		return nil, fmt.Errorf("key value not provided")
+	}
+
+	decoder := base64.NewDecoder(base64.StdEncoding, bytes.NewBuffer(p.Value))
+
+	content, err := io.ReadAll(decoder)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode public key pem: %w", err)
+	}
+
+	return content, nil
 }
 
 // Version specifies version information that can be used to resolve a Component Version.

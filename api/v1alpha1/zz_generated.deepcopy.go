@@ -684,8 +684,8 @@ func (in *PublicKey) DeepCopyInto(out *PublicKey) {
 		*out = new(v1.LocalObjectReference)
 		**out = **in
 	}
-	if in.Values != nil {
-		in, out := &in.Values, &out.Values
+	if in.Value != nil {
+		in, out := &in.Value, &out.Value
 		*out = make([]byte, len(*in))
 		copy(*out, *in)
 	}
