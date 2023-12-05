@@ -84,9 +84,9 @@ type Signature struct {
 
 // PublicKey specifies access to a public key for verification.
 type PublicKey struct {
-	// Ref is a reference to a Secret that contains a public key.
+	// SecretRef is a reference to a Secret that contains a public key.
 	// +optional
-	Ref v1.LocalObjectReference `json:"ref,omitempty"`
+	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
 
 	// Values defines an inlined public key.
 	// +optional

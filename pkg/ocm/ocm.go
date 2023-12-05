@@ -325,13 +325,14 @@ func (c *Client) VerifyComponent(
 			cert []byte
 			err  error
 		)
+
 		if signature.PublicKey.Values != nil {
 			cert = signature.PublicKey.Values
 		} else {
 			cert, err = c.getPublicKey(
 				ctx,
 				obj.Namespace,
-				signature.PublicKey.Ref.Name,
+				signature.PublicKey.SecretRef.Name,
 				signature.Name,
 			)
 		}

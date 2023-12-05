@@ -114,8 +114,8 @@ spec:
                         Secret of contain a blob of a public key that which will be
                         used to validate the named signature.
                       properties:
-                        ref:
-                          description: Ref is a reference to a Secret that contains
+                        secretRef:
+                          description: SecretRef is a reference to a Secret that contains
                             a public key.
                           properties:
                             name:

@@ -573,7 +573,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 				{
 					Name: Signature,
 					PublicKey: v1alpha1.PublicKey{
-						Ref: corev1.LocalObjectReference{
+						SecretRef: &corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},
@@ -639,7 +639,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 				{
 					Name: Signature,
 					PublicKey: v1alpha1.PublicKey{
-						Ref: corev1.LocalObjectReference{
+						SecretRef: &corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},

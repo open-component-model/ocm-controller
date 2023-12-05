@@ -44,7 +44,7 @@ func buildTar(artifactPath, sourceDir string) error {
 		}
 		// The name needs to be modified to maintain directory structure
 		// as tar.FileInfoHeader only has access to the base name of the file.
-		// Ref: https://golang.org/src/archive/tar/common.go?#L626
+		// SecretRef: https://golang.org/src/archive/tar/common.go?#L626
 		relFilePath := p
 		if filepath.IsAbs(sourceDir) {
 			relFilePath, err = filepath.Rel(sourceDir, p)
