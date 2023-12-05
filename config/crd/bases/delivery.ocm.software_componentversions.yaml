@@ -114,12 +114,8 @@ spec:
                         Secret of contain a blob of a public key that which will be
                         used to validate the named signature.
                       properties:
-                        blob:
-                          description: Blob defines an inlined public key.
-                          format: byte
-                          type: string
-                        secretRef:
-                          description: SecretRef is a reference to a Secret that contains
+                        ref:
+                          description: Ref is a reference to a Secret that contains
                             a public key.
                           properties:
                             name:
@@ -127,6 +123,10 @@ spec:
                                 TODO: Add other useful fields. apiVersion, kind, uid?'
                               type: string
                           type: object
+                        value:
+                          description: Values defines an inlined public key.
+                          format: byte
+                          type: string
                       type: object
                   required:
                   - name
