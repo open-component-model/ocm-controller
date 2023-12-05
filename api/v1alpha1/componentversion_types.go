@@ -5,7 +5,10 @@
 package v1alpha1
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -77,18 +80,35 @@ type Signature struct {
 	// signatures.
 	Name string `json:"name"`
 
-	// PublicKey provides a reference to a Kubernetes Secret that contains a public key
+	// PublicKey provides a reference to a Kubernetes Secret of contain a blob of a public key that
 	// which will be used to validate the named signature.
-	PublicKey SecretRef `json:"publicKey"`
-
-	// PublicKeyBlob defines an inlined public key.
-	//+optional
-	PublicKeyBlob []byte `json:"publicKeyBlob,omitempty"`
+	PublicKey PublicKey `json:"publicKey"`
 }
 
-// SecretRef specifies a reference to a Secret.
-type SecretRef struct {
-	SecretRef v1.LocalObjectReference `json:"secretRef"`
+// PublicKey specifies access to a public key for verification.
+type PublicKey struct {
+	// SecretRef is a reference to a Secret that contains a public key.
+	// +optional
+	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
+
+	// Value defines a PEM/base64 encoded public key value.
+	// +optional
+	Value []byte `json:"value,omitempty"`
+}
+
+func (p *PublicKey) DecodePublicValue() ([]byte, error) {
+	if len(p.Value) == 0 {
+		return nil, fmt.Errorf("key value not provided")
+	}
+
+	decoder := base64.NewDecoder(base64.StdEncoding, bytes.NewBuffer(p.Value))
+
+	content, err := io.ReadAll(decoder)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode public key pem: %w", err)
+	}
+
+	return content, nil
 }
 
 // Version specifies version information that can be used to resolve a Component Version.

@@ -233,7 +233,7 @@ func (c *Context) constructComponentDescriptor(
 	return compd
 }
 
-// ************** Mock Attribute Values **************
+// ************** Mock Attribute Value **************
 
 type mockAttribute struct {
 	datacontext.Attributes
@@ -243,7 +243,7 @@ func (m *mockAttribute) GetAttribute(name string, def ...any) any { //nolint:rev
 	return nil
 }
 
-// ************** Mock Repository Values and Functions **************
+// ************** Mock Repository Value and Functions **************
 
 type mockRepository struct {
 	ocm.Repository
@@ -299,7 +299,7 @@ func (m *mockRepository) GetVersion() string {
 
 var _ ocm.Repository = &mockRepository{}
 
-// ************** Mock Component Access Values and Functions **************
+// ************** Mock Component Access Value and Functions **************
 
 type mockComponentAccess struct {
 	ocm.ComponentAccess
@@ -324,7 +324,7 @@ func (m *mockComponentAccess) ListVersions() ([]string, error) {
 
 var _ ocm.ComponentAccess = &mockComponentAccess{}
 
-// ************** Mock Component Version Access Values and Functions **************
+// ************** Mock Component Version Access Value and Functions **************
 
 var _ ocm.ComponentVersionAccess = &Component{}
 
@@ -377,7 +377,7 @@ func (c *Component) GetVersion() string {
 	return c.Version
 }
 
-// ************** Mock Resource Access Values and Functions **************
+// ************** Mock Resource Access Value and Functions **************
 
 var _ ocm.ResourceAccess = &Resource{}
 

@@ -7,6 +7,7 @@ package ocm
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"io"
 	"os"
 	"path/filepath"
@@ -572,8 +573,8 @@ func TestClient_VerifyComponent(t *testing.T) {
 			Verify: []v1alpha1.Signature{
 				{
 					Name: Signature,
-					PublicKey: v1alpha1.SecretRef{
-						SecretRef: corev1.LocalObjectReference{
+					PublicKey: v1alpha1.PublicKey{
+						SecretRef: &corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},
@@ -585,6 +586,117 @@ func TestClient_VerifyComponent(t *testing.T) {
 	verified, err := ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
 	require.NoError(t, err)
 	assert.True(t, verified, "verified should have been true, but it did not")
+}
+
+func TestClient_VerifyComponentWithValueKey(t *testing.T) {
+	publicKey1, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+	require.NoError(t, err)
+
+	fakeKubeClient := env.FakeKubeClient()
+	cache := &fakes.FakeCache{}
+	ocmClient := NewClient(fakeKubeClient, cache)
+	component := "github.com/skarlso/ocm-demo-index"
+
+	octx := fakeocm.NewFakeOCMContext()
+
+	c := &fakeocm.Component{
+		Name:    component,
+		Version: "v0.0.1",
+		Sign: &fakeocm.Sign{
+			Name:    Signature,
+			PrivKey: privateKey,
+			PubKey:  publicKey1,
+			Digest:  "3d879ecdea45acb7f8d85b89fd653288d84af4476eac4141822142ec59c13745",
+		},
+	}
+	require.NoError(t, octx.AddComponent(c))
+	//var buffer []byte
+	buf := bytes.Buffer{}
+	encoder := base64.NewEncoder(base64.StdEncoding, &buf)
+	_, err = encoder.Write(publicKey1)
+	require.NoError(t, encoder.Close())
+	require.NoError(t, err)
+	cv := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: component,
+			Version: v1alpha1.Version{
+				Semver: "v0.0.1",
+			},
+			Repository: v1alpha1.Repository{
+				URL: "localhost",
+			},
+			Verify: []v1alpha1.Signature{
+				{
+					Name: Signature,
+					PublicKey: v1alpha1.PublicKey{
+						Value: buf.Bytes(),
+					},
+				},
+			},
+		},
+	}
+
+	verified, err := ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
+	require.NoError(t, err)
+	assert.True(t, verified, "verified should have been true, but it did not")
+}
+
+func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
+	publicKey1, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+	require.NoError(t, err)
+
+	fakeKubeClient := env.FakeKubeClient()
+	cache := &fakes.FakeCache{}
+	ocmClient := NewClient(fakeKubeClient, cache)
+	component := "github.com/skarlso/ocm-demo-index"
+
+	octx := fakeocm.NewFakeOCMContext()
+
+	c := &fakeocm.Component{
+		Name:    component,
+		Version: "v0.0.1",
+		Sign: &fakeocm.Sign{
+			Name:    Signature,
+			PrivKey: privateKey,
+			PubKey:  publicKey1,
+			Digest:  "3d879ecdea45acb7f8d85b89fd653288d84af4476eac4141822142ec59c13745",
+		},
+	}
+	require.NoError(t, octx.AddComponent(c))
+	cv := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: component,
+			Version: v1alpha1.Version{
+				Semver: "v0.0.1",
+			},
+			Repository: v1alpha1.Repository{
+				URL: "localhost",
+			},
+			Verify: []v1alpha1.Signature{
+				{
+					Name: Signature,
+					PublicKey: v1alpha1.PublicKey{
+						Value: []byte{},
+					},
+				},
+			},
+		},
+	}
+
+	_, err = ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
+	assert.EqualError(t, err, "failed to get public key for verification: key value not provided")
 }
 
 func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
@@ -638,8 +750,8 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 			Verify: []v1alpha1.Signature{
 				{
 					Name: Signature,
-					PublicKey: v1alpha1.SecretRef{
-						SecretRef: corev1.LocalObjectReference{
+					PublicKey: v1alpha1.PublicKey{
+						SecretRef: &corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},
