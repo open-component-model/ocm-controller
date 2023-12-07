@@ -613,11 +613,7 @@ func TestClient_VerifyComponentWithValueKey(t *testing.T) {
 	}
 	require.NoError(t, octx.AddComponent(c))
 	//var buffer []byte
-	buf := bytes.Buffer{}
-	encoder := base64.NewEncoder(base64.StdEncoding, &buf)
-	_, err = encoder.Write(publicKey1)
-	require.NoError(t, encoder.Close())
-	require.NoError(t, err)
+	pubKey := base64.StdEncoding.EncodeToString(publicKey1)
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -635,7 +631,7 @@ func TestClient_VerifyComponentWithValueKey(t *testing.T) {
 				{
 					Name: Signature,
 					PublicKey: v1alpha1.PublicKey{
-						Value: buf.Bytes(),
+						Value: pubKey,
 					},
 				},
 			},
@@ -688,7 +684,7 @@ func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
 				{
 					Name: Signature,
 					PublicKey: v1alpha1.PublicKey{
-						Value: []byte{},
+						Value: "",
 					},
 				},
 			},
@@ -696,7 +692,7 @@ func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
 	}
 
 	_, err = ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
-	assert.EqualError(t, err, "failed to get public key for verification: key value not provided")
+	assert.EqualError(t, err, "kubernetes secret reference not provided")
 }
 
 func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {

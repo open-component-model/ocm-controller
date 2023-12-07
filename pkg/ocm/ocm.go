@@ -326,7 +326,7 @@ func (c *Client) VerifyComponent(
 			err  error
 		)
 
-		if signature.PublicKey.Value != nil {
+		if signature.PublicKey.Value != "" {
 			cert, err = signature.PublicKey.DecodePublicValue()
 		} else {
 			if signature.PublicKey.SecretRef == nil {
