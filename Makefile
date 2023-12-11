@@ -95,6 +95,10 @@ e2e-verbose: prime-test-cluster test-summary-tool ## Runs e2e tests in verbose
 prime-test-cluster: mkcert
 	./hack/prime_test_cluster.sh
 
+.PHONY: test_cluster_for_ocm
+test_cluster_for_ocm: mkcert
+	./hack/test_cluster_for_ocm.sh	
+
 .PHONY: build-wasm-testdata
 build-wasm-testdata:
 	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.go
