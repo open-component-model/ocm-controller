@@ -71,40 +71,40 @@ type MutationReconcileLooper struct {
 }
 
 // ReconcileMutationObject reconciles mutation objects and writes a snapshot to the cache.
-func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, obj v1alpha1.MutationObject) error {
+func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, obj v1alpha1.MutationObject) (int64, error) {
 	mutationSpec := obj.GetSpec()
 
 	sourceData, err := m.getData(ctx, &mutationSpec.SourceRef)
 	if err != nil {
-		return fmt.Errorf("failed to get data for source ref: %w", err)
+		return -1, fmt.Errorf("failed to get data for source ref: %w", err)
 	}
 
 	sourceID, err := m.getIdentity(ctx, &mutationSpec.SourceRef)
 	if err != nil {
-		return fmt.Errorf("failed to get identity for source ref: %w", err)
+		return -1, fmt.Errorf("failed to get identity for source ref: %w", err)
 	}
 
 	obj.GetStatus().LatestSourceVersion = sourceID[v1alpha1.ComponentVersionKey]
 
 	if len(sourceData) == 0 {
-		return fmt.Errorf("source resource data cannot be empty")
+		return -1, fmt.Errorf("source resource data cannot be empty")
 	}
 
 	sourceDir, snapshotID, err := m.performMutation(ctx, obj, mutationSpec, sourceData)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	defer os.RemoveAll(sourceDir)
 
-	digest, err := m.SnapshotWriter.Write(ctx, obj, sourceDir, snapshotID)
+	digest, size, err := m.SnapshotWriter.Write(ctx, obj, sourceDir, snapshotID)
 	if err != nil {
-		return fmt.Errorf("error writing snapshot: %w", err)
+		return -1, fmt.Errorf("error writing snapshot: %w", err)
 	}
 
 	obj.GetStatus().LatestSnapshotDigest = digest
 
-	return nil
+	return size, nil
 }
 
 func (m *MutationReconcileLooper) performMutation(
@@ -326,7 +326,7 @@ func (m *MutationReconcileLooper) fetchDataFromComponentVersion(ctx context.Cont
 		return nil, fmt.Errorf("failed to create authenticated client: %w", err)
 	}
 
-	resource, _, err := m.OCMClient.GetResource(ctx, octx, componentVersion, obj.ResourceRef)
+	resource, _, _, err := m.OCMClient.GetResource(ctx, octx, componentVersion, obj.ResourceRef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch resource from component version: %w", err)
 	}

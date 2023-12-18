@@ -106,7 +106,7 @@ func TestClient_GetResource(t *testing.T) {
 		},
 	}
 
-	reader, digest, err := ocmClient.GetResource(context.Background(), octx, cv, resourceRef)
+	reader, digest, _, err := ocmClient.GetResource(context.Background(), octx, cv, resourceRef)
 	assert.NoError(t, err)
 	content, err := io.ReadAll(reader)
 	require.NoError(t, err)
@@ -199,7 +199,7 @@ func TestClient_GetHelmResource(t *testing.T) {
 		},
 	}
 
-	reader, digest, err := ocmClient.GetResource(context.Background(), octx, cv, resourceRef)
+	reader, digest, _, err := ocmClient.GetResource(context.Background(), octx, cv, resourceRef)
 	assert.NoError(t, err)
 	content, err := io.ReadAll(reader)
 	require.NoError(t, err)

@@ -21,7 +21,7 @@ import (
 // Writer creates a snapshot using an artifact path as location for the snapshot
 // data.
 type Writer interface {
-	Write(ctx context.Context, owner v1alpha1.SnapshotWriter, sourceDir string, identity ocmmetav1.Identity) (string, error)
+	Write(ctx context.Context, owner v1alpha1.SnapshotWriter, sourceDir string, identity ocmmetav1.Identity) (string, int64, error)
 }
 
 // OCIWriter writes snapshot data into the cluster-local OCI cache.
@@ -45,24 +45,24 @@ func (w *OCIWriter) Write(
 	owner v1alpha1.SnapshotWriter,
 	sourceDir string,
 	identity ocmmetav1.Identity,
-) (digest string, err error) {
+) (_ string, _ int64, err error) {
 	logger := log.FromContext(ctx).WithName("snapshot-writer")
 
 	logger.V(v1alpha1.LevelDebug).Info("creating snapshot for identity", "identity", identity)
 	artifactPath, err := os.CreateTemp("", "snapshot-artifact-*.tgz")
 	if err != nil {
-		return "", fmt.Errorf("fs error: %w", err)
+		return "", -1, fmt.Errorf("fs error: %w", err)
 	}
 
 	if err := buildTar(artifactPath.Name(), sourceDir); err != nil {
-		return "", fmt.Errorf("build tar error: %w", err)
+		return "", -1, fmt.Errorf("build tar error: %w", err)
 	}
 
 	logger.V(v1alpha1.LevelDebug).Info("built tar file")
 
 	file, err := os.Open(artifactPath.Name())
 	if err != nil {
-		return "", fmt.Errorf("failed to open created archive: %w", err)
+		return "", -1, fmt.Errorf("failed to open created archive: %w", err)
 	}
 
 	defer func() {
@@ -76,7 +76,7 @@ func (w *OCIWriter) Write(
 
 	name, err := ocm.ConstructRepositoryName(identity)
 	if err != nil {
-		return "", fmt.Errorf("failed to construct name: %w", err)
+		return "", -1, fmt.Errorf("failed to construct name: %w", err)
 	}
 
 	logger.V(v1alpha1.LevelDebug).Info("repository name constructed", "name", name)
@@ -86,9 +86,9 @@ func (w *OCIWriter) Write(
 		mediaType = registry.ChartLayerMediaType
 	}
 
-	snapshotDigest, err := w.Cache.PushData(ctx, file, mediaType, name, owner.GetResourceVersion())
+	snapshotDigest, size, err := w.Cache.PushData(ctx, file, mediaType, name, owner.GetResourceVersion())
 	if err != nil {
-		return "", fmt.Errorf("failed to push blob to local registry: %w", err)
+		return "", -1, fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
 
 	logger.V(v1alpha1.LevelDebug).Info("pushed data to the cache with digest", "digest", snapshotDigest)
@@ -116,10 +116,10 @@ func (w *OCIWriter) Write(
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create or update component descriptor: %w", err)
+		return "", -1, fmt.Errorf("failed to create or update component descriptor: %w", err)
 	}
 
 	logger.Info("snapshot successfully created/updated", "digest", snapshotDigest, "snapshot", snapshotCR)
 
-	return snapshotDigest, nil
+	return snapshotDigest, size, nil
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/component"
+	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	"github.com/open-component-model/ocm-controller/pkg/status"
@@ -154,6 +155,13 @@ func (r *ResourceReconciler) reconcile(
 		obj.Spec.SourceRef.Namespace = obj.GetNamespace()
 	}
 
+	if obj.GetSnapshotName() == "" {
+		err := errors.New("snapshot name should not be empty")
+		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.SnapshotNameEmptyReason, err.Error())
+
+		return ctrl.Result{}, err
+	}
+
 	var componentVersion v1alpha1.ComponentVersion
 	if err := r.Get(ctx, obj.Spec.SourceRef.GetObjectKey(), &componentVersion); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -182,13 +190,14 @@ func (r *ResourceReconciler) reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	reader, digest, err := r.OCMClient.GetResource(ctx, octx, &componentVersion, obj.Spec.SourceRef.ResourceRef)
+	reader, digest, size, err := r.OCMClient.GetResource(ctx, octx, &componentVersion, obj.Spec.SourceRef.ResourceRef)
 	if err != nil {
 		err = fmt.Errorf("failed to get resource: %w", err)
 		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.GetResourceFailedReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
+	// The reader is unused here, but we should still close it, so it's not left over.
 	defer reader.Close()
 
 	version := "latest"
@@ -212,13 +221,6 @@ func (r *ResourceReconciler) reconcile(
 			obj.GetReferencePath(),
 		)
 		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
-
-		return ctrl.Result{}, err
-	}
-
-	if obj.GetSnapshotName() == "" {
-		err := errors.New("snapshot name should not be empty")
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.SnapshotNameEmptyReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -265,6 +267,9 @@ func (r *ResourceReconciler) reconcile(
 
 	obj.Status.LastAppliedResourceVersion = obj.Spec.SourceRef.GetVersion()
 	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
+
+	metrics.SnapshotNumberOfBytesReconciled.WithLabelValues(obj.GetSnapshotName(), digest, componentVersion.Name).Set(float64(size))
+	metrics.ResourceReconcileSuccess.WithLabelValues(obj.Name).Inc()
 
 	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
 

@@ -14,6 +14,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
+	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -144,6 +145,10 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			retErr = errors.Join(retErr, derr)
 		}
+
+		if retErr != nil {
+			metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
+		}
 	}()
 
 	// Starts the progression by setting ReconcilingCondition.
@@ -161,6 +166,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			v1alpha1.AuthenticatedContextCreationFailedReason,
 			fmt.Sprintf("authentication failed for repository: %s with error: %s", obj.Spec.Repository.URL, err),
 		)
+		metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
 
 		return ctrl.Result{}, nil
 	}
@@ -175,6 +181,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			v1alpha1.CheckVersionFailedReason,
 			fmt.Sprintf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
 		)
+		metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -199,6 +206,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			v1alpha1.VerificationFailedReason,
 			fmt.Sprintf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
 		)
+		metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -212,6 +220,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			v1alpha1.VerificationFailedReason,
 			"attempted to verify component, but the digest didn't match",
 		)
+		metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -351,6 +360,8 @@ func (r *ComponentVersionReconciler) reconcile(
 
 	obj.Status.ComponentDescriptor = componentDescriptor
 	obj.Status.ReconciledVersion = version
+
+	metrics.ComponentVersionReconciledTotal.WithLabelValues(cv.GetName(), cv.GetVersion()).Inc()
 
 	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
 
