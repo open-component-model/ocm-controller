@@ -24,6 +24,8 @@ func init() {
 		LocalizationReconcileSuccess,
 		ResourceReconcileFailed,
 		ResourceReconcileSuccess,
+		FluxDeployerReconcileFailed,
+		FluxDeployerReconcileSuccess,
 		SnapshotNumberOfBytesReconciled,
 		SnapshotReconcileSuccess,
 		SnapshotReconcileFailed,
@@ -133,6 +135,26 @@ var ResourceReconcileSuccess = mh.MustRegisterCounterVec(
 	"resource_reconcile_success",
 	"Number of times a resource succeeded to reconcile",
 	"resource",
+)
+
+// FluxDeployerReconcileFailed counts the number times we failed to reconcile a flux deployer.
+// [deployer].
+var FluxDeployerReconcileFailed = mh.MustRegisterCounterVec(
+	"ocm_system",
+	metricsComponent,
+	"flux_deployer_reconcile_failed",
+	"Number of times a flux deployer failed to reconcile",
+	"deployer",
+)
+
+// FluxDeployerReconcileSuccess counts the number times we failed to reconcile a flux deployer.
+// [deployer].
+var FluxDeployerReconcileSuccess = mh.MustRegisterCounterVec(
+	"ocm_system",
+	metricsComponent,
+	"flux_deployer_reconcile_success",
+	"Number of times a flux deployer succeeded to reconcile",
+	"deployer",
 )
 
 // SnapshotNumberOfBytesReconciled number of bytes reconciled through snapshots.
