@@ -21,6 +21,7 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -274,6 +275,10 @@ func (r *ResourceReconciler) reconcile(
 
 	metrics.SnapshotNumberOfBytesReconciled.WithLabelValues(obj.GetSnapshotName(), digest, componentVersion.Name).Set(float64(size))
 	metrics.ResourceReconcileSuccess.WithLabelValues(obj.Name).Inc()
+
+	if product := IsProductOwned(obj); product != "" {
+		metrics.MPASResourceReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+	}
 
 	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
 

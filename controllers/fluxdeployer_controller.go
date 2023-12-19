@@ -12,7 +12,9 @@ import (
 	"time"
 
 	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
+	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -217,6 +219,10 @@ func (r *FluxDeployerReconciler) reconcile(
 
 	msg := fmt.Sprintf("FluxDeployer '%s' is ready", obj.Name)
 	status.MarkReady(r.EventRecorder, obj, msg)
+
+	if product := IsProductOwned(obj); product != "" {
+		metrics.MPASDeployerReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+	}
 
 	return ctrl.Result{}, nil
 }

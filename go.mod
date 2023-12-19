@@ -51,7 +51,7 @@ require (
 	github.com/onsi/gomega v1.30.0
 	github.com/open-component-model/ocm v0.4.0
 	github.com/open-component-model/ocm-e2e-framework v0.6.1-0.20230913082321-d7050cc55939
-	github.com/open-component-model/pkg/metrics v0.0.0-20231218095050-514b73c0703c
+	github.com/open-component-model/pkg/metrics v0.0.0-20231219114945-b36ef69e88e8
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5

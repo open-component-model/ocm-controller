@@ -1652,8 +1652,8 @@ github.com/open-component-model/ocm v0.4.0 h1:S+rPJGoDnSvxhBn3QS2HXURxugTjCM4XWE
 github.com/open-component-model/ocm v0.4.0/go.mod h1:7RAqaUMmA4BlwW5ZEUBm8amWIb1TL9FhNigNXQ6wiu0=
 github.com/open-component-model/ocm-e2e-framework v0.6.1-0.20230913082321-d7050cc55939 h1:OnT3xCv7bqu5oFt701occb9dYYa1ow3YhI7A5zu055A=
 github.com/open-component-model/ocm-e2e-framework v0.6.1-0.20230913082321-d7050cc55939/go.mod h1:+JNqNksMIH03PxJ1LyEFbr+tYD2JZtpNMgumE3Gq1hg=
-github.com/open-component-model/pkg/metrics v0.0.0-20231218095050-514b73c0703c h1:65oCzphTR71kLe8l7zSVF7B9uZVS85ad9LnQa1UmnxE=
-github.com/open-component-model/pkg/metrics v0.0.0-20231218095050-514b73c0703c/go.mod h1:80SzqzaWEpRC0NE8wks/QAV+QxUrpKIhpk6r0s8qBTQ=
+github.com/open-component-model/pkg/metrics v0.0.0-20231219114945-b36ef69e88e8 h1:ETxVHo2yvsi/78EINZLEkmXeBnkBpPhBbCV8QzR8758=
+github.com/open-component-model/pkg/metrics v0.0.0-20231219114945-b36ef69e88e8/go.mod h1:80SzqzaWEpRC0NE8wks/QAV+QxUrpKIhpk6r0s8qBTQ=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be h1:f2PlhC9pm5sqpBZFvnAoKj+KzXRzbjFMA+TqXfJdgho=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/go-digest/blake3 v0.0.0-20230815154656-802ce17c4f59 h1:PHIYPK2sf+Wfnsy6Sj8oHjLmPpbybrYBjxzSZckHjDQ=

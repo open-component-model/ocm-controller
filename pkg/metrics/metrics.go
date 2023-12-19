@@ -27,7 +27,11 @@ func init() {
 		SnapshotNumberOfBytesReconciled,
 		SnapshotReconcileSuccess,
 		SnapshotReconcileFailed,
-		MPASProductReconciledStatus,
+		MPASComponentVersionReconciledStatus,
+		MPASLocationReconciledStatus,
+		MPASConfigurationReconciledStatus,
+		MPASDeployerReconciledStatus,
+		MPASResourceReconciledStatus,
 	)
 }
 
@@ -141,12 +145,52 @@ var SnapshotNumberOfBytesReconciled = mh.MustRegisterGaugeVec(
 	"snapshot", "digest", "component",
 )
 
-// MPASProductReconciledStatus updates the status of an MPAS product component.
+// MPASComponentVersionReconciledStatus updates the status of an MPAS component version.
 // [product, status].
-var MPASProductReconciledStatus = mh.MustRegisterCounterVec(
+var MPASComponentVersionReconciledStatus = mh.MustRegisterCounterVec(
 	"mpas_system",
 	metricsComponent,
-	mh.MPASProductInstallationCounterLabel,
+	mh.MPASProductComponentVersionCounterLabel,
 	"The status of an mpas product.",
-	"product", "status",
+	"product", mh.MPASProductInstallationCounterStatusLabel,
+)
+
+// MPASLocationReconciledStatus updates the status of an MPAS component version.
+// [product, status].
+var MPASLocationReconciledStatus = mh.MustRegisterCounterVec(
+	"mpas_system",
+	metricsComponent,
+	mh.MPASProductLocalizationCounterLabel,
+	"The status of an mpas product.",
+	"product", mh.MPASProductInstallationCounterStatusLabel,
+)
+
+// MPASConfigurationReconciledStatus updates the status of an MPAS component version.
+// [product, status].
+var MPASConfigurationReconciledStatus = mh.MustRegisterCounterVec(
+	"mpas_system",
+	metricsComponent,
+	mh.MPASProductConfigurationCounterLabel,
+	"The status of an mpas product.",
+	"product", mh.MPASProductInstallationCounterStatusLabel,
+)
+
+// MPASDeployerReconciledStatus updates the status of an MPAS component version.
+// [product, status].
+var MPASDeployerReconciledStatus = mh.MustRegisterCounterVec(
+	"mpas_system",
+	metricsComponent,
+	mh.MPASProductDeployerCounterLabel,
+	"The status of an mpas product.",
+	"product", mh.MPASProductInstallationCounterStatusLabel,
+)
+
+// MPASResourceReconciledStatus updates the status of an MPAS component version.
+// [product, status].
+var MPASResourceReconciledStatus = mh.MustRegisterCounterVec(
+	"mpas_system",
+	metricsComponent,
+	mh.MPASProductResourceCounterLabel,
+	"The status of an mpas product.",
+	"product", mh.MPASProductInstallationCounterStatusLabel,
 )

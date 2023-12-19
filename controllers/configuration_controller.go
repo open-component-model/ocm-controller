@@ -18,6 +18,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
+	mh "github.com/open-component-model/pkg/metrics"
 	"golang.org/x/exp/slices"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -333,6 +334,10 @@ func (r *ConfigurationReconciler) reconcile(
 
 	metrics.SnapshotNumberOfBytesReconciled.WithLabelValues(obj.GetSnapshotName(), obj.GetSnapshotDigest(), obj.Spec.SourceRef.Name).Set(float64(size))
 	metrics.ConfigurationReconcileSuccess.WithLabelValues(obj.Name).Inc()
+
+	if product := IsProductOwned(obj); product != "" {
+		metrics.MPASConfigurationReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+	}
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }

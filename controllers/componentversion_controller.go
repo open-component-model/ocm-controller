@@ -36,6 +36,7 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+	mh "github.com/open-component-model/pkg/metrics"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/component"
@@ -362,6 +363,10 @@ func (r *ComponentVersionReconciler) reconcile(
 	obj.Status.ReconciledVersion = version
 
 	metrics.ComponentVersionReconciledTotal.WithLabelValues(cv.GetName(), cv.GetVersion()).Inc()
+
+	if product := IsProductOwned(obj); product != "" {
+		metrics.MPASComponentVersionReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+	}
 
 	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
 
