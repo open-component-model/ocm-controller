@@ -136,7 +136,7 @@ var ResourceReconcileSuccess = mh.MustRegisterCounterVec(
 var SnapshotNumberOfBytesReconciled = mh.MustRegisterGaugeVec(
 	"ocm_system",
 	metricsComponent,
-	"snapshot_total_bytes",
+	"snapshot_size_bytes",
 	"Number of bytes reconciled by a snapshot",
 	"snapshot", "digest", "component",
 )

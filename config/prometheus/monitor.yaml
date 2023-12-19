@@ -1,0 +1,24 @@
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app: ocm-controller
+    app.kubernetes.io/name: servicemonitor
+    app.kubernetes.io/instance: ocm-controller-metrics-monitor
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/created-by: ocm-controller
+    app.kubernetes.io/part-of: ocm-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: ocm-controller-metrics-monitor
+spec:
+  endpoints:
+    - path: /metrics
+      port: metrics # this must match with the service port name
+      scheme: http
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      tlsConfig:
+        insecureSkipVerify: true
+  selector:
+    matchLabels:
+      app: ocm-controller

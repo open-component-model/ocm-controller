@@ -4,6 +4,7 @@ metadata:
   name: ocm-controller
   labels:
     control-plane: controller
+    app: ocm-controller
 spec:
   selector:
     matchLabels:

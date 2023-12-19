@@ -110,6 +110,10 @@ func (r *ResourceReconciler) Reconcile(
 		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			err = errors.Join(err, derr)
 		}
+
+		if err != nil {
+			metrics.ResourceReconcileFailed.WithLabelValues(obj.Name).Inc()
+		}
 	}()
 
 	// Starts the progression by setting ReconcilingCondition.
