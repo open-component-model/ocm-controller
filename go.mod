@@ -36,7 +36,7 @@ require (
 	github.com/fluxcd/helm-controller/api v0.36.0
 	github.com/fluxcd/kustomize-controller/api v1.0.0-rc.1
 	github.com/fluxcd/pkg/apis/event v0.5.2
-	github.com/fluxcd/pkg/apis/meta v1.1.2
+	github.com/fluxcd/pkg/apis/meta v1.2.0
 	github.com/fluxcd/pkg/http/fetch v0.5.2
 	github.com/fluxcd/pkg/kustomize v1.1.1
 	github.com/fluxcd/pkg/runtime v0.35.0
@@ -60,7 +60,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	helm.sh/helm/v3 v3.12.3
-	k8s.io/apimachinery v0.28.1
+	k8s.io/apimachinery v0.28.4
 	k8s.io/client-go v0.28.1
 	sigs.k8s.io/controller-runtime v0.16.1
 	sigs.k8s.io/e2e-framework v0.2.0
