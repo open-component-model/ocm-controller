@@ -83,12 +83,12 @@ metadata:
   name: podinfo
   namespace: ocm-system
 spec:
+  interval: 10m0s
   sourceRef:
     apiVersion: delivery.ocm.software/v1alpha1
     kind: Resource
     name: podinfo-deployment
-  kustomizationTemplate:
-    interval: 10m0s
+  kustomizationTemplate:    
     path: ./
     prune: true
     targetNamespace: default
