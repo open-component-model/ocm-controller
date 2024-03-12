@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -309,7 +310,6 @@ func (r *ComponentVersionReconciler) reconcile(
 
 		return nil
 	})
-
 	if err != nil {
 		err = fmt.Errorf("failed to create or update component descriptor: %w", err)
 		status.MarkNotReady(
