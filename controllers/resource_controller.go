@@ -266,7 +266,7 @@ func (r *ResourceReconciler) reconcile(
 	obj.Status.LastAppliedResourceVersion = obj.Spec.SourceRef.GetVersion()
 	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
 
-	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
+	status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", obj.Status.LastAppliedComponentVersion))
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }

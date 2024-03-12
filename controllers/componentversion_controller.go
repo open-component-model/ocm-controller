@@ -182,7 +182,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !update {
-		status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
+		status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", version))
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -310,7 +310,6 @@ func (r *ComponentVersionReconciler) reconcile(
 
 		return nil
 	})
-
 	if err != nil {
 		err = fmt.Errorf("failed to create or update component descriptor: %w", err)
 		status.MarkNotReady(
@@ -352,7 +351,7 @@ func (r *ComponentVersionReconciler) reconcile(
 	obj.Status.ComponentDescriptor = componentDescriptor
 	obj.Status.ReconciledVersion = version
 
-	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
+	status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", version))
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
