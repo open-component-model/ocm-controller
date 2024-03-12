@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
@@ -266,7 +265,7 @@ func (r *ResourceReconciler) reconcile(
 	obj.Status.LastAppliedResourceVersion = obj.Spec.SourceRef.GetVersion()
 	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
 
-	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
+	status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", obj.Status.LastAppliedComponentVersion))
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }

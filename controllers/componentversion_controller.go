@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/Masterminds/semver/v3"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
@@ -182,7 +181,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !update {
-		status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
+		status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", version))
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -352,7 +351,7 @@ func (r *ComponentVersionReconciler) reconcile(
 	obj.Status.ComponentDescriptor = componentDescriptor
 	obj.Status.ReconciledVersion = version
 
-	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
+	status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", version))
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
