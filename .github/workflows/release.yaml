@@ -35,11 +35,11 @@ jobs:
       with:
         fetch-depth: 0
     - name: Setup Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
     - name: Cache go-build and mod
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/go-build/
