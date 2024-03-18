@@ -92,7 +92,7 @@ install = kustomize('config/default')
 objects = decode_yaml_stream(install)
 for o in objects:
     if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'ocm-controller':
-        o['spec']['template']['spec']['securityContext']['runAsNonRoot'] = False
+        o['spec']['template']['spec']['containers'][0]['securityContext']['runAsNonRoot'] = False
         if settings.get('debug').get('enabled'):
             o['spec']['template']['spec']['containers'][0]['ports'] = [{'containerPort': 30000}]
 
