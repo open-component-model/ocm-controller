@@ -47,11 +47,11 @@
     },
     {
       "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1\\.Identity",
-      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Identity"
+      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Identity"
     },
     {
       "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1\\.Labels",
-      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Labels"
+      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Labels"
     }
   ],
   "typeDisplayNamePrefixOverrides": {

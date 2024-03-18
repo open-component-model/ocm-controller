@@ -658,7 +658,7 @@ string
 <td>
 <code>extraIdentity</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Identity">
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Identity">
 github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
 </a>
 </em>
@@ -670,7 +670,7 @@ github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
 <td>
 <code>labels</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Labels">
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Labels">
 github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Labels
 </a>
 </em>
@@ -1551,6 +1551,53 @@ string
 </table>
 </div>
 </div>
+<h3 id="delivery.ocm.software/v1alpha1.PublicKey">PublicKey
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#delivery.ocm.software/v1alpha1.Signature">Signature</a>)
+</p>
+<p>PublicKey specifies access to a public key for verification.</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>secretRef</code><br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#localobjectreference-v1-core">
+Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecretRef is a reference to a Secret that contains a public key.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>value</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Value defines a PEM/base64 encoded public key value.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="delivery.ocm.software/v1alpha1.Reference">Reference
 </h3>
 <p>
@@ -2190,7 +2237,7 @@ ElementMeta
 <td>
 <code>referencePath</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1/Identity">
+<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Identity">
 []github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
 </a>
 </em>
@@ -2358,39 +2405,6 @@ string
 </table>
 </div>
 </div>
-<h3 id="delivery.ocm.software/v1alpha1.SecretRef">SecretRef
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#delivery.ocm.software/v1alpha1.Signature">Signature</a>)
-</p>
-<p>SecretRef specifies a reference to a Secret.</p>
-<div class="md-typeset__scrollwrap">
-<div class="md-typeset__table">
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>secretRef</code><br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#localobjectreference-v1-core">
-Kubernetes core/v1.LocalObjectReference
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
 <h3 id="delivery.ocm.software/v1alpha1.Signature">Signature
 </h3>
 <p>
@@ -2424,26 +2438,14 @@ signatures.</p>
 <td>
 <code>publicKey</code><br>
 <em>
-<a href="#delivery.ocm.software/v1alpha1.SecretRef">
-SecretRef
+<a href="#delivery.ocm.software/v1alpha1.PublicKey">
+PublicKey
 </a>
 </em>
 </td>
 <td>
-<p>PublicKey provides a reference to a Kubernetes Secret that contains a public key
+<p>PublicKey provides a reference to a Kubernetes Secret of contain a blob of a public key that
 which will be used to validate the named signature.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>publicKeyBlob</code><br>
-<em>
-[]byte
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>PublicKeyBlob defines an inlined public key.</p>
 </td>
 </tr>
 </tbody>
