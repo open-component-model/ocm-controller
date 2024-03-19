@@ -23,6 +23,7 @@ type FakeCache struct {
 	isCachedErr                   error
 	isCachedCalledWith            [][]any
 	pushDataString                string
+	pushDataSize                  int64
 	pushDataErr                   error
 	pushDataCalledWith            []PushDataArguments
 	fetchDataByIdentityReader     io.ReadCloser
@@ -54,14 +55,14 @@ func (f *FakeCache) IsCachedWasNotCalled() bool {
 	return len(f.isCachedCalledWith) == 0
 }
 
-func (f *FakeCache) PushData(ctx context.Context, data io.ReadCloser, mediaType, name, tag string) (string, error) {
+func (f *FakeCache) PushData(ctx context.Context, data io.ReadCloser, mediaType, name, tag string) (string, int64, error) {
 	content, err := io.ReadAll(data)
 	if err != nil {
-		return "", fmt.Errorf("failed to read read closer: %w", err)
+		return "", -1, fmt.Errorf("failed to read read closer: %w", err)
 	}
 
 	f.pushDataCalledWith = append(f.pushDataCalledWith, PushDataArguments{Content: string(content), Name: name, Version: tag})
-	return f.pushDataString, f.pushDataErr
+	return f.pushDataString, f.pushDataSize, f.pushDataErr
 }
 
 func (f *FakeCache) PushDataReturns(digest string, err error) {
@@ -83,9 +84,9 @@ func (f *FakeCache) PushDataWasNotCalled() bool {
 	return len(f.pushDataCalledWith) == 0
 }
 
-func (f *FakeCache) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, error) {
+func (f *FakeCache) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, int64, error) {
 	f.fetchDataByIdentityCalledWith = append(f.fetchDataByIdentityCalledWith, []any{name, tag})
-	return f.fetchDataByIdentityReader, f.fetchDataByIdentityDigest, f.fetchDataByIdentityErr
+	return f.fetchDataByIdentityReader, f.fetchDataByIdentityDigest, -1, f.fetchDataByIdentityErr
 }
 
 func (f *FakeCache) FetchDataByIdentityReturns(reader io.ReadCloser, err error) {

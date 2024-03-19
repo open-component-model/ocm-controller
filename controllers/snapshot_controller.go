@@ -15,6 +15,7 @@ import (
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -99,6 +100,10 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, 0); derr != nil {
 			err = errors.Join(err, derr)
 		}
+
+		if err != nil {
+			metrics.SnapshotReconcileFailed.WithLabelValues(obj.Name).Inc()
+		}
 	}()
 
 	// Starts the progression by setting ReconcilingCondition.
@@ -125,6 +130,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
 	status.MarkReady(r.EventRecorder, obj, msg)
+	metrics.SnapshotReconcileSuccess.WithLabelValues(obj.Name).Inc()
 
 	return ctrl.Result{}, nil
 }

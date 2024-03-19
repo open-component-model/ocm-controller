@@ -12,7 +12,9 @@ import (
 	"time"
 
 	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
+	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -99,7 +101,7 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *FluxDeployerReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
-) (ctrl.Result, error) {
+) (_ ctrl.Result, err error) {
 	obj := &v1alpha1.FluxDeployer{}
 	if err := r.Client.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -109,10 +111,7 @@ func (r *FluxDeployerReconciler) Reconcile(
 		return ctrl.Result{}, fmt.Errorf("failed to get deployer object: %w", err)
 	}
 
-	patchHelper, err := patch.NewHelper(obj, r.Client)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
@@ -126,8 +125,12 @@ func (r *FluxDeployerReconciler) Reconcile(
 			obj.Status.ObservedGeneration = obj.Generation
 		}
 
-		if err := patchHelper.Patch(ctx, obj); err != nil {
-			return
+		if perr := patchHelper.Patch(ctx, obj); perr != nil {
+			err = errors.Join(err, perr)
+		}
+
+		if err != nil {
+			metrics.FluxDeployerReconcileFailed.WithLabelValues(obj.Name).Inc()
 		}
 	}()
 
@@ -217,6 +220,12 @@ func (r *FluxDeployerReconciler) reconcile(
 
 	msg := fmt.Sprintf("FluxDeployer '%s' is ready", obj.Name)
 	status.MarkReady(r.EventRecorder, obj, msg)
+
+	metrics.FluxDeployerReconcileSuccess.WithLabelValues(obj.Name).Inc()
+
+	if product := IsProductOwned(obj); product != "" {
+		metrics.MPASDeployerReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+	}
 
 	return ctrl.Result{}, nil
 }

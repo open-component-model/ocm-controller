@@ -205,57 +205,57 @@ func NewRepository(repositoryName string, opts ...Option) (*Repository, error) {
 }
 
 // PushData takes a blob of data and caches it using OCI as a background.
-func (c *Client) PushData(ctx context.Context, data io.ReadCloser, mediaType, name, tag string) (string, error) {
+func (c *Client) PushData(ctx context.Context, data io.ReadCloser, mediaType, name, tag string) (string, int64, error) {
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	repo, err := NewRepository(repositoryName, c.WithTransport(ctx))
 	if err != nil {
-		return "", fmt.Errorf("failed create new repository: %w", err)
+		return "", -1, fmt.Errorf("failed create new repository: %w", err)
 	}
 
 	manifest, err := repo.PushStreamingImage(tag, data, mediaType, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to push image: %w", err)
+		return "", -1, fmt.Errorf("failed to push image: %w", err)
 	}
 
 	layers := manifest.Layers
 	if len(layers) == 0 {
-		return "", fmt.Errorf("no layers returned by manifest: %w", err)
+		return "", -1, fmt.Errorf("no layers returned by manifest: %w", err)
 	}
 
-	return layers[0].Digest.String(), nil
+	return layers[0].Digest.String(), layers[0].Size, nil
 }
 
 // FetchDataByIdentity fetches an existing resource. Errors if there is no resource available. It's advised to call IsCached
 // before fetching. Returns the digest of the resource alongside the data for further processing.
-func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, error) {
+func (c *Client) FetchDataByIdentity(ctx context.Context, name, tag string) (io.ReadCloser, string, int64, error) {
 	logger := log.FromContext(ctx).WithName("cache")
 	repositoryName := fmt.Sprintf("%s/%s", c.OCIRepositoryAddr, name)
 	logger.V(v1alpha1.LevelDebug).Info("cache hit for data", "name", name, "tag", tag, "repository", repositoryName)
 	repo, err := NewRepository(repositoryName, c.WithTransport(ctx))
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get repository: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to get repository: %w", err)
 	}
 
 	manifest, _, err := repo.FetchManifest(tag, nil)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch manifest to obtain layers: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to fetch manifest to obtain layers: %w", err)
 	}
 	logger.V(v1alpha1.LevelDebug).Info("got the manifest", "manifest", manifest)
 	layers := manifest.Layers
 	if len(layers) == 0 {
-		return nil, "", fmt.Errorf("layers for repository is empty")
+		return nil, "", -1, fmt.Errorf("layers for repository is empty")
 	}
 
 	digest := layers[0].Digest
 
 	reader, err := repo.FetchBlob(digest.String())
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch reader for digest of the 0th layer: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to fetch reader for digest of the 0th layer: %w", err)
 	}
 
 	// decompresses the data coming from the cache. Because a streaming layer doesn't support decompression
 	// and a static layer returns the data AS IS, we have to decompress it ourselves.
-	return reader, digest.String(), nil
+	return reader, digest.String(), layers[0].Size, nil
 }
 
 // FetchDataByDigest returns a reader for a given digest.

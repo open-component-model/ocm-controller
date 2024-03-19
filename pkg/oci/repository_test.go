@@ -212,9 +212,9 @@ func TestClient_FetchPush(t *testing.T) {
 			name, err := ocm.HashIdentity(identity)
 			g.Expect(err).NotTo(HaveOccurred())
 			if tc.push {
-				_, err := c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), "", name, tc.resource.Version)
+				_, _, err := c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), "", name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
-				blob, _, err := c.FetchDataByIdentity(context.Background(), name, tc.resource.Version)
+				blob, _, _, err := c.FetchDataByIdentity(context.Background(), name, tc.resource.Version)
 				g.Expect(err).NotTo(HaveOccurred())
 				content, err := io.ReadAll(blob)
 				g.Expect(err).NotTo(HaveOccurred())
@@ -300,7 +300,7 @@ func TestClient_DeleteData(t *testing.T) {
 			}
 			name, err := ocm.HashIdentity(identity)
 			g.Expect(err).NotTo(HaveOccurred())
-			_, err = c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), "", name, tc.resource.Version)
+			_, _, err = c.PushData(context.Background(), io.NopCloser(bytes.NewBuffer(tc.blob)), "", name, tc.resource.Version)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(c.DeleteData(context.Background(), name, tc.resource.Version)).To(Succeed())
 			exists, err := c.IsCached(context.Background(), name, tc.resource.Version)

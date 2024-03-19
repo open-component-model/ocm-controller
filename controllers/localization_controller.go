@@ -17,7 +17,9 @@ import (
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
+	mh "github.com/open-component-model/pkg/metrics"
 	"golang.org/x/exp/slices"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -170,6 +172,10 @@ func (r *LocalizationReconciler) Reconcile(
 		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			err = errors.Join(err, derr)
 		}
+
+		if err != nil {
+			metrics.LocalizationReconcileFailed.WithLabelValues(obj.GetName()).Inc()
+		}
 	}()
 
 	// Starts the progression by setting ReconcilingCondition.
@@ -282,7 +288,8 @@ func (r *LocalizationReconciler) reconcile(
 		)
 	}
 
-	if err := r.MutationReconciler.ReconcileMutationObject(ctx, obj); err != nil {
+	size, err := r.MutationReconciler.ReconcileMutationObject(ctx, obj)
+	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
@@ -301,6 +308,13 @@ func (r *LocalizationReconciler) reconcile(
 	}
 
 	status.MarkReady(r.EventRecorder, obj, "Reconciliation success")
+
+	metrics.SnapshotNumberOfBytesReconciled.WithLabelValues(obj.GetSnapshotName(), obj.GetSnapshotDigest(), obj.Spec.SourceRef.Name).Set(float64(size))
+	metrics.LocalizationReconcileSuccess.WithLabelValues(obj.Name).Inc()
+
+	if product := IsProductOwned(obj); product != "" {
+		metrics.MPASLocationReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+	}
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
