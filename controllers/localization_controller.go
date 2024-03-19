@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -20,7 +21,6 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	mh "github.com/open-component-model/pkg/metrics"
-	"golang.org/x/exp/slices"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -445,11 +445,18 @@ func (r *LocalizationReconciler) checkFluxSourceReadiness(
 }
 
 func makeRequestsForLocalizations(ll ...v1alpha1.Localization) []reconcile.Request {
-	slices.SortFunc(ll, func(a, b v1alpha1.Localization) bool {
+	slices.SortFunc(ll, func(a, b v1alpha1.Localization) int {
 		aKey := fmt.Sprintf("%s/%s", a.GetNamespace(), a.GetName())
 		bKey := fmt.Sprintf("%s/%s", b.GetNamespace(), b.GetName())
 
-		return aKey < bKey
+		switch {
+		case aKey < bKey:
+			return -1
+		case aKey == bKey:
+			return 0
+		}
+
+		return 1
 	})
 
 	refs := slices.CompactFunc(ll, func(a, b v1alpha1.Localization) bool {

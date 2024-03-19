@@ -23,13 +23,13 @@ func NewTestComponentWithData(t *testing.T, data []byte) (ocm.ComponentVersionAc
 		Name:    componentName,
 		Version: componentVersion,
 	}
-	res := &ocmcontext.Resource{
+	res := &ocmcontext.Resource[*ocm.ResourceMeta]{
 		Name:    resourceName,
 		Version: resourceVersion,
 		Labels: ocmmetav1.Labels{
 			{
 				Name:  "test",
-				Value: json.RawMessage([]byte(`"data"`)),
+				Value: json.RawMessage(`"data"`),
 			},
 		},
 		Data:      data,

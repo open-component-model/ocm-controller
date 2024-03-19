@@ -225,7 +225,7 @@ func getMockComponent(
 	cv *v1alpha1.ComponentVersion,
 	opts ...ocmfake.AccessOptionFunc,
 ) ocm.ComponentVersionAccess {
-	res := &ocmfake.Resource{
+	res := &ocmfake.Resource[*ocm.ResourceMeta]{
 		Name:          "introspect-image",
 		Version:       "1.0.0",
 		Type:          "ociImage",
@@ -235,7 +235,7 @@ func getMockComponent(
 	comp := &ocmfake.Component{
 		Name:      cv.Spec.Component,
 		Version:   cv.Spec.Version.Semver,
-		Resources: []*ocmfake.Resource{res},
+		Resources: []*ocmfake.Resource[*ocm.ResourceMeta]{res},
 	}
 	res.Component = comp
 

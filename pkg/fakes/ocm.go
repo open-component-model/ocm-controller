@@ -36,7 +36,7 @@ func SetAccessRef(t string) AccessOptionFunc {
 }
 
 // Resource presents a simple layout for a resource that AddComponentVersionToRepository will use.
-type Resource struct {
+type Resource[M any] struct {
 	Name     string
 	Labels   ocmmetav1.Labels
 	Version  string
@@ -72,7 +72,7 @@ type Component struct {
 	Name                string
 	Version             string
 	Sign                *Sign
-	Resources           []*Resource
+	Resources           []*Resource[*compdesc.ResourceMeta]
 	ComponentDescriptor *compdesc.ComponentDescriptor
 }
 
@@ -90,6 +90,14 @@ type Context struct {
 
 	// attributes contains attributes for this context.
 	attributes *mockAttribute
+}
+
+func (c *Context) IsAttributesContext() bool {
+	return true
+}
+
+func (c *Context) AttributesContext() datacontext.AttributesContext {
+	return c
 }
 
 func (c *Context) AddComponent(component *Component) error {
@@ -142,9 +150,10 @@ func NewFakeOCMContext() *Context {
 	// create the context
 	c := &Context{
 		components:    make(map[string][]*Component),
-		attributes:    &mockAttribute{},
 		credentialCtx: credentials.New(),
 	}
+	attributes := &mockAttribute{context: c}
+	c.attributes = attributes
 
 	// create our repository and tie it to the context
 	repo := &mockRepository{name: "fake-repo", version: "1.0.0", context: c}
@@ -170,12 +179,14 @@ func (c *Context) AccessSpecForSpec(spec compdesc.AccessSpec) (ocm.AccessSpec, e
 	return ctx.AccessSpecForSpec(spec)
 }
 
-func (c *Context) GetAttributes() datacontext.Attributes {
-	return c.attributes
-}
+func (c *Context) OCMContext() ocm.Context { return c }
 
 func (c *Context) GetContext() ocm.Context {
 	return c
+}
+
+func (c *Context) GetAttributes() datacontext.Attributes {
+	return c.attributes
 }
 
 func (c *Context) CredentialsContext() credentials.Context {
@@ -236,11 +247,16 @@ func (c *Context) constructComponentDescriptor(
 // ************** Mock Attribute Value **************
 
 type mockAttribute struct {
+	context ocm.Context
 	datacontext.Attributes
 }
 
 func (m *mockAttribute) GetAttribute(name string, def ...any) any { //nolint:revive // fake
 	return nil
+}
+
+func (m *mockAttribute) GetOrCreateAttribute(name string, creator datacontext.AttributeFactory) any { //nolint:revive // fake
+	return creator(m.context)
 }
 
 // ************** Mock Repository Value and Functions **************
@@ -332,6 +348,8 @@ func (c *Component) Close() error {
 	return nil
 }
 
+func (c *Component) Update() error { return nil }
+
 func (c *Component) Dup() (ocm.ComponentVersionAccess, error) {
 	return c, nil
 }
@@ -379,9 +397,9 @@ func (c *Component) GetVersion() string {
 
 // ************** Mock Resource Access Value and Functions **************
 
-var _ ocm.ResourceAccess = &Resource{}
+var _ ocm.ResourceAccess = &Resource[*ocm.ResourceMeta]{}
 
-func (r *Resource) Meta() *ocm.ResourceMeta {
+func (r *Resource[M]) Meta() *ocm.ResourceMeta {
 	return &ocm.ResourceMeta{
 		ElementMeta: compdesc.ElementMeta{
 			Name:    r.Name,
@@ -393,12 +411,37 @@ func (r *Resource) Meta() *ocm.ResourceMeta {
 	}
 }
 
-func (r *Resource) ComponentVersion() ocm.ComponentVersionAccess {
+func (r *Resource[M]) GetOCMContext() ocm.Context {
+	return r.Component.context
+}
+
+func (r *Resource[M]) ReferenceHint() string {
+	return "I'm a fake provider"
+}
+
+func (r *Resource[M]) GlobalAccess() ocm.AccessSpec {
+	spec, err := r.Access()
+	if err != nil {
+		panic(err)
+	}
+
+	return spec
+}
+
+func (r *Resource[M]) BlobAccess() (ocm.BlobAccess, error) {
+	return nil, nil
+}
+
+func (r *Resource[M]) GetComponentVersion() (ocm.ComponentVersionAccess, error) {
+	return nil, nil
+}
+
+func (r *Resource[M]) ComponentVersion() ocm.ComponentVersionAccess {
 	return r.Component
 }
 
 // Access provides some canned settings. This will later on by made configurable as is in getComponentMock.
-func (r *Resource) Access() (ocm.AccessSpec, error) {
+func (r *Resource[M]) Access() (ocm.AccessSpec, error) {
 	const size = 29047129
 	accObj := map[string]any{
 		"globalAccess": map[string]any{
@@ -431,37 +474,49 @@ func (r *Resource) Access() (ocm.AccessSpec, error) {
 }
 
 // AccessMethod implementation for this is provided by the resource itself to avoid even further indirections.
-func (r *Resource) AccessMethod() (ocm.AccessMethod, error) {
+func (r *Resource[M]) AccessMethod() (ocm.AccessMethod, error) {
 	return r, nil
 }
 
 // ************** Mock Access Method **************
 
-var _ ocm.AccessMethod = &Resource{}
+var _ ocm.AccessMethod = &Resource[*ocm.ResourceMeta]{}
 
-func (r *Resource) Get() ([]byte, error) {
+func (r *Resource[M]) Get() ([]byte, error) {
 	return r.Data, nil
 }
 
-func (r *Resource) Reader() (io.ReadCloser, error) {
+func (r *Resource[M]) Reader() (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewBuffer(r.Data)), nil
 }
 
-func (r *Resource) Close() error {
+func (r *Resource[M]) Close() error {
 	return nil
 }
 
-func (r *Resource) GetKind() string {
+func (r *Resource[M]) GetKind() string {
 	return r.Kind
 }
 
-func (r *Resource) AccessSpec() ocm.AccessSpec {
+func (r *Resource[M]) AccessSpec() ocm.AccessSpec {
 	// What?
 	acc, _ := r.Access()
 
 	return acc
 }
 
-func (r *Resource) MimeType() string {
+func (r *Resource[M]) MimeType() string {
 	return r.Type
+}
+
+func (r *Resource[M]) Dup() (ocm.AccessMethod, error) {
+	return nil, nil
+}
+
+func (r *Resource[M]) IsLocal() bool {
+	return false
+}
+
+func (r *Resource[M]) AsBlobAccess() ocm.BlobAccess {
+	return nil
 }
