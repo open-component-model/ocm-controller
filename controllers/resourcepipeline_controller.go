@@ -17,6 +17,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/mandelsoft/vfs/pkg/projectionfs"
+	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"golang.org/x/exp/slog"
 	"gopkg.in/yaml.v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -244,12 +245,13 @@ func (r *ResourcePipelineReconciler) reconcile(
 		return ctrl.Result{}, fmt.Errorf("failed to get identity for source ref: %w", err)
 	}
 
-	digest, err := r.SnapshotWriter.Write(ctx, obj, dir, id)
+	digest, size, err := r.SnapshotWriter.Write(ctx, obj, dir, id)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to create write snapshot: %w", err)
 	}
 
 	obj.Status.LatestSnapshotDigest = digest
+	metrics.SnapshotNumberOfBytesReconciled.WithLabelValues(obj.GetSnapshotName(), digest, cv.GetName()).Set(float64(size))
 
 	conditions.Delete(obj, meta.ReconcilingCondition)
 

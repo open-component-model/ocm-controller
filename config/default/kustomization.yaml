@@ -6,6 +6,7 @@ resources:
 - ../rbac
 - ../manager
 - ../registry
+#- ../prometheus
 - namespace.yaml
 transformers:
 - labels.yaml

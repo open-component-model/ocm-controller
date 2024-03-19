@@ -21,6 +21,7 @@ type getResourceReturnValues struct {
 	reader io.ReadCloser
 	digest string
 	err    error
+	size   int64
 }
 
 // MockFetcher mocks OCM client. Sadly, no generated code can be used, because none of them understand
@@ -51,14 +52,14 @@ func (m *MockFetcher) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1
 	return ocm.New(), nil
 }
 
-func (m *MockFetcher) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, error) {
+func (m *MockFetcher) GetResource(ctx context.Context, octx ocm.Context, cv *v1alpha1.ComponentVersion, resource *v1alpha1.ResourceReference) (io.ReadCloser, string, int64, error) {
 	if _, ok := m.getResourceReturns[m.getResourceCallCount]; !ok {
-		return nil, "", fmt.Errorf("unexpected number of calls; not enough return values have been configured; call count %d", m.getResourceCallCount)
+		return nil, "", -1, fmt.Errorf("unexpected number of calls; not enough return values have been configured; call count %d", m.getResourceCallCount)
 	}
 	m.getResourceCalledWith = append(m.getResourceCalledWith, []any{cv, resource})
 	result := m.getResourceReturns[m.getResourceCallCount]
 	m.getResourceCallCount++
-	return result.reader, result.digest, result.err
+	return result.reader, result.digest, result.size, result.err
 }
 
 func (m *MockFetcher) GetResourceReturns(reader io.ReadCloser, digest string, err error) {

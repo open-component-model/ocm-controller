@@ -48,7 +48,7 @@ type Contract interface {
 		octx ocm.Context,
 		cv *v1alpha1.ComponentVersion,
 		resource *v1alpha1.ResourceReference,
-	) (io.ReadCloser, string, error)
+	) (io.ReadCloser, string, int64, error)
 	GetComponentVersion(
 		ctx context.Context,
 		octx ocm.Context,
@@ -167,7 +167,7 @@ func (c *Client) GetResource(
 	octx ocm.Context,
 	cv *v1alpha1.ComponentVersion,
 	resource *v1alpha1.ResourceReference,
-) (io.ReadCloser, string, error) {
+) (io.ReadCloser, string, int64, error) {
 	logger := log.FromContext(ctx).WithName("ocm")
 	version := "latest"
 	if resource.ElementMeta.Version != "" {
@@ -176,11 +176,11 @@ func (c *Client) GetResource(
 
 	cd, err := component.GetComponentDescriptor(ctx, c.client, resource.ReferencePath, cv.Status.ComponentDescriptor)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to find component descriptor for reference: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to find component descriptor for reference: %w", err)
 	}
 
 	if cd == nil {
-		return nil, "", fmt.Errorf(
+		return nil, "", -1, fmt.Errorf(
 			"component descriptor not found for reference path: %+v",
 			resource.ReferencePath,
 		)
@@ -199,12 +199,12 @@ func (c *Client) GetResource(
 	}
 	name, err := ConstructRepositoryName(identity)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to construct name: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to construct name: %w", err)
 	}
 
 	cached, err := c.cache.IsCached(ctx, name, version)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to check cache: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to check cache: %w", err)
 	}
 
 	if cached {
@@ -215,7 +215,7 @@ func (c *Client) GetResource(
 
 	cva, err := c.GetComponentVersion(ctx, octx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get component Version: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to get component Version: %w", err)
 	}
 
 	defer func() {
@@ -233,7 +233,7 @@ func (c *Client) GetResource(
 		cva.Repository(),
 	)
 	if err != nil {
-		return nil, "", fmt.Errorf(
+		return nil, "", -1, fmt.Errorf(
 			"failed to resolve reference path to resource: %s %w",
 			resource.Name,
 			err,
@@ -242,7 +242,7 @@ func (c *Client) GetResource(
 
 	reader, mediaType, err := c.fetchResourceReader(res, cva)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch reader for resource: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to fetch reader for resource: %w", err)
 	}
 
 	defer func() {
@@ -253,26 +253,26 @@ func (c *Client) GetResource(
 
 	decompressedReader, decompressed, err := compression.AutoDecompress(reader)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to autodecompress content: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to autodecompress content: %w", err)
 	}
 	if decompressed {
 		logger.V(v1alpha1.LevelDebug).Info("resource data was automatically decompressed")
 	}
 
 	// We need to push the media type... And construct the right layers I guess.
-	digest, err := c.cache.PushData(ctx, decompressedReader, mediaType, name, version)
+	digest, size, err := c.cache.PushData(ctx, decompressedReader, mediaType, name, version)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to cache blob: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to cache blob: %w", err)
 	}
 
 	logger.V(v1alpha1.LevelDebug).Info("pushed data with digest", "digest", digest)
 	// re-fetch the resource to have a streamed reader available
 	dataReader, err := c.cache.FetchDataByDigest(ctx, name, digest)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch resource: %w", err)
+		return nil, "", -1, fmt.Errorf("failed to fetch resource: %w", err)
 	}
 
-	return dataReader, digest, nil
+	return dataReader, digest, size, nil
 }
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
