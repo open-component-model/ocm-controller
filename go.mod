@@ -2,6 +2,8 @@ module github.com/open-component-model/ocm-controller
 
 go 1.21
 
+replace github.com/open-component-model/ocm-e2e-framework => ../ocm-e2e-framework
+
 // ocm dependent re-writes.
 replace (
 	github.com/fluxcd/pkg/runtime => github.com/fluxcd/pkg/runtime v0.35.0
