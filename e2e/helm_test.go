@@ -90,8 +90,8 @@ func helmResource(chart, url string, resource shared.Resource) shared.ComponentM
 				Version: resource.Version,
 			},
 			Type:     resource.Type,
-			Relation: ocmmetav1.ExternalRelation,
-		}, helm.New(chart, url))
+			Relation: ocmmetav1.LocalRelation,
+		}, helm.New(chart, url), ocm.SkipDigest(true))
 	}
 }
 

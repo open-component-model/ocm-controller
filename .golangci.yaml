@@ -120,3 +120,4 @@ linters:
     - gochecknoglobals
     - paralleltest
     - wsl
+    - perfsprint
