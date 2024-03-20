@@ -199,6 +199,7 @@ func setupManagers(
 		EventRecorder:       eventsRecorder,
 		RegistryServiceName: ociRegistryAddr,
 		Cache:               cache,
+		InsecureSkipVerify:  ociRegistryInsecureSkipVerify,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Snapshot")
 		os.Exit(1)

@@ -32,7 +32,8 @@ import (
 
 const (
 	snapshotFinalizer = "finalizers.snapshot.ocm.software"
-	scheme            = "https"
+	httpsScheme       = "https"
+	insecureScheme    = "http"
 )
 
 // SnapshotReconciler reconciles a Snapshot object.
@@ -43,6 +44,9 @@ type SnapshotReconciler struct {
 	RegistryServiceName string
 
 	Cache cache.Cache
+
+	// InsecureSkipVerify if set, snapshot URL will be http instead of https.
+	InsecureSkipVerify bool
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots,verbs=get;list;watch;create;update;patch;delete
@@ -117,6 +121,11 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	obj.Status.LastReconciledDigest = obj.Spec.Digest
 	obj.Status.LastReconciledTag = obj.Spec.Tag
+
+	scheme := httpsScheme
+	if r.InsecureSkipVerify {
+		scheme = insecureScheme
+	}
 	obj.Status.RepositoryURL = fmt.Sprintf("%s://%s/%s", scheme, r.RegistryServiceName, name)
 
 	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
