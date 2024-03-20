@@ -17,6 +17,7 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +43,7 @@ func TestClient_GetResource(t *testing.T) {
 		Name:    component,
 		Version: "v0.0.1",
 	}
-	res := &fakeocm.Resource{
+	res := &fakeocm.Resource[*ocm.ResourceMeta]{
 		Name:      resource,
 		Version:   resourceVersion,
 		Data:      []byte(data),
@@ -135,7 +136,7 @@ func TestClient_GetHelmResource(t *testing.T) {
 		Name:    component,
 		Version: "v0.0.1",
 	}
-	res := &fakeocm.Resource{
+	res := &fakeocm.Resource[*ocm.ResourceMeta]{
 		Name:      resource,
 		Version:   resourceVersion,
 		Data:      data,

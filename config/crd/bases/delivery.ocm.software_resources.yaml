@@ -88,6 +88,24 @@ spec:
                         items:
                           description: Label is a label that can be set on objects.
                           properties:
+                            merge:
+                              description: |-
+                                MergeAlgorithm optionally describes the desired merge handling used to
+                                merge the label value during a transfer.
+                              properties:
+                                algorithm:
+                                  description: |-
+                                    Algorithm optionally described the Merge algorithm used to
+                                    merge the label value during a transfer.
+                                  type: string
+                                config:
+                                  description: eConfig contains optional config for
+                                    the merge algorithm.
+                                  format: byte
+                                  type: string
+                              required:
+                              - algorithm
+                              type: object
                             name:
                               description: Name is the unique name of the label.
                               type: string

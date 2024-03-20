@@ -83,6 +83,24 @@ spec:
                       items:
                         description: Label is a label that can be set on objects.
                         properties:
+                          merge:
+                            description: |-
+                              MergeAlgorithm optionally describes the desired merge handling used to
+                              merge the label value during a transfer.
+                            properties:
+                              algorithm:
+                                description: |-
+                                  Algorithm optionally described the Merge algorithm used to
+                                  merge the label value during a transfer.
+                                type: string
+                              config:
+                                description: eConfig contains optional config for
+                                  the merge algorithm.
+                                format: byte
+                                type: string
+                            required:
+                            - algorithm
+                            type: object
                           name:
                             description: Name is the unique name of the label.
                             type: string
@@ -161,6 +179,24 @@ spec:
                       items:
                         description: Label is a label that can be set on objects.
                         properties:
+                          merge:
+                            description: |-
+                              MergeAlgorithm optionally describes the desired merge handling used to
+                              merge the label value during a transfer.
+                            properties:
+                              algorithm:
+                                description: |-
+                                  Algorithm optionally described the Merge algorithm used to
+                                  merge the label value during a transfer.
+                                type: string
+                              config:
+                                description: eConfig contains optional config for
+                                  the merge algorithm.
+                                format: byte
+                                type: string
+                            required:
+                            - algorithm
+                            type: object
                           name:
                             description: Name is the unique name of the label.
                             type: string
@@ -190,8 +226,8 @@ spec:
                       type: string
                     srcRef:
                       description: |-
-                        SourceRef defines a list of source names.
-                        These names reference the sources defines in `component.sources`.
+                        SourceRef is for deserialization compatibility, only.
+                        The usage of this field in external formats is deprecated.
                       items:
                         description: SourceRef defines a reference to a source
                         properties:
@@ -208,6 +244,85 @@ spec:
                             items:
                               description: Label is a label that can be set on objects.
                               properties:
+                                merge:
+                                  description: |-
+                                    MergeAlgorithm optionally describes the desired merge handling used to
+                                    merge the label value during a transfer.
+                                  properties:
+                                    algorithm:
+                                      description: |-
+                                        Algorithm optionally described the Merge algorithm used to
+                                        merge the label value during a transfer.
+                                      type: string
+                                    config:
+                                      description: eConfig contains optional config
+                                        for the merge algorithm.
+                                      format: byte
+                                      type: string
+                                  required:
+                                  - algorithm
+                                  type: object
+                                name:
+                                  description: Name is the unique name of the label.
+                                  type: string
+                                signing:
+                                  description: Signing describes whether the label
+                                    should be included into the signature
+                                  type: boolean
+                                value:
+                                  description: Value is the json/yaml data of the
+                                    label
+                                  x-kubernetes-preserve-unknown-fields: true
+                                version:
+                                  description: Version is the optional specification
+                                    version of the attribute value
+                                  type: string
+                              required:
+                              - name
+                              - value
+                              type: object
+                            type: array
+                        type: object
+                      type: array
+                    srcRefs:
+                      description: |-
+                        SourceRefs defines a list of source names.
+                        These entries reference the sources defined in the
+                        component.sources.
+                      items:
+                        description: SourceRef defines a reference to a source
+                        properties:
+                          identitySelector:
+                            additionalProperties:
+                              type: string
+                            description: IdentitySelector defines the identity that
+                              is used to match a source.
+                            type: object
+                          labels:
+                            description: |-
+                              Labels defines an optional set of additional labels
+                              describing the object.
+                            items:
+                              description: Label is a label that can be set on objects.
+                              properties:
+                                merge:
+                                  description: |-
+                                    MergeAlgorithm optionally describes the desired merge handling used to
+                                    merge the label value during a transfer.
+                                  properties:
+                                    algorithm:
+                                      description: |-
+                                        Algorithm optionally described the Merge algorithm used to
+                                        merge the label value during a transfer.
+                                      type: string
+                                    config:
+                                      description: eConfig contains optional config
+                                        for the merge algorithm.
+                                      format: byte
+                                      type: string
+                                  required:
+                                  - algorithm
+                                  type: object
                                 name:
                                   description: Name is the unique name of the label.
                                   type: string
@@ -273,6 +388,24 @@ spec:
                       items:
                         description: Label is a label that can be set on objects.
                         properties:
+                          merge:
+                            description: |-
+                              MergeAlgorithm optionally describes the desired merge handling used to
+                              merge the label value during a transfer.
+                            properties:
+                              algorithm:
+                                description: |-
+                                  Algorithm optionally described the Merge algorithm used to
+                                  merge the label value during a transfer.
+                                type: string
+                              config:
+                                description: eConfig contains optional config for
+                                  the merge algorithm.
+                                format: byte
+                                type: string
+                            required:
+                            - algorithm
+                            type: object
                           name:
                             description: Name is the unique name of the label.
                             type: string

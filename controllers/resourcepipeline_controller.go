@@ -221,7 +221,7 @@ func (r *ResourcePipelineReconciler) reconcile(
 	}
 
 	wasmRun := wasmruntime.New().
-		WithLogger(slog.New(slog.NewJSONHandler(os.Stdout))).
+		WithLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))).
 		WithComponent(cv).
 		WithDir(dir)
 	if err := wasmRun.Init(ctx); err != nil {
