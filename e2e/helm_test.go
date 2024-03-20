@@ -47,7 +47,7 @@ func TestHelmChartResource(t *testing.T) {
 			},
 
 			ComponentVersionModifications: []shared.ComponentModification{
-				helmResource("podinfo:6.3.5", "oci://127.0.0.1:5000", shared.Resource{
+				helmResource("podinfo:6.3.5", "oci://registry.ocm-system.svc.cluster.local:5000", shared.Resource{
 					Name:    "podinfo",
 					Type:    "helmChart",
 					Version: "6.3.5",
@@ -91,7 +91,7 @@ func helmResource(chart, url string, resource shared.Resource) shared.ComponentM
 			},
 			Type:     resource.Type,
 			Relation: ocmmetav1.LocalRelation,
-		}, helm.New(chart, url))
+		}, helm.New(chart, url), ocm.SkipDigest(true))
 	}
 }
 
