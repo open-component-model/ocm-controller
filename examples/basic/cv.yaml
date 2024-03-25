@@ -4,10 +4,10 @@ metadata:
   name: podinfo
 spec:
   interval: 10m0s
-  component: phoban.io/monolith
+  component: ocm.software/monolith
   version:
     semver: ">=v1.3.0"
   repository:
-    url: ghcr.io/phoban01
+    url: ghcr.io/open-component-model
     secretRef:
       name: creds

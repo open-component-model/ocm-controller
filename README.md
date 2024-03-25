@@ -21,7 +21,7 @@ It has the following features:
 
 ---
 
-In this tutorial we'll deploy the `phoban.io/podinfo` component which contains a Kubernetes `Deployment` manifest for the `podinfo` application.
+In this tutorial we'll deploy the `ocm.software/podinfo` component which contains a Kubernetes `Deployment` manifest for the `podinfo` application.
 
 To get started save the following `ComponentVersion` to a file named `component_version.yaml`:
 
@@ -34,11 +34,11 @@ metadata:
   namespace: ocm-system
 spec:
   interval: 10m0s
-  component: phoban.io/podinfo
+  component: ocm.software/podinfo
   version:
     semver: ">=v6.2.3"
   repository:
-    url: ghcr.io/phoban01
+    url: ghcr.io/open-component-model
 ```
 
 Apply the `ComponentVersion`:
