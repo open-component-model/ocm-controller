@@ -4,8 +4,8 @@ metadata:
   name: server
 spec:
   interval: 10m0s
-  component: phoban.io/pipeline-demo
+  component: ocm.software/pipeline-demo
   version:
     semver: "v1.1.0"
   repository:
-    url: ghcr.io/phoban01
+    url: ghcr.io/open-component-model

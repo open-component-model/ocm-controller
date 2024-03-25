@@ -1,4 +1,4 @@
-name: phoban.io/monolith
+name: ocm.software/monolith
 version: v1.0.0
 provider:
   name: weaveworks

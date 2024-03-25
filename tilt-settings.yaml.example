@@ -1,7 +1,7 @@
 flux:
   enabled: true
   bootstrap: true
-  owner: skarlso
+  owner: owner
   repository: ocm-flux-example
   path: ./03-podify/clusters/kind
 verification_keys:

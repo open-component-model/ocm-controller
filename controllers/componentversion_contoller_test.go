@@ -55,7 +55,7 @@ func TestComponentVersionReconcile(t *testing.T) {
 							Name:    "test-ref-1",
 							Version: "v0.0.1",
 						},
-						ComponentName: "github.com/skarlso/embedded",
+						ComponentName: "github.com/open-component-model/embedded",
 					},
 				},
 			},
@@ -66,7 +66,7 @@ func TestComponentVersionReconcile(t *testing.T) {
 		ComponentDescriptor: &ocmdesc.ComponentDescriptor{
 			ComponentSpec: ocmdesc.ComponentSpec{
 				ObjectMeta: v1.ObjectMeta{
-					Name:    "github.com/skarlso/embedded",
+					Name:    "github.com/open-component-model/embedded",
 					Version: "v0.0.1",
 				},
 			},
