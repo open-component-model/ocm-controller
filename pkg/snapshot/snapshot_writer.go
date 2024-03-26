@@ -82,11 +82,13 @@ func (w *OCIWriter) Write(
 	logger.V(v1alpha1.LevelDebug).Info("repository name constructed", "name", name)
 
 	var mediaType string
+	var tag = owner.GetResourceVersion()
 	if _, ok := identity[v1alpha1.ResourceHelmChartNameKey]; ok {
 		mediaType = registry.ChartLayerMediaType
+		tag = tag + ".0.0"
 	}
 
-	snapshotDigest, size, err := w.Cache.PushData(ctx, file, mediaType, name, owner.GetResourceVersion())
+	snapshotDigest, size, err := w.Cache.PushData(ctx, file, mediaType, name, tag)
 	if err != nil {
 		return "", -1, fmt.Errorf("failed to push blob to local registry: %w", err)
 	}
@@ -109,7 +111,7 @@ func (w *OCIWriter) Write(
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
 			Identity: identity,
 			Digest:   snapshotDigest,
-			Tag:      owner.GetResourceVersion(),
+			Tag:      tag,
 		}
 
 		return nil
