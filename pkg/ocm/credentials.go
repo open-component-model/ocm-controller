@@ -31,12 +31,16 @@ func ConfigureCredentials(ctx context.Context, ocmCtx ocm.Context, c client.Clie
 		if err := configureDockerConfigCredentials(ocmCtx, dockerConfigBytes); err != nil {
 			return err
 		}
+
+		return nil
 	}
 
 	if ocmConfigBytes, ok := secret.Data[v1alpha1.OCMCredentialConfigKey]; ok {
 		if err := configureOcmConfigCredentials(ocmCtx, ocmConfigBytes, secret); err != nil {
 			return err
 		}
+
+		return nil
 	}
 
 	// proceed to configure a credential context using username and password
@@ -59,14 +63,13 @@ func ConfigureCredentials(ctx context.Context, ocmCtx ocm.Context, c client.Clie
 }
 
 func configureOcmConfigCredentials(ocmCtx ocm.Context, ocmConfigBytes []byte, secret corev1.Secret) error {
-	cfgctx := ocmCtx.ConfigContext()
-	cfg, err := cfgctx.GetConfigForData(ocmConfigBytes, runtime.DefaultYAMLEncoding)
+	cfg, err := ocmCtx.ConfigContext().GetConfigForData(ocmConfigBytes, runtime.DefaultYAMLEncoding)
 	if err != nil {
 		return err
 	}
 
 	if cfg.GetKind() == credconfig.ConfigType {
-		if err := cfgctx.ApplyConfig(cfg, fmt.Sprintf("ocm config secret: %s/%s", secret.Namespace, secret.Name)); err != nil {
+		if err := ocmCtx.ConfigContext().ApplyConfig(cfg, fmt.Sprintf("ocm config secret: %s/%s", secret.Namespace, secret.Name)); err != nil {
 			return err
 		}
 	}
@@ -75,11 +78,9 @@ func configureOcmConfigCredentials(ocmCtx ocm.Context, ocmConfigBytes []byte, se
 }
 
 func configureDockerConfigCredentials(ocmCtx ocm.Context, dockerConfigBytes []byte) error {
-	credctx := ocmCtx.CredentialsContext()
 	spec := dockerconfig.NewRepositorySpecForConfig(dockerConfigBytes, true)
 
-	_, err := credctx.RepositoryForSpec(spec)
-	if err != nil {
+	if _, err := ocmCtx.CredentialsContext().RepositoryForSpec(spec); err != nil {
 		return fmt.Errorf("cannot create credentials from secret: %w", err)
 	}
 
