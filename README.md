@@ -15,15 +15,16 @@ It has the following features:
 ## Quick Start
 
 ### Pre-requisites
+
 - Create a kind cluster: `kind create cluster`
 - Make sure flux is installed in your cluster using: `flux install`
 - Install the controller using: `ocm controller install`
 
 ---
 
-In this tutorial we'll deploy the `ocm.software/podinfo` component which contains a Kubernetes `Deployment` manifest for the `podinfo` application.
+In this tutorial, we'll deploy the `ocm.software/podinfo` component which contains a Kubernetes `Deployment` manifest for the `podinfo` application.
 
-To get started save the following `ComponentVersion` to a file named `component_version.yaml`:
+To get started, save the following `ComponentVersion` to a file named `component_version.yaml`:
 
 ```yaml
 # component_version.yaml
@@ -88,7 +89,7 @@ spec:
     apiVersion: delivery.ocm.software/v1alpha1
     kind: Resource
     name: podinfo-deployment
-  kustomizationTemplate:    
+  kustomizationTemplate:
     path: ./
     prune: true
     targetNamespace: default
@@ -106,11 +107,12 @@ View the deployment spinning up:
 
 ### What just happened?
 
-We used `ComponentVersion` to retrieve the `phoban.io/podinfo` component from an remote OCM repository (`ghcr.io/phoban01`). We then fetched a resource from this component using the `Resource` CRD.
+We used `ComponentVersion` to retrieve the `ocm.software/podinfo` component from a remote OCM repository (`ghcr.io/open-component-model`).
+We then fetched a resource from this component using the `Resource` CRD.
 
-The `ocm-controller` fetched this resource and created a `Snapshot` containing the contents of the OCM resource. This `Snapshot` is a Flux compatible OCI image which is stored in a registry managed by the `ocm-controller`.
+The `ocm-controller` fetched this resource and created a [Snapshot](#snapshot) containing the contents of the OCM resource. This [snapshot](#snapshot) is a Flux compatible OCI image which is stored in a registry managed by `ocm-controller`.
 
-Because the `Snapshot` is Flux compatible we asked the `ocm-controller` to create a corresponding Flux source for the `Snapshot`. This means that we can then use a Flux `Kustomization` resource to apply the `Snapshot` to the cluster.
+Because the [snapshot](#snapshot) is Flux compatible we asked the `ocm-controller` to create a corresponding Flux source for it. This means that we can then use a Flux `Kustomization` resource to apply content of it to the cluster.
 
 The following diagram illustrates the flow:
 
@@ -131,7 +133,7 @@ Retrieves a `ComponentVersion` from an OCM repository. Handles authentication wi
 
 ### Resource
 
-Makes a resource available within the cluster as a snapshot.
+Makes a resource available within the cluster as a [snapshot](#snapshot).
 
 #### HelmChart type Resource
 
@@ -157,23 +159,154 @@ spec:
         helmChart: podinfo # name of the chart
 ```
 
-This extra information is needed, because it cannot be inferred from the resource's information from OCM.
+This extra information is needed, because it cannot be inferred from the resource's information.
 
 ### Localization
 
-Localizes a resource using the specified configuration resource.
+This Localization represents a way to configure resources to use local references once a transfer occurs.
+To understand more, please take a look at [OCM Localization](https://github.com/open-component-model/ocm-spec/blob/67c51bfbcdd83b734f8b1f93eccab79a553eb6ea/doc/05-guidelines/02-contract.md#example-helm-deployment) reference.
+
+Let's take a look at a simple `Localization` object:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Localization
+metadata:
+  name: podinfo-localization
+  namespace: mpas-ocm-applications
+spec:
+  configRef:
+    kind: ComponentVersion
+    name: podinfocomponent-version
+    namespace: mpas-ocm-applications
+    resourceRef:
+      name: config
+      version: 1.0.0
+  interval: 10m0s
+  sourceRef:
+    kind: ComponentVersion
+    name: podinfocomponent-version
+    namespace: mpas-ocm-applications
+    resourceRef:
+      name: manifests
+      version: 1.0.0
+```
+
+The two most essential pieces are the `sourceRef` and the `configRef`. The `sourceRef` contains the resource to localize
+while the `configRef` points to the resource containing the localization values. In this case, an image reference:
+
+```yaml
+localization:
+- resource:
+    name: image
+  file: deploy.yaml
+  image: spec.template.spec.containers[0].image
+```
+
+These are OCM's localization rules.
 
 ### Configuration
 
-Configures a resource using the specified configuration resource.
+Use configuration rules to apply custom settings to objects. These could be manifest files, like a `Deployment` for which
+we configure the replica count. Or a setting for a Redis database, etc.
+
+It's much the same as [Localization](#localization) in design:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Configuration
+metadata:
+  name: podinfo-configuration
+  namespace: mpas-ocm-applications
+spec:
+  configRef:
+    kind: ComponentVersion
+    name: podinfocomponent-version
+    namespace: mpas-ocm-applications
+    resourceRef:
+      name: config
+      version: 1.0.0
+  interval: 10m0s
+  sourceRef:
+    apiVersion: delivery.ocm.software/v1alpha1
+    kind: Localization
+    name: podinfo-localization
+    namespace: mpas-ocm-applications
+  valuesFrom:
+    configMapSource:
+      key: values.yaml
+      sourceRef:
+        name: podinfo-values-500b59e1
+      subPath: podinfo
+```
+
+However, it's much more complex. It uses [cue-lang](https://cuelang.org/) to achieve a flexibility in configuring and
+defining user-friendly default values.
+
+For example:
+
+```cue
+// | Parameter | Type | Default | Description                          |
+// |-----------|------|---------|--------------------------------------|
+// | replicas  | int  | 1       | The number of replicas for the cache |
+#SchemaVersion: "v1.0.0"
+redis: replicas: 1
+```
+
+This is a basic CUE config that will be used to set the Redis deployment's replica count.
 
 ### Flux Deployer
 
-Applies a resource to the cluster using Flux Kustomization controller.
+Creates a Flux `Kustomization` object and points it to a [snapshot](#snapshot). This resource represents a connection with Flux to be used to
+deploy a resource that might contain a set of manifest files. Other deployers can later be implemented if requested.
 
 ### Snapshot
 
-A Kubernetes resource that manages a Flux compatible single layer OCI image. Enables interoperability between OCM and Flux.
+A Kubernetes resource that manages a Flux compatible single-layer OCI image. Enables interoperability between OCM and Flux.
+
+A snapshot might look something like this:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Snapshot
+metadata:
+  name: podinfo-localization-6t34w4w
+  namespace: mpas-ocm-applications
+spec:
+  digest: sha256:1ecc4af8574082e411b9c90903c73befbf5c8aefb98eae835ddbcd3d60ee1795
+  identity:
+    component-name: ocm.software-demos-podinfo-v1.0.0-15225012871519309609
+    component-version: v1.0.0
+    resource-name: config
+    resource-version: 1.0.0
+  tag: "7833"
+status:
+  conditions:
+  - lastTransitionTime: "2024-04-04T11:20:38Z"
+    message: Snapshot with name 'podinfo-localization-6t34w4w' is ready
+    observedGeneration: 2
+    reason: Succeeded
+    status: "True"
+    type: Ready
+  digest: sha256:1ecc4af8574082e411b9c90903c73befbf5c8aefb98eae835ddbcd3d60ee1795
+  observedGeneration: 2
+  repositoryURL: https://registry.ocm-system.svc.cluster.local:5000/sha-3967392847701103634
+  tag: "7833"
+```
+
+These are _never_ created by hand. They are always an end-result of some in-cluster process.
+
+The important bits are the digest, repository URL and the tag. These three signify and identify of what has been created.
+The URL will always point to the in-cluster managed registry.
+
+## Registry
+
+This project also creates an in-cluster HTTPS based OCI registry. This registry is used as a sync-point between the
+ocm-controller and the Flux eco-system. It also serves as a cache. All three sync objects, [Resource](#resource), [Localization](#localization) and
+[Configuration](#configuration) will put the end result into this cache.
+
+This means that fetching a remote resource happens only _once_ at the begin of a sync chain. Then that resource will exist
+in the local registry and any further operations will take it from there.
 
 ## Testing
 
@@ -185,7 +318,7 @@ In order to install `tinygo` visit the [installation instructions](https://tinyg
 
 ## Local Testing
 
-`ocm-controller` has a `Tiltfile` which can be used for rapid development. [tilt](https://tilt.dev/) is a convenient
+`ocm-controller` has a `Tiltfile` that can be used for rapid development. [tilt](https://tilt.dev/) is a convenient
 little tool to spin up a controller and do some extra setup in the process conditionally. It will also keep updating
 the environment via a process that is called [control loop](https://docs.tilt.dev/controlloop.html); it's similar to
 a controller's reconcile loop.
@@ -194,9 +327,10 @@ To use tilt, we'll have to first prime a test cluster. `ocm-controller` requires
 registry that's running using https. To prime a test cluster simply execute `make prime-test-cluster`. This will spin up
 a local KinD cluster, download the generated certificates and add them to the local trust-store using **mkcert**.
 
-This project also requires Flux to be installed in the cluster. For testing purposes, there is no need to configure a Flux `Source.` Simply run `flux install` to install the controllers and the CRDs.
+This project also requires Flux to be installed in the cluster. For testing purposes, there is no need to configure a Flux `Source`.
+Simply, run `flux install` to install the controllers and the CRDs.
 
-Once that is done, we are ready to start up the controller. Run `tilt up` then hit `<space>` to enter tilt's
+Once that is done, we are ready to start up the controller. Run `tilt up`, then hit `<space>` to enter tilt's
 ui. You should see ocm-controller starting up.
 
 ## Licensing
