@@ -194,7 +194,7 @@ func TestClient_FetchPush(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1alpha1.ComponentVersionSpec{
-					Component: "github.com/skarlso/root",
+					Component: "github.com/open-component-model/root",
 					Version: v1alpha1.Version{
 						Semver: "v0.0.1",
 					},
@@ -283,7 +283,7 @@ func TestClient_DeleteData(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: v1alpha1.ComponentVersionSpec{
-					Component: "github.com/skarlso/root",
+					Component: "github.com/open-component-model/root",
 					Version: v1alpha1.Version{
 						Semver: "v0.0.1",
 					},
