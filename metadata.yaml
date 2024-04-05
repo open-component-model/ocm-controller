@@ -9,6 +9,7 @@ metadata:
     language: go
   tags:
     - ocm
+    - open-component-model
     - ocm-controller
     - open-source
     - inner-source
