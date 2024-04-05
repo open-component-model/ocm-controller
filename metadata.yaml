@@ -1,0 +1,51 @@
+kind: Component
+metadata:
+  name: ocm-controller
+  displayName: OCM Controller
+  description: The ocm-controller is designed to enable the automated deployment of software using the Open Component Model and Flux
+  longDescription: |-
+    The ocm-controller is designed to enable the automated deployment of software using the Open Component Model and Flux
+  labels:
+    language: go
+  tags:
+    - ocm
+    - ocm-controller
+    - open-source
+    - inner-source
+spec:
+  type:
+    name: controller
+    lifecycle: development
+  team:
+    name: ocm
+    productOwner: D041187
+    technicalOwner: D032610
+    contactChannels:
+      - channelType: slack
+        value: sap-tech-ocm
+        link: https://my.slack.com/archives/C03B338HG3H
+  logo: https://ocm.software/images/logo-image.png
+  docs:
+    techDocsLinks:
+      - name: Technical Documentation
+        url: https://github.com/open-component-model/ocm-controller
+        icon: .sa-icon--sys-help-2
+        description: Documentation
+  issues:
+    issueTrackerLinks:
+      - name: Issues
+        url: https://github.com/open-component-model/ocm-controller/issues
+        icon: .sa-icon--task
+        description: Issues created for the component
+  links:
+    - name: Getting Started with OCM-controller and FluxCD
+      url: https://ocm.software/docs/guides/getting-started-with-ocm-flux/#deploying-the-ocm-controller
+      icon: .sa-icon--factory
+  innerSource:
+    motivation: Open for any SAP contribution
+    contributions:
+      - any
+    skills:
+      - "golang"
+      - "kubernetes"
+      - "SBOM"
