@@ -39,7 +39,7 @@ jobs:
         uses: helm/kind-action@v1.9.0
         with:
           install_only: true
-      - uses: yokawasa/action-setup-kube-tools@v0.11.0
+      - uses: yokawasa/action-setup-kube-tools@v0.11.1
         with:
           kustomize: '5.0.1'
           tilt: '0.32.2'

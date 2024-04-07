@@ -18,7 +18,7 @@ jobs:
           app_id: ${{ secrets.OCMBOT_APP_ID }}
           private_key: ${{ secrets.OCMBOT_PRIV_KEY }}
       - name: watch for slash commands from users
-        uses: skarlso/caretaker@v0.6.0
+        uses: skarlso/caretaker@v0.6.2
         with:
           command: slash
           owner: open-component-model
