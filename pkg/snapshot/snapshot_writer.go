@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/cache"
-	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"helm.sh/helm/v3/pkg/registry"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +13,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // Writer creates a snapshot using an artifact path as location for the snapshot
@@ -82,10 +83,10 @@ func (w *OCIWriter) Write(
 	logger.V(v1alpha1.LevelDebug).Info("repository name constructed", "name", name)
 
 	var mediaType string
-	var tag = owner.GetResourceVersion()
+	tag := owner.GetResourceVersion()
 	if _, ok := identity[v1alpha1.ResourceHelmChartNameKey]; ok {
 		mediaType = registry.ChartLayerMediaType
-		tag = tag + ".0.0"
+		tag += ".0.0"
 	}
 
 	snapshotDigest, size, err := w.Cache.PushData(ctx, file, mediaType, name, tag)
