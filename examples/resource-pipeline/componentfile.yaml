@@ -1,7 +1,7 @@
-name: phoban.io/pipeline-demo
+name: ocm.software/pipeline-demo
 version: v1.1.0
 provider:
-  name: phoban.io
+  name: ocm.software
 resources:
 - name: web-server
   type: ociImage

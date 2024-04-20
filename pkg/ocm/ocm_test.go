@@ -32,7 +32,7 @@ import (
 )
 
 func TestClient_GetResource(t *testing.T) {
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 	resource := "remote-controller-demo"
 	resourceVersion := "v0.0.1"
 	data := "testdata"
@@ -58,7 +58,7 @@ func TestClient_GetResource(t *testing.T) {
 	cd := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
-			Name:      "github.com-skarlso-ocm-demo-index-v0.0.1-12345",
+			Name:      "github.com-open-component-model-ocm-demo-index-v0.0.1-12345",
 		},
 		Spec: v1alpha1.ComponentDescriptorSpec{
 			Version: "v0.0.1",
@@ -93,7 +93,7 @@ func TestClient_GetResource(t *testing.T) {
 				Name:    component,
 				Version: "v0.0.1",
 				ComponentDescriptorRef: meta.NamespacedObjectReference{
-					Name:      "github.com-skarlso-ocm-demo-index-v0.0.1-12345",
+					Name:      "github.com-open-component-model-ocm-demo-index-v0.0.1-12345",
 					Namespace: "default",
 				},
 			},
@@ -119,12 +119,12 @@ func TestClient_GetResource(t *testing.T) {
 
 	assert.Equal(t, data, args.Content)
 
-	assert.Equal(t, "sha-2705577397727487661", args.Name, "pushed name did not match constructed name from identity of the resource")
+	assert.Equal(t, "sha-14469167939644886767", args.Name, "pushed name did not match constructed name from identity of the resource")
 	assert.Equal(t, resourceRef.Version, args.Version)
 }
 
 func TestClient_GetHelmResource(t *testing.T) {
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 	resource := "remote-controller-demo"
 	resourceVersion := "v0.0.1"
 	data, err := os.ReadFile(filepath.Join("testdata", "podinfo-6.3.5.tgz"))
@@ -151,7 +151,7 @@ func TestClient_GetHelmResource(t *testing.T) {
 	cd := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
-			Name:      "github.com-skarlso-ocm-demo-index-v0.0.1-12345",
+			Name:      "github.com-open-component-model-ocm-demo-index-v0.0.1-12345",
 		},
 		Spec: v1alpha1.ComponentDescriptorSpec{
 			Version: "v0.0.1",
@@ -186,7 +186,7 @@ func TestClient_GetHelmResource(t *testing.T) {
 				Name:    component,
 				Version: "v0.0.1",
 				ComponentDescriptorRef: meta.NamespacedObjectReference{
-					Name:      "github.com-skarlso-ocm-demo-index-v0.0.1-12345",
+					Name:      "github.com-open-component-model-ocm-demo-index-v0.0.1-12345",
 					Namespace: "default",
 				},
 			},
@@ -216,12 +216,12 @@ func TestClient_GetHelmResource(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(decompressedData), args.Content)
 
-	assert.Equal(t, "sha-2705577397727487661", args.Name, "pushed name did not match constructed name from identity of the resource")
+	assert.Equal(t, "sha-14469167939644886767", args.Name, "pushed name did not match constructed name from identity of the resource")
 	assert.Equal(t, resourceRef.Version, args.Version)
 }
 
 func TestClient_GetComponentVersion(t *testing.T) {
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 	octx := fakeocm.NewFakeOCMContext()
 	comp := &fakeocm.Component{
 		Name:    component,
@@ -259,7 +259,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 }
 
 func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 	cs := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -299,7 +299,7 @@ func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
 	id := cpi.ConsumerIdentity{
 		cpi.ID_TYPE:            identity.CONSUMER_TYPE,
 		identity.ID_HOSTNAME:   "localhost",
-		identity.ID_PATHPREFIX: "skarlso",
+		identity.ID_PATHPREFIX: "open-component-model",
 	}
 
 	creds, err := octx.CredentialsContext().GetCredentialsForConsumer(id)
@@ -319,7 +319,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.ComponentVersionSpec{
-			Component: "github.com/skarlso/ocm-demo-index",
+			Component: "github.com/open-component-model/ocm-demo-index",
 			Repository: v1alpha1.Repository{
 				URL: "localhost",
 			},
@@ -346,9 +346,9 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 			".dockerconfigjson": []byte(`{
   "auths": {
     "localhost": {
-      "username": "skarlso",
+      "username": "open-component-model",
       "password": "password",
-      "auth": "c2thcmxzbzpwYXNzd29yZAo="
+      "auth": "b3Blbi1jb21wb25lbnQtbW9kZWw6cGFzc3dvcmQ="
     }
   }
 }`),
@@ -365,7 +365,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 	id := cpi.ConsumerIdentity{
 		cpi.ID_TYPE:            identity.CONSUMER_TYPE,
 		identity.ID_HOSTNAME:   "localhost",
-		identity.ID_PATHPREFIX: "skarlso",
+		identity.ID_PATHPREFIX: "open-component-model",
 	}
 	creds, err := octx.CredentialsContext().GetCredentialsForConsumer(id)
 	require.NoError(t, err)
@@ -373,7 +373,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "password", consumer.Properties()["password"])
-	assert.Equal(t, "skarlso", consumer.Properties()["username"])
+	assert.Equal(t, "open-component-model", consumer.Properties()["username"])
 	assert.Equal(t, "localhost", consumer.Properties()["serverAddress"])
 }
 
@@ -511,7 +511,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			cache := &fakes.FakeCache{}
 			ocmClient := NewClient(fakeKubeClient, cache)
 			octx := fakeocm.NewFakeOCMContext()
-			component := "github.com/skarlso/ocm-demo-index"
+			component := "github.com/open-component-model/ocm-demo-index"
 
 			tt.setupComponents(component, octx)
 			cv := tt.componentVersion(component)
@@ -542,7 +542,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 
 	octx := fakeocm.NewFakeOCMContext()
 
@@ -598,7 +598,7 @@ func TestClient_VerifyComponentWithValueKey(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient()
 	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 
 	octx := fakeocm.NewFakeOCMContext()
 
@@ -653,7 +653,7 @@ func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient()
 	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 
 	octx := fakeocm.NewFakeOCMContext()
 
@@ -715,7 +715,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 
 	octx := fakeocm.NewFakeOCMContext()
 

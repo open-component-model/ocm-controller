@@ -9,7 +9,7 @@ spec:
   version:
     semver: ">=v1.1.1"
   repository:
-    url: ghcr.io/phoban01
+    url: ghcr.io/open-component-model
     secretRef:
       name: creds
   verify:
