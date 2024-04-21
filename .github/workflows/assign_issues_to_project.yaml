@@ -20,7 +20,7 @@ jobs:
           app_id: ${{ secrets.OCMBOT_APP_ID }}
           private_key: ${{ secrets.OCMBOT_PRIV_KEY }}
       - name: scan pull request activity
-        uses: skarlso/caretaker@v0.6.0
+        uses: skarlso/caretaker@v0.6.2
         with:
           command: scan
           owner: open-component-model
