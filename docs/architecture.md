@@ -18,33 +18,30 @@ One of the central design decisions underpinning KCS is that resources should be
 The KCS consists of the following controllers:
 - OCM controller
 - Replication controller
-- Unpacker controller
-- Remote controller
 - Git sync controller
 
 ### OCM controller
 
 The `ocm-controller` is responsible for the core work necessary to utilise resources from an `OCM` component in a Kubernetes cluster. This includes resolving `ComponentDescriptor` metadata for a particular component version, performing authentication to OCM repositories, retrieving artifacts from OCM repositories, making individual resources from the OCM component available within the cluster, performing localization and configuration.
 
-Snapshots are used to pass resources between controllers and are stored in an in-cluster registry that is managed by the `ocm-controller`.
+Snapshots are used to pass resources between controllers and are stored in an in-cluster registry.
 
-The `ocm-controller` is also responsible for managing the docker registry deployment which is used to store snapshots.
-
-The `ocm-controller` consists of 4 sub-controllers:
+The `ocm-controller` consists of 5 sub-controllers:
 - [Component Version Controller](#component-version-controller)
 - [Resource Controller](#resource-controller)
 - [Snapshot Controller](#snapshot-controller)
 - [Localization Controller](#localization-controller)
 - [Configuration Controller](#configuration-controller)
+- [FluxDeployer Controller](#fluxdeployer-controller)
 
 #### Component Version Controller
 
-The Component Version controller reconciles component versions from an OCI repository by fetching the component descriptor and any referenced component descriptors. The component version controller will also verify signatures for all the public keys provided. The Component Version controller does not fetch any resources other than component descriptors. It is used by downstream controllers to access component descriptors and to attest the validity of component signatures. Downstream controllers can lookup a component descriptor via the status field of the component version resource. 
+The Component Version controller reconciles component versions from an OCI repository by fetching the component descriptor and any referenced component descriptors. The component version controller will also verify signatures for all the public keys provided. The Component Version controller does not fetch any resources other than component descriptors. It is used by downstream controllers to access component descriptors and to attest the validity of component signatures. Downstream controllers can look up a component descriptor via the status field of the component version resource. 
 
 ```mermaid
 sequenceDiagram
     User->>Kubernetes API: submit ComponentVersion CR
-    Kubernetes API-->>Component Version Controller: Component Versionn Created Event
+    Kubernetes API-->>Component Version Controller: Component Version Created Event
     Component Version Controller->>OCM Repository: Find latest component matching semver 
     Component Version Controller->>OCM Repository: Validate signatures
     Component Version Controller->>OCM Repository: Download Component Descriptor
@@ -64,7 +61,7 @@ spec:
   interval: 10m0s
   component: github.com/open-component-model/component-x
   version:
-    semver: >=v1.0.0
+    semver: ">=v1.0.0"
   repository:
     url: ghcr.io/jane-doe
     secretRef:
@@ -100,24 +97,22 @@ metadata:
   name: manifests
 spec:
   interval: 10m0s
-  componentVersionRef:
+  sourceRef:
     name: component-x
     namespace: default
-  resource:
-    name: manifests
-    referencePath:
-      - name: nested-component
-  snapshotTemplate:
-    name: component-x-manifests
+    resourceRef:
+      name: manifests
+      referencePath:
+        - name: nested-component
 ```
 
 #### Snapshot Controller
 
-The Snapshot controller reconciles Snapshot Custom Resources. Currently the functionality here is limited to updating the status thereby validating that the snapshotted resource exists. In the future we plan to expand the scope of this controller to include verification of snapshots.
+The Snapshot controller reconciles Snapshot Custom Resources. Currently, the functionality here is limited to updating the status thereby validating that the snapshotted resource exists. In the future we plan to expand the scope of this controller to include verification of snapshots.
 
 #### Localization Controller
 
-The localization controller applies localization rules to a snapshot. Because localization is deemed a common operation it is included along with the configuraton controller in the ocm-controller itself. Localizations can consume an OCM resource directly or a snapshot resource from the in-cluster registry. The configuration details for the localization operation are supplied via another OCM resource which should be a yaml file in the following format:
+The localization controller applies localization rules to a snapshot. Because localization is deemed a common operation it is included along with the configuration controller in the ocm-controller itself. Localizations can consume an OCM resource directly or a snapshot resource from the in-cluster registry. The configuration details for the localization operation are supplied via another OCM resource which should be a yaml file in the following format:
 
 ```yaml
 apiVersion: config.ocm.software/v1alpha1
@@ -155,26 +150,24 @@ kind: Localization
 metadata:
   name: manifests
 spec:
-  interval: 1m0s
-  source:
-    sourceRef:
-      kind: Snapshot
+  interval: 1m
+  sourceRef:
+    kind: Resource
+    name: manifests
+    resourceRef:
       name: manifests
-      namespace: default
+      version: latest
   configRef:
-    componentVersionRef:
-      name: component-x
-      namespace: default
-    resource:
-      resourceRef:
-        name: config
-  snapshotTemplate:
-    name: manifests-localized
+    kind: ComponentVersion
+    name: component-x
+    resourceRef:
+      name: config
+      version: latest
 ```
 
 #### Configuration Controller
 
-The configuration controller is used to configure resources for a particular environment and similar to localization the configured resource is written to a snapshot. Because configuration is deemed a common operation it is included along with the configuraton controller in the ocm-controller itself. The behaviour is as described for the localization controller but instead of retrieving confiugration from the `localization` stanza of the `ConfigData` file, the controller retrieves configuration information from the `configuration` stanza:
+The configuration controller is used to configure resources for a particular environment and similar to localization the configured resource is written to a snapshot. Because configuration is deemed a common operation it is included along with the configuration controller in the ocm-controller itself. The behaviour is as described for the localization controller but instead of retrieving configuration from the `localization` stanza of the `ConfigData` file, the controller retrieves configuration information from the `configuration` stanza:
 
 ```yaml
 apiVersion: config.ocm.software/v1alpha1
@@ -204,157 +197,63 @@ configuration:
     path: data.PODINFO_UI_COLOR
 ```
 
-### Unpacker Controller
-
-The **Unpacker** controller is a meta-controller that is designed to enable execution of transformation pipelines for a set of component resources. The Unpacker controller allows for the selection of resources using OCM fields. Transformation is achieved via the `PipelineTemplate` resource which is a Golang template consisting of a number of "steps". Each step is a Kubernetes resource which will be created when the pipeline is rendered and applied. Variables are injected into the template which provide the component name and resource name.
-
-Resources are selected from a particular component version using the `spec.resourceSelector` field:
+And a configuration object might something like this:
 
 ```yaml
-  resourceSelector:
-    skipRoot: true
-    followReferences: true
-    matchSelector:
-    - field: "type"
-      values:
-      - kustomize.ocm.fluxcd.io
-```
-
-For each selected resource an instance of the pipeline template is generated. The pipeline template is a golang template containing Kubernetes resource manifests. The manifests generated for each resource are server-side applied and an inventory is written to the status field of the Unpacker resource.
-
-A sample pipeline template looks as follows:
-
-```yaml
-apiVersion: config.ocm.software/v1alpha1
-kind: PipelineTemplate
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Configuration
 metadata:
-  name: podify-pipeline-template
-steps:
-- name: resource
-  template:
-    apiVersion: delivery.ocm.software/v1alpha1
-    kind: Resource
-    metadata:
-      name: {{ .Parameters.Name }}
-      namespace: {{ .Component.Namespace }}
-    spec:
-      interval: 1m0s
-      componentVersionRef:
-        name: {{ .Component.Name }}
-        namespace: {{ .Component.Namespace }}
-      resource:
-        name: {{ .Resource }}
-        {{ with .Component.Reference  }}
-        referencePath:
-          name: {{ . }}
-        {{ end }}
-      snapshotTemplate:
-        name: {{ .Parameters.Name }}
-        tag: latest
-- name: localize
-  template:
-    apiVersion: delivery.ocm.software/v1alpha1
+  name: configuration
+spec:
+  interval: 1m0s
+  sourceRef: # we configure the localized data
     kind: Localization
-    metadata:
-      name: {{ .Parameters.Name }}
-      namespace: {{ .Component.Namespace }}
-    spec:
-      interval: 1m0s
+    name: manifests
+  configRef:
+    kind: ComponentVersion
+    name: component-x
+    resourceRef:
+      name: config
+      version: latest
+  valuesFrom:
+    fluxSource:
       sourceRef:
-        kind: Snapshot
-        name: {{ .Parameters.Name }}
-        namespace: {{ .Component.Namespace }}
-      configRef:
-        componentVersionRef:
-          name: {{ .Component.Name }}
-          namespace: {{ .Component.Namespace }}
-        resource:
-          name: config
-          {{ with .Component.Reference  }}
-          referencePath:
-            name: {{ . }}
-          {{ end }}
-      snapshotTemplate:
-        name: {{ .Parameters.Name }}-localized
-        tag: latest
-- name: config
-  template:
-    apiVersion: delivery.ocm.software/v1alpha1
-    kind: Configuration
-    metadata:
-      name: {{ .Parameters.Name }}
-      namespace: {{ .Component.Namespace }}
-    spec:
-      interval: 1m0s
-      sourceRef:
-        kind: Snapshot
-        name: {{ .Parameters.Name }}-localized
-        namespace: {{ .Component.Namespace }}
-      configRef:
-        componentVersionRef:
-          name: {{ .Component.Name }}
-          namespace: {{ .Component.Namespace }}
-        resource:
-          name: config
-          {{ with .Component.Reference  }}
-          referencePath:
-            name: {{ . }}
-          {{ end }}
-      values: {{ .Values | toYaml | nindent 8 }}
-      snapshotTemplate:
-        name: {{ .Parameters.Name }}-configured
-        tag: latest
-- name: flux-source
-  template:
-    apiVersion: source.toolkit.fluxcd.io/v1beta2
-    kind: OCIRepository
-    metadata:
-      name: {{ .Parameters.Name }}
-      namespace: {{ .Component.Namespace }}
-    spec:
-      interval: 1m0s
-      url: oci://{{ .Registry }}/snapshots/{{ .Parameters.Name }}-configured
-      insecure: true
-      ref:
-        tag: latest
-- name: flux-kustomization
-  template:
-    apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
-    kind: Kustomization
-    metadata:
-      name: {{ .Parameters.Name }}
-      namespace: {{ .Component.Namespace }}
-    spec:
-      interval: 1m0s
-      prune: true
-      targetNamespace: default
-      sourceRef:
-        kind: OCIRepository
-        name: {{ .Parameters.Name }}
-      path: ./
+        kind: GitRepository # get the values from a git repository provided by flux
+        name: flux-system
+        namespace: flux-system
+      path: ./values.yaml
+      subPath: component-x-configs
 ```
 
-Any kind of Kubernetes resource can be used within this template.
+### FluxDeployer controller
 
-Values can also be passed into the template at execution time using the `.spec.values` field:
+The final piece in this puzzle is the deployment object. _Note_ this might change in the future to provide more deployment
+options.
+
+Current, Flux is implemented using the `FluxDeployer` API. This provides a connection with Flux's ability to apply
+manifest files taken from an OCI repository. Here, the OCI repository is the in-cluster registry and the path to it
+will be provided by the snapshot created by the last link in the chain.
+
+Consider the following example using the localized and configured resource from above:
 
 ```yaml
-  values:
-    frontend: # reference name
-      manifests: # resource name
-        message: "Welcome to podify"
-        color: "red"
+apiVersion: delivery.ocm.software/v1alpha1
+kind: FluxDeployer
+metadata:
+  name: fluxdeployer-podinfo-pipeline-frontend
+spec:
+  interval: 1m0s
+  sourceRef:
+    kind: Configuration
+    name: configuration
+  kustomizationTemplate:
+    interval: 5s
+    path: ./
+    prune: true
+    targetNamespace: ocm-system
 ```
 
-```mermaid
-sequenceDiagram
-    User->>Kubernetes API: submit Unpacker CR
-    Kubernetes API-->>Unpacker Controller: Unpacker Created Event
-    Unpacker Controller->>Unpacker Controller: Compute matching resources based on resource selector
-    Unpacker Controller->>Unpacker Controller: Fetch each resource and compile manifests using pipeline template
-    Unpacker Controller->>Kubernetes API: Server side apply resources
-    Unpacker Controller->>Kubernetes API: Update Unpacker status
-```
+This will deploy any manifest files at path `./` in the result of the above configuration.
 
 ### Replication controller
 
@@ -375,7 +274,7 @@ spec:
     secretRef:
       name: destination-access-secret
     url: oci://destination
-  component: "https://github.com/weavework/sock-shop"
+  component: "https://github.com/open-component-model/component-x"
   interval: 10m0s
   semver: "~v0.1.0"
   verify:
@@ -396,55 +295,6 @@ sequenceDiagram
     Replication Controller->>Source OCM Repository: Verify signatures 
     Source OCM Repository->>Destination OCM Repository: Transfer component by value
     Replication Controller->>Kubernetes API: Update Component Subscription status
-```
-
-### Remote Controller
-
-The **remote controller** is used to deploy components to machines external to the Kubernetes cluster itself. It does this by connecting to the remote machine via ssh. SFTP is used to transfer resources from the component to the remote. Tasks can be specified as part of the `MachineManager` custom resource. These tasks enable the user to the various actions required to manage the installation of resources transferred to the remote machine via the remote controller.
-
-Execution rules and dependencies allow for the execution of tasks in a specific order or based on certain conditions.
-
-```yaml
-apiVersion: remote.ocm.software/v1alpha1
-kind: MachineManager
-metadata:
-  name: vm-0
-  namespace: default
-spec:
-  interval: 10m0s
-  componentVersionRef:
-    name: nested-component
-    namespace: default
-  ssh:
-    host: remote-instance.acme.org
-    port: 22
-    user: root
-    privateKey:
-      path: idrsa
-      secretRef:
-        name: my-private-key
-        namespace: default
-  tasks:
-  - name: install
-    executionRules:
-      hasInitialised: false
-      matchComponentVersion: ">=2.0"
-    transferResource
-    - resourceRef:
-        name: webpage
-      targetPath: /tmp/web
-    timeout: 1m0s
-    script: |
-        mv /tmp/web/index.html /var/www/production/index.html
-```
-
-```mermaid
-sequenceDiagram
-    User->>Kubernetes API: submit Machine Manager CR
-    Kubernetes API-->>Remote Controller: Machine Manager Created Event
-    Remote Controller->>Remote Controller: Iterate over tasks, creating if MachineManagerTask CRs if execution rules are satisfied
-    Remote Controller->>Remote Machine: Transfer resources and execute script
-    Remote Controller->>Kubernetes API: Update Machine Manager status
 ```
 
 ## In-cluster Docker Registry
