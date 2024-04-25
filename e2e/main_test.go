@@ -418,17 +418,9 @@ func checkCompDescriptorsExistForCompVersion(componentVersionName string, compon
 			t.Fatal(fmt.Sprintf("Component Descriptor %s does not exist for Component Version: %s", cdName, componentVersionName))
 		}
 
-		expandReferences := false
-		if gr.Spec.References.Expand == true {
-			expandReferences = true
-			t.Log("references.expand: true")
-		}
-
-		if expandReferences {
-			for index, compDescRef := range gr.Status.ComponentDescriptor.References {
-				if !strings.Contains(compDescRef.ComponentDescriptorRef.Name, cdNameNested[index]) {
-					t.Fatal(fmt.Sprintf("Nested Component Descriptor %s not found, expected %s", compDescRef.ComponentDescriptorRef.Name, cdNameNested[index]))
-				}
+		for index, compDescRef := range gr.Status.ComponentDescriptor.References {
+			if !strings.Contains(compDescRef.ComponentDescriptorRef.Name, cdNameNested[index]) {
+				t.Fatal(fmt.Sprintf("Nested Component Descriptor %s not found, expected %s", compDescRef.ComponentDescriptorRef.Name, cdNameNested[index]))
 			}
 		}
 		return ctx
