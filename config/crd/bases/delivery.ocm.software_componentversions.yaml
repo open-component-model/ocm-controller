@@ -63,16 +63,6 @@ spec:
                 description: Interval specifies the interval at which the Repository
                   will be checked for updates.
                 type: string
-              references:
-                description: References specifies configuration for the handling of
-                  nested component references.
-                properties:
-                  expand:
-                    description: |-
-                      Expand specifies if a Kubernetes API resource of kind ComponentDescriptor should
-                      be generated for each component reference that is present in the root ComponentVersion.
-                    type: boolean
-                type: object
               repository:
                 description: |-
                   Repository provides details about the OCI repository from which the component

@@ -6,8 +6,6 @@ metadata:
 spec:
   component: component.name.pipeline/podinfo
   interval: 5s
-  references:
-    expand: true
   repository:
     url: registry.ocm-system.svc.cluster.local:5000
   version:

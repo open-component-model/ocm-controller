@@ -152,8 +152,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}()
 
-	// Starts the progression by setting ReconcilingCondition.
-	// This will be checked in defer.
+	// Starts the progression by setting ReconcilingCondition. This will be checked in defer.
 	// Should only be deleted on a success.
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress for component: %s", obj.Spec.Component)
 
@@ -257,48 +256,16 @@ func (r *ComponentVersionReconciler) reconcile(
 
 	defer cv.Close()
 
-	// convert ComponentDescriptor to v3alpha1
-	dv := &compdesc.DescriptorVersion{}
-	cd, err := dv.ConvertFrom(cv.GetDescriptor())
+	cd, descriptor, err := r.createInitialComponentDescriptor(obj, cv)
 	if err != nil {
-		err = fmt.Errorf("failed to convert component descriptor: %w", err)
+		err = fmt.Errorf("failed to create initial component descriptor: %w", err)
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
 			v1alpha1.ConvertComponentDescriptorFailedReason,
 			err.Error(),
 		)
-
-		return ctrl.Result{}, err
 	}
-
-	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "component fetched, creating descriptors")
-
-	// setup the component descriptor kubernetes resource
-	componentName, err := component.ConstructUniqueName(cd.GetName(), cd.GetVersion(), nil)
-	if err != nil {
-		err = fmt.Errorf("failed to generate name: %w", err)
-		status.MarkNotReady(
-			r.EventRecorder,
-			obj,
-			v1alpha1.NameGenerationFailedReason,
-			err.Error(),
-		)
-
-		return ctrl.Result{}, err
-	}
-
-	descriptor := &v1alpha1.ComponentDescriptor{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      componentName,
-		},
-	}
-
-	//nolint:godox // eventually we'll get to this
-	// TODO@souleb: pulling instead of doing controllerutil.CreateOrUpdate
-	// - can give specific information in eventing
-	// - can control creation or update based on a given logic, for drift detection for example.
 
 	// create or update the component descriptor kubernetes resource
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, descriptor, func() error {
@@ -307,6 +274,7 @@ func (r *ComponentVersionReconciler) reconcile(
 				return fmt.Errorf("failed to set owner reference: %w", err)
 			}
 		}
+
 		componentDescriptor, ok := cd.(*compdesc.ComponentDescriptor)
 		if !ok {
 			return fmt.Errorf("object was not a component descriptor but was: %v", cd)
@@ -341,21 +309,20 @@ func (r *ComponentVersionReconciler) reconcile(
 		},
 	}
 
-	if obj.Spec.References.Expand {
-		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "descriptors created, expanding references")
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "descriptors created, expanding references")
 
-		componentDescriptor.References, err = r.parseReferences(ctx, octx, obj, cv.GetDescriptor().References)
-		if err != nil {
-			err = fmt.Errorf("failed to parse references: %w", err)
-			status.MarkNotReady(
-				r.EventRecorder,
-				obj,
-				v1alpha1.ParseReferencesFailedReason,
-				err.Error(),
-			)
+	// build up component reference graph
+	componentDescriptor.References, err = r.parseReferences(ctx, octx, obj, cv.GetDescriptor().References)
+	if err != nil {
+		err = fmt.Errorf("failed to parse references: %w", err)
+		status.MarkNotReady(
+			r.EventRecorder,
+			obj,
+			v1alpha1.ParseReferencesFailedReason,
+			err.Error(),
+		)
 
-			return ctrl.Result{}, err
-		}
+		return ctrl.Result{}, err
 	}
 
 	obj.Status.ComponentDescriptor = componentDescriptor
@@ -524,4 +491,33 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(
 	}
 
 	return descriptor, nil
+}
+
+func (r *ComponentVersionReconciler) createInitialComponentDescriptor(
+	obj *v1alpha1.ComponentVersion,
+	cv ocm.ComponentVersionAccess,
+) (ocmdesc.ComponentDescriptorVersion, *v1alpha1.ComponentDescriptor, error) {
+	// convert ComponentDescriptor to v3alpha1
+	dv := &compdesc.DescriptorVersion{}
+	cd, err := dv.ConvertFrom(cv.GetDescriptor())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "component fetched, creating descriptors")
+
+	// setup the component descriptor kubernetes resource
+	componentName, err := component.ConstructUniqueName(cd.GetName(), cd.GetVersion(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	descriptor := &v1alpha1.ComponentDescriptor{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: obj.GetNamespace(),
+			Name:      componentName,
+		},
+	}
+
+	return cd, descriptor, nil
 }

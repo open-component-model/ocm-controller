@@ -16,5 +16,3 @@ spec:
     publicKey:
       secretRef:
         name: publickey
-  references:
-    expand: true

@@ -93,9 +93,6 @@ var (
 				URL: "github.com/open-component-model/test",
 			},
 			Verify: []v1alpha1.Signature{},
-			References: v1alpha1.ReferencesConfig{
-				Expand: true,
-			},
 		},
 	}
 	DefaultResource = &v1alpha1.Resource{

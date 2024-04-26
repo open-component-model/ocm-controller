@@ -6,8 +6,6 @@ metadata:
 spec:
   interval: 5s
   component: github.com/open-component-model/helm-test-component
-  references:
-    expand: true
   version:
     semver: 1.0.0
   repository:

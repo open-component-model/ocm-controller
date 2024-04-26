@@ -44,10 +44,6 @@ type ComponentVersionSpec struct {
 	// +optional
 	Verify []Signature `json:"verify,omitempty"`
 
-	// References specifies configuration for the handling of nested component references.
-	// +optional
-	References ReferencesConfig `json:"references,omitempty"`
-
 	// Suspend can be used to temporarily pause the reconciliation of the ComponentVersion resource.
 	// +optional
 	Suspend bool `json:"suspend,omitempty"`
@@ -107,15 +103,6 @@ type Version struct {
 	// Semver specifies a semantic version constraint for the Component Version.
 	// +optional
 	Semver string `json:"semver,omitempty"`
-}
-
-// ReferencesConfig specifies how component references should be handled when reconciling
-// the root component.
-type ReferencesConfig struct {
-	// Expand specifies if a Kubernetes API resource of kind ComponentDescriptor should
-	// be generated for each component reference that is present in the root ComponentVersion.
-	// +optional
-	Expand bool `json:"expand,omitempty"`
 }
 
 // Reference contains all referred components and their versions.

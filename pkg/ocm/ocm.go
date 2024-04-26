@@ -168,7 +168,6 @@ func (c *Client) GetResource(
 	cv *v1alpha1.ComponentVersion,
 	resource *v1alpha1.ResourceReference,
 ) (io.ReadCloser, string, int64, error) {
-	logger := log.FromContext(ctx).WithName("ocm")
 	version := "latest"
 	if resource.ElementMeta.Version != "" {
 		version = resource.ElementMeta.Version
@@ -206,18 +205,14 @@ func (c *Client) GetResource(
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to check cache: %w", err)
 	}
-
 	if cached {
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
-	logger.V(v1alpha1.LevelDebug).
-		Info("object with name is NOT cached, proceeding to fetch", "resource", resource, "name", name, "Version", version)
 
 	cva, err := c.GetComponentVersion(ctx, octx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to get component Version: %w", err)
 	}
-
 	defer func() {
 		if cerr := cva.Close(); cerr != nil {
 			err = errors.Join(err, cerr)
@@ -244,19 +239,15 @@ func (c *Client) GetResource(
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to fetch reader for resource: %w", err)
 	}
-
 	defer func() {
 		if cerr := reader.Close(); cerr != nil {
 			err = errors.Join(err, cerr)
 		}
 	}()
 
-	decompressedReader, decompressed, err := compression.AutoDecompress(reader)
+	decompressedReader, _, err := compression.AutoDecompress(reader)
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to autodecompress content: %w", err)
-	}
-	if decompressed {
-		logger.V(v1alpha1.LevelDebug).Info("resource data was automatically decompressed")
 	}
 
 	// We need to push the media type... And construct the right layers I guess.
@@ -265,7 +256,6 @@ func (c *Client) GetResource(
 		return nil, "", -1, fmt.Errorf("failed to cache blob: %w", err)
 	}
 
-	logger.V(v1alpha1.LevelDebug).Info("pushed data with digest", "digest", digest)
 	// re-fetch the resource to have a streamed reader available
 	dataReader, err := c.cache.FetchDataByDigest(ctx, name, digest)
 	if err != nil {

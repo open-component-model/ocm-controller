@@ -14,7 +14,7 @@ func init() {
 }
 
 func logInfo(logger *slog.Logger) types.HostFunc {
-	return func(ctx context.Context, m api.Module, offset, size uint32) uint64 {
+	return func(_ context.Context, m api.Module, offset, size uint32) uint64 {
 		mem := m.Memory()
 
 		message, ok := mem.Read(offset, size)

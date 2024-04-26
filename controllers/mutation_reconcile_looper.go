@@ -116,49 +116,20 @@ func (m *MutationReconcileLooper) performMutation(
 	var (
 		snapshotID ocmmetav1.Identity
 		sourceDir  string
+		err        error
 	)
 
 	if mutationSpec.ConfigRef != nil {
-		configData, err := m.getData(ctx, mutationSpec.ConfigRef)
+		sourceDir, snapshotID, err = m.mutateConfigRef(ctx, obj, mutationSpec, sourceData)
 		if err != nil {
-			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get data for config ref: %w", err)
-		}
-
-		snapshotID, err = m.getIdentity(ctx, mutationSpec.ConfigRef)
-		if err != nil {
-			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get identity for config ref: %w", err)
-		}
-
-		obj.GetStatus().LatestConfigVersion = snapshotID[v1alpha1.ComponentVersionKey]
-
-		sourceDir, err = m.mutate(ctx, mutationSpec, sourceData, configData, obj.GetNamespace())
-		if err != nil {
-			return "", ocmmetav1.Identity{}, err
+			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to apply config ref: %w", err)
 		}
 	}
 
 	if mutationSpec.PatchStrategicMerge != nil {
-		tmpDir, err := os.MkdirTemp("", "kustomization-")
+		sourceDir, snapshotID, err = m.mutatePatchStrategicMerge(ctx, obj, mutationSpec, sourceData)
 		if err != nil {
-			err = fmt.Errorf("tmp dir error: %w", err)
-
-			return "", ocmmetav1.Identity{}, err
-		}
-		defer os.RemoveAll(tmpDir)
-
-		gitSource, err := m.getSource(ctx, mutationSpec.PatchStrategicMerge.Source.SourceRef)
-		if err != nil {
-			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get patch source: %w", err)
-		}
-
-		obj.GetStatus().LatestPatchSourceVersion = gitSource.GetArtifact().Revision
-
-		sourcePath := mutationSpec.PatchStrategicMerge.Source.Path
-		targetPath := mutationSpec.PatchStrategicMerge.Target.Path
-
-		sourceDir, snapshotID, err = m.strategicMergePatch(gitSource, sourceData, tmpDir, sourcePath, targetPath)
-		if err != nil {
-			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to perform strategic merge patch: %w", err)
+			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to apply patch strategic merge strategy: %w", err)
 		}
 	}
 
@@ -394,7 +365,6 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(
 
 	var localizations localize.Substitutions
 	for _, l := range config.Localization {
-		l := l
 		if l.Mapping != nil {
 			res, err := m.compileMapping(ctx, cv, l.Mapping.Transform)
 			if err != nil {
@@ -954,6 +924,59 @@ func (m *MutationReconcileLooper) mutate(
 
 	// if values are nil then this is localization
 	return m.localize(ctx, mutationSpec, sourceData, configData)
+}
+
+func (m *MutationReconcileLooper) mutateConfigRef(
+	ctx context.Context,
+	obj v1alpha1.MutationObject,
+	spec *v1alpha1.MutationSpec,
+	sourceData []byte,
+) (string, ocmmetav1.Identity, error) {
+	configData, err := m.getData(ctx, spec.ConfigRef)
+	if err != nil {
+		return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get data for config ref: %w", err)
+	}
+
+	snapshotID, err := m.getIdentity(ctx, spec.ConfigRef)
+	if err != nil {
+		return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get identity for config ref: %w", err)
+	}
+
+	obj.GetStatus().LatestConfigVersion = snapshotID[v1alpha1.ComponentVersionKey]
+
+	sourceDir, err := m.mutate(ctx, spec, sourceData, configData, obj.GetNamespace())
+	if err != nil {
+		return "", ocmmetav1.Identity{}, err
+	}
+
+	return sourceDir, snapshotID, nil
+}
+
+func (m *MutationReconcileLooper) mutatePatchStrategicMerge(
+	ctx context.Context,
+	obj v1alpha1.MutationObject,
+	mutationSpec *v1alpha1.MutationSpec,
+	sourceData []byte,
+) (string, ocmmetav1.Identity, error) {
+	tmpDir, err := os.MkdirTemp("", "kustomization-")
+	if err != nil {
+		err = fmt.Errorf("tmp dir error: %w", err)
+
+		return "", ocmmetav1.Identity{}, err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	gitSource, err := m.getSource(ctx, mutationSpec.PatchStrategicMerge.Source.SourceRef)
+	if err != nil {
+		return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get patch source: %w", err)
+	}
+
+	obj.GetStatus().LatestPatchSourceVersion = gitSource.GetArtifact().Revision
+
+	sourcePath := mutationSpec.PatchStrategicMerge.Source.Path
+	targetPath := mutationSpec.PatchStrategicMerge.Target.Path
+
+	return m.strategicMergePatch(gitSource, sourceData, tmpDir, sourcePath, targetPath)
 }
 
 // Recursive function to extract the subpath from the data map.
