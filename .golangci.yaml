@@ -1,22 +1,17 @@
 run:
-  go: "1.21"
+  go: "1.22"
   timeout: 10m
   tests: false
   allow-parallel-runners: true
-  skip-dirs:
-    - "./*/mock"
-  skip-files:
-    - "ocm/fakes/fakes.go"
-    - "pkg/cache/fakes/cache.go"
 
 linters-settings:
   funlen:
     lines: 150
     statements: 60
   staticcheck:
-    go: "1.21"
+    go: "1.22"
   stylecheck:
-    go: "1.21"
+    go: "1.22"
   cyclop:
     max-complexity: 20
     skip-tests: true
@@ -26,9 +21,6 @@ linters-settings:
     line-length: 150
   misspell:
     locale: US
-  govet:
-    check-shadowing: true
-  nilaway:
   nolintlint:
     allow-unused: false
     require-explanation: true
@@ -44,6 +36,11 @@ linters-settings:
       - ip
 
 issues:
+  exclude-dirs:
+    - "./*/mock"
+  exclude-files:
+    - pkg/ocm/fakes/fakes.go
+    - pkg/cache/fakes/cache.go
   max-same-issues: 0
   max-issues-per-linter: 0
   exclude-rules:

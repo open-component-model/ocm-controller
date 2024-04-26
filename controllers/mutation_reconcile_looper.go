@@ -365,7 +365,6 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(
 
 	var localizations localize.Substitutions
 	for _, l := range config.Localization {
-		l := l
 		if l.Mapping != nil {
 			res, err := m.compileMapping(ctx, cv, l.Mapping.Transform)
 			if err != nil {

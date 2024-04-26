@@ -117,7 +117,6 @@ func (w *OCIWriter) Write(
 
 		return nil
 	})
-
 	if err != nil {
 		return "", -1, fmt.Errorf("failed to create or update component descriptor: %w", err)
 	}

@@ -152,8 +152,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}()
 
-	// Starts the progression by setting ReconcilingCondition.
-	// This will be checked in defer.
+	// Starts the progression by setting ReconcilingCondition. This will be checked in defer.
 	// Should only be deleted on a success.
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "reconciliation in progress for component: %s", obj.Spec.Component)
 
