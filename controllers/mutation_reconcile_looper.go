@@ -526,7 +526,8 @@ func (m *MutationReconcileLooper) generateSubstitutions(
 		list = append(list, e)
 	}
 
-	templ["adjustments"] = list
+	templateKey := "ocmAdjustmentsTemplateKey"
+	templ[templateKey] = list
 
 	templateBytes, err := ocmruntime.DefaultJSONEncoding.Marshal(templ)
 	if err != nil {
@@ -539,13 +540,13 @@ func (m *MutationReconcileLooper) generateSubstitutions(
 		}
 	}
 
-	config, err := spiff.CascadeWith(spiff.TemplateData("adjustments", templateBytes), spiff.Mode(spiffing.MODE_PRIVATE))
+	config, err := spiff.CascadeWith(spiff.TemplateData(templateKey, templateBytes), spiff.Mode(spiffing.MODE_PRIVATE))
 	if err != nil {
 		return nil, fmt.Errorf("error while doing cascade with: %w", err)
 	}
 
 	var result struct {
-		Adjustments localize.Substitutions `json:"adjustments,omitempty"`
+		Adjustments localize.Substitutions `json:"ocmAdjustmentsTemplateKey,omitempty"`
 	}
 
 	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(config, &result); err != nil {
