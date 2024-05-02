@@ -75,6 +75,7 @@ spec:
                       acts as LocalObjectReference.
                     type: string
                   resourceRef:
+                    description: ResourceRef defines what resource to fetch.
                     properties:
                       extraIdentity:
                         additionalProperties:
@@ -144,6 +145,7 @@ spec:
                 required:
                 - kind
                 - name
+                - resourceRef
                 type: object
               interval:
                 type: string
@@ -217,6 +219,7 @@ spec:
                       acts as LocalObjectReference.
                     type: string
                   resourceRef:
+                    description: ResourceRef defines what resource to fetch.
                     properties:
                       extraIdentity:
                         additionalProperties:
@@ -286,6 +289,7 @@ spec:
                 required:
                 - kind
                 - name
+                - resourceRef
                 type: object
               suspend:
                 description: Suspend stops all operations on this object.
