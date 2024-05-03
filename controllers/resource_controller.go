@@ -104,6 +104,10 @@ func (r *ResourceReconciler) Reconcile(
 		return result, nil
 	}
 
+	if obj.Spec.SourceRef.ResourceRef == nil {
+		return ctrl.Result{}, fmt.Errorf("resource requires resource ref")
+	}
+
 	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
 	// Always attempt to patch the object and status after each reconciliation.

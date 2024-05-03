@@ -145,7 +145,6 @@ spec:
                 required:
                 - kind
                 - name
-                - resourceRef
                 type: object
               suspend:
                 description: Suspend can be used to temporarily pause the reconciliation

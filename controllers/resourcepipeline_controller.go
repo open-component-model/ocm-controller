@@ -86,15 +86,14 @@ func (r *ResourcePipelineReconciler) Reconcile(
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
+	if obj.Spec.SourceRef.ResourceRef == nil {
+		return ctrl.Result{}, fmt.Errorf("resource reference is needed to fetch the pipeline objects")
+	}
+
 	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		// Patching has not been set up, or the controller errored earlier.
-		if patchHelper == nil {
-			return
-		}
-
 		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil &&
 			condition.Status == metav1.ConditionTrue {
 			conditions.Delete(obj, meta.ReconcilingCondition)
@@ -510,13 +509,15 @@ func (r *ResourcePipelineReconciler) getIdentity(
 	id = ocmmetav1.Identity{
 		v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
 		v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
-		v1alpha1.ResourceNameKey:     obj.ResourceRef.Name,
-		v1alpha1.ResourceVersionKey:  obj.ResourceRef.Version,
 	}
 
-	// apply the extra identity fields if provided
-	for k, v := range obj.ResourceRef.ExtraIdentity {
-		id[k] = v
+	if obj.ResourceRef != nil {
+		id[v1alpha1.ResourceNameKey] = obj.ResourceRef.Name
+		id[v1alpha1.ResourceVersionKey] = obj.ResourceRef.Version
+		// apply the extra identity fields if provided
+		for k, v := range obj.ResourceRef.ExtraIdentity {
+			id[k] = v
+		}
 	}
 
 	return id, err
