@@ -151,8 +151,8 @@ metadata:
 spec:
   interval: 1m
   sourceRef:
-    kind: Resource
-    name: manifests
+    kind: ComponentVersion
+    name: component-x
     resourceRef:
       name: image
       version: latest
