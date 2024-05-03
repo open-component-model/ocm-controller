@@ -8,7 +8,7 @@ The following functions are provided as part of the KCS:
 - Signature Verification: verification of component signatures before resources are reconciled
 - Resource Reconciliation: individual resources can be extracted from a component and reconciled to machines internal or external to the cluster
 - Resource transformation: resource localization & configuration can be performed out of the box, with any other kind of modification supported via an extensible architecture
-- Component unpacking: multiple resources can be extracted from a component and transformed with a common set of user definable operations
+- Component extractions: multiple resources can be extracted from a component and transformed with a common set of user definable operations
 - Git synchronization: resources extracted from a component can be pushed to a git repository
 
 One of the central design decisions underpinning KCS is that resources should be composable. To this end we have introduced the concept of **Snapshots**; snapshots are immutable, Flux-compatible, single layer OCI images containing a single OCM resource. Snapshots are stored in an in-cluster registry and in addition to making component resources accessible for transformation, they also can be used as a caching mechanism to reduce unnecessary calls to the source OCM registry.
@@ -96,6 +96,7 @@ metadata:
 spec:
   interval: 10m0s
   sourceRef:
+    kind: ComponentVersion
     name: component-x
     namespace: default
     resourceRef:
@@ -126,7 +127,7 @@ localization:
   image: spec.template.spec.containers[0].image
 ```
 
-Localization parameters are specified under the `localization` stanza. The Localization controller will apply the localization rules that apply to the resource specified in the `source` field. 
+Localization parameters are specified under the `localization` stanza. The Localization controller will apply the localization rules that apply to the resource specified in the `sourceRef` field. 
 
 ```mermaid
 sequenceDiagram
@@ -153,7 +154,7 @@ spec:
     kind: Resource
     name: manifests
     resourceRef:
-      name: manifests
+      name: image
       version: latest
   configRef:
     kind: ComponentVersion
