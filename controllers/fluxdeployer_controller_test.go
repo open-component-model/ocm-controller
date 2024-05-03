@@ -6,14 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -23,6 +22,16 @@ import (
 )
 
 func TestFluxDeployerReconcile(t *testing.T) {
+	resourceV1 := &v1alpha1.Resource{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-resource",
+			Namespace: "default",
+		},
+		Status: v1alpha1.ResourceStatus{
+			SnapshotName: "test-snapshot",
+		},
+	}
 	deployer := &v1alpha1.FluxDeployer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "deployer",
@@ -31,14 +40,17 @@ func TestFluxDeployerReconcile(t *testing.T) {
 		Spec: v1alpha1.FluxDeployerSpec{
 			SourceRef: v1alpha1.ObjectReference{
 				NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-					Name:      "test-snapshot",
+					Name:      "test-resource",
 					Namespace: "default",
+					Kind:      "Resource",
 				},
 			},
-			KustomizationTemplate: &kustomizev1.KustomizationSpec{
-				SourceRef: kustomizev1.CrossNamespaceSourceReference{
-					Name:      "test-source",
-					Namespace: "default",
+			HelmReleaseTemplate: &helmv1.HelmReleaseSpec{
+				Chart: helmv1.HelmChartTemplate{
+					Spec: helmv1.HelmChartTemplateSpec{
+						Chart:   "podinfo",
+						Version: "6.3.5",
+					},
 				},
 			},
 		},
@@ -67,13 +79,13 @@ func TestFluxDeployerReconcile(t *testing.T) {
 	}
 	conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
-	client := env.FakeKubeClient(WithObjects(snapshot, deployer))
+	client := env.FakeKubeClient(WithAddToScheme(helmv1.AddToScheme), WithObjects(snapshot, deployer, resourceV1))
 	fakeCache := &fakes.FakeCache{}
 	content, err := os.Open(filepath.Join("testdata", "podinfo-6.3.5.tgz"))
 	require.NoError(t, err)
 	fakeCache.FetchDataByDigestReturns(content, nil)
 	recorder := record.NewFakeRecorder(32)
-	dc := fake.NewSimpleDynamicClient(client.Scheme(), snapshot, deployer)
+	dc := env.FakeDynamicKubeClient(WithObjects(snapshot, deployer, resourceV1))
 
 	sr := FluxDeployerReconciler{
 		Client:              client,
@@ -82,7 +94,6 @@ func TestFluxDeployerReconcile(t *testing.T) {
 		RegistryServiceName: "127.0.0.1:5000",
 		RetryInterval:       0,
 		DynamicClient:       dc,
-		CertSecretName:      "",
 		Cache:               fakeCache,
 	}
 	result, err := sr.Reconcile(context.Background(), ctrl.Request{

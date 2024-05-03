@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -186,15 +187,7 @@ func (r *FluxDeployerReconciler) reconcile(
 
 	// create kustomization
 	if obj.Spec.KustomizationTemplate != nil {
-		ok, err := r.checkForHelmContent(ctx, snapshot)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to check snapshot content for helm resources: %w", err)
-		}
-
-		if ok {
-			return ctrl.Result{}, fmt.Errorf("kustomization cannot apply helm chart based resources")
-		}
-
+		// can't check for helm content as we don't know where things are or what content to check for
 		if err := r.createKustomizationSources(ctx, obj, snapshotURL, snapshot.Spec.Tag); err != nil {
 			msg := "failed to create kustomization sources"
 			logger.Error(err, msg)
@@ -216,6 +209,15 @@ func (r *FluxDeployerReconciler) reconcile(
 	}
 
 	if obj.Spec.HelmReleaseTemplate != nil {
+		ok, err := r.checkForHelmContent(ctx, obj, snapshot)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to check snapshot content for helm resources: %w", err)
+		}
+
+		if !ok {
+			return ctrl.Result{}, fmt.Errorf("no helm chart found for helm content")
+		}
+
 		if err := r.createHelmSources(ctx, obj, snapshotURL); err != nil {
 			msg := "failed to create helm sources"
 			logger.Error(err, msg)
@@ -261,7 +263,11 @@ func (r *FluxDeployerReconciler) createKustomizationSources(
 	return nil
 }
 
-func (r *FluxDeployerReconciler) checkForHelmContent(ctx context.Context, snapshot *v1alpha1.Snapshot) (bool, error) {
+func (r *FluxDeployerReconciler) checkForHelmContent(
+	ctx context.Context,
+	deployer *v1alpha1.FluxDeployer,
+	snapshot *v1alpha1.Snapshot,
+) (bool, error) {
 	data, err := r.getSnapshotBytes(ctx, snapshot)
 	if err != nil {
 		return false, fmt.Errorf("failed to get snapshot bytes: %w", err)
@@ -279,11 +285,17 @@ func (r *FluxDeployerReconciler) checkForHelmContent(ctx context.Context, snapsh
 		return false, fmt.Errorf("extract tar error: %w", err)
 	}
 
-	if _, err := virtualFS.Stat("Chart.yaml"); err != nil && !os.IsNotExist(err) {
+	if deployer.Spec.HelmReleaseTemplate == nil {
+		return false, fmt.Errorf("no helm release template")
+	}
+
+	chartName := deployer.Spec.HelmReleaseTemplate.Chart.Spec.Chart
+
+	if _, err := virtualFS.Stat(filepath.Join(chartName, "Chart.yaml")); err != nil && !os.IsNotExist(err) {
 		return false, fmt.Errorf("failed to check for chart yaml: %w", err)
 	}
 
-	return os.IsNotExist(err), nil
+	return true, nil
 }
 
 // This might be problematic if the resource is too large in the snapshot. ReadAll will read it into memory.
