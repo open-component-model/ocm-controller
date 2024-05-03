@@ -20,6 +20,7 @@ import (
 type ObjectReference struct {
 	meta.NamespacedObjectKindReference `json:",inline"`
 
+	// ResourceRef defines what resource to fetch.
 	// +optional
 	ResourceRef *ResourceReference `json:"resourceRef,omitempty"`
 }

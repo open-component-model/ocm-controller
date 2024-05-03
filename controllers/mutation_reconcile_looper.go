@@ -190,14 +190,17 @@ func (m *MutationReconcileLooper) localize(
 	mutationSpec *v1alpha1.MutationSpec,
 	data, configObj []byte,
 ) (string, error) {
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	cv, err := m.getComponentVersion(ctx, mutationSpec.ConfigRef)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component version: %w", err)
 	}
 
-	refPath := mutationSpec.ConfigRef.ResourceRef.ReferencePath
+	var refPath []ocmmetav1.Identity
+	if mutationSpec.ConfigRef.ResourceRef != nil {
+		refPath = mutationSpec.ConfigRef.ResourceRef.ReferencePath
+	}
 
 	virtualFS, err := osfs.NewTempFileSystem()
 	if err != nil {
@@ -225,7 +228,7 @@ func (m *MutationReconcileLooper) localize(
 	}
 
 	if len(rules) == 0 {
-		log.Info("no rules generated from the available config data; the generate snapshot will have no modifications")
+		logger.Info("no rules generated from the available config data; the generate snapshot will have no modifications")
 	}
 
 	if err := localize.Substitute(rules, virtualFS); err != nil {
@@ -295,6 +298,10 @@ func (m *MutationReconcileLooper) fetchDataFromComponentVersion(ctx context.Cont
 	octx, err := m.OCMClient.CreateAuthenticatedOCMContext(ctx, componentVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create authenticated client: %w", err)
+	}
+
+	if obj.ResourceRef == nil {
+		return nil, fmt.Errorf("no resource ref found for %s", key)
 	}
 
 	resource, _, _, err := m.OCMClient.GetResource(ctx, octx, componentVersion, obj.ResourceRef)
@@ -743,8 +750,10 @@ func (m *MutationReconcileLooper) getIdentity(ctx context.Context, obj *v1alpha1
 		id = ocmmetav1.Identity{
 			v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
 			v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
-			v1alpha1.ResourceNameKey:     obj.ResourceRef.Name,
-			v1alpha1.ResourceVersionKey:  obj.ResourceRef.Version,
+		}
+		if obj.ResourceRef != nil {
+			id[v1alpha1.ResourceNameKey] = obj.ResourceRef.Name
+			id[v1alpha1.ResourceVersionKey] = obj.ResourceRef.Version
 		}
 	default:
 		// if kind is not ComponentVersion, then fetch resource using dynamic client

@@ -103,6 +103,10 @@ func (in Resource) GetRequeueAfter() time.Duration {
 
 // GetReferencePath returns the component reference path for the Resource.
 func (in Resource) GetReferencePath() []ocmmetav1.Identity {
+	if in.Spec.SourceRef.ResourceRef == nil {
+		return nil
+	}
+
 	return in.Spec.SourceRef.ResourceRef.ReferencePath
 }
 
