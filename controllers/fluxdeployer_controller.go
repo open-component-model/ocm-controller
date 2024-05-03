@@ -5,15 +5,22 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/containers/image/v5/pkg/compression"
 	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
+	"github.com/open-component-model/ocm/pkg/utils/tarutils"
 	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,14 +62,13 @@ type FluxDeployerReconciler struct {
 	DynamicClient       dynamic.Interface
 
 	CertSecretName string
+	Cache          cache.Cache
 }
 
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=fluxdeployers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=fluxdeployers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=fluxdeployers/finalizers,verbs=update
-
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots,verbs=get;list;watch;create;update;patch;delete
-
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories;helmrepositories,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kustomize.toolkit.fluxcd.io,resources=kustomizations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
@@ -180,7 +186,15 @@ func (r *FluxDeployerReconciler) reconcile(
 
 	// create kustomization
 	if obj.Spec.KustomizationTemplate != nil {
-		// create oci registry
+		ok, err := r.checkForHelmContent(ctx, snapshot)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to check snapshot content for helm resources: %w", err)
+		}
+
+		if ok {
+			return ctrl.Result{}, fmt.Errorf("kustomization cannot apply helm chart based resources")
+		}
+
 		if err := r.createKustomizationSources(ctx, obj, snapshotURL, snapshot.Spec.Tag); err != nil {
 			msg := "failed to create kustomization sources"
 			logger.Error(err, msg)
@@ -245,6 +259,53 @@ func (r *FluxDeployerReconciler) createKustomizationSources(
 	}
 
 	return nil
+}
+
+func (r *FluxDeployerReconciler) checkForHelmContent(ctx context.Context, snapshot *v1alpha1.Snapshot) (bool, error) {
+	data, err := r.getSnapshotBytes(ctx, snapshot)
+	if err != nil {
+		return false, fmt.Errorf("failed to get snapshot bytes: %w", err)
+	}
+
+	virtualFS, err := osfs.NewTempFileSystem()
+	if err != nil {
+		return false, fmt.Errorf("fs error: %w", err)
+	}
+	defer func() {
+		_ = virtualFS.RemoveAll("/")
+	}()
+
+	if err := tarutils.ExtractTarToFs(virtualFS, bytes.NewBuffer(data)); err != nil {
+		return false, fmt.Errorf("extract tar error: %w", err)
+	}
+
+	if _, err := virtualFS.Stat("Chart.yaml"); err != nil && !os.IsNotExist(err) {
+		return false, fmt.Errorf("failed to check for chart yaml: %w", err)
+	}
+
+	return os.IsNotExist(err), nil
+}
+
+// This might be problematic if the resource is too large in the snapshot. ReadAll will read it into memory.
+func (r *FluxDeployerReconciler) getSnapshotBytes(ctx context.Context, snapshot *v1alpha1.Snapshot) ([]byte, error) {
+	name, err := ocm.ConstructRepositoryName(snapshot.Spec.Identity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct name: %w", err)
+	}
+
+	reader, err := r.Cache.FetchDataByDigest(ctx, name, snapshot.Status.LastReconciledDigest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch data: %w", err)
+	}
+
+	uncompressed, _, err := compression.AutoDecompress(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
+
+	// We don't decompress snapshots because those are archives and are decompressed by the caching layer already.
+	return io.ReadAll(uncompressed)
 }
 
 func (r *FluxDeployerReconciler) createHelmSources(
