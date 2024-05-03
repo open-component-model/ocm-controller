@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,7 +81,12 @@ func TestFluxDeployerReconcile(t *testing.T) {
 	}
 	conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
-	client := env.FakeKubeClient(WithAddToScheme(helmv1.AddToScheme), WithObjects(snapshot, deployer, resourceV1))
+	client := env.FakeKubeClient(
+		WithAddToScheme(helmv1.AddToScheme),
+		WithAddToScheme(sourcev1beta2.AddToScheme),
+		WithAddToScheme(kustomizev1.AddToScheme),
+		WithObjects(snapshot, deployer, resourceV1),
+	)
 	fakeCache := &fakes.FakeCache{}
 	content, err := os.Open(filepath.Join("testdata", "podinfo-6.3.5.tgz"))
 	require.NoError(t, err)
@@ -96,6 +103,7 @@ func TestFluxDeployerReconcile(t *testing.T) {
 		DynamicClient:       dc,
 		Cache:               fakeCache,
 	}
+
 	result, err := sr.Reconcile(context.Background(), ctrl.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      deployer.Name,
