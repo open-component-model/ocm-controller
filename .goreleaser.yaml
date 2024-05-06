@@ -28,6 +28,27 @@ checksum:
     - glob: output/install.yaml
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
+source:
+  enabled: true
+  name_template: '{{ .ProjectName }}-{{ .Version }}-source_code'
+sboms:
+  - id: source
+    artifacts: source
+    documents:
+      - "{{ .ProjectName }}-{{ .Version }}-sbom.spdx.json"
+signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    certificate: '${artifact}.pem'
+    args:
+      - sign-blob
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+      - '--yes'
+    artifacts: checksum
+    output: true
 changelog:
   sort: asc
   filters:
