@@ -5,15 +5,23 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/containers/image/v5/pkg/compression"
 	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
+	"github.com/open-component-model/ocm/pkg/utils/tarutils"
 	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,14 +63,13 @@ type FluxDeployerReconciler struct {
 	DynamicClient       dynamic.Interface
 
 	CertSecretName string
+	Cache          cache.Cache
 }
 
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=fluxdeployers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=fluxdeployers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=fluxdeployers/finalizers,verbs=update
-
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=snapshots,verbs=get;list;watch;create;update;patch;delete
-
 // +kubebuilder:rbac:groups=source.toolkit.fluxcd.io,resources=ocirepositories;helmrepositories,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kustomize.toolkit.fluxcd.io,resources=kustomizations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch;create;update;patch;delete
@@ -180,7 +187,7 @@ func (r *FluxDeployerReconciler) reconcile(
 
 	// create kustomization
 	if obj.Spec.KustomizationTemplate != nil {
-		// create oci registry
+		// can't check for helm content as we don't know where things are or what content to check for
 		if err := r.createKustomizationSources(ctx, obj, snapshotURL, snapshot.Spec.Tag); err != nil {
 			msg := "failed to create kustomization sources"
 			logger.Error(err, msg)
@@ -202,6 +209,15 @@ func (r *FluxDeployerReconciler) reconcile(
 	}
 
 	if obj.Spec.HelmReleaseTemplate != nil {
+		ok, err := r.checkForHelmContent(ctx, obj, snapshot)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to check snapshot content for helm resources: %w", err)
+		}
+
+		if !ok {
+			return ctrl.Result{}, fmt.Errorf("no helm chart found for helm content")
+		}
+
 		if err := r.createHelmSources(ctx, obj, snapshotURL); err != nil {
 			msg := "failed to create helm sources"
 			logger.Error(err, msg)
@@ -245,6 +261,63 @@ func (r *FluxDeployerReconciler) createKustomizationSources(
 	}
 
 	return nil
+}
+
+func (r *FluxDeployerReconciler) checkForHelmContent(
+	ctx context.Context,
+	deployer *v1alpha1.FluxDeployer,
+	snapshot *v1alpha1.Snapshot,
+) (bool, error) {
+	data, err := r.getSnapshotBytes(ctx, snapshot)
+	if err != nil {
+		return false, fmt.Errorf("failed to get snapshot bytes: %w", err)
+	}
+
+	virtualFS, err := osfs.NewTempFileSystem()
+	if err != nil {
+		return false, fmt.Errorf("fs error: %w", err)
+	}
+	defer func() {
+		_ = virtualFS.RemoveAll("/")
+	}()
+
+	if err := tarutils.ExtractTarToFs(virtualFS, bytes.NewBuffer(data)); err != nil {
+		return false, fmt.Errorf("extract tar error: %w", err)
+	}
+
+	if deployer.Spec.HelmReleaseTemplate == nil {
+		return false, fmt.Errorf("no helm release template")
+	}
+
+	chartName := deployer.Spec.HelmReleaseTemplate.Chart.Spec.Chart
+
+	if _, err := virtualFS.Stat(filepath.Join(chartName, "Chart.yaml")); err != nil && !os.IsNotExist(err) {
+		return false, fmt.Errorf("failed to check for chart yaml: %w", err)
+	}
+
+	return true, nil
+}
+
+// This might be problematic if the resource is too large in the snapshot. ReadAll will read it into memory.
+func (r *FluxDeployerReconciler) getSnapshotBytes(ctx context.Context, snapshot *v1alpha1.Snapshot) ([]byte, error) {
+	name, err := ocm.ConstructRepositoryName(snapshot.Spec.Identity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct name: %w", err)
+	}
+
+	reader, err := r.Cache.FetchDataByDigest(ctx, name, snapshot.Status.LastReconciledDigest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch data: %w", err)
+	}
+
+	uncompressed, _, err := compression.AutoDecompress(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto decompress: %w", err)
+	}
+	defer uncompressed.Close()
+
+	// We don't decompress snapshots because those are archives and are decompressed by the caching layer already.
+	return io.ReadAll(uncompressed)
 }
 
 func (r *FluxDeployerReconciler) createHelmSources(
