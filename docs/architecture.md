@@ -273,7 +273,7 @@ spec:
     secretRef:
       name: destination-access-secret
     url: oci://destination
-  component: "https://github.com/open-component-model/component-x"
+  component: "github.com/open-component-model/component-x"
   interval: 10m0s
   semver: "~v0.1.0"
   verify:
