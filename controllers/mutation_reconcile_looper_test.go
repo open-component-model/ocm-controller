@@ -58,7 +58,8 @@ func TestGenerateSubstitutions(t *testing.T) {
 	}
 
 	dflts := `dmi:
-  gcp_project_id:~`
+  some_aws_val: foo
+  gcp_project_id: ~`
 
 	vls := `dmi:
   some_aws_val: blah`
