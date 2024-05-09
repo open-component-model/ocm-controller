@@ -44,7 +44,7 @@ type reference struct {
 	component string
 }
 
-func TestGenerateSubstitutions(t *testing.T) {
+func TestGenerateSubstitutionsUseDefaults(t *testing.T) {
 	m := &MutationReconcileLooper{}
 	iSbs := localize.Substitutions{
 		localize.Substitution{
