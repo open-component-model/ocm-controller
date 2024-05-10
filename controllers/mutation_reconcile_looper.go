@@ -545,7 +545,7 @@ func (m *MutationReconcileLooper) generateSubstitutions(
 	}
 
 	if valuesDoc, err = makeYamlDoc(values, "values", 0, 1); err != nil {
-		return nil, fmt.Errorf("failed to parse default values: %w", err)
+		return nil, fmt.Errorf("failed to parse values values: %w", err)
 	}
 
 	evaluator := yqlib.NewAllAtOnceEvaluator()
