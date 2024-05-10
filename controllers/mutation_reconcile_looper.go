@@ -968,13 +968,13 @@ func (m *MutationReconcileLooper) mutatePatchStrategicMerge(
 	mutationSpec *v1alpha1.MutationSpec,
 	sourceData []byte,
 ) (string, ocmmetav1.Identity, error) {
+	// DO NOT Defer remove this, it will be removed once it has been tarred.
 	tmpDir, err := os.MkdirTemp("", "kustomization-")
 	if err != nil {
 		err = fmt.Errorf("tmp dir error: %w", err)
 
 		return "", ocmmetav1.Identity{}, err
 	}
-	defer os.RemoveAll(tmpDir)
 
 	gitSource, err := m.getSource(ctx, mutationSpec.PatchStrategicMerge.Source.SourceRef)
 	if err != nil {

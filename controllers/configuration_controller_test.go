@@ -331,7 +331,7 @@ func TestConfigurationReconciler(t *testing.T) {
 		},
 		{
 			name:        "error while running configurator",
-			expectError: "configurator error: error while doing cascade with: processing template adjustments: unresolved nodes:\n\t(( nope ))\tin template adjustments\tadjustments.[0].value\t(adjustments.name:subst-0.value)\t*'nope' not found",
+			expectError: "failed to apply config ref: failed to configure resource: configurator error: error while doing cascade with: processing template ocmAdjustmentsTemplateKey: unresolved nodes:\n\t(( nope ))\tin template ocmAdjustmentsTemplateKey\tocmAdjustmentsTemplateKey.[0].value\t(ocmAdjustmentsTemplateKey.name:subst-0.value)\t*'nope' not found",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ObservedGeneration = 5
@@ -794,7 +794,7 @@ configuration:
 			},
 		},
 	}
-	for i, tt := range testCases[len(testCases)-1:] {
+	for i, tt := range testCases {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
 			cv := tt.componentVersion()
 			conditions.MarkTrue(cv, meta.ReadyCondition, meta.SucceededReason, "test")
