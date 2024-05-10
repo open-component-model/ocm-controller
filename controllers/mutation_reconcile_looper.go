@@ -589,16 +589,14 @@ func (m *MutationReconcileLooper) generateSubstitutions(
 	}
 
 	encoder := yqlib.NewYamlEncoder(yqlib.NewDefaultYamlPreferences())
-	buf := bytes.NewBuffer([]byte{})
+	var templateBytes []byte
+	buf := bytes.NewBuffer(templateBytes)
 	pw := yqlib.NewSinglePrinterWriter(buf)
 	p := yqlib.NewPrinter(encoder, pw)
 
-	var templateBytes []byte
 	if err := p.PrintResults(mergeResult); err != nil {
 		return nil, fmt.Errorf("failed to print results: %w", err)
 	}
-
-	templateBytes = buf.Bytes()
 
 	if len(schema) > 0 {
 		if err := spiff.ValidateByScheme(values, schema); err != nil {
@@ -606,7 +604,7 @@ func (m *MutationReconcileLooper) generateSubstitutions(
 		}
 	}
 
-	config, err := spiff.CascadeWith(spiff.TemplateData(templateKey, templateBytes), spiff.Mode(spiffing.MODE_PRIVATE))
+	config, err := spiff.CascadeWith(spiff.TemplateData(templateKey, buf.Bytes()), spiff.Mode(spiffing.MODE_PRIVATE))
 	if err != nil {
 		return nil, fmt.Errorf("error while doing cascade with: %w", err)
 	}
