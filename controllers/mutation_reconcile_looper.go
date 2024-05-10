@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"bytes"
+	"container/list"
 	"context"
 	"encoding/json"
 	"errors"
@@ -27,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
+	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/utils/tarutils"
@@ -505,40 +507,98 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 	return configSubstitutions, nil
 }
 
+func makeYamlDoc(docBytes []byte, fileName string, docIndex, fileIndex uint) (*yqlib.CandidateNode, error) {
+	ymlPrfs := yqlib.NewDefaultYamlPreferences()
+	ymlDcdr := yqlib.NewYamlDecoder(ymlPrfs)
+	rdr := bytes.NewBuffer(docBytes)
+
+	if err := ymlDcdr.Init(rdr); err != nil {
+		return nil, err
+	}
+
+	if ret, err := ymlDcdr.Decode(); err != nil {
+		return nil, err
+	} else {
+		ret.SetDocument(docIndex)
+		ret.SetFilename(fileName)
+		ret.SetFileIndex(int(fileIndex))
+
+		return ret, nil
+	}
+}
+
 func (m *MutationReconcileLooper) generateSubstitutions(
 	subst []localize.Substitution,
 	defaults, values, schema []byte,
 ) (localize.Substitutions, error) {
-	// configure defaults
-	templ := make(map[string]any)
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal template: %w", err)
+	var err error
+	var defaultsDoc, valuesDoc *yqlib.CandidateNode
+
+	if defaultsDoc, err = makeYamlDoc(defaults, "defaults", 0, 0); err != nil {
+		return nil, err
 	}
 
-	// configure values overrides... must be a better way
-	var valuesMap map[string]any
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(values, &valuesMap); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal values: %w", err)
+	if valuesDoc, err = makeYamlDoc(defaults, "values", 0, 1); err != nil {
+		return nil, err
 	}
 
-	for k, v := range valuesMap {
-		if _, ok := templ[k]; ok {
-			templ[k] = v
-		}
+	evaluator := yqlib.NewAllAtOnceEvaluator()
+	var mergeResult *list.List
+
+	if mergeResult, err = evaluator.EvaluateNodes(".  as $item ireduce({}; . * $item )", defaultsDoc, valuesDoc); err != nil {
+		return nil, err
 	}
 
-	// configure adjustments
-	list := []any{}
+	adjustments := []any{}
 	for _, e := range subst {
-		list = append(list, e)
+		adjustments = append(adjustments, e)
 	}
+
+	var adjustmentBytes []byte
+
+	if adjustmentBytes, err = ocmruntime.DefaultJSONEncoding.Marshal(adjustments); err != nil {
+		return nil, err
+	}
+
+	var adjustmentsDoc *yqlib.CandidateNode
+
+	if adjustmentsDoc, err = makeYamlDoc(adjustmentBytes, "adjustments", 0, 2); err != nil {
+		return nil, err
+	}
+
+	vlLst := list.New()
+	vlLst.PushBack(adjustmentsDoc)
+
+	ctxt := yqlib.Context{MatchingNodes: mergeResult}
+	ctxt.SetVariable("newValue", vlLst)
 
 	templateKey := "ocmAdjustmentsTemplateKey"
-	templ[templateKey] = list
+	yqlib.InitExpressionParser()
+	expr := "." + templateKey + " |= $newValue"
 
-	templateBytes, err := ocmruntime.DefaultJSONEncoding.Marshal(templ)
+	var nd *yqlib.ExpressionNode
+	nd, err = yqlib.ExpressionParser.ParseExpression(expr)
 	if err != nil {
-		return nil, fmt.Errorf("cannot marshal template: %w", err)
+		return nil, err
+	}
+
+	ngvtr := yqlib.NewDataTreeNavigator()
+	if _, err = ngvtr.GetMatchingNodes(ctxt, nd); err != nil {
+		return nil, err
+	}
+
+	prfs := yqlib.NewDefaultYamlPreferences()
+	enc := yqlib.NewYamlEncoder(prfs)
+
+	buf := bytes.NewBuffer([]byte{})
+	pw := yqlib.NewSinglePrinterWriter(buf)
+	p := yqlib.NewPrinter(enc, pw)
+
+	var templateBytes []byte
+	if err := p.PrintResults(mergeResult); err == nil {
+		templateBytes = buf.Bytes()
+	} else {
+		return nil, err
 	}
 
 	if len(schema) > 0 {

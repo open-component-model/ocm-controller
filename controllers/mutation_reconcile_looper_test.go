@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"cuelang.org/go/cue"
@@ -69,6 +70,9 @@ func TestGenerateSubstitutionsUseDefaults(t *testing.T) {
 	oSbs, err := m.generateSubstitutions(iSbs, []byte(dflts), []byte(vls), []byte(schm))
 	assert.NoError(t, err)
 	assert.Equal(t, len(iSbs), len(oSbs))
+	var expected json.RawMessage
+	expected.UnmarshalJSON([]byte("null"))
+	assert.Equal(t, oSbs[0].ValueMapping.Value, expected)
 }
 
 func TestPopulateReferences(t *testing.T) {
