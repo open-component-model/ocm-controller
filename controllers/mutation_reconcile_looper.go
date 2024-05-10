@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -508,98 +509,96 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 }
 
 func makeYamlDoc(docBytes []byte, fileName string, docIndex, fileIndex uint) (*yqlib.CandidateNode, error) {
-	ymlPrfs := yqlib.NewDefaultYamlPreferences()
-	ymlDcdr := yqlib.NewYamlDecoder(ymlPrfs)
+	yamlPreferences := yqlib.NewDefaultYamlPreferences()
+	yamlDecoder := yqlib.NewYamlDecoder(yamlPreferences)
 	rdr := bytes.NewBuffer(docBytes)
 
-	if err := ymlDcdr.Init(rdr); err != nil {
+	if err := yamlDecoder.Init(rdr); err != nil {
 		return nil, err
 	}
 
-	if ret, err := ymlDcdr.Decode(); err != nil {
+	ret, err := yamlDecoder.Decode()
+	if err != nil {
 		return nil, err
-	} else {
-		ret.SetDocument(docIndex)
-		ret.SetFilename(fileName)
-		ret.SetFileIndex(int(fileIndex))
-
-		return ret, nil
 	}
+
+	ret.SetDocument(docIndex)
+	ret.SetFilename(fileName)
+	ret.SetFileIndex(int(fileIndex))
+
+	return ret, nil
 }
 
 func (m *MutationReconcileLooper) generateSubstitutions(
 	subst []localize.Substitution,
 	defaults, values, schema []byte,
 ) (localize.Substitutions, error) {
+	sync.OnceFunc(func() {
+		yqlib.GetLogger().SetBackend(&devNullLogger{})
+	})()
+
 	var err error
 	var defaultsDoc, valuesDoc *yqlib.CandidateNode
 
 	if defaultsDoc, err = makeYamlDoc(defaults, "defaults", 0, 0); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to make default document: %w", err)
 	}
 
 	if valuesDoc, err = makeYamlDoc(defaults, "values", 0, 1); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse default values: %w", err)
 	}
 
 	evaluator := yqlib.NewAllAtOnceEvaluator()
 	var mergeResult *list.List
 
 	if mergeResult, err = evaluator.EvaluateNodes(".  as $item ireduce({}; . * $item )", defaultsDoc, valuesDoc); err != nil {
-		return nil, err
-	}
-
-	adjustments := []any{}
-	for _, e := range subst {
-		adjustments = append(adjustments, e)
+		return nil, fmt.Errorf("failed to evaluate nodes: %w", err)
 	}
 
 	var adjustmentBytes []byte
-
-	if adjustmentBytes, err = ocmruntime.DefaultJSONEncoding.Marshal(adjustments); err != nil {
-		return nil, err
+	if adjustmentBytes, err = ocmruntime.DefaultJSONEncoding.Marshal(subst); err != nil {
+		return nil, fmt.Errorf("failed to marshal substitutions: %w", err)
 	}
 
 	var adjustmentsDoc *yqlib.CandidateNode
 
-	if adjustmentsDoc, err = makeYamlDoc(adjustmentBytes, "adjustments", 0, 2); err != nil {
-		return nil, err
+	const fileIndex = 2
+	if adjustmentsDoc, err = makeYamlDoc(adjustmentBytes, "adjustments", 0, fileIndex); err != nil {
+		return nil, fmt.Errorf("failed to marshal adjustments: %w", err)
 	}
 
-	vlLst := list.New()
-	vlLst.PushBack(adjustmentsDoc)
+	valueList := list.New()
+	valueList.PushBack(adjustmentsDoc)
 
 	ctxt := yqlib.Context{MatchingNodes: mergeResult}
-	ctxt.SetVariable("newValue", vlLst)
+	ctxt.SetVariable("newValue", valueList)
 
 	templateKey := "ocmAdjustmentsTemplateKey"
 	yqlib.InitExpressionParser()
 	expr := "." + templateKey + " |= $newValue"
 
-	var nd *yqlib.ExpressionNode
-	nd, err = yqlib.ExpressionParser.ParseExpression(expr)
+	var expressionNode *yqlib.ExpressionNode
+	expressionNode, err = yqlib.ExpressionParser.ParseExpression(expr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse expression: %w", err)
 	}
 
-	ngvtr := yqlib.NewDataTreeNavigator()
-	if _, err = ngvtr.GetMatchingNodes(ctxt, nd); err != nil {
-		return nil, err
+	dataTreeNavigator := yqlib.NewDataTreeNavigator()
+	if _, err = dataTreeNavigator.GetMatchingNodes(ctxt, expressionNode); err != nil {
+		return nil, fmt.Errorf("failed to get matching nodes: %w", err)
 	}
 
-	prfs := yqlib.NewDefaultYamlPreferences()
-	enc := yqlib.NewYamlEncoder(prfs)
-
+	encoder := yqlib.NewYamlEncoder(yqlib.NewDefaultYamlPreferences())
 	buf := bytes.NewBuffer([]byte{})
 	pw := yqlib.NewSinglePrinterWriter(buf)
-	p := yqlib.NewPrinter(enc, pw)
+	p := yqlib.NewPrinter(encoder, pw)
 
 	var templateBytes []byte
-	if err := p.PrintResults(mergeResult); err == nil {
-		templateBytes = buf.Bytes()
-	} else {
-		return nil, err
+	if err := p.PrintResults(mergeResult); err != nil {
+		return nil, fmt.Errorf("failed to print results: %w", err)
 	}
+
+	templateBytes = buf.Bytes()
 
 	if len(schema) > 0 {
 		if err := spiff.ValidateByScheme(values, schema); err != nil {
