@@ -544,7 +544,7 @@ func (m *MutationReconcileLooper) generateSubstitutions(
 		return nil, fmt.Errorf("failed to make default document: %w", err)
 	}
 
-	if valuesDoc, err = makeYamlDoc(defaults, "values", 0, 1); err != nil {
+	if valuesDoc, err = makeYamlDoc(values, "values", 0, 1); err != nil {
 		return nil, fmt.Errorf("failed to parse default values: %w", err)
 	}
 
