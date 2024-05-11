@@ -78,6 +78,9 @@ func (s *spiffTemplateDoc) marshal() ([]byte, error) {
 	pw := yqlib.NewSinglePrinterWriter(buf)
 	p := yqlib.NewPrinter(encoder, pw)
 
+	// Often yq is working with list of nodes because matches what
+	// yaml files are.  Yaml files are sequences of yaml documents.
+	// This is one of those case.
 	nodes := list.New()
 	nodes.PushBack(((*yqlib.CandidateNode)(s)))
 
@@ -106,6 +109,11 @@ func mergeDefaultsAndConfigValues(defaults, configValues []byte) (*spiffTemplate
 	var mergeResult *list.List
 	const mergeExpression = ".  as $item ireduce({}; . * $item )"
 
+	// We get back a list because yq supports expressions that produce
+	// multiple yaml documents.
+	// And unfortunately golang lists aren't type safe.
+	// So now we have all these assertions to make sure we got back a single
+	// yaml document like we expect.
 	if mergeResult, err = evaluator.EvaluateNodes(mergeExpression, defaultsDoc, configValuesDoc); err != nil {
 		return nil, fmt.Errorf("failed to evaluate nodes: %w", err)
 	}
