@@ -14,6 +14,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/events"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	glog "gopkg.in/op/go-logging.v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
@@ -111,6 +112,12 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	// 2024-05-11 :
+	// We're setting the go-log leve because it is used by yqlib
+	// If we ever make it possible to set the log level for the service
+	// , I mean stop hard coding the log level, then we will need to remember
+	// to set it both for controller-runtime ( i.e. zap )  and yqlib ( i.e. go-log )
+	glog.SetLevel(glog.WARNING, "yq-lib")
 
 	restConfig := ctrl.GetConfigOrDie()
 
