@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -28,7 +27,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
-	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/utils/tarutils"
@@ -511,9 +509,6 @@ func (m *MutationReconcileLooper) generateSubstitutions(
 	subst []localize.Substitution,
 	defaults, configValues, schema []byte,
 ) (localize.Substitutions, error) {
-	sync.OnceFunc(func() {
-		yqlib.GetLogger().SetBackend(&devNullLogger{})
-	})()
 
 	var err error
 	var spiffTemplateDoc *spiffTemplateDoc
