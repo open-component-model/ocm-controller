@@ -509,7 +509,6 @@ func (m *MutationReconcileLooper) generateSubstitutions(
 	subst []localize.Substitution,
 	defaults, configValues, schema []byte,
 ) (localize.Substitutions, error) {
-
 	var err error
 	var spiffTemplateDoc *spiffTemplateDoc
 
