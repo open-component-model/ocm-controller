@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"cuelang.org/go/cue"
@@ -17,6 +18,7 @@ import (
 
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -41,6 +43,36 @@ type reference struct {
 	name      string
 	version   string
 	component string
+}
+
+func TestGenerateSubstitutionsUseDefaults(t *testing.T) {
+	m := &MutationReconcileLooper{}
+	iSbs := localize.Substitutions{
+		localize.Substitution{
+			FilePath: "values.yaml",
+			ValueMapping: localize.ValueMapping{
+				Name:      "1",
+				ValuePath: "dmi.gcp_project_id",
+				Value:     []byte("\"(( dmi.gcp_project_id ))\""),
+			},
+		},
+	}
+
+	dflts := `dmi:
+  some_aws_val: foo
+  gcp_project_id: ~`
+
+	vls := `dmi:
+  some_aws_val: blah`
+
+	schm := ""
+
+	oSbs, err := m.generateSubstitutions(iSbs, []byte(dflts), []byte(vls), []byte(schm))
+	assert.NoError(t, err)
+	assert.Equal(t, len(iSbs), len(oSbs))
+	var expected json.RawMessage
+	expected.UnmarshalJSON([]byte("null"))
+	assert.Equal(t, oSbs[0].ValueMapping.Value, expected)
 }
 
 func TestPopulateReferences(t *testing.T) {

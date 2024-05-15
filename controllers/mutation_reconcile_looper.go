@@ -507,47 +507,31 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
 
 func (m *MutationReconcileLooper) generateSubstitutions(
 	subst []localize.Substitution,
-	defaults, values, schema []byte,
+	defaults, configValues, schema []byte,
 ) (localize.Substitutions, error) {
-	// configure defaults
-	templ := make(map[string]any)
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(defaults, &templ); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal template: %w", err)
+	var err error
+	var spiffTemplateDoc *spiffTemplateDoc
+
+	if spiffTemplateDoc, err = mergeDefaultsAndConfigValues(defaults, configValues); err != nil {
+		return nil, err
 	}
 
-	// configure values overrides... must be a better way
-	var valuesMap map[string]any
-	if err := ocmruntime.DefaultYAMLEncoding.Unmarshal(values, &valuesMap); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal values: %w", err)
+	if err = spiffTemplateDoc.addSpiffRules(subst); err != nil {
+		return nil, err
 	}
 
-	for k, v := range valuesMap {
-		if _, ok := templ[k]; ok {
-			templ[k] = v
-		}
-	}
-
-	// configure adjustments
-	list := []any{}
-	for _, e := range subst {
-		list = append(list, e)
-	}
-
-	templateKey := "ocmAdjustmentsTemplateKey"
-	templ[templateKey] = list
-
-	templateBytes, err := ocmruntime.DefaultJSONEncoding.Marshal(templ)
-	if err != nil {
-		return nil, fmt.Errorf("cannot marshal template: %w", err)
+	var spiffTemplateBytes []byte
+	if spiffTemplateBytes, err = spiffTemplateDoc.marshal(); err != nil {
+		return nil, err
 	}
 
 	if len(schema) > 0 {
-		if err := spiff.ValidateByScheme(values, schema); err != nil {
+		if err := spiff.ValidateByScheme(configValues, schema); err != nil {
 			return nil, fmt.Errorf("validation failed: %w", err)
 		}
 	}
 
-	config, err := spiff.CascadeWith(spiff.TemplateData(templateKey, templateBytes), spiff.Mode(spiffing.MODE_PRIVATE))
+	config, err := spiff.CascadeWith(spiff.TemplateData(ocmAdjustmentsTemplateKey, spiffTemplateBytes), spiff.Mode(spiffing.MODE_PRIVATE))
 	if err != nil {
 		return nil, fmt.Errorf("error while doing cascade with: %w", err)
 	}
