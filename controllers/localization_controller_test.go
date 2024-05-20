@@ -769,35 +769,35 @@ localization:
 			assert.Contains(
 				t,
 				args.Content,
-				"image: ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+				"image: \"ghcr.io/mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect@sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2\"",
 				"the image should have been altered during localization",
 			)
 
 			assert.Contains(
 				t,
 				args.Content,
-				"registry: ghcr.io",
+				"registry: \"ghcr.io\"",
 				"the registry should have been altered during localization",
 			)
 
 			assert.Contains(
 				t,
 				args.Content,
-				"repository: mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect",
+				"repository: \"mandelsoft/cnudie/component-descriptors/github.com/vasu1124/introspect\"",
 				"the repository should have been altered during localization",
 			)
 
 			assert.Contains(
 				t,
 				args.Content,
-				"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+				"tag: \"sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2\"",
 				"the reference should have been altered during localization",
 			)
 
 			assert.Contains(
 				t,
 				args.Content,
-				"version: v0.0.1",
+				"\"version\": \"v0.0.1\"",
 				"the labels should have been added via the localization mapping",
 			)
 
@@ -805,7 +805,7 @@ localization:
 				t,
 				args.Content,
 				"name: introspect-image-sha256-1.0.0",
-				"the custome resource spec.values should have been updated via the localization mapping",
+				"the custom resource spec.values should have been updated via the localization mapping",
 			)
 
 			err = client.Get(context.Background(), types.NamespacedName{
