@@ -932,7 +932,7 @@ configuration:
 				assert.Contains(
 					t,
 					args.Content,
-					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
+					"PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
 					"the configuration data should have been applied",
 				)
 			}
