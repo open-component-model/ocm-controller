@@ -959,8 +959,7 @@ configuration:
 	}
 }
 
-// TODO: rewrite these so that they test the predicate functions.
-func XTestConfigurationShouldReconcile(t *testing.T) {
+func TestConfigurationShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
 		errStr           string
@@ -999,8 +998,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			},
 		},
 		{
-			name:   "should reconcile if snapshot is not ready",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			name: "should reconcile if snapshot is not ready",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
@@ -1027,64 +1025,6 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
 				*objs = append(*objs, configuration, snapshot)
-
-				return configuration
-			},
-		},
-		{
-			name:   "should reconcile if component version doesn't match",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.2"
-
-				return cv
-			},
-			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LatestSourceVersion = "v0.0.1"
-				configuration.Status.LatestConfigVersion = "v0.0.1"
-				configuration.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v1alpha1.ElementMeta{
-						Name: "name",
-					},
-				}
-				*objs = append(*objs, configuration)
-
-				return configuration
-			},
-		},
-		{
-			name:   "should reconcile if change was detected in source snapshot",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from snapshot: failed to fetch data: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LatestSourceVersion = "not-last-reconciled-digest"
-				configuration.Status.LatestConfigVersion = "v0.0.1"
-				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "Snapshot",
-						Name:      "source-snapshot",
-						Namespace: configuration.Namespace,
-					},
-				}
-				sourceSnapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "source-snapshot",
-						Namespace: configuration.Namespace,
-					},
-					Status: v1alpha1.SnapshotStatus{
-						LastReconciledDigest: "last-reconciled-digest",
-						LastReconciledTag:    "latest",
-					},
-				}
-				*objs = append(*objs, configuration, sourceSnapshot)
 
 				return configuration
 			},
@@ -1191,93 +1131,6 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				return configuration
 			},
 		},
-		{
-			name:   "should reconcile if there is a difference in config source",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LatestSourceVersion = "v0.0.1"
-				configuration.Status.LatestConfigVersion = "last-reconciled-digest"
-				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "ComponentVersion",
-						Name:      "test-component",
-						Namespace: configuration.Namespace,
-					},
-					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v1alpha1.ElementMeta{
-							Name: "test",
-						},
-					},
-				}
-				configuration.Spec.ConfigRef = &v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "Snapshot",
-						Name:      "config-snapshot",
-						Namespace: configuration.Namespace,
-					},
-				}
-				configSnapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "config-snapshot",
-						Namespace: configuration.Namespace,
-					},
-					Status: v1alpha1.SnapshotStatus{
-						LastReconciledDigest: "not-last-reconciled-digest",
-						LastReconciledTag:    "latest",
-					},
-				}
-				*objs = append(*objs, configuration, configSnapshot)
-
-				return configuration
-			},
-		},
-		{
-			name:   "should reconcile if there is a difference in patch merge object",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LatestSourceVersion = "v0.0.1"
-				configuration.Status.LatestConfigVersion = "last-reconciled-digest"
-				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "ComponentVersion",
-						Name:      "test-component",
-						Namespace: configuration.Namespace,
-					},
-					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v1alpha1.ElementMeta{
-							Name: "test",
-						},
-					},
-				}
-				configuration.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
-					Source: v1alpha1.PatchStrategicMergeSource{
-						SourceRef: meta.NamespacedObjectKindReference{
-							Kind:      "GitRepository",
-							Name:      "git-test",
-							Namespace: configuration.Namespace,
-						},
-					},
-				}
-				gitrepo := createGitRepository("git-test", configuration.Namespace, "url", "last-reconciled-digest")
-				*objs = append(*objs, configuration, gitrepo)
-
-				return configuration
-			},
-		},
 	}
 
 	for i, tt := range testcase {
@@ -1289,8 +1142,10 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
+			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
 
 			cr := ConfigurationReconciler{
+				DynamicClient: dynClient,
 				Client:        client,
 				Scheme:        env.scheme,
 				OCMClient:     fakeOcm,

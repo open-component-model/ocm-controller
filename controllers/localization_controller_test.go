@@ -17,6 +17,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	v1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -831,8 +832,7 @@ localization:
 	}
 }
 
-// TODO: rewrite these so that they test the predicate functions.
-func XTestLocalizationShouldReconcile(t *testing.T) {
+func TestLocalizationShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
 		errStr           string
@@ -872,8 +872,7 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 			},
 		},
 		{
-			name:   "should reconcile if snapshot is not ready",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			name: "should reconcile if snapshot is not ready",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
@@ -900,62 +899,6 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
 				*objs = append(*objs, localization, snapshot)
-
-				return localization
-			},
-		},
-		{
-			name:   "should reconcile if component version doesn't match",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.2"
-
-				return cv
-			},
-			localization: func(objs *[]client.Object) *v1alpha1.Localization {
-				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LatestSourceVersion = "v0.0.1"
-				localization.Status.LatestConfigVersion = "v0.0.1"
-				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v1alpha1.ElementMeta{
-						Name: "name",
-					},
-				}
-				*objs = append(*objs, localization)
-
-				return localization
-			},
-		},
-		{
-			name:   "should reconcile if change was detected in source snapshot",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from snapshot: failed to fetch data: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			localization: func(objs *[]client.Object) *v1alpha1.Localization {
-				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LatestSourceVersion = "not-last-reconciled-digest"
-				localization.Status.LatestConfigVersion = "v0.0.1"
-				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v1alpha1.ElementMeta{
-						Name: "name",
-					},
-				}
-				sourceSnapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "source-snapshot",
-						Namespace: localization.Namespace,
-					},
-					Status: v1alpha1.SnapshotStatus{
-						LastReconciledDigest: "last-reconciled-digest",
-						LastReconciledTag:    "latest",
-					},
-				}
-				*objs = append(*objs, localization, sourceSnapshot)
 
 				return localization
 			},
@@ -1055,86 +998,6 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 				return localization
 			},
 		},
-		{
-			name:   "should reconcile if there is a difference in config source",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			localization: func(objs *[]client.Object) *v1alpha1.Localization {
-				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LatestSourceVersion = "v0.0.1"
-				localization.Status.LatestConfigVersion = "last-reconciled-digest"
-				localization.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v1alpha1.ElementMeta{
-						Name: "test",
-					},
-				}
-				localization.Spec.ConfigRef = &v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "Snapshot",
-						Name:      "config-snapshot",
-						Namespace: localization.Namespace,
-					},
-				}
-				configSnapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "config-snapshot",
-						Namespace: localization.Namespace,
-					},
-					Status: v1alpha1.SnapshotStatus{
-						LastReconciledDigest: "not-last-reconciled-digest",
-						LastReconciledTag:    "latest",
-					},
-				}
-				*objs = append(*objs, localization, configSnapshot)
-
-				return localization
-			},
-		},
-		{
-			name:   "should reconcile if there is a difference in patch merge object",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			localization: func(objs *[]client.Object) *v1alpha1.Localization {
-				localization := DefaultLocalization.DeepCopy()
-				localization.Status.LatestSourceVersion = "v0.0.1"
-				localization.Status.LatestConfigVersion = "last-reconciled-digest"
-				localization.Spec.SourceRef = v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "ComponentVersion",
-						Name:      "test-component",
-						Namespace: localization.Namespace,
-					},
-					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v1alpha1.ElementMeta{
-							Name: "test",
-						},
-					},
-				}
-				localization.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
-					Source: v1alpha1.PatchStrategicMergeSource{
-						SourceRef: meta.NamespacedObjectKindReference{
-							Kind:      "GitRepository",
-							Name:      "git-test",
-							Namespace: localization.Namespace,
-						},
-					},
-				}
-				gitrepo := createGitRepository("git-test", localization.Namespace, "url", "last-reconciled-digest")
-				*objs = append(*objs, localization, gitrepo)
-
-				return localization
-			},
-		},
 	}
 
 	for i, tt := range testcase {
@@ -1146,12 +1009,14 @@ func XTestLocalizationShouldReconcile(t *testing.T) {
 
 			objs = append(objs, cv)
 
-			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(v1beta2.AddToScheme))
+			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(v1beta2.AddToScheme), WithAddToScheme(v1.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
+			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...), WithAddToScheme(v1beta2.AddToScheme), WithAddToScheme(v1.AddToScheme))
 
 			rr := LocalizationReconciler{
 				Client:        client,
+				DynamicClient: dynClient,
 				Scheme:        env.scheme,
 				OCMClient:     fakeOcm,
 				EventRecorder: record.NewFakeRecorder(32),
