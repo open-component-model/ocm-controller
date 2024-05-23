@@ -76,6 +76,7 @@ type configurationTestCase struct {
 	valuesFrom          func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
 	valuesFromType      string
 	expectError         string
+	expectedContent     string
 }
 
 func TestConfigurationReconciler(t *testing.T) {
@@ -137,6 +138,182 @@ func TestConfigurationReconciler(t *testing.T) {
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
+			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
+		},
+		{
+			name: "add new node that does not exist",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				cv.Status.ObservedGeneration = 5
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "Resource",
+						Name:       "test-resource",
+						Namespace:  snapshot.Namespace,
+					},
+				}
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				name := "resource-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+				}
+				sourceSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: cv.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{
+						Identity: identity,
+					},
+				}
+				resource.Status.SnapshotName = name
+				return sourceSnapshot
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
+				require.NoError(t, err)
+				fakeCache.FetchDataByDigestReturns(content, nil)
+				testConfigData := []byte(`kind: ConfigData
+metadata:
+  name: test-config-data
+  namespace: default
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+    newValue: This is a new value!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+      newValue:
+        type: string
+  rules:
+  - value: (( message ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
+  - value: (( newValue ))
+    file: configmap.yaml
+    path: data.PODINFO_NEW_VALUE
+`)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(testConfigData)), "", nil)
+				cmp := getMockComponent(DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
+			},
+			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n  PODINFO_NEW_VALUE: \"This is a new value!\"\n",
+		},
+		{
+			name: "values without defaults are not ignored",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				cv.Status.ObservedGeneration = 5
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "Resource",
+						Name:       "test-resource",
+						Namespace:  snapshot.Namespace,
+					},
+				}
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				name := "resource-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+				}
+				sourceSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: cv.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{
+						Identity: identity,
+					},
+				}
+				resource.Status.SnapshotName = name
+				return sourceSnapshot
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
+				require.NoError(t, err)
+				fakeCache.FetchDataByDigestReturns(content, nil)
+				testConfigData := []byte(`kind: ConfigData
+metadata:
+  name: test-config-data
+  namespace: default
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+  rules:
+  - value: (( message ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
+  - value: this is a new value
+    file: configmap.yaml
+    path: data.PODINFO_NEW_VALUE
+`)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(testConfigData)), "", nil)
+				cmp := getMockComponent(DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
+			},
+			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n  PODINFO_NEW_VALUE: \"this is a new value\"\n",
 		},
 		{
 			name: "with resource as a source",
@@ -183,6 +360,7 @@ func TestConfigurationReconciler(t *testing.T) {
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
 			},
+			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
 		},
 		{
 			name:        "expect error when get resource fails with snapshot",
@@ -645,6 +823,7 @@ configuration:
 				fakeOcm.GetResourceReturnsOnCall(0, nil, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, nil, nil)
 			},
+			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
 		},
 		{
 			name: "it applies config from flux sources",
@@ -719,6 +898,7 @@ configuration:
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
+			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
 		},
 		{
 			name: "it applies config from configmap",
@@ -792,6 +972,7 @@ configuration:
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
+			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
 		},
 	}
 	for i, tt := range testCases {
@@ -932,7 +1113,7 @@ configuration:
 				assert.Contains(
 					t,
 					args.Content,
-					"PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
+					tt.expectedContent,
 					"the configuration data should have been applied",
 				)
 			}
