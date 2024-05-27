@@ -202,7 +202,7 @@ func (r *FluxDeployerReconciler) reconcile(
 				v1alpha1.CreateOrUpdateKustomizationFailedReason,
 				err.Error(),
 			)
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg)
 
 			return ctrl.Result{}, err
 		}
@@ -228,14 +228,13 @@ func (r *FluxDeployerReconciler) reconcile(
 				err.Error(),
 			)
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error())
-			event.New(r.EventRecorder, obj, eventv1.EventSeverityError, msg, nil)
+			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg)
 
 			return ctrl.Result{}, err
 		}
 	}
 
-	msg := fmt.Sprintf("FluxDeployer '%s' is ready", obj.Name)
-	status.MarkReady(r.EventRecorder, obj, msg)
+	status.MarkReady(r.EventRecorder, obj, "FluxDeployer '%s' is ready", obj.Name)
 
 	metrics.FluxDeployerReconcileSuccess.WithLabelValues(obj.Name).Inc()
 

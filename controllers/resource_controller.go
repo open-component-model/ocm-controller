@@ -284,7 +284,7 @@ func (r *ResourceReconciler) reconcile(
 		metrics.MPASResourceReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
 	}
 
-	status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", obj.Status.LastAppliedComponentVersion))
+	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
