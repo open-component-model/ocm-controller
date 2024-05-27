@@ -13,7 +13,7 @@ import (
 	kuberecorder "k8s.io/client-go/tools/record"
 )
 
-func New(recorder kuberecorder.EventRecorder, obj conditions.Getter, severity, msg string, metadata map[string]string) {
+func New(recorder kuberecorder.EventRecorder, obj conditions.Getter, metadata map[string]string, severity, msg string, args ...any) {
 	if metadata == nil {
 		metadata = map[string]string{}
 	}
@@ -28,5 +28,5 @@ func New(recorder kuberecorder.EventRecorder, obj conditions.Getter, severity, m
 		eventType = corev1.EventTypeWarning
 	}
 
-	recorder.AnnotatedEventf(obj, metadata, eventType, reason, msg)
+	recorder.AnnotatedEventf(obj, metadata, eventType, reason, msg, args...)
 }

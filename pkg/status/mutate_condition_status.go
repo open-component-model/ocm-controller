@@ -12,7 +12,7 @@ import (
 func MarkNotReady(recorder kuberecorder.EventRecorder, obj conditions.Setter, reason, msg string) {
 	conditions.Delete(obj, meta.ReconcilingCondition)
 	conditions.MarkFalse(obj, meta.ReadyCondition, reason, msg)
-	event.New(recorder, obj, eventv1.EventSeverityError, msg, nil)
+	event.New(recorder, obj, nil, eventv1.EventSeverityError, msg)
 }
 
 // MarkAsStalled sets the condition status of an Object to `Stalled`.
@@ -20,12 +20,12 @@ func MarkAsStalled(recorder kuberecorder.EventRecorder, obj conditions.Setter, r
 	conditions.Delete(obj, meta.ReconcilingCondition)
 	conditions.MarkFalse(obj, meta.ReadyCondition, reason, msg)
 	conditions.MarkStalled(obj, reason, msg)
-	event.New(recorder, obj, eventv1.EventSeverityError, msg, nil)
+	event.New(recorder, obj, nil, eventv1.EventSeverityError, msg)
 }
 
 // MarkReady sets the condition status of an Object to `Ready`.
 func MarkReady(recorder kuberecorder.EventRecorder, obj conditions.Setter, msg string, messageArgs ...any) {
 	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, msg, messageArgs...)
 	conditions.Delete(obj, meta.ReconcilingCondition)
-	event.New(recorder, obj, eventv1.EventSeverityInfo, msg, nil)
+	event.New(recorder, obj, nil, eventv1.EventSeverityInfo, msg, messageArgs...)
 }

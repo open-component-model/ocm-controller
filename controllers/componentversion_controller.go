@@ -189,7 +189,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !update {
-		status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", version))
+		status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -339,7 +339,7 @@ func (r *ComponentVersionReconciler) reconcile(
 		metrics.MPASComponentVersionReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
 	}
 
-	status.MarkReady(r.EventRecorder, obj, fmt.Sprintf("Applied version: %s", version))
+	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
@@ -377,9 +377,10 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.
 	event.New(
 		r.EventRecorder,
 		obj,
-		eventv1.EventSeverityInfo,
-		fmt.Sprintf("Version check succeeded, found latest version: %s", latest),
 		nil,
+		eventv1.EventSeverityInfo,
+		"Version check succeeded, found latest version: %s",
+		latest,
 	)
 
 	return true, latest, nil

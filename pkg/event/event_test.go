@@ -42,7 +42,7 @@ func TestNewEvent(t *testing.T) {
 			conditions.MarkStalled(obj, v1alpha1.CheckVersionFailedReason, "err")
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.CheckVersionFailedReason, "err")
 
-			New(recorder, obj, tt.severity, "msg", nil)
+			New(recorder, obj, nil, tt.severity, "msg")
 
 			close(recorder.Events)
 			for e := range recorder.Events {

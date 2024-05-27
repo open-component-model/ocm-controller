@@ -128,8 +128,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 	obj.Status.RepositoryURL = fmt.Sprintf("%s://%s/%s", scheme, r.RegistryServiceName, name)
 
-	msg := fmt.Sprintf("Snapshot with name '%s' is ready", obj.Name)
-	status.MarkReady(r.EventRecorder, obj, msg)
+	status.MarkReady(r.EventRecorder, obj, "Snapshot with name '%s' is ready", obj.Name)
 	metrics.SnapshotReconcileSuccess.WithLabelValues(obj.Name).Inc()
 
 	return ctrl.Result{}, nil

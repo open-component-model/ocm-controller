@@ -2,7 +2,6 @@ package status
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
@@ -27,15 +26,13 @@ func UpdateStatus(
 		reconciling := conditions.Get(obj, meta.ReconcilingCondition)
 		reconciling.Reason = meta.ProgressingWithRetryReason
 		conditions.Set(obj, reconciling)
-		msg := fmt.Sprintf("Reconciliation did not succeed, retrying in %s", requeue)
-		event.New(recorder, obj, eventv1.EventSeverityError, msg, obj.GetVID())
+		event.New(recorder, obj, obj.GetVID(), eventv1.EventSeverityError, "Reconciliation did not succeed, retrying in %s", requeue)
 	}
 
 	// Set status observed generation option if the component is ready.
 	if conditions.IsReady(obj) {
 		obj.SetObservedGeneration(obj.GetGeneration())
-		msg := fmt.Sprintf("Reconciliation finished, next run in %s", requeue)
-		event.New(recorder, obj, eventv1.EventSeverityInfo, msg, obj.GetVID())
+		event.New(recorder, obj, obj.GetVID(), eventv1.EventSeverityInfo, "Reconciliation finished, next run in %s", requeue)
 	}
 
 	// Update the object.
