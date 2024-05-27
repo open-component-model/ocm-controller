@@ -311,8 +311,13 @@ func (r *ComponentVersionReconciler) reconcile(
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "descriptors created, expanding references")
 
+	desc := cv.GetDescriptor()
+	if desc == nil {
+		return ctrl.Result{}, fmt.Errorf("no descriptor found for component version %s:%s", cv.GetName(), cv.GetVersion())
+	}
+
 	// build up component reference graph
-	componentDescriptor.References, err = r.parseReferences(ctx, octx, obj, cv.GetDescriptor().References)
+	componentDescriptor.References, err = r.parseReferences(ctx, octx, obj, desc.References)
 	if err != nil {
 		err = fmt.Errorf("failed to parse references: %w", err)
 		status.MarkNotReady(
@@ -429,9 +434,14 @@ func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(
 		ExtraIdentity: ref.ExtraIdentity,
 	}
 
-	if len(rcv.GetDescriptor().References) > 0 {
+	desc := rcv.GetDescriptor()
+	if desc == nil {
+		return nil, fmt.Errorf("no descriptor found for component version %s:%s", rcv.GetName(), rcv.GetVersion())
+	}
+
+	if len(desc.References) > 0 {
 		// recursively call parseReference on the embedded references in the new descriptor.
-		out, err := r.parseReferences(ctx, nil, parent, rcv.GetDescriptor().References)
+		out, err := r.parseReferences(ctx, nil, parent, desc.References)
 		if err != nil {
 			return nil, err
 		}
