@@ -273,6 +273,10 @@ func (c *Client) GetComponentVersion(
 	name, version string,
 ) (ocm.ComponentVersionAccess, error) {
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
+	if repoSpec == nil {
+		return nil, fmt.Errorf("failed to construct repository spec for url: %s", obj.Spec.Repository.URL)
+	}
+
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
