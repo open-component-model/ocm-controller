@@ -442,10 +442,11 @@ func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(
 
 	if len(desc.References) > 0 {
 		// recursively call parseReference on the embedded references in the new descriptor.
-		out, err := r.parseReferences(ctx, nil, parent, desc.References)
+		out, err := r.parseReferences(ctx, octx, parent, desc.References)
 		if err != nil {
 			return nil, err
 		}
+
 		reference.References = out
 	}
 
