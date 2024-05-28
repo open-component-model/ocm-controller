@@ -210,6 +210,7 @@ func (r *ResourceReconciler) reconcile(
 	defer reader.Close()
 
 	version := "latest"
+	// GetVersion returns resourceRef.Version
 	if obj.Spec.SourceRef.GetVersion() != "" {
 		version = obj.Spec.SourceRef.GetVersion()
 	}
@@ -259,6 +260,8 @@ func (r *ResourceReconciler) reconcile(
 				return fmt.Errorf("failed to set owner to snapshot object: %w", err)
 			}
 		}
+
+		// At this point the version is the ResourceRef.Version or `latest`
 		snapshotCR.Spec = v1alpha1.SnapshotSpec{
 			Identity: identity,
 			Digest:   digest,
