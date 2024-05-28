@@ -19,10 +19,13 @@ func UpdateStatus(
 	obj IdentifiableClientObject,
 	recorder kuberecorder.EventRecorder,
 	requeue time.Duration,
+	err error,
 ) error {
 	// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
 	// indicate that reconciliation will be retried.
-	if conditions.IsReconciling(obj) {
+	// This will add another indicator that we are indeed doing something. This is in addition to
+	// the status that is already present on the object which is the Ready condition.
+	if conditions.IsReconciling(obj) && err != nil {
 		reconciling := conditions.Get(obj, meta.ReconcilingCondition)
 		reconciling.Reason = meta.ProgressingWithRetryReason
 		conditions.Set(obj, reconciling)

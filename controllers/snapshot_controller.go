@@ -97,7 +97,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, 0); derr != nil {
+		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, 0, err); derr != nil {
 			err = errors.Join(err, derr)
 		}
 
