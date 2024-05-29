@@ -107,3 +107,14 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GORELEASER_CURRENT_TAG: ${{ env.RELEASE_VERSION }}
+    - name: Generate manifests for helm consumption
+      run: |
+        mkdir -p output
+        kustomize build ./config/default > ./ocm-controller/templates/install.yaml
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+    - name: Build and release the helm charts
+      run: |
+        helm registry login ghcr.io -u open-component-model -p ${{ secrets.GITHUB_TOKEN }}
+        helm package --version ${{ steps.prep.outputs.VERSION }} --app-version ${{ steps.prep.outputs.VERSION }} ./ocm-controller
+        helm push ${{ github.event.repository.name }}-${{ steps.prep.outputs.VERSION }}.tgz oci://ghcr.io/open-component-model/helm

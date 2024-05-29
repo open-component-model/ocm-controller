@@ -27,10 +27,12 @@ spec:
         args:
         - --zap-log-level=4
         - --leader-elect
-        - --oci-registry-addr=registry.ocm-system.svc.cluster.local:5000
-        image: open-component-model/ocm-controller
+        - --oci-registry-addr={{ .Values.registry.address }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         name: manager
-        imagePullPolicy: Always
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        volumeMounts:
+        {{- toYaml .Values.volumeMounts | nindent 10 }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -57,3 +59,5 @@ spec:
             memory: 64Mi
       serviceAccountName: ocm-controller
       terminationGracePeriodSeconds: 10
+      volumes:
+      {{- toYaml .Values.volumes | nindent 8 }}

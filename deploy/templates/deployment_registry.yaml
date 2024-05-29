@@ -23,6 +23,13 @@ spec:
           env:
             - name: REGISTRY_STORAGE_DELETE_ENABLED
               value: "true"
+          {{- if .Values.registry.tls.enabled }}
+            {{- toYaml .Values.registry.tls.env | nindent 12 }}
+          {{- end }}
+          {{- if .Values.registry.tls.enabled }}
+          volumeMounts:
+          {{- toYaml .Values.registry.tls.volumeMounts | nindent 12 }}
+          {{- end}}
           readinessProbe:
             tcpSocket:
               port: 5000
@@ -42,3 +49,6 @@ spec:
       volumes:
         - name: registry
           emptyDir: {}
+      {{- if .Values.registry.tls.enabled }}
+      {{- toYaml .Values.registry.tls.volumes | nindent 8 }}
+      {{- end}}

@@ -1,0 +1,11 @@
+apiVersion: v2
+name: ocm-controller
+description: This is the official Helm chart for the Project ocm-controller.
+type: application
+version: 0.0.0 # will be replaced by the publishing workflow.
+appVersion: "0.0.0" # will be replaced by the publishing workflow.
+home: https://github.com/open-component-model/ocm-controller
+keywords:
+  - ocm
+  - open-component-model
+  - kubernetes
