@@ -11,6 +11,7 @@ metadata:
     app.kubernetes.io/created-by: ocm-controller
     app.kubernetes.io/part-of: ocm-controller
     app.kubernetes.io/managed-by: kustomize
+  namespace: {{ .Values.namespace }}
 spec:
   ports:
     - port: 8080

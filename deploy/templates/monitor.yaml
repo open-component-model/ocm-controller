@@ -12,6 +12,7 @@ metadata:
     app.kubernetes.io/part-of: ocm-controller
     app.kubernetes.io/managed-by: kustomize
   name: ocm-controller-metrics-monitor
+  namespace: {{ .Values.namespace }}
 spec:
   endpoints:
     - path: /metrics

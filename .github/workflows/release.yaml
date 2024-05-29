@@ -90,10 +90,12 @@ jobs:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Install Helm
+      uses: azure/setup-helm@v4
     - name: Generate manifests
       run: |
         mkdir -p output
-        kustomize build ./config/default > ./output/install.yaml
+        helm template ./deploy > ./output/install.yaml
     - name: Setup Syft
       uses: anchore/sbom-action/download-syft@7ccf588e3cf3cc2611714c2eeae48550fbc17552 # v0.15.11
     - name: Setup Cosign
@@ -107,12 +109,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GORELEASER_CURRENT_TAG: ${{ env.RELEASE_VERSION }}
-    - name: Generate manifests for helm consumption
-      run: |
-        mkdir -p output
-        kustomize build ./config/default > ./ocm-controller/templates/install.yaml
-    - name: Install Helm
-      uses: azure/setup-helm@v4
     - name: Build and release the helm charts
       run: |
         helm registry login ghcr.io -u open-component-model -p ${{ secrets.GITHUB_TOKEN }}

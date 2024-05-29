@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ocm-controller
+  namespace: {{ .Values.namespace }}
   labels:
     control-plane: controller
     app: ocm-controller
