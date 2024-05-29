@@ -95,7 +95,7 @@ jobs:
     - name: Generate manifests
       run: |
         mkdir -p output
-        helm template ./deploy > ./output/install.yaml
+        helm template ./deploy --set "image.tag=${{ steps.prep.outputs.VERSION }}" --include-crds > ./output/install.yaml
     - name: Setup Syft
       uses: anchore/sbom-action/download-syft@7ccf588e3cf3cc2611714c2eeae48550fbc17552 # v0.15.11
     - name: Setup Cosign
@@ -112,5 +112,5 @@ jobs:
     - name: Build and release the helm charts
       run: |
         helm registry login ghcr.io -u open-component-model -p ${{ secrets.GITHUB_TOKEN }}
-        helm package --version ${{ steps.prep.outputs.VERSION }} --app-version ${{ steps.prep.outputs.VERSION }} ./ocm-controller
+        helm package --version ${{ steps.prep.outputs.VERSION }} --app-version ${{ steps.prep.outputs.VERSION }} ./deploy
         helm push ${{ github.event.repository.name }}-${{ steps.prep.outputs.VERSION }}.tgz oci://ghcr.io/open-component-model/helm
