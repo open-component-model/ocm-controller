@@ -76,7 +76,7 @@ type configurationTestCase struct {
 	valuesFrom          func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
 	valuesFromType      string
 	expectError         string
-	expectedContent     string
+	expectedContent     map[string]string
 }
 
 func TestConfigurationReconciler(t *testing.T) {
@@ -138,7 +138,7 @@ func TestConfigurationReconciler(t *testing.T) {
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
-			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 		{
 			name: "add new node that does not exist",
@@ -227,7 +227,7 @@ configuration:
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
-			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n  PODINFO_NEW_VALUE: \"This is a new value!\"\n",
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet", "PODINFO_NEW_VALUE": "This is a new value!"},
 		},
 		{
 			name: "values without defaults are not ignored",
@@ -313,7 +313,7 @@ configuration:
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
-			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n  PODINFO_NEW_VALUE: \"this is a new value\"\n",
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet", "PODINFO_NEW_VALUE": "this is a new value"},
 		},
 		{
 			name: "with resource as a source",
@@ -360,7 +360,7 @@ configuration:
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
 			},
-			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 		{
 			name:        "expect error when get resource fails with snapshot",
@@ -823,7 +823,7 @@ configuration:
 				fakeOcm.GetResourceReturnsOnCall(0, nil, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, nil, nil)
 			},
-			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 		{
 			name: "it applies config from flux sources",
@@ -898,7 +898,7 @@ configuration:
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
-			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 		{
 			name: "it applies config from configmap",
@@ -972,7 +972,7 @@ configuration:
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
-			expectedContent: "PODINFO_UI_MESSAGE: \"this is a new message\"\n  PODINFO_UI_COLOR: \"bittersweet\"\n",
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 	}
 	for i, tt := range testCases {
@@ -1110,12 +1110,12 @@ configuration:
 				args := cache.PushDataCallingArgumentsOnCall(0)
 				assert.Equal(t, "sha-18322151501422808564", args.Name)
 				assert.Equal(t, "999", args.Version)
-				assert.Contains(
-					t,
-					args.Content,
-					tt.expectedContent,
-					"the configuration data should have been applied",
-				)
+				sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
+				configMap := corev1.ConfigMap{}
+				assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
+				assert.Equal(t, tt.expectedContent, configMap.Data)
+				// assert.Equal(t, "bittersweet", configMap.Data["PODINFO_UI_COLOR"])
+				// assert.Equal(t, "this is a new message", configMap.Data["PODINFO_UI_MESSAGE"])
 			}
 
 			err = client.Get(context.Background(), types.NamespacedName{
