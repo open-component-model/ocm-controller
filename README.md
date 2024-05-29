@@ -137,6 +137,24 @@ Makes a resource available within the cluster as a [snapshot](#snapshot).
 
 #### HelmChart type Resource
 
+Consider a component helm resource defined as such:
+
+```yaml
+components:
+- name: github.com/open-component-model/helm-test
+  version: "v1.0.0"
+  provider:
+    name: ocm.software
+  resources:
+  - name: charts
+    type: helmChart
+    version: 6.3.5
+    input:
+      type: helm
+      version: 6.3.5
+      path: charts/podinfo-6.3.5.tgz
+```
+
 In order to identify a Resource as a HelmChart an extra identify needs to be added. The key is `helmChart` and the
 value is the name of the chart. For example:
 
@@ -160,6 +178,33 @@ spec:
 ```
 
 This extra information is needed, because it cannot be inferred from the resource's information.
+
+_Note_: `resourceRef.Version` here must match the resource's meta version in order to create the right
+layer information and tag in our internal OCI repository. If there is a mismatch here, the helm deployer
+resource will not find the chart.
+
+A corresponding Helm FluxDeployer might look something like this:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: FluxDeployer
+metadata:
+  name: fluxdeployer-podinfo-pipeline-backend
+  namespace: ocm-system
+spec:
+  interval: 1m0s
+  sourceRef:
+    kind: Resource
+    name: ocm-with-helm-deployment
+  helmReleaseTemplate:
+    chart:
+      spec:
+        chart: podinfo
+        version: 6.3.5 # this is the version that must match with the resource version.
+    interval: 5m
+```
+
+It's possible to leave out the version in which case `latest` is used. But that might cause problems down the line later on.
 
 ### Localization
 
