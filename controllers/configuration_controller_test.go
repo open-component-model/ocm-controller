@@ -929,12 +929,11 @@ configuration:
 				args := cache.PushDataCallingArgumentsOnCall(0)
 				assert.Equal(t, "sha-18322151501422808564", args.Name)
 				assert.Equal(t, "999", args.Version)
-				assert.Contains(
-					t,
-					args.Content,
-					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
-					"the configuration data should have been applied",
-				)
+				sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
+				configMap := corev1.ConfigMap{}
+				assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
+				assert.Equal(t, "bittersweet", configMap.Data["PODINFO_UI_COLOR"])
+				assert.Equal(t, "this is a new message", configMap.Data["PODINFO_UI_MESSAGE"])
 			}
 
 			err = client.Get(context.Background(), types.NamespacedName{
