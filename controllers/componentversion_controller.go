@@ -143,7 +143,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
+		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter(), retErr); derr != nil {
 			retErr = errors.Join(retErr, derr)
 		}
 
