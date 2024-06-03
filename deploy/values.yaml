@@ -1,8 +1,11 @@
 # Default values for crd-bootstrap.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-replicaCount: 1
-namespace: ocm-system
+global:
+  namespace: ocm-system
+
+certManager:
+  enabled: false
 
 registry:
   address: registry.ocm-system.svc.cluster.local:5000
@@ -30,36 +33,35 @@ registry:
             - key: "ca.crt"
               path: "ca.pem"
 
-image:
-  repository: ghcr.io/open-component-model/ocm-controller
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+manager:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/open-component-model/ocm-controller
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+  volumeMounts:
+    - mountPath: "/etc/ssl/certs/registry-root.pem"
+      subPath: "registry-root.pem"
+      name: "certificates"
 
-volumeMounts:
-  - mountPath: "/etc/ssl/certs/registry-root.pem"
-    subPath: "registry-root.pem"
-    name: "certificates"
-
-volumes:
-  - name: "certificates"
-    secret:
-      secretName: "ocm-registry-tls-certs"
-      items:
-        - key: "ca.crt"
-          path: "registry-root.pem"
-
-resources:
-  limits:
-    memory: 2048Mi
-  requests:
-    cpu: 300m
-    memory: 1024Mi
+  volumes:
+    - name: "certificates"
+      secret:
+        secretName: "ocm-registry-tls-certs" # must match with ocm-controller's certificate-secret-name argument
+        items:
+          - key: "ca.crt"
+            path: "registry-root.pem"
+  resources:
+    limits:
+      memory: 2048Mi
+    requests:
+      cpu: 300m
+      memory: 1024Mi
+  # optional values defined by the user
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 monitoring:
   enabled: false
-
-# optional values defined by the user
-nodeSelector: {}
-tolerations: []
-affinity: {}

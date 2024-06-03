@@ -95,7 +95,7 @@ jobs:
     - name: Generate manifests
       run: |
         mkdir -p output
-        helm template ./deploy --set "image.tag=${{ steps.prep.outputs.VERSION }}" --include-crds > ./output/install.yaml
+        helm template ./deploy --set "manager.image.tag=${{ steps.prep.outputs.VERSION }}" --include-crds > ./output/install.yaml
     - name: Setup Syft
       uses: anchore/sbom-action/download-syft@7ccf588e3cf3cc2611714c2eeae48550fbc17552 # v0.15.11
     - name: Setup Cosign

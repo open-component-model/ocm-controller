@@ -9,4 +9,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: ocm-controller
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Values.global.namespace }}
