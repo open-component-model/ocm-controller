@@ -72,6 +72,7 @@ type Component struct {
 	Name                string
 	Version             string
 	Sign                *Sign
+	References          map[string]ocm.ComponentReference
 	Resources           []*Resource[*compdesc.ResourceMeta]
 	ComponentDescriptor *compdesc.ComponentDescriptor
 }
@@ -364,6 +365,15 @@ func (c *Component) GetDescriptor() *compdesc.ComponentDescriptor {
 
 func (c *Component) GetContext() ocm.Context {
 	return c.context
+}
+
+func (c *Component) GetReference(identity ocmmetav1.Identity) (ocm.ComponentReference, error) {
+	v, ok := c.References[string(identity.Digest())]
+	if !ok {
+		return ocm.ComponentReference{}, fmt.Errorf("component with digest '%s' not found... identity: %v", identity.Digest(), identity)
+	}
+
+	return v, nil
 }
 
 func (c *Component) GetResources() []ocm.ResourceAccess {
