@@ -390,7 +390,23 @@ The other way is using the provided helm chart for the project under `./deploy` 
 To do this, use the following command:
 
 ```
-helm install --create-namespace -n ocm-system ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --version v0.21.3
+helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --version v0.21.3
+```
+
+To optionally install cert-manager alongside with certificates configured to be ready to be used, run:
+
+```
+helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --set cert-manager.enabled=true
+```
+
+## Uninstall
+
+Again, there are two ways to uninstall the controller. Using the ocm cli run `ocm controller uninstall`.
+
+With helm, run:
+
+```
+helm uninstall ocm-controller
 ```
 
 ## Licensing

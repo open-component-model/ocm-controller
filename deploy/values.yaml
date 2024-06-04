@@ -4,8 +4,12 @@
 global:
   namespace: ocm-system
 
-certManager:
+cert-manager:
   enabled: false
+  namespace: cert-manager
+  installCRDs: true
+  fullnameOverride: "cert-manager" # this is needed for the certificate issuer to not throw an unknown authority error
+  nameOverride: "cert-manager" # needed because otherwise it will call it `certManager`
 
 registry:
   address: registry.ocm-system.svc.cluster.local:5000
