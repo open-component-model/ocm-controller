@@ -29,11 +29,16 @@ spec:
         - --zap-log-level=4
         - --leader-elect
         - --oci-registry-addr={{ .Values.registry.address }}
+        {{- if not .Values.registry.tls.enabled }}
+        - --oci-registry-insecure-skip-verify
+        {{- end }}
         image: "{{ .Values.manager.image.repository }}:{{ .Values.manager.image.tag | default .Chart.AppVersion }}"
         name: manager
         imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
+        {{- if .Values.registry.tls.enabled }}
         volumeMounts:
         {{- toYaml .Values.manager.volumeMounts | nindent 10 }}
+        {{- end}}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -60,5 +65,7 @@ spec:
             memory: 64Mi
       serviceAccountName: ocm-controller
       terminationGracePeriodSeconds: 10
+      {{- if .Values.registry.tls.enabled }}
       volumes:
       {{- toYaml .Values.manager.volumes | nindent 8 }}
+      {{- end}}
