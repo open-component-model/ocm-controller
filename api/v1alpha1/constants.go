@@ -11,6 +11,7 @@ const (
 	ComponentVersionKey       = "component-version"
 	ResourceNameKey           = "resource-name"
 	ResourceVersionKey        = "resource-version"
+	ResourceRefPath           = "resource-reference-path"
 	SourceNameKey             = "source-name"
 	SourceNamespaceKey        = "source-namespace"
 	SourceArtifactChecksumKey = "source-artifact-checksum"

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -245,6 +246,14 @@ func (r *ResourceReconciler) reconcile(
 	}
 	for k, v := range obj.Spec.SourceRef.ResourceRef.ExtraIdentity {
 		identity[k] = v
+	}
+	if len(obj.Spec.SourceRef.ResourceRef.ReferencePath) > 0 {
+		var builder strings.Builder
+		for _, path := range obj.Spec.SourceRef.ResourceRef.ReferencePath {
+			builder.WriteString(path.String() + ":")
+		}
+
+		identity[v1alpha1.ResourceRefPath] = builder.String()
 	}
 
 	snapshotCR := &v1alpha1.Snapshot{
