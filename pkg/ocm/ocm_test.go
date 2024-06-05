@@ -295,7 +295,7 @@ func TestClient_GetResourceFromNestedComponent(t *testing.T) {
 
 	assert.Equal(t, data, args.Content)
 
-	assert.Equal(t, "sha-8490891396314306936", args.Name, "pushed name did not match constructed name from identity of the resource")
+	assert.Equal(t, "sha-8351589537464398024", args.Name, "pushed name did not match constructed name from identity of the resource")
 	assert.Equal(t, resourceRef.Version, args.Version)
 }
 

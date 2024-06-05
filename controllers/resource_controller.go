@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -237,15 +238,7 @@ func (r *ResourceReconciler) reconcile(
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "resource retrieve, constructing snapshot with name %s", obj.GetSnapshotName())
 
-	identity := ocmmetav1.Identity{
-		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
-		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
-		v1alpha1.ResourceNameKey:     obj.Spec.SourceRef.ResourceRef.Name,
-		v1alpha1.ResourceVersionKey:  version,
-	}
-	for k, v := range obj.Spec.SourceRef.ResourceRef.ExtraIdentity {
-		identity[k] = v
-	}
+	identity := r.constructIdentity(componentDescriptor, obj, version)
 
 	snapshotCR := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
@@ -290,6 +283,33 @@ func (r *ResourceReconciler) reconcile(
 	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+}
+
+func (r *ResourceReconciler) constructIdentity(
+	componentDescriptor *v1alpha1.ComponentDescriptor,
+	obj *v1alpha1.Resource,
+	version string,
+) ocmmetav1.Identity {
+	identity := ocmmetav1.Identity{
+		v1alpha1.ComponentNameKey:    componentDescriptor.Name,
+		v1alpha1.ComponentVersionKey: componentDescriptor.Spec.Version,
+		v1alpha1.ResourceNameKey:     obj.Spec.SourceRef.ResourceRef.Name,
+		v1alpha1.ResourceVersionKey:  version,
+	}
+	for k, v := range obj.Spec.SourceRef.ResourceRef.ExtraIdentity {
+		identity[k] = v
+	}
+
+	if len(obj.Spec.SourceRef.ResourceRef.ReferencePath) > 0 {
+		var builder strings.Builder
+		for _, path := range obj.Spec.SourceRef.ResourceRef.ReferencePath {
+			builder.WriteString(path.String() + ":")
+		}
+
+		identity[v1alpha1.ResourceRefPath] = builder.String()
+	}
+
+	return identity
 }
 
 // this function will enqueue a reconciliation for any snapshot which is referenced

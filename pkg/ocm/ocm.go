@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/Masterminds/semver"
 	"github.com/containers/image/v5/pkg/compression"
@@ -196,6 +197,15 @@ func (c *Client) GetResource(
 	for k, v := range resource.ElementMeta.ExtraIdentity {
 		identity[k] = v
 	}
+	if len(resource.ReferencePath) > 0 {
+		var builder strings.Builder
+		for _, path := range resource.ReferencePath {
+			builder.WriteString(path.String() + ":")
+		}
+
+		identity[v1alpha1.ResourceRefPath] = builder.String()
+	}
+
 	name, err := ConstructRepositoryName(identity)
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to construct name: %w", err)
