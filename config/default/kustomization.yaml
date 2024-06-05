@@ -13,6 +13,6 @@ transformers:
 images:
 - name: open-component-model/ocm-controller
   newName: ghcr.io/open-component-model/ocm-controller
-  newTag: v0.21.4
+  newTag: v0.21.5
 - name: registry
   newName: registry
