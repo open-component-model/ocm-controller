@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/conditions"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -54,6 +55,10 @@ type ComponentVersionSpec struct {
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// Subscriptions can be multiple subscriptions for an event.
+	// +optional
+	Subscriptions []SubscribeSpec `json:"subscriptions,omitempty"`
 }
 
 // Repository specifies access details for the repository that contains OCM ComponentVersions.
@@ -161,6 +166,32 @@ func (in *ComponentVersion) GetVID() map[string]string {
 	return metadata
 }
 
+// This must NOT do any sending itself. A different thing will take care of that.
+// This should only return if anything needs to be sent out or not.
+// Maybe just a list of payloads? And if it's empty, it means nothing needs to be
+// sent out.
+func (in *ComponentVersion) Payloads() []Request {
+	fmt.Println("sending request to api: ", in.Spec.Subscriptions)
+
+	var payloads []Request
+
+	for _, sub := range in.Spec.Subscriptions {
+		if !conditions.Has(in, sub.Condition) {
+			continue
+		}
+
+		cond := conditions.Get(in, sub.Condition)
+		if cond.Status != sub.Status {
+			continue
+		}
+
+		// construct payload here
+		payloads = append(payloads, Request{Payload: string(sub.Payload.Raw.Raw), Destination: sub.URL})
+	}
+
+	return payloads
+}
+
 func (in *ComponentVersion) SetObservedGeneration(v int64) {
 	in.Status.ObservedGeneration = v
 }
@@ -187,7 +218,7 @@ func (in *ComponentVersion) SetConditions(conditions []metav1.Condition) {
 
 // GetRequeueAfter returns the duration after which the ComponentVersion must be
 // reconciled again.
-func (in ComponentVersion) GetRequeueAfter() time.Duration {
+func (in *ComponentVersion) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
 }
 

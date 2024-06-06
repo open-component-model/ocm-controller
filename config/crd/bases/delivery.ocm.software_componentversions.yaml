@@ -95,6 +95,44 @@ spec:
                   it is still allowed to do so.
                   https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account
                 type: string
+              subscriptions:
+                description: Subscriptions can be multiple subscriptions for an event.
+                items:
+                  description: SubscribeSpec defines subscription values. Multiple
+                    events can be subscribed to.
+                  properties:
+                    condition:
+                      description: Condition is the condition that the object publishes
+                        and the user subscribes to.
+                      type: string
+                    payload:
+                      description: Payload is a Go Template constructed from the objects
+                        that it belongs to.
+                      properties:
+                        raw:
+                          description: Raw can be used for un-altered plain data.
+                          x-kubernetes-preserve-unknown-fields: true
+                        template:
+                          description: |-
+                            Template can be used to fine-tune the payload with additional information from the
+                            context object.
+                          type: string
+                      type: object
+                    status:
+                      description: Status is the outcome value of the event. Usually
+                        `success` or `failure` or `deployed`.
+                      type: string
+                    url:
+                      description: URL is the location on which the payload will be
+                        delivered. There is no retry!
+                      type: string
+                  required:
+                  - condition
+                  - payload
+                  - status
+                  - url
+                  type: object
+                type: array
               suspend:
                 description: Suspend can be used to temporarily pause the reconciliation
                   of the ComponentVersion resource.
