@@ -1,0 +1,27 @@
+{{- if index .Values "cert-manager" "enabled" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wait-for-cert-manager
+  namespace: cert-manager
+  labels:
+    app: {{ .Release.Name }}-wait-for-cert-manager
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: wait-for-cert-manager-sa
+      containers:
+        - name: wait-for-cert-manager
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl wait --for=condition=Available=True Deployment/cert-manager -n cert-manager --timeout=60s
+              kubectl wait --for=condition=Available=True Deployment/cert-manager-webhook -n cert-manager --timeout=60s
+              kubectl wait --for=condition=Available=True Deployment/cert-manager-cainjector -n cert-manager --timeout=60s
+      restartPolicy: OnFailure
+{{- end}}

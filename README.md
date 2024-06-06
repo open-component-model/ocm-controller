@@ -378,6 +378,37 @@ Simply, run `flux install` to install the controllers and the CRDs.
 Once that is done, we are ready to start up the controller. Run `tilt up`, then hit `<space>` to enter tilt's
 ui. You should see ocm-controller starting up.
 
+## Installing
+
+There are two ways to install ocm-controller. One, is by using `ocm controller install` command from the [OCM](https://github.com/open-component-model/ocm) project.
+
+This CLI will install prerequisites as well and check the cluster state during installation to make sure that all elements
+are correctly installed and up and running.
+
+The other way is using the provided helm chart for the project under `./deploy` folder.
+
+To do this, use the following command:
+
+```
+helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --version v0.21.3
+```
+
+To optionally install cert-manager alongside with certificates configured to be ready to be used, run:
+
+```
+helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --set cert-manager.enabled=true
+```
+
+## Uninstall
+
+Again, there are two ways to uninstall the controller. Using the ocm cli run `ocm controller uninstall`.
+
+With helm, run:
+
+```
+helm uninstall ocm-controller
+```
+
 ## Licensing
 
 Copyright 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
