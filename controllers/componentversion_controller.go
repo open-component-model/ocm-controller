@@ -15,6 +15,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
+	"github.com/open-component-model/ocm-controller/pkg/sender"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,6 +52,7 @@ type ComponentVersionReconciler struct {
 	kuberecorder.EventRecorder
 
 	OCMClient ocmclient.Contract
+	Sender    sender.Notifier
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions;componentdescriptors,verbs=get;list;watch;create;update;patch;delete
@@ -150,6 +152,19 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if retErr != nil {
 			metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
 		}
+	}()
+
+	// Every reconcile we give a chance to send out notifications.
+	// Maybe this should be done only once? No idea...
+	defer func() {
+		// avoid creating unnecessary routines.
+		if len(obj.Spec.Subscriptions) == 0 {
+			return
+		}
+
+		// What's the event? should we just ALWAYS send shit?
+		// People can subscribe to Condition and Status of the Condition.
+		r.Sender.Notify(ctx, obj)
 	}()
 
 	// Starts the progression by setting ReconcilingCondition. This will be checked in defer.

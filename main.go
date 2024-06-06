@@ -14,6 +14,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/events"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	"github.com/open-component-model/ocm-controller/pkg/sender"
 	glog "gopkg.in/op/go-logging.v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -190,11 +191,14 @@ func setupManagers(
 		os.Exit(1)
 	}
 
+	notifier := &sender.Sender{}
+
 	if err = (&controllers.ComponentVersionReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		EventRecorder: eventsRecorder,
 		OCMClient:     ocmClient,
+		Sender:        notifier,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentVersion")
 		os.Exit(1)
