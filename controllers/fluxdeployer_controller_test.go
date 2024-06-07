@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -47,9 +47,9 @@ func TestFluxDeployerReconcile(t *testing.T) {
 					Kind:      "Resource",
 				},
 			},
-			HelmReleaseTemplate: &helmv1.HelmReleaseSpec{
-				Chart: helmv1.HelmChartTemplate{
-					Spec: helmv1.HelmChartTemplateSpec{
+			HelmReleaseTemplate: &helmv2.HelmReleaseSpec{
+				Chart: &helmv2.HelmChartTemplate{
+					Spec: helmv2.HelmChartTemplateSpec{
 						Chart:   "podinfo",
 						Version: "6.3.5",
 					},
@@ -69,7 +69,7 @@ func TestFluxDeployerReconcile(t *testing.T) {
 				v1alpha1.ComponentVersionKey:      "v0.0.1",
 				v1alpha1.ResourceNameKey:          "resource-name",
 				v1alpha1.ResourceVersionKey:       "v0.0.5",
-				v1alpha1.ResourceHelmChartNameKey: "podinfo",
+				v1alpha1.ResourceHelmChartVersion: "v0.0.5",
 			},
 			Digest: "digest-1",
 			Tag:    "1234",
@@ -82,7 +82,7 @@ func TestFluxDeployerReconcile(t *testing.T) {
 	conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
 	client := env.FakeKubeClient(
-		WithAddToScheme(helmv1.AddToScheme),
+		WithAddToScheme(helmv2.AddToScheme),
 		WithAddToScheme(sourcev1beta2.AddToScheme),
 		WithAddToScheme(kustomizev1.AddToScheme),
 		WithObjects(snapshot, deployer, resourceV1),

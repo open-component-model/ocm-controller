@@ -5,23 +5,15 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/containers/image/v5/pkg/compression"
-	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
-	"github.com/mandelsoft/vfs/pkg/osfs"
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
-	"github.com/open-component-model/ocm/pkg/utils/tarutils"
 	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -172,13 +164,7 @@ func (r *FluxDeployerReconciler) reconcile(
 		return ctrl.Result{}, err
 	}
 
-	// If the type is HelmChart we need to cut off the last part of the snapshot url that will contain
-	// the chart name.
-	if _, ok := snapshot.Spec.Identity[v1alpha1.ResourceHelmChartNameKey]; ok {
-		snapshotRepo = snapshotRepo[0:strings.Index(snapshotRepo, "/")]
-	}
 	snapshotURL := fmt.Sprintf("oci://%s/%s", r.RegistryServiceName, snapshotRepo)
-
 	if obj.Spec.KustomizationTemplate != nil && obj.Spec.HelmReleaseTemplate != nil {
 		return ctrl.Result{}, fmt.Errorf(
 			"can't define both kustomization template and helm release template",
@@ -209,16 +195,12 @@ func (r *FluxDeployerReconciler) reconcile(
 	}
 
 	if obj.Spec.HelmReleaseTemplate != nil {
-		ok, err := r.checkForHelmContent(ctx, obj, snapshot)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to check snapshot content for helm resources: %w", err)
+		tag := snapshot.Spec.Tag
+		if v, ok := snapshot.Spec.Identity[v1alpha1.ResourceHelmChartVersion]; ok {
+			tag = v
 		}
 
-		if !ok {
-			return ctrl.Result{}, fmt.Errorf("no helm chart found for helm content")
-		}
-
-		if err := r.createHelmSources(ctx, obj, snapshotURL); err != nil {
+		if err := r.createHelmSources(ctx, obj, snapshotURL, tag); err != nil {
 			msg := "failed to create helm sources"
 			logger.Error(err, msg)
 			conditions.MarkFalse(
@@ -262,75 +244,18 @@ func (r *FluxDeployerReconciler) createKustomizationSources(
 	return nil
 }
 
-func (r *FluxDeployerReconciler) checkForHelmContent(
-	ctx context.Context,
-	deployer *v1alpha1.FluxDeployer,
-	snapshot *v1alpha1.Snapshot,
-) (bool, error) {
-	data, err := r.getSnapshotBytes(ctx, snapshot)
-	if err != nil {
-		return false, fmt.Errorf("failed to get snapshot bytes: %w", err)
-	}
-
-	virtualFS, err := osfs.NewTempFileSystem()
-	if err != nil {
-		return false, fmt.Errorf("fs error: %w", err)
-	}
-	defer func() {
-		_ = virtualFS.RemoveAll("/")
-	}()
-
-	if err := tarutils.ExtractTarToFs(virtualFS, bytes.NewBuffer(data)); err != nil {
-		return false, fmt.Errorf("extract tar error: %w", err)
-	}
-
-	if deployer.Spec.HelmReleaseTemplate == nil {
-		return false, fmt.Errorf("no helm release template")
-	}
-
-	chartName := deployer.Spec.HelmReleaseTemplate.Chart.Spec.Chart
-
-	if _, err := virtualFS.Stat(filepath.Join(chartName, "Chart.yaml")); err != nil && !os.IsNotExist(err) {
-		return false, fmt.Errorf("failed to check for chart yaml: %w", err)
-	}
-
-	return true, nil
-}
-
-// This might be problematic if the resource is too large in the snapshot. ReadAll will read it into memory.
-func (r *FluxDeployerReconciler) getSnapshotBytes(ctx context.Context, snapshot *v1alpha1.Snapshot) ([]byte, error) {
-	name, err := ocm.ConstructRepositoryName(snapshot.Spec.Identity)
-	if err != nil {
-		return nil, fmt.Errorf("failed to construct name: %w", err)
-	}
-
-	reader, err := r.Cache.FetchDataByDigest(ctx, name, snapshot.Status.LastReconciledDigest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data: %w", err)
-	}
-
-	uncompressed, _, err := compression.AutoDecompress(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to auto decompress: %w", err)
-	}
-	defer uncompressed.Close()
-
-	// We don't decompress snapshots because those are archives and are decompressed by the caching layer already.
-	return io.ReadAll(uncompressed)
-}
-
 func (r *FluxDeployerReconciler) createHelmSources(
 	ctx context.Context,
 	obj *v1alpha1.FluxDeployer,
-	url string,
+	url, tag string,
 ) error {
 	// create oci registry
-	if err := r.reconcileHelmRepository(ctx, obj, url); err != nil {
+	if err := r.reconcileOCIRepo(ctx, obj, url, tag); err != nil {
 		return fmt.Errorf("failed to create OCI repository: %w", err)
 	}
 
 	if err := r.reconcileHelmRelease(ctx, obj); err != nil {
-		return fmt.Errorf("failed to create Kustomization object :%w", err)
+		return fmt.Errorf("failed to create Helm Release object :%w", err)
 	}
 
 	return nil
@@ -490,7 +415,7 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(
 	ctx context.Context,
 	obj *v1alpha1.FluxDeployer,
 ) error {
-	helmRelease := &helmv1.HelmRelease{
+	helmRelease := &helmv2.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
 			Name:      obj.GetName(),
@@ -504,8 +429,8 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(
 			}
 		}
 		helmRelease.Spec = *obj.Spec.HelmReleaseTemplate
-		helmRelease.Spec.Chart.Spec.SourceRef = helmv1.CrossNamespaceObjectReference{
-			Kind:      "HelmRepository",
+		helmRelease.Spec.ChartRef = &helmv2.CrossNamespaceSourceReference{
+			Kind:      "OCIRepository",
 			Name:      obj.GetName(),
 			Namespace: obj.GetNamespace(),
 		}
@@ -517,45 +442,6 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(
 	}
 
 	obj.Status.Kustomization = helmRelease.GetNamespace() + "/" + helmRelease.GetName()
-
-	return nil
-}
-
-func (r *FluxDeployerReconciler) reconcileHelmRepository(
-	ctx context.Context,
-	obj *v1alpha1.FluxDeployer,
-	url string,
-) error {
-	helmRepository := &sourcev1beta2.HelmRepository{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.GetName(),
-		},
-	}
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, helmRepository, func() error {
-		if helmRepository.ObjectMeta.CreationTimestamp.IsZero() {
-			if err := controllerutil.SetOwnerReference(obj, helmRepository, r.Scheme); err != nil {
-				return fmt.Errorf(
-					"failed to set owner reference on helm repository source: %w",
-					err,
-				)
-			}
-		}
-		helmRepository.Spec = sourcev1beta2.HelmRepositorySpec{
-			Interval: obj.Spec.Interval,
-			CertSecretRef: &meta.LocalObjectReference{
-				Name: r.CertSecretName,
-			},
-			URL:  url,
-			Type: "oci",
-		}
-
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create reconcile oci repo: %w", err)
-	}
 
 	return nil
 }
