@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fluxcd/helm-controller/api/v2beta1"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/apis/meta"
 	fconditions "github.com/fluxcd/pkg/runtime/conditions"
@@ -362,7 +361,7 @@ func checkIsFluxDeployerReady(name string) features.Func {
 			if !ok {
 				return false
 			}
-			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, v2beta1.ReconciliationSucceededReason)
+			return fconditions.IsTrue(obj, meta.ReadyCondition) && reasonMatches(obj, "ReconciliationSucceeded")
 		}), wait.WithTimeout(timeoutDuration))
 
 		if err != nil {

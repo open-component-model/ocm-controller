@@ -19,9 +19,10 @@ const (
 
 // Externally defined extra identity keys.
 const (
-	// ResourceHelmChartNameKey if defined, means the resource is a helm resource and the chart should be added
-	// to the repository name.
-	ResourceHelmChartNameKey = "helmChart"
+	// ResourceHelmChartVersion is needed information in case of configuration and localization objects
+	// for helm charts, because it cannot be determined from the existing resource and the generated
+	// layer tag _needs_ to match with the chart's version for Flux to correctly deploy it using OCIRegistry.
+	ResourceHelmChartVersion = "chartVersion"
 )
 
 // Log levels.

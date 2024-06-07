@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	helmv1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	"github.com/fluxcd/pkg/runtime/events"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -48,7 +48,7 @@ func init() {
 	utilruntime.Must(sourcev1.AddToScheme(scheme))
 	utilruntime.Must(sourcev1beta2.AddToScheme(scheme))
 	utilruntime.Must(kustomizev1.AddToScheme(scheme))
-	utilruntime.Must(helmv1.AddToScheme(scheme))
+	utilruntime.Must(helmv2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

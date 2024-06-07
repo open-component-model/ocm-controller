@@ -557,12 +557,6 @@ func ConstructRepositoryName(identity ocmmetav1.Identity) (string, error) {
 		return "", fmt.Errorf("failed to create hash for identity: %w", err)
 	}
 
-	// Append the name of the helm chart to the repository. That's because flux helm resolver
-	// doesn't look at the root of an OCI repository, it appends the name of the chart at the end.
-	if v, ok := identity[v1alpha1.ResourceHelmChartNameKey]; ok {
-		repositoryName = fmt.Sprintf("%s/%s", repositoryName, v)
-	}
-
 	return repositoryName, nil
 }
 

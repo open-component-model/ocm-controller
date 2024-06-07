@@ -738,6 +738,10 @@ func (m *MutationReconcileLooper) getIdentity(ctx context.Context, obj *v1alpha1
 		if obj.ResourceRef != nil {
 			id[v1alpha1.ResourceNameKey] = obj.ResourceRef.Name
 			id[v1alpha1.ResourceVersionKey] = obj.ResourceRef.Version
+
+			for k, v := range obj.ResourceRef.ExtraIdentity {
+				id[k] = v
+			}
 		}
 	default:
 		// if kind is not ComponentVersion, then fetch resource using dynamic client

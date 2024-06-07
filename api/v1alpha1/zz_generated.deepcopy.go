@@ -9,7 +9,7 @@
 package v1alpha1
 
 import (
-	"github.com/fluxcd/helm-controller/api/v2beta1"
+	"github.com/fluxcd/helm-controller/api/v2"
 	"github.com/fluxcd/kustomize-controller/api/v1beta2"
 	compdescmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"k8s.io/api/core/v1"
@@ -412,7 +412,7 @@ func (in *FluxDeployerSpec) DeepCopyInto(out *FluxDeployerSpec) {
 	}
 	if in.HelmReleaseTemplate != nil {
 		in, out := &in.HelmReleaseTemplate, &out.HelmReleaseTemplate
-		*out = new(v2beta1.HelmReleaseSpec)
+		*out = new(v2.HelmReleaseSpec)
 		(*in).DeepCopyInto(*out)
 	}
 }
