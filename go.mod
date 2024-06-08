@@ -64,7 +64,7 @@ require (
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
 	helm.sh/helm/v3 v3.15.1
 	k8s.io/apimachinery v0.30.1
-	k8s.io/client-go v1.5.2
+	k8s.io/client-go v0.30.1
 	sigs.k8s.io/controller-runtime v0.18.4
 	sigs.k8s.io/e2e-framework v0.2.0
 	sigs.k8s.io/kustomize/api v0.17.2
