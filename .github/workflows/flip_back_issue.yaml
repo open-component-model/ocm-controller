@@ -18,7 +18,7 @@ jobs:
           app_id: ${{ secrets.OCMBOT_APP_ID }}
           private_key: ${{ secrets.OCMBOT_PRIV_KEY }}
       - name: flip any related issues
-        uses: skarlso/caretaker@v0.6.0
+        uses: skarlso/caretaker@v0.7.1
         with:
           command: pull-request-updated
           owner: open-component-model
