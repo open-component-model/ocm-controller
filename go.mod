@@ -44,13 +44,13 @@ require (
 	github.com/fluxcd/pkg/tar v0.7.0
 	github.com/fluxcd/source-controller/api v1.3.0
 	github.com/google/go-containerregistry v0.19.1
-	github.com/mandelsoft/logging v0.0.0-20230905123808-7042ee3aae45
+	github.com/mandelsoft/logging v0.0.0-20240201091719-67180059d6bf
 	github.com/mandelsoft/spiff v1.7.0-beta-5
 	github.com/mandelsoft/vfs v0.4.3
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.33.1
-	github.com/open-component-model/ocm v0.8.0
+	github.com/open-component-model/ocm v0.11.0
 	github.com/open-component-model/ocm-e2e-framework v0.6.1-0.20230913082321-d7050cc55939
 	github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b
 	github.com/opencontainers/go-digest v1.0.0
@@ -139,6 +139,7 @@ require (
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20230304212654-82a0ddb27589 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
+	github.com/cloudflare/cfssl v1.6.5 // indirect
 	github.com/cloudflare/circl v1.3.8 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be // indirect
@@ -219,6 +220,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
+	github.com/gowebpki/jcs v1.0.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -242,6 +244,7 @@ require (
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mandelsoft/filepath v0.0.0-20240223090642-3e2777258aa3 // indirect
+	github.com/mandelsoft/goutils v0.0.0-20240605100619-84d61423f421 // indirect
 	github.com/marstr/guid v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
