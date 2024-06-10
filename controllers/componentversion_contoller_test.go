@@ -50,8 +50,13 @@ func TestComponentVersionReconcile(t *testing.T) {
 					Version: "v0.0.1",
 					Labels: []v1.Label{
 						{
-							Name:    "name",
-							Value:   []byte("test-value"),
+							Name:    "ocm.software/label-value",
+							Value:   []byte("\"string-value\""),
+							Version: "1.0.0",
+						},
+						{
+							Name:    "ocm.software/label-bool",
+							Value:   []byte("true"),
 							Version: "1.0.0",
 						},
 					},
@@ -77,8 +82,8 @@ func TestComponentVersionReconcile(t *testing.T) {
 					Version: "v0.0.1",
 					Labels: []v1.Label{
 						{
-							Name:    "embedded",
-							Value:   []byte("test-value-2"),
+							Name:    "ocm.software/label-value-2",
+							Value:   []byte("1.32"),
 							Version: "1.0.1",
 						},
 					},
@@ -129,14 +134,15 @@ func TestComponentVersionReconcile(t *testing.T) {
 	err = client.Get(context.Background(), nns, cd)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{
-		"name": "test-value",
+		"ocm.software/label-value": "string-value",
+		"ocm.software/label-bool":  "true",
 	}, cd.Labels)
 
 	nns = types.NamespacedName{Name: cv.Status.ComponentDescriptor.References[0].ComponentDescriptorRef.Name, Namespace: cv.Namespace}
 	err = client.Get(context.Background(), nns, cd)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{
-		"embedded": "test-value-2",
+		"ocm.software/label-value-2": "1.32",
 	}, cd.Labels)
 
 	close(recorder.Events)

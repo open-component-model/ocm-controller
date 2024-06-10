@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/Masterminds/semver/v3"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
@@ -477,10 +478,19 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(
 		return nil, fmt.Errorf("object was not a component descriptor: %v", cd)
 	}
 
+	labels := componentDescriptor.GetLabels()
 	labelMap := make(map[string]string)
-	for _, label := range componentDescriptor.GetLabels() {
-		// we don't care what encoding was used, we just use the data as is.
-		labelMap[label.Name] = string(label.Value)
+	for k, v := range labels.AsMap() {
+		switch t := v.(type) {
+		case string:
+			labelMap[k] = t
+		case float64:
+			labelMap[k] = strconv.FormatFloat(t, 'f', -1, 64)
+		case bool:
+			labelMap[k] = strconv.FormatBool(t)
+		case int:
+			labelMap[k] = strconv.Itoa(t)
+		}
 	}
 
 	descriptor := &v1alpha1.ComponentDescriptor{
@@ -531,10 +541,19 @@ func (r *ComponentVersionReconciler) createInitialComponentDescriptor(
 		return nil, nil, err
 	}
 
+	labels := cv.GetDescriptor().GetLabels()
 	labelMap := make(map[string]string)
-	for _, label := range cv.GetDescriptor().GetLabels() {
-		// we don't care what encoding was used, we just use the data as is.
-		labelMap[label.Name] = string(label.Value)
+	for k, v := range labels.AsMap() {
+		switch t := v.(type) {
+		case string:
+			labelMap[k] = t
+		case float64:
+			labelMap[k] = strconv.FormatFloat(t, 'f', -1, 64)
+		case bool:
+			labelMap[k] = strconv.FormatBool(t)
+		case int:
+			labelMap[k] = strconv.Itoa(t)
+		}
 	}
 
 	descriptor := &v1alpha1.ComponentDescriptor{
