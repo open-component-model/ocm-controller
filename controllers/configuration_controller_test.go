@@ -76,6 +76,7 @@ type configurationTestCase struct {
 	valuesFrom          func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
 	valuesFromType      string
 	expectError         string
+	expectedContent     map[string]string
 }
 
 func TestConfigurationReconciler(t *testing.T) {
@@ -137,6 +138,182 @@ func TestConfigurationReconciler(t *testing.T) {
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
+		},
+		{
+			name: "add new node that does not exist",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				cv.Status.ObservedGeneration = 5
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "Resource",
+						Name:       "test-resource",
+						Namespace:  snapshot.Namespace,
+					},
+				}
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				name := "resource-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+				}
+				sourceSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: cv.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{
+						Identity: identity,
+					},
+				}
+				resource.Status.SnapshotName = name
+				return sourceSnapshot
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
+				require.NoError(t, err)
+				fakeCache.FetchDataByDigestReturns(content, nil)
+				testConfigData := []byte(`kind: ConfigData
+metadata:
+  name: test-config-data
+  namespace: default
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+    newValue: This is a new value!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+      newValue:
+        type: string
+  rules:
+  - value: (( message ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
+  - value: (( newValue ))
+    file: configmap.yaml
+    path: data.PODINFO_NEW_VALUE
+`)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(testConfigData)), "", nil)
+				cmp := getMockComponent(DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
+			},
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet", "PODINFO_NEW_VALUE": "This is a new value!"},
+		},
+		{
+			name: "values without defaults are not ignored",
+			componentVersion: func() *v1alpha1.ComponentVersion {
+				cv := DefaultComponent.DeepCopy()
+				cv.Status.ReconciledVersion = "v0.0.1"
+				cv.Status.ObservedGeneration = 5
+				cv.Status.ComponentDescriptor = v1alpha1.Reference{
+					Name:    "test-component",
+					Version: "v0.0.1",
+					ComponentDescriptorRef: meta.NamespacedObjectReference{
+						Name:      cv.Name + "-descriptor",
+						Namespace: cv.Namespace,
+					},
+				}
+				return cv
+			},
+			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
+				return DefaultComponentDescriptor.DeepCopy()
+			},
+			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
+				return v1alpha1.ObjectReference{
+					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+						APIVersion: v1alpha1.GroupVersion.String(),
+						Kind:       "Resource",
+						Name:       "test-resource",
+						Namespace:  snapshot.Namespace,
+					},
+				}
+			},
+			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
+				name := "resource-snapshot"
+				identity := ocmmetav1.Identity{
+					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+				}
+				sourceSnapshot := &v1alpha1.Snapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: cv.Namespace,
+					},
+					Spec: v1alpha1.SnapshotSpec{
+						Identity: identity,
+					},
+				}
+				resource.Status.SnapshotName = name
+				return sourceSnapshot
+			},
+			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
+				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
+				require.NoError(t, err)
+				fakeCache.FetchDataByDigestReturns(content, nil)
+				testConfigData := []byte(`kind: ConfigData
+metadata:
+  name: test-config-data
+  namespace: default
+configuration:
+  defaults:
+    color: red
+    message: Hello, world!
+  schema:
+    type: object
+    additionalProperties: false
+    properties:
+      color:
+        type: string
+      message:
+        type: string
+  rules:
+  - value: (( message ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_MESSAGE
+  - value: (( color ))
+    file: configmap.yaml
+    path: data.PODINFO_UI_COLOR
+  - value: this is a new value
+    file: configmap.yaml
+    path: data.PODINFO_NEW_VALUE
+`)
+				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(testConfigData)), "", nil)
+				cmp := getMockComponent(DefaultComponent)
+				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
+			},
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet", "PODINFO_NEW_VALUE": "this is a new value"},
 		},
 		{
 			name: "with resource as a source",
@@ -183,6 +360,7 @@ func TestConfigurationReconciler(t *testing.T) {
 				fakeOcm.GetResourceReturnsOnCall(0, content, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
 			},
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 		{
 			name:        "expect error when get resource fails with snapshot",
@@ -645,6 +823,7 @@ configuration:
 				fakeOcm.GetResourceReturnsOnCall(0, nil, nil)
 				fakeOcm.GetResourceReturnsOnCall(1, nil, nil)
 			},
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 		{
 			name: "it applies config from flux sources",
@@ -719,6 +898,7 @@ configuration:
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 		{
 			name: "it applies config from configmap",
@@ -792,6 +972,7 @@ configuration:
 				cmp := getMockComponent(DefaultComponent)
 				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
 			},
+			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
 		},
 	}
 	for i, tt := range testCases {
@@ -929,12 +1110,12 @@ configuration:
 				args := cache.PushDataCallingArgumentsOnCall(0)
 				assert.Equal(t, "sha-18322151501422808564", args.Name)
 				assert.Equal(t, "999", args.Version)
-				assert.Contains(
-					t,
-					args.Content,
-					"PODINFO_UI_COLOR: bittersweet\n  PODINFO_UI_MESSAGE: this is a new message\n",
-					"the configuration data should have been applied",
-				)
+				sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
+				configMap := corev1.ConfigMap{}
+				assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
+				assert.Equal(t, tt.expectedContent, configMap.Data)
+				// assert.Equal(t, "bittersweet", configMap.Data["PODINFO_UI_COLOR"])
+				// assert.Equal(t, "this is a new message", configMap.Data["PODINFO_UI_MESSAGE"])
 			}
 
 			err = client.Get(context.Background(), types.NamespacedName{
@@ -959,8 +1140,7 @@ configuration:
 	}
 }
 
-// TODO: rewrite these so that they test the predicate functions.
-func XTestConfigurationShouldReconcile(t *testing.T) {
+func TestConfigurationShouldReconcile(t *testing.T) {
 	testcase := []struct {
 		name             string
 		errStr           string
@@ -999,8 +1179,7 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			},
 		},
 		{
-			name:   "should reconcile if snapshot is not ready",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
+			name: "should reconcile if snapshot is not ready",
 			componentVersion: func() *v1alpha1.ComponentVersion {
 				cv := DefaultComponent.DeepCopy()
 				cv.Status.ReconciledVersion = "v0.0.1"
@@ -1027,64 +1206,6 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				conditions.MarkFalse(snapshot, meta.ReadyCondition, meta.SucceededReason, "Snapshot with name '%s' is ready", snapshot.Name)
 
 				*objs = append(*objs, configuration, snapshot)
-
-				return configuration
-			},
-		},
-		{
-			name:   "should reconcile if component version doesn't match",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.2"
-
-				return cv
-			},
-			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LatestSourceVersion = "v0.0.1"
-				configuration.Status.LatestConfigVersion = "v0.0.1"
-				configuration.Spec.SourceRef.ResourceRef = &v1alpha1.ResourceReference{
-					ElementMeta: v1alpha1.ElementMeta{
-						Name: "name",
-					},
-				}
-				*objs = append(*objs, configuration)
-
-				return configuration
-			},
-		},
-		{
-			name:   "should reconcile if change was detected in source snapshot",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from snapshot: failed to fetch data: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LatestSourceVersion = "not-last-reconciled-digest"
-				configuration.Status.LatestConfigVersion = "v0.0.1"
-				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "Snapshot",
-						Name:      "source-snapshot",
-						Namespace: configuration.Namespace,
-					},
-				}
-				sourceSnapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "source-snapshot",
-						Namespace: configuration.Namespace,
-					},
-					Status: v1alpha1.SnapshotStatus{
-						LastReconciledDigest: "last-reconciled-digest",
-						LastReconciledTag:    "latest",
-					},
-				}
-				*objs = append(*objs, configuration, sourceSnapshot)
 
 				return configuration
 			},
@@ -1191,93 +1312,6 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 				return configuration
 			},
 		},
-		{
-			name:   "should reconcile if there is a difference in config source",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LatestSourceVersion = "v0.0.1"
-				configuration.Status.LatestConfigVersion = "last-reconciled-digest"
-				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "ComponentVersion",
-						Name:      "test-component",
-						Namespace: configuration.Namespace,
-					},
-					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v1alpha1.ElementMeta{
-							Name: "test",
-						},
-					},
-				}
-				configuration.Spec.ConfigRef = &v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "Snapshot",
-						Name:      "config-snapshot",
-						Namespace: configuration.Namespace,
-					},
-				}
-				configSnapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "config-snapshot",
-						Namespace: configuration.Namespace,
-					},
-					Status: v1alpha1.SnapshotStatus{
-						LastReconciledDigest: "not-last-reconciled-digest",
-						LastReconciledTag:    "latest",
-					},
-				}
-				*objs = append(*objs, configuration, configSnapshot)
-
-				return configuration
-			},
-		},
-		{
-			name:   "should reconcile if there is a difference in patch merge object",
-			errStr: "failed to reconcile mutation object: failed to fetch resource data from resource ref: failed to fetch resource from resource ref: unexpected number of calls; not enough return values have been configured; call count 0",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ReconciledVersion = "v0.0.1"
-
-				return cv
-			},
-			configuration: func(objs *[]client.Object) *v1alpha1.Configuration {
-				configuration := DefaultConfiguration.DeepCopy()
-				configuration.Status.LatestSourceVersion = "v0.0.1"
-				configuration.Status.LatestConfigVersion = "last-reconciled-digest"
-				configuration.Spec.SourceRef = v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						Kind:      "ComponentVersion",
-						Name:      "test-component",
-						Namespace: configuration.Namespace,
-					},
-					ResourceRef: &v1alpha1.ResourceReference{
-						ElementMeta: v1alpha1.ElementMeta{
-							Name: "test",
-						},
-					},
-				}
-				configuration.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
-					Source: v1alpha1.PatchStrategicMergeSource{
-						SourceRef: meta.NamespacedObjectKindReference{
-							Kind:      "GitRepository",
-							Name:      "git-test",
-							Namespace: configuration.Namespace,
-						},
-					},
-				}
-				gitrepo := createGitRepository("git-test", configuration.Namespace, "url", "last-reconciled-digest")
-				*objs = append(*objs, configuration, gitrepo)
-
-				return configuration
-			},
-		},
 	}
 
 	for i, tt := range testcase {
@@ -1289,8 +1323,10 @@ func XTestConfigurationShouldReconcile(t *testing.T) {
 			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
+			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
 
 			cr := ConfigurationReconciler{
+				DynamicClient: dynClient,
 				Client:        client,
 				Scheme:        env.scheme,
 				OCMClient:     fakeOcm,
