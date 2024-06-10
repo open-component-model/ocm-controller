@@ -477,10 +477,17 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(
 		return nil, fmt.Errorf("object was not a component descriptor: %v", cd)
 	}
 
+	labelMap := make(map[string]string)
+	for _, label := range componentDescriptor.GetLabels() {
+		// we don't care what encoding was used, we just use the data as is.
+		labelMap[label.Name] = string(label.Value)
+	}
+
 	descriptor := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: parent.GetNamespace(),
 			Name:      componentName,
+			Labels:    labelMap,
 		},
 		Spec: v1alpha1.ComponentDescriptorSpec{
 			ComponentVersionSpec: componentDescriptor.Spec,
@@ -524,10 +531,17 @@ func (r *ComponentVersionReconciler) createInitialComponentDescriptor(
 		return nil, nil, err
 	}
 
+	labelMap := make(map[string]string)
+	for _, label := range cv.GetDescriptor().GetLabels() {
+		// we don't care what encoding was used, we just use the data as is.
+		labelMap[label.Name] = string(label.Value)
+	}
+
 	descriptor := &v1alpha1.ComponentDescriptor{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
 			Name:      componentName,
+			Labels:    labelMap,
 		},
 	}
 

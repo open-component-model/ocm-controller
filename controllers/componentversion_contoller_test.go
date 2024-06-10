@@ -48,6 +48,13 @@ func TestComponentVersionReconcile(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Name:    cv.Spec.Component,
 					Version: "v0.0.1",
+					Labels: []v1.Label{
+						{
+							Name:    "name",
+							Value:   []byte("test-value"),
+							Version: "1.0.0",
+						},
+					},
 				},
 				References: ocmdesc.References{
 					{
@@ -68,6 +75,13 @@ func TestComponentVersionReconcile(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Name:    "github.com/open-component-model/embedded",
 					Version: "v0.0.1",
+					Labels: []v1.Label{
+						{
+							Name:    "embedded",
+							Value:   []byte("test-value-2"),
+							Version: "1.0.1",
+						},
+					},
 				},
 			},
 		},
@@ -108,6 +122,22 @@ func TestComponentVersionReconcile(t *testing.T) {
 	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
 	assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
+
+	t.Log("checking label values")
+	nns := types.NamespacedName{Name: cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name, Namespace: cv.Status.ComponentDescriptor.ComponentDescriptorRef.Namespace}
+	cd := &v1alpha1.ComponentDescriptor{}
+	err = client.Get(context.Background(), nns, cd)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		"name": "test-value",
+	}, cd.Labels)
+
+	nns = types.NamespacedName{Name: cv.Status.ComponentDescriptor.References[0].ComponentDescriptorRef.Name, Namespace: cv.Namespace}
+	err = client.Get(context.Background(), nns, cd)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		"embedded": "test-value-2",
+	}, cd.Labels)
 
 	close(recorder.Events)
 	event := ""
