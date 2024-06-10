@@ -36,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // ResourceReconciler reconciles a Resource object.
@@ -79,7 +78,7 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Resource{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &v1alpha1.ComponentVersion{}},
+			&v1alpha1.ComponentVersion{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(resourceKey)),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
@@ -315,9 +314,9 @@ func (r *ResourceReconciler) constructIdentity(
 // this function will enqueue a reconciliation for any snapshot which is referenced
 // in the .spec.sourceRef or spec.configRef field of a Localization.
 func (r *ResourceReconciler) findObjects(key string) handler.MapFunc {
-	return func(obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		resources := &v1alpha1.ResourceList{}
-		if err := r.List(context.TODO(), resources, &client.ListOptions{
+		if err := r.List(ctx, resources, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
 		}); err != nil {
 			return []reconcile.Request{}

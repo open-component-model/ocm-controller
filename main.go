@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	//+kubebuilder:scaffold:imports
 
@@ -67,7 +68,7 @@ func main() {
 	flag.StringVar(
 		&metricsAddr,
 		"metrics-bind-address",
-		":8080",
+		":9443",
 		"The address the metric endpoint binds to.",
 	)
 	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
@@ -120,12 +121,11 @@ func main() {
 	glog.SetLevel(glog.WARNING, "yq-lib")
 
 	restConfig := ctrl.GetConfigOrDie()
-
-	const metricsServerPort = 9443
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   metricsServerPort,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f8b21459.ocm.software",

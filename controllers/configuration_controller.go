@@ -17,6 +17,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -31,9 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	mh "github.com/open-component-model/pkg/metrics"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -152,17 +150,17 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Configuration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &v1alpha1.ComponentVersion{}},
+			&v1alpha1.ComponentVersion{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &v1alpha1.Snapshot{}},
+			&v1alpha1.Snapshot{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &sourcev1.GitRepository{}},
+			&sourcev1.GitRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey, valuesSourceKey)),
 			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).
@@ -349,7 +347,7 @@ func (r *ConfigurationReconciler) reconcile(
 // it by name. If it's a Snapshot, we first identify its owner and then look for Configurations
 // that reference the parent object.
 func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) handler.MapFunc {
-	return func(obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var selectorTerm string
 
 		switch obj.(type) {
@@ -365,14 +363,14 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) handl
 		}
 
 		sourceRefs := &v1alpha1.ConfigurationList{}
-		if err := r.List(context.TODO(), sourceRefs, &client.ListOptions{
+		if err := r.List(ctx, sourceRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(sourceKey, selectorTerm),
 		}); err != nil {
 			return []reconcile.Request{}
 		}
 
 		configRefs := &v1alpha1.ConfigurationList{}
-		if err := r.List(context.TODO(), configRefs, &client.ListOptions{
+		if err := r.List(ctx, configRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(configKey, selectorTerm),
 		}); err != nil {
 			return []reconcile.Request{}
@@ -384,11 +382,11 @@ func (r *ConfigurationReconciler) findObjects(sourceKey, configKey string) handl
 
 // this function will enqueue a reconciliation.
 func (r *ConfigurationReconciler) findObjectsForGitRepository(keys ...string) handler.MapFunc {
-	return func(obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		cfgs := &v1alpha1.ConfigurationList{}
 		for _, key := range keys {
 			result := &v1alpha1.ConfigurationList{}
-			if err := r.List(context.TODO(), result, &client.ListOptions{
+			if err := r.List(ctx, result, &client.ListOptions{
 				FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
 			}); err != nil {
 				return []reconcile.Request{}
