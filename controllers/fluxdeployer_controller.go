@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
@@ -90,7 +89,7 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.FluxDeployer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &v1alpha1.Snapshot{}},
+			&v1alpha1.Snapshot{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey)),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
@@ -375,10 +374,8 @@ func (r *FluxDeployerReconciler) getSnapshot(
 	return snapshot, nil
 }
 
-func (r *FluxDeployerReconciler) findObjects(
-	sourceKey string,
-) func(client.Object) []reconcile.Request {
-	return func(obj client.Object) []reconcile.Request {
+func (r *FluxDeployerReconciler) findObjects(sourceKey string) handler.MapFunc {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var selectorTerm string
 		switch obj.(type) {
 		case *v1alpha1.Snapshot:
@@ -391,7 +388,7 @@ func (r *FluxDeployerReconciler) findObjects(
 		}
 
 		sourceRefs := &v1alpha1.FluxDeployerList{}
-		if err := r.List(context.TODO(), sourceRefs, &client.ListOptions{
+		if err := r.List(ctx, sourceRefs, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(sourceKey, selectorTerm),
 		}); err != nil {
 			return []reconcile.Request{}

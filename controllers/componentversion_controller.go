@@ -17,6 +17,10 @@ import (
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
+	mh "github.com/open-component-model/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,12 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
-	mh "github.com/open-component-model/pkg/metrics"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/component"
@@ -89,16 +87,16 @@ func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ComponentVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
-			&source.Kind{Type: &corev1.Secret{}},
+			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey))).
 		Complete(r)
 }
 
 // findObjects finds component versions that have a key for the secret that triggered this watch event.
 func (r *ComponentVersionReconciler) findObjects(key string) handler.MapFunc {
-	return func(obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		list := &v1alpha1.ComponentVersionList{}
-		if err := r.List(context.Background(), list, &client.ListOptions{
+		if err := r.List(ctx, list, &client.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector(key, client.ObjectKeyFromObject(obj).String()),
 		}); err != nil {
 			return []reconcile.Request{}
