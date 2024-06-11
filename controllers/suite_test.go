@@ -60,6 +60,7 @@ func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
 	return fake.NewClientBuilder().
 		WithScheme(t.scheme).
 		WithObjects(t.obj...).
+		WithStatusSubresource(t.obj...).
 		Build()
 }
 
@@ -79,6 +80,10 @@ func (t *testEnv) FakeDynamicKubeClient(
 
 var (
 	DefaultComponent = &v1alpha1.ComponentVersion{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ComponentVersion",
+			APIVersion: v1alpha1.GroupVersion.Version,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-component",
 			Namespace: "default",
@@ -96,6 +101,10 @@ var (
 		},
 	}
 	DefaultResource = &v1alpha1.Resource{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Resource",
+			APIVersion: v1alpha1.GroupVersion.Version,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-resource",
 			Namespace: "default",
@@ -123,6 +132,10 @@ var (
 		},
 	}
 	DefaultComponentDescriptor = &v1alpha1.ComponentDescriptor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ComponentDescriptor",
+			APIVersion: v1alpha1.GroupVersion.Version,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DefaultComponent.Name + "-descriptor",
 			Namespace: DefaultComponent.Namespace,
@@ -165,6 +178,10 @@ var (
 	}
 
 	DefaultLocalization = &v1alpha1.Localization{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Localization",
+			APIVersion: v1alpha1.GroupVersion.Version,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-localization",
 			Namespace: "default",
@@ -187,6 +204,10 @@ var (
 		},
 	}
 	DefaultConfiguration = &v1alpha1.Configuration{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Configuration",
+			APIVersion: v1alpha1.GroupVersion.Version,
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-configuration",
 			Namespace: "default",
