@@ -1,0 +1,7 @@
+name: source
+type: filesystem
+access:
+  type: github
+  repoUrl: github.com/open-component-model/ocm-controller
+  commit: ${COMMIT}
+version: ${VERSION}

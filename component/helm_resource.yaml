@@ -1,0 +1,7 @@
+name: charts
+type: helmChart
+version: (( values.VERSION ))
+input:
+  type: helm
+  version: (( values.VERSION ))
+  path: ../gen/component/ocm-controller-(( values.VERSION )).tgz
