@@ -41,7 +41,7 @@ OCM ?= $(LOCALBIN)/ocm $(CREDS)
 .PHONY: ocm
 ocm: $(OCM)
 $(OCM): $(LOCALBIN)
-	curl -L "https://github.com/open-component-model/ocm/releases/download/$(OCM_CLI_VERSION)/ocm-0.11.0-$(PLATFORM_OS)-$(PLATFORM_ARCH).tar.gz" | tar -x -C $(LOCALBIN)
+	curl -L "https://github.com/open-component-model/ocm/releases/download/$(OCM_CLI_VERSION)/ocm-0.11.0-$(PLATFORM_OS)-$(PLATFORM_ARCH).tar.gz" | tar -xz -C $(LOCALBIN)
 
 GEN = $(REPO_ROOT)/gen/$(shell basename $(realpath .))
 
