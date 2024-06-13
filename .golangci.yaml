@@ -8,10 +8,6 @@ linters-settings:
   funlen:
     lines: 150
     statements: 60
-  staticcheck:
-    go: "1.22"
-  stylecheck:
-    go: "1.22"
   cyclop:
     max-complexity: 20
     skip-tests: true

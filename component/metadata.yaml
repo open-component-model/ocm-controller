@@ -1,0 +1,29 @@
+kind: Component
+metadata:
+  name: ocm-controller
+  displayName: ocm-controller
+  description: OCM Kubernetes Controller
+  longDescription: |-
+    The ocm-controller can be used to interact with OCM components in the Kubernetes environments.
+  labels:
+    language: go
+  tags:
+    - open-component-model
+    - ocm
+spec:
+  type:
+    name: controller
+    lifecycle: production
+  team:
+    name: ocm
+  logo: https://ocm.software/images/logo-image.png
+  docs:
+    techDocsLinks:
+      - name: OCM Documentation
+        url: https://ocm.software
+        icon: .sa-icon--sys-help-2
+        description: Documentation
+      - name: OCM Command Line Client
+        url: https://github.com/open-component-model/ocm/blob/main/docs/reference/ocm.md
+        icon: .sa-icon--sys-help-2
+        description: Open Component Model Command Line Client

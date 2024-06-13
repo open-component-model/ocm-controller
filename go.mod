@@ -4,8 +4,6 @@ go 1.22.4
 
 // ocm dependent re-writes.
 replace (
-	//github.com/fluxcd/pkg/runtime => github.com/fluxcd/pkg/runtime v0.35.0
-	//github.com/fluxcd/pkg/ssa => github.com/fluxcd/pkg/ssa v0.27.0
 	github.com/google/go-containerregistry => github.com/google/go-containerregistry v0.14.1-0.20230409045903-ed5c185df419
 	github.com/opencontainers/go-digest => github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be
 	github.com/sigstore/cosign/v2 => github.com/sigstore/cosign/v2 v2.0.2

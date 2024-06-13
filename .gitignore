@@ -47,3 +47,4 @@ hack/rootCA.pem
 hack/cert-manager.yaml
 
 transport-archive
+gen/
