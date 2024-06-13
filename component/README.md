@@ -1,6 +1,6 @@
 # ocm - command line interface
 
-This folder contains an example how to build a component version for the OCM cli.
+This folder contains an example how to build a component version for the ocm-controller.
 
 ## Building
 

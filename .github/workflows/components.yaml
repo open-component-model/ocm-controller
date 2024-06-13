@@ -37,5 +37,5 @@ jobs:
           go-version-file: '${{ github.workspace }}/go.mod'
       - name: CTF
         run: |
-          cd components/
+          cd component/
           PATH=$PATH:$(go env GOPATH)/bin make ctf
