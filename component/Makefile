@@ -25,8 +25,23 @@ ifeq ($(MULTI),true)
 FLAGSUF     = .multi
 endif
 
+SHELL = /usr/bin/env bash -o pipefail
+.SHELLFLAGS = -ec
+
+OCM_CLI_VERSION ?= v0.11.0
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
 CREDS ?=
-OCM = ocm $(CREDS)
+OCM ?= $(LOCALBIN)/ocm $(CREDS)
+
+.PHONY: ocm
+ocm: $(OCM)
+$(OCM): $(LOCALBIN)
+	curl -L "https://github.com/open-component-model/ocm/releases/download/$(OCM_CLI_VERSION)/ocm-0.11.0-$(PLATFORM_OS)-$(PLATFORM_ARCH).tar.gz" | tar -x -C $(LOCALBIN)
 
 GEN = $(REPO_ROOT)/gen/$(shell basename $(realpath .))
 
@@ -138,11 +153,11 @@ info:
 
 .PHONY: describe
 describe: $(GEN)/ctf
-	ocm get resources --lookup $(REPO) -c -o treewide $(GEN)/ctf
+	$(OCM) get resources --lookup $(REPO) -c -o treewide $(GEN)/ctf
 
 .PHONY: descriptor
 descriptor: $(GEN)/ctf
-	ocm get component -S v3alpha1 -o yaml $(GEN)/ctf
+	$(OCM) get component -S v3alpha1 -o yaml $(GEN)/ctf
 
 .PHONY: clean
 clean:
