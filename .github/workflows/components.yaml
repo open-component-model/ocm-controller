@@ -38,4 +38,4 @@ jobs:
       - name: CTF
         run: |
           cd component/
-          PATH=$PATH:$(go env GOPATH)/bin make ctf
+          PATH=$PATH:$(go env GOPATH)/bin make ocm && make ctf
