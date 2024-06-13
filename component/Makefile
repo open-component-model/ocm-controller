@@ -103,7 +103,7 @@ ca: $(GEN)/ca.done
 $(GEN)/ca.done: helm $(GEN)/.exists $(GEN)/build $(GEN)/image$(FLAGSUF) helm_resource.yaml resources.yaml $(CHARTSRCS) Makefile
 	$(OCM) create ca -f $(COMPONENT) "$(VERSION)" --provider $(PROVIDER) --file $(GEN)/ca
 	$(OCM) add resources --templater=spiff --file $(GEN)/ca $(ATTRIBUTES) resources.yaml
-	$(OCM) add resources --file $(GEN)/ca VERSION="$(VERSION)" helm_resource.yaml
+	$(OCM) add resources --templater=spiff --file $(GEN)/ca VERSION="$(VERSION)" helm_resource.yaml
 	$(OCM) add sources $(GEN)/ca VERSION="$(VERSION)" COMMIT="$(COMMIT)" sources.yaml
 	@touch $(GEN)/ca.done
 

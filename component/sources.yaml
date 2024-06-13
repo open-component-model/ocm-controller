@@ -1,5 +1,5 @@
 name: source
-type: filesytem
+type: filesystem
 access:
   type: github
   repoUrl: github.com/open-component-model/ocm-controller
