@@ -1,0 +1,7 @@
+name: charts
+type: helmChart
+version: 0.23.3
+input:
+  type: helm
+  version: 0.23.3
+  path: ../gen/component/ocm-controller-v0.23.3-rc.1.tgz

@@ -1,9 +1,9 @@
 NAME      = ocm-controller
 PROVIDER  ?= ocm.software
 IMAGE     := $(NAME)-image
-GITHUBORG  ?= open-component-model
+GITHUB_ORG  ?= open-component-model
 COMPONENT = $(PROVIDER)/$(NAME)
-OCMREPO   ?= ghcr.io/$(GITHUBORG)/ocm-controller
+REPO   ?= ghcr.io/$(GITHUB_ORG)/ocm-controller
 MULTI     ?= true
 IMAGE_PLATFORMS ?= linux/amd64 linux/arm64
 PLATFORMS = $(IMAGE_PLATFORMS) darwin/arm64 darwin/amd64
@@ -93,12 +93,17 @@ $(GEN)/ctf: $(GEN)/ca.done
 version:
 	@echo $(VERSION)
 
+.PHONY: helm
+helm:
+	@helm package --version $(VERSION) --app-version $(VERSION) ../deploy -d $(GEN)/
+
 .PHONY: ca
 ca: $(GEN)/ca.done
 
-$(GEN)/ca.done: $(GEN)/.exists $(GEN)/build $(GEN)/image$(FLAGSUF) resources.yaml $(CHARTSRCS) Makefile
+$(GEN)/ca.done: helm $(GEN)/.exists $(GEN)/build $(GEN)/image$(FLAGSUF) helm_resource.yaml resources.yaml $(CHARTSRCS) Makefile
 	$(OCM) create ca -f $(COMPONENT) "$(VERSION)" --provider $(PROVIDER) --file $(GEN)/ca
 	$(OCM) add resources --templater=spiff --file $(GEN)/ca $(ATTRIBUTES) resources.yaml
+	$(OCM) add resources --file $(GEN)/ca VERSION="$(VERSION)" helm_resource.yaml
 	$(OCM) add sources $(GEN)/ca VERSION="$(VERSION)" COMMIT="$(COMMIT)" sources.yaml
 	@touch $(GEN)/ca.done
 
@@ -106,18 +111,18 @@ $(GEN)/ca.done: $(GEN)/.exists $(GEN)/build $(GEN)/image$(FLAGSUF) resources.yam
 push: $(GEN)/ctf $(GEN)/push.$(NAME)
 
 $(GEN)/push.$(NAME): $(GEN)/ctf
-	$(OCM) transfer ctf -f $(GEN)/ctf $(OCMREPO)
+	$(OCM) transfer ctf -f $(GEN)/ctf $(REPO)
 	@touch $(GEN)/push.$(NAME)
 
 .PHONY: plain-push
 plain-push: $(GEN)
-	$(OCM) transfer ctf -f $(GEN)/ctf $(OCMREPO)
+	$(OCM) transfer ctf -f $(GEN)/ctf $(REPO)
 	@touch $(GEN)/push.$(NAME)
 
 .PHONY: transport
 transport:
 ifneq ($(TARGETREPO),)
-	$(OCM) transfer component -Vc  $(OCMREPO)//$(COMPONENT):$(VERSION) $(TARGETREPO)
+	$(OCM) transfer component -Vc  $(REPO)//$(COMPONENT):$(VERSION) $(TARGETREPO)
 endif
 
 $(GEN)/.exists:
@@ -133,7 +138,7 @@ info:
 
 .PHONY: describe
 describe: $(GEN)/ctf
-	ocm get resources --lookup $(OCMREPO) -c -o treewide $(GEN)/ctf
+	ocm get resources --lookup $(REPO) -c -o treewide $(GEN)/ctf
 
 .PHONY: descriptor
 descriptor: $(GEN)/ctf

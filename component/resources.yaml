@@ -8,7 +8,7 @@ helper:
     version: (( values.VERSION ))
     labels:
       - name: "downloadName"
-        value: "ocm"
+        value: "ocm-controller"
     extraIdentity:
       os: ((dirname(p) ))
       architecture: (( basename(p) ))
