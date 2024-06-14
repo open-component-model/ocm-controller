@@ -296,7 +296,7 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
               valuesFrom:
                 description: |-
-                  ValuesSource provides access to values from an external Source such as a ConfigMap or GitRepository.
+                  ValuesSource provides access to values from an external Source such as a ConfigMap or GitRepository or ObjectReference.
                   An optional subpath defines the path within the source from which the values should be resolved.
                 properties:
                   configMapSource:
@@ -351,6 +351,98 @@ spec:
                     required:
                     - path
                     - sourceRef
+                    type: object
+                  sourceRef:
+                    description: ObjectReference defines a resource which may be accessed
+                      via a snapshot or component version
+                    minProperties: 1
+                    properties:
+                      apiVersion:
+                        description: API version of the referent, if not specified
+                          the Kubernetes preferred version will be used.
+                        type: string
+                      kind:
+                        description: Kind of the referent.
+                        type: string
+                      name:
+                        description: Name of the referent.
+                        type: string
+                      namespace:
+                        description: Namespace of the referent, when not specified
+                          it acts as LocalObjectReference.
+                        type: string
+                      resourceRef:
+                        description: ResourceRef defines what resource to fetch.
+                        properties:
+                          extraIdentity:
+                            additionalProperties:
+                              type: string
+                            description: |-
+                              Identity describes the identity of an object.
+                              Only ascii characters are allowed
+                            type: object
+                          labels:
+                            description: Labels describe a list of labels
+                            items:
+                              description: Label is a label that can be set on objects.
+                              properties:
+                                merge:
+                                  description: |-
+                                    MergeAlgorithm optionally describes the desired merge handling used to
+                                    merge the label value during a transfer.
+                                  properties:
+                                    algorithm:
+                                      description: |-
+                                        Algorithm optionally described the Merge algorithm used to
+                                        merge the label value during a transfer.
+                                      type: string
+                                    config:
+                                      description: eConfig contains optional config
+                                        for the merge algorithm.
+                                      format: byte
+                                      type: string
+                                  required:
+                                  - algorithm
+                                  type: object
+                                name:
+                                  description: Name is the unique name of the label.
+                                  type: string
+                                signing:
+                                  description: Signing describes whether the label
+                                    should be included into the signature
+                                  type: boolean
+                                value:
+                                  description: Value is the json/yaml data of the
+                                    label
+                                  x-kubernetes-preserve-unknown-fields: true
+                                version:
+                                  description: Version is the optional specification
+                                    version of the attribute value
+                                  type: string
+                              required:
+                              - name
+                              - value
+                              type: object
+                            type: array
+                          name:
+                            type: string
+                          referencePath:
+                            items:
+                              additionalProperties:
+                                type: string
+                              description: |-
+                                Identity describes the identity of an object.
+                                Only ascii characters are allowed
+                              type: object
+                            type: array
+                          version:
+                            type: string
+                        required:
+                        - name
+                        type: object
+                    required:
+                    - kind
+                    - name
                     type: object
                 type: object
             type: object

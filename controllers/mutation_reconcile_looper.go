@@ -796,18 +796,28 @@ func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.M
 	}
 
 	var data map[string]any
-	if obj.ValuesFrom.FluxSource != nil {
+	switch {
+	case obj.ValuesFrom.FluxSource != nil:
 		content, err := m.fromFluxSource(ctx, obj)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get values from flux source: %w", err)
 		}
 		data = content
-	} else if obj.ValuesFrom.ConfigMapSource != nil {
+	case obj.ValuesFrom.ConfigMapSource != nil:
 		content, err := m.fromConfigMapSource(ctx, obj, namespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get values from configmap source: %w", err)
 		}
 		data = content
+	case obj.ValuesFrom.SourceRef != nil:
+		content, err := m.getData(ctx, obj.ValuesFrom.SourceRef)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get values from source ref: %w", err)
+		}
+
+		if err := yaml.Unmarshal(content, &data); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal values: %w", err)
+		}
 	}
 
 	if data != nil {

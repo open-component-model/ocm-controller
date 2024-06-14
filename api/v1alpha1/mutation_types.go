@@ -45,14 +45,15 @@ type MutationSpec struct {
 	Suspend bool `json:"suspend,omitempty"`
 }
 
-// ValuesSource provides access to values from an external Source such as a ConfigMap or GitRepository.
+// ValuesSource provides access to values from an external Source such as a ConfigMap or GitRepository or ObjectReference.
 // An optional subpath defines the path within the source from which the values should be resolved.
 type ValuesSource struct {
 	// +optional
 	FluxSource *FluxValuesSource `json:"fluxSource,omitempty"`
 	// +optional
 	ConfigMapSource *ConfigMapSource `json:"configMapSource,omitempty"`
-	// Secret meta.LocalObjectReference
+	// +optional
+	SourceRef *ObjectReference `json:"sourceRef,omitempty"`
 }
 
 type ConfigMapSource struct {
