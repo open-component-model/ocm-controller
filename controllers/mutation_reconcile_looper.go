@@ -238,21 +238,21 @@ func (m *MutationReconcileLooper) localize(
 	return sourceDir, nil
 }
 
-func (m *MutationReconcileLooper) fetchDataFromObjectReference(ctx context.Context, obj *v1alpha1.ObjectReference) ([]byte, error) {
+func (m *MutationReconcileLooper) fetchDataFromObjectReference(ctx context.Context, obj *v1alpha1.ObjectReference) ([]byte, string, error) {
 	logger := log.FromContext(ctx)
 
 	gvr := obj.GetGVR()
 	src, err := m.DynamicClient.Resource(gvr).Namespace(obj.Namespace).Get(ctx, obj.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	snapshotName, ok, err := unstructured.NestedString(src.Object, "status", "snapshotName")
 	if err != nil {
-		return nil, fmt.Errorf("failed get the get snapshot: %w", err)
+		return nil, "", fmt.Errorf("failed get the get snapshot: %w", err)
 	}
 	if !ok {
-		return nil, errors.New("snapshot name not found in status")
+		return nil, "", errors.New("snapshot name not found in status")
 	}
 
 	key := types.NamespacedName{
@@ -265,23 +265,23 @@ func (m *MutationReconcileLooper) fetchDataFromObjectReference(ctx context.Conte
 		if apierrors.IsNotFound(err) {
 			logger.Info("snapshot doesn't exist", "snapshot", key)
 
-			return nil, err
+			return nil, "", err
 		}
 
-		return nil,
+		return nil, "",
 			fmt.Errorf("failed to get component object: %w", err)
 	}
 
 	if conditions.IsFalse(snapshot, meta.ReadyCondition) {
-		return nil, fmt.Errorf("snapshot not ready: %s", key)
+		return nil, "", fmt.Errorf("snapshot not ready: %s", key)
 	}
 
 	snapshotData, err := m.getSnapshotBytes(ctx, snapshot)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return snapshotData, nil
+	return snapshotData, snapshot.Status.LastReconciledDigest, nil
 }
 
 func (m *MutationReconcileLooper) fetchDataFromComponentVersion(ctx context.Context, obj *v1alpha1.ObjectReference) ([]byte, error) {
@@ -704,7 +704,7 @@ func (m *MutationReconcileLooper) getData(ctx context.Context, obj *v1alpha1.Obj
 				fmt.Errorf("failed to fetch resource data from resource ref: %w", err)
 		}
 	default:
-		if data, err = m.fetchDataFromObjectReference(ctx, obj); err != nil {
+		if data, _, err = m.fetchDataFromObjectReference(ctx, obj); err != nil {
 			return nil,
 				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
 		}
@@ -974,17 +974,54 @@ func (m *MutationReconcileLooper) mutatePatchStrategicMerge(
 		return "", ocmmetav1.Identity{}, err
 	}
 
-	gitSource, err := m.getSource(ctx, mutationSpec.PatchStrategicMerge.Source.SourceRef)
+	// Fetch the data instead.
+	workDir, err := securejoin.SecureJoin(tmpDir, "work")
 	if err != nil {
-		return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get patch source: %w", err)
+		return "", nil, err
 	}
 
-	obj.GetStatus().LatestPatchSourceVersion = gitSource.GetArtifact().Revision
+	var identity ocmmetav1.Identity
+
+	switch mutationSpec.PatchStrategicMerge.Source.SourceRef.Kind {
+	case "GitRepository":
+		gitSource, err := m.getSource(ctx, mutationSpec.PatchStrategicMerge.Source.SourceRef)
+		if err != nil {
+			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get patch source: %w", err)
+		}
+
+		obj.GetStatus().LatestPatchSourceVersion = gitSource.GetArtifact().Revision
+		tarSize := tar.UnlimitedUntarSize
+		const retries = 10
+		fetcher := fetch.NewArchiveFetcher(retries, tarSize, tarSize, "")
+		if err := fetcher.Fetch(gitSource.GetArtifact().URL, gitSource.GetArtifact().Digest, workDir); err != nil {
+			return "", nil, err
+		}
+		identity = ocmmetav1.Identity{
+			v1alpha1.SourceNameKey:             mutationSpec.PatchStrategicMerge.Source.SourceRef.Name,
+			v1alpha1.SourceNamespaceKey:        mutationSpec.PatchStrategicMerge.Source.SourceRef.Namespace,
+			v1alpha1.SourceArtifactChecksumKey: gitSource.GetArtifact().Digest,
+		}
+	case "Resource", "Configuration", "Localization":
+		data, digest, err := m.fetchDataFromObjectReference(ctx, &v1alpha1.ObjectReference{NamespacedObjectKindReference: mutationSpec.PatchStrategicMerge.Source.SourceRef})
+		if err != nil {
+			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to fetch data from source: %w", err)
+		}
+
+		identity = ocmmetav1.Identity{
+			v1alpha1.SourceNameKey:             mutationSpec.PatchStrategicMerge.Source.SourceRef.Name,
+			v1alpha1.SourceNamespaceKey:        mutationSpec.PatchStrategicMerge.Source.SourceRef.Namespace,
+			v1alpha1.SourceArtifactChecksumKey: digest,
+		}
+
+		if err := tar.Untar(bytes.NewReader(data), workDir); err != nil {
+			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to untar data from source: %w", err)
+		}
+	}
 
 	sourcePath := mutationSpec.PatchStrategicMerge.Source.Path
 	targetPath := mutationSpec.PatchStrategicMerge.Target.Path
-
-	return m.strategicMergePatch(gitSource, sourceData, tmpDir, sourcePath, targetPath)
+	patch, err := m.strategicMergePatch(sourceData, tmpDir, workDir, sourcePath, targetPath)
+	return patch, identity, err
 }
 
 // Recursive function to extract the subpath from the data map.

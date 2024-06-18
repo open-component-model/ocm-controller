@@ -252,7 +252,7 @@ func (r *ConfigurationReconciler) Reconcile(
 	}
 
 	if obj.Spec.PatchStrategicMerge != nil {
-		ready, err := r.checkFluxSourceReadiness(ctx, obj.Spec.PatchStrategicMerge.Source.SourceRef)
+		ready, err := r.checkSourceReadiness(ctx, obj.Spec.PatchStrategicMerge.Source.SourceRef)
 		if err != nil {
 			status.MarkNotReady(
 				r.EventRecorder,
@@ -452,7 +452,7 @@ func (r *ConfigurationReconciler) checkReadiness(
 	return conditions.IsReady(ref), nil
 }
 
-func (r *ConfigurationReconciler) checkFluxSourceReadiness(
+func (r *ConfigurationReconciler) checkSourceReadiness(
 	ctx context.Context,
 	obj meta.NamespacedObjectKindReference,
 ) (bool, error) {
@@ -460,6 +460,11 @@ func (r *ConfigurationReconciler) checkFluxSourceReadiness(
 	switch obj.Kind {
 	case sourcev1.GitRepositoryKind:
 		ref = &sourcev1.GitRepository{}
+		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, ref); err != nil {
+			return false, fmt.Errorf("failed to check flux source readiness: %w", err)
+		}
+	case "Resource":
+		ref = &v1alpha1.Resource{}
 		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, ref); err != nil {
 			return false, fmt.Errorf("failed to check flux source readiness: %w", err)
 		}
