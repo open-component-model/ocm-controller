@@ -11,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const ResourceKind = "Resource"
+
 // ResourceSpec defines the desired state of Resource.
 type ResourceSpec struct {
 	// Interval specifies the interval at which the Repository will be checked for updates.

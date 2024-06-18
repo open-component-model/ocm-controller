@@ -1354,6 +1354,167 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 	}
 }
 
+func TestPatchStrategicMergeWithResourceSource(t *testing.T) {
+	cv := DefaultComponent.DeepCopy()
+	cv.Status.ComponentDescriptor = v1alpha1.Reference{
+		Name:    "test-component",
+		Version: "v0.0.1",
+		ComponentDescriptorRef: meta.NamespacedObjectReference{
+			Name:      cv.Name + "-descriptor",
+			Namespace: cv.Namespace,
+		},
+	}
+	conditions.MarkTrue(cv, meta.ReadyCondition, meta.SucceededReason, "test")
+
+	cd := DefaultComponentDescriptor.DeepCopy()
+
+	resource := DefaultResource.DeepCopy()
+	patchResourceSource := DefaultResource.DeepCopy()
+	patchResourceSource.Name = "patch-test-resource"
+
+	name := "test-snapshot"
+	identity := ocmmetav1.Identity{
+		v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+		v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+		v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+		v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+	}
+	snapshot := &v1alpha1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: cv.Namespace,
+		},
+		Spec: v1alpha1.SnapshotSpec{
+			Identity: identity,
+		},
+	}
+	patchSnapshotSource := &v1alpha1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "patch-" + name,
+			Namespace: cv.Namespace,
+		},
+		Spec: v1alpha1.SnapshotSpec{
+			Identity: ocmmetav1.Identity{
+				v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+				v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+				v1alpha1.ResourceNameKey:     "patch-snapshot-source",
+				v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+			},
+		},
+	}
+
+	patchResourceSource.Status.SnapshotName = patchSnapshotSource.Name
+	resource.Status.SnapshotName = name
+	conditions.MarkTrue(resource, meta.ReadyCondition, meta.SucceededReason, "test")
+	conditions.MarkTrue(patchResourceSource, meta.ReadyCondition, meta.SucceededReason, "test")
+
+	source := v1alpha1.ObjectReference{
+		NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+			APIVersion: v1alpha1.GroupVersion.String(),
+			Kind:       "Resource",
+			Name:       "test-resource",
+			Namespace:  snapshot.Namespace,
+		},
+	}
+
+	configuration := DefaultConfiguration.DeepCopy()
+	configuration.Spec.SourceRef = source
+	configuration.Spec.ConfigRef = nil
+	configuration.Status.SnapshotName = "configuration-snapshot"
+	configuration.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
+		Source: v1alpha1.PatchStrategicMergeSource{
+			SourceRef: meta.NamespacedObjectKindReference{
+				APIVersion: v1alpha1.GroupVersion.String(),
+				Kind:       "Resource",
+				Name:       patchResourceSource.Name,
+				Namespace:  patchResourceSource.Namespace,
+			},
+			Path: "sites/eu-west-1/deployment.yaml",
+		},
+		Target: v1alpha1.PatchStrategicMergeTarget{
+			Path: "merge-target/merge-target.yaml",
+		},
+	}
+
+	objs := []client.Object{cv, cd, resource, patchResourceSource, configuration}
+	conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "test")
+	conditions.MarkTrue(patchSnapshotSource, meta.ReadyCondition, meta.SucceededReason, "test")
+	objs = append(objs, snapshot, patchSnapshotSource)
+
+	client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
+	dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
+	cache := &cachefakes.FakeCache{}
+	snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
+	fakeOcm := &fakes.MockFetcher{}
+	recorder := record.NewFakeRecorder(32)
+	content, err := os.Open(filepath.Join("testdata", "merge-target.tar.gz"))
+	require.NoError(t, err)
+	patchContent, err := os.Open(filepath.Join("testdata", "git-repo.tar.gz"))
+	require.NoError(t, err)
+	cache.FetchDataByDigestReturnsOnCall(0, content, nil)
+	cache.FetchDataByDigestReturnsOnCall(1, patchContent, nil)
+	fakeOcm.GetResourceReturnsOnCall(0, nil, nil)
+	fakeOcm.GetResourceReturnsOnCall(1, nil, nil)
+
+	cr := ConfigurationReconciler{
+		Client:        client,
+		DynamicClient: dynClient,
+		Scheme:        env.scheme,
+		EventRecorder: recorder,
+		MutationReconciler: MutationReconcileLooper{
+			Client:         client,
+			DynamicClient:  dynClient,
+			Scheme:         env.scheme,
+			OCMClient:      fakeOcm,
+			Cache:          cache,
+			SnapshotWriter: snapshotWriter,
+		},
+	}
+
+	t.Log("reconciling configuration")
+	_, err = cr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: configuration.Namespace,
+			Name:      configuration.Name,
+		},
+	})
+	require.NoError(t, err)
+
+	getErr := client.Get(context.Background(), types.NamespacedName{
+		Namespace: configuration.Namespace,
+		Name:      configuration.Name,
+	}, configuration)
+	require.NoError(t, getErr)
+
+	snapshotOutput := &v1alpha1.Snapshot{}
+	err = client.Get(context.Background(), types.NamespacedName{
+		Namespace: configuration.Namespace,
+		Name:      configuration.Status.SnapshotName,
+	}, snapshotOutput)
+
+	t.Log("verifying that the strategic merge was performed")
+	args := cache.PushDataCallingArgumentsOnCall(0)
+	data := args.Content
+	sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(data))), "merge-target.yaml")
+	deployment := appsv1.Deployment{}
+	err = yaml.Unmarshal(sourceFile, &deployment)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(2), *deployment.Spec.Replicas, "has correct number of replicas")
+	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Containers), "has correct number of containers")
+	assert.Equal(t, corev1.PullPolicy("Always"), deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy)
+
+	close(recorder.Events)
+	event := ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "Reconciliation finished, next run in") {
+			event = e
+
+			break
+		}
+	}
+	assert.Contains(t, event, "Reconciliation finished, next run in")
+}
+
 func createGitRepository(name, namespace, artifactURL, checksum string) *sourcev1.GitRepository {
 	updatedTime := time.Now()
 	return &sourcev1.GitRepository{

@@ -229,7 +229,7 @@ func (r *LocalizationReconciler) Reconcile(
 	}
 
 	if obj.Spec.PatchStrategicMerge != nil {
-		ready, err := r.checkFluxSourceReadiness(ctx, obj.Spec.PatchStrategicMerge.Source.SourceRef)
+		ready, err := r.checkSourceReadiness(ctx, obj.Spec.PatchStrategicMerge.Source.SourceRef)
 		if err != nil {
 			status.MarkNotReady(
 				r.EventRecorder,
@@ -425,7 +425,7 @@ func (r *LocalizationReconciler) checkReadiness(
 	return conditions.IsReady(ref), nil
 }
 
-func (r *LocalizationReconciler) checkFluxSourceReadiness(
+func (r *LocalizationReconciler) checkSourceReadiness(
 	ctx context.Context,
 	obj meta.NamespacedObjectKindReference,
 ) (bool, error) {
@@ -433,11 +433,18 @@ func (r *LocalizationReconciler) checkFluxSourceReadiness(
 	switch obj.Kind {
 	case sourcev1.GitRepositoryKind:
 		ref = &sourcev1.GitRepository{}
-		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, ref); err != nil {
-			return false, fmt.Errorf("failed to check flux source readiness: %w", err)
-		}
+	case v1alpha1.ResourceKind:
+		ref = &v1alpha1.Resource{}
+	case v1alpha1.ConfigurationKind:
+		ref = &v1alpha1.Configuration{}
+	case v1alpha1.LocalizationKind:
+		ref = &v1alpha1.Localization{}
 	default:
 		return false, fmt.Errorf("kind not compatible: %s", obj.Kind)
+	}
+
+	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, ref); err != nil {
+		return false, fmt.Errorf("failed to check source readiness: %w", err)
 	}
 
 	return conditions.IsReady(ref), nil

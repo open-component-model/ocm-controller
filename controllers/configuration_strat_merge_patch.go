@@ -7,54 +7,33 @@ package controllers
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
-	"github.com/fluxcd/pkg/http/fetch"
 	generator "github.com/fluxcd/pkg/kustomize"
 	"github.com/fluxcd/pkg/tar"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"gopkg.in/yaml.v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	kustypes "sigs.k8s.io/kustomize/api/types"
-
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 // the following is influenced by https://github.com/fluxcd/kustomize-controller
 func (m *MutationReconcileLooper) strategicMergePatch(
-	source sourcev1.Source,
 	resource []byte,
-	tmpDir, sourcePath, targetPath string,
-) (string, ocmmetav1.Identity, error) {
-	workDir, err := securejoin.SecureJoin(tmpDir, "work")
-	if err != nil {
-		return "", nil, err
-	}
-
+	rootDir, workDir, sourcePath, targetPath string,
+) (string, error) {
 	gzipSnapshot := &bytes.Buffer{}
 	gz := gzip.NewWriter(gzipSnapshot)
 	if _, err := gz.Write(resource); err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	if err := gz.Close(); err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	if err := tar.Untar(gzipSnapshot, workDir); err != nil {
-		return "", nil, err
-	}
-
-	tarSize := tar.UnlimitedUntarSize
-	const retries = 10
-	fetcher := fetch.NewArchiveFetcher(retries, tarSize, tarSize, "")
-	err = fetcher.Fetch(source.GetArtifact().URL, source.GetArtifact().Digest, workDir)
-	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	kus := kustypes.Kustomization{
@@ -72,56 +51,45 @@ func (m *MutationReconcileLooper) strategicMergePatch(
 
 	manifest, err := yaml.Marshal(kus)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	err = os.WriteFile(filepath.Join(workDir, "kustomization.yaml"), manifest, os.ModePerm)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
-	result, err := generator.SecureBuild(tmpDir, workDir, false)
+	result, err := generator.SecureBuild(rootDir, workDir, false)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	contents, err := result.AsYaml()
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	outputPath, err := securejoin.SecureJoin(workDir, targetPath)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	if err := os.Remove(outputPath); err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	patched, err := os.Create(outputPath)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	if _, err := patched.Write(contents); err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	if err := patched.Close(); err != nil {
-		return "", nil, err
+		return "", err
 	}
 
-	clientObject, ok := source.(client.Object)
-	if !ok {
-		return "", nil, fmt.Errorf("source object was not a client object")
-	}
-
-	identity := ocmmetav1.Identity{
-		v1alpha1.SourceNameKey:             clientObject.GetName(),
-		v1alpha1.SourceNamespaceKey:        clientObject.GetNamespace(),
-		v1alpha1.SourceArtifactChecksumKey: source.GetArtifact().Digest,
-	}
-
-	return filepath.Dir(outputPath), identity, nil
+	return filepath.Dir(outputPath), nil
 }
