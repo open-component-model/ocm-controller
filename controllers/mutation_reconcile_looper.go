@@ -19,6 +19,7 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/containers/image/v5/pkg/compression"
 	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/http/fetch"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -1007,13 +1008,21 @@ func (m *MutationReconcileLooper) mutatePatchStrategicMerge(
 			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to fetch data from source: %w", err)
 		}
 
+		// TODO: At this point it's been auto-decompressed so it's just a plain tar.
 		identity = ocmmetav1.Identity{
 			v1alpha1.SourceNameKey:             mutationSpec.PatchStrategicMerge.Source.SourceRef.Name,
 			v1alpha1.SourceNamespaceKey:        mutationSpec.PatchStrategicMerge.Source.SourceRef.Namespace,
 			v1alpha1.SourceArtifactChecksumKey: digest,
 		}
 
-		if err := tar.Untar(bytes.NewReader(data), workDir); err != nil {
+		// Make sure the folder exists because archive Untar can't create it properly
+		if err := os.MkdirAll(workDir, 0o755); err != nil {
+			return "", ocmmetav1.Identity{}, err
+		}
+
+		if err := archive.Untar(bytes.NewReader(data), workDir, &archive.TarOptions{
+			NoLchown: true,
+		}); err != nil {
 			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to untar data from source: %w", err)
 		}
 	}
