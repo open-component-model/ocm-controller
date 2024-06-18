@@ -436,7 +436,7 @@ func (r *LocalizationReconciler) checkSourceReadiness(
 		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, ref); err != nil {
 			return false, fmt.Errorf("failed to check flux source readiness: %w", err)
 		}
-	case "Resource":
+	case v1alpha1.ResourceKind:
 		ref = &v1alpha1.Resource{}
 		if err := r.Client.Get(ctx, client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, ref); err != nil {
 			return false, fmt.Errorf("failed to check flux source readiness: %w", err)

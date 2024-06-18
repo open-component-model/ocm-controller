@@ -19,7 +19,6 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"github.com/containers/image/v5/pkg/compression"
 	securejoin "github.com/cyphar/filepath-securejoin"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/http/fetch"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -239,7 +238,11 @@ func (m *MutationReconcileLooper) localize(
 	return sourceDir, nil
 }
 
-func (m *MutationReconcileLooper) fetchDataFromObjectReference(ctx context.Context, obj *v1alpha1.ObjectReference) ([]byte, string, error) {
+func (m *MutationReconcileLooper) fetchDataFromObjectReference(
+	ctx context.Context,
+	obj *v1alpha1.ObjectReference,
+	decompress bool,
+) ([]byte, string, error) {
 	logger := log.FromContext(ctx)
 
 	gvr := obj.GetGVR()
@@ -277,7 +280,7 @@ func (m *MutationReconcileLooper) fetchDataFromObjectReference(ctx context.Conte
 		return nil, "", fmt.Errorf("snapshot not ready: %s", key)
 	}
 
-	snapshotData, err := m.getSnapshotBytes(ctx, snapshot)
+	snapshotData, err := m.getSnapshotBytes(ctx, snapshot, decompress)
 	if err != nil {
 		return nil, "", err
 	}
@@ -327,7 +330,7 @@ func (m *MutationReconcileLooper) fetchDataFromComponentVersion(ctx context.Cont
 }
 
 // This might be problematic if the resource is too large in the snapshot. ReadAll will read it into memory.
-func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot *v1alpha1.Snapshot) ([]byte, error) {
+func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot *v1alpha1.Snapshot, uncompress bool) ([]byte, error) {
 	name, err := ocm.ConstructRepositoryName(snapshot.Spec.Identity)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct name: %w", err)
@@ -338,14 +341,18 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
 
-	uncompressed, _, err := compression.AutoDecompress(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to auto decompress: %w", err)
-	}
-	defer uncompressed.Close()
+	if uncompress {
+		uncompressed, _, err := compression.AutoDecompress(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to auto decompress: %w", err)
+		}
+		defer uncompressed.Close()
 
-	// We don't decompress snapshots because those are archives and are decompressed by the caching layer already.
-	return io.ReadAll(uncompressed)
+		// We don't decompress snapshots because those are archives and are decompressed by the caching layer already.
+		return io.ReadAll(uncompressed)
+	}
+
+	return io.ReadAll(reader)
 }
 
 func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(
@@ -705,7 +712,7 @@ func (m *MutationReconcileLooper) getData(ctx context.Context, obj *v1alpha1.Obj
 				fmt.Errorf("failed to fetch resource data from resource ref: %w", err)
 		}
 	default:
-		if data, _, err = m.fetchDataFromObjectReference(ctx, obj); err != nil {
+		if data, _, err = m.fetchDataFromObjectReference(ctx, obj, true); err != nil {
 			return nil,
 				fmt.Errorf("failed to fetch resource data from snapshot: %w", err)
 		}
@@ -1002,27 +1009,21 @@ func (m *MutationReconcileLooper) mutatePatchStrategicMerge(
 			v1alpha1.SourceNamespaceKey:        mutationSpec.PatchStrategicMerge.Source.SourceRef.Namespace,
 			v1alpha1.SourceArtifactChecksumKey: gitSource.GetArtifact().Digest,
 		}
-	case "Resource", "Configuration", "Localization":
-		data, digest, err := m.fetchDataFromObjectReference(ctx, &v1alpha1.ObjectReference{NamespacedObjectKindReference: mutationSpec.PatchStrategicMerge.Source.SourceRef})
+	case v1alpha1.ResourceKind, v1alpha1.ConfigurationKind, v1alpha1.LocalizationKind:
+		data, digest, err := m.fetchDataFromObjectReference(ctx, &v1alpha1.ObjectReference{
+			NamespacedObjectKindReference: mutationSpec.PatchStrategicMerge.Source.SourceRef,
+		}, false)
 		if err != nil {
 			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to fetch data from source: %w", err)
 		}
 
-		// TODO: At this point it's been auto-decompressed so it's just a plain tar.
 		identity = ocmmetav1.Identity{
 			v1alpha1.SourceNameKey:             mutationSpec.PatchStrategicMerge.Source.SourceRef.Name,
 			v1alpha1.SourceNamespaceKey:        mutationSpec.PatchStrategicMerge.Source.SourceRef.Namespace,
 			v1alpha1.SourceArtifactChecksumKey: digest,
 		}
 
-		// Make sure the folder exists because archive Untar can't create it properly
-		if err := os.MkdirAll(workDir, 0o755); err != nil {
-			return "", ocmmetav1.Identity{}, err
-		}
-
-		if err := archive.Untar(bytes.NewReader(data), workDir, &archive.TarOptions{
-			NoLchown: true,
-		}); err != nil {
+		if err := tar.Untar(bytes.NewReader(data), workDir); err != nil {
 			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to untar data from source: %w", err)
 		}
 	}
@@ -1030,6 +1031,7 @@ func (m *MutationReconcileLooper) mutatePatchStrategicMerge(
 	sourcePath := mutationSpec.PatchStrategicMerge.Source.Path
 	targetPath := mutationSpec.PatchStrategicMerge.Target.Path
 	patch, err := m.strategicMergePatch(sourceData, tmpDir, workDir, sourcePath, targetPath)
+
 	return patch, identity, err
 }
 
