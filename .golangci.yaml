@@ -3,7 +3,6 @@ run:
   timeout: 10m
   tests: false
   allow-parallel-runners: true
-
 linters-settings:
   funlen:
     lines: 150
@@ -37,6 +36,7 @@ issues:
   exclude-files:
     - pkg/ocm/fakes/fakes.go
     - pkg/cache/fakes/cache.go
+    - pkg/untar/untar.go
   max-same-issues: 0
   max-issues-per-linter: 0
   exclude-rules:

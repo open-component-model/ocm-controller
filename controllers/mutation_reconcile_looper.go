@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -28,6 +29,7 @@ import (
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
+	"github.com/open-component-model/ocm-controller/pkg/untar"
 	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/utils/tarutils"
 	"gopkg.in/yaml.v3"
@@ -1023,8 +1025,19 @@ func (m *MutationReconcileLooper) mutatePatchStrategicMerge(
 			v1alpha1.SourceArtifactChecksumKey: digest,
 		}
 
-		if err := tar.Untar(bytes.NewReader(data), workDir); err != nil {
-			return "", ocmmetav1.Identity{}, fmt.Errorf("failed to untar data from source: %w", err)
+		if _, err := gzip.NewReader(bytes.NewReader(data)); err == nil {
+			if err := tar.Untar(bytes.NewReader(data), workDir); err != nil {
+				return "", ocmmetav1.Identity{}, fmt.Errorf("failed to untar data from source: %w", err)
+			}
+		} else {
+			const perm = 0o755
+			if err := os.MkdirAll(workDir, perm); err != nil {
+				return "", ocmmetav1.Identity{}, fmt.Errorf("failed to create work dir: %w", err)
+			}
+
+			if err := untar.Untar(bytes.NewReader(data), workDir); err != nil {
+				return "", ocmmetav1.Identity{}, fmt.Errorf("failed to untar data from source without gzip: %w", err)
+			}
 		}
 	}
 
