@@ -22,6 +22,8 @@ func (m *MutationReconcileLooper) strategicMergePatch(
 	resource []byte,
 	rootDir, workDir, sourcePath, targetPath string,
 ) (string, error) {
+	// remove the source path
+	defer os.Remove(sourcePath)
 	gzipSnapshot := &bytes.Buffer{}
 	gz := gzip.NewWriter(gzipSnapshot)
 	if _, err := gz.Write(resource); err != nil {
@@ -54,10 +56,13 @@ func (m *MutationReconcileLooper) strategicMergePatch(
 		return "", err
 	}
 
-	err = os.WriteFile(filepath.Join(workDir, "kustomization.yaml"), manifest, os.ModePerm)
+	kustomize := filepath.Join(workDir, "kustomization.yaml")
+	err = os.WriteFile(kustomize, manifest, os.ModePerm)
 	if err != nil {
 		return "", err
 	}
+	// remove the kustomize file
+	defer os.Remove(kustomize)
 
 	result, err := generator.SecureBuild(rootDir, workDir, false)
 	if err != nil {
@@ -91,5 +96,5 @@ func (m *MutationReconcileLooper) strategicMergePatch(
 		return "", err
 	}
 
-	return filepath.Dir(outputPath), nil
+	return filepath.Dir(workDir), nil
 }

@@ -1043,9 +1043,11 @@ func (m *MutationReconcileLooper) mutatePatchStrategicMerge(
 
 	sourcePath := mutationSpec.PatchStrategicMerge.Source.Path
 	targetPath := mutationSpec.PatchStrategicMerge.Target.Path
-	patch, err := m.strategicMergePatch(sourceData, tmpDir, workDir, sourcePath, targetPath)
+	if _, err := m.strategicMergePatch(sourceData, tmpDir, workDir, sourcePath, targetPath); err != nil {
+		return "", ocmmetav1.Identity{}, err
+	}
 
-	return patch, identity, err
+	return workDir, identity, nil
 }
 
 // Recursive function to extract the subpath from the data map.
