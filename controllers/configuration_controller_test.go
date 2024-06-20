@@ -72,9 +72,6 @@ type configurationTestCase struct {
 	componentDescriptor func() *v1alpha1.ComponentDescriptor
 	snapshot            func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot
 	source              func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference
-	patchStrategicMerge func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
-	valuesFrom          func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration
-	valuesFromType      string
 	expectError         string
 	expectedContent     map[string]string
 }
@@ -749,231 +746,6 @@ configuration:
 				fakeOcm.GetResourceReturnsOnCall(1, io.NopCloser(bytes.NewBuffer(configurationConfigData)), nil)
 			},
 		},
-		{
-			name: "it performs a strategic merge",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ComponentDescriptor = v1alpha1.Reference{
-					Name:    "test-component",
-					Version: "v0.0.1",
-					ComponentDescriptorRef: meta.NamespacedObjectReference{
-						Name:      cv.Name + "-descriptor",
-						Namespace: cv.Namespace,
-					},
-				}
-
-				return cv
-			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
-			},
-			patchStrategicMerge: func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration {
-				cfg.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
-					Source: v1alpha1.PatchStrategicMergeSource{
-						SourceRef: meta.NamespacedObjectKindReference{
-							Kind:      "GitRepository",
-							Name:      source.GetName(),
-							Namespace: source.GetNamespace(),
-						},
-						Path: "sites/eu-west-1/deployment.yaml",
-					},
-					Target: v1alpha1.PatchStrategicMergeTarget{
-						Path: "merge-target/merge-target.yaml",
-					},
-				}
-				cfg.Spec.ConfigRef = nil
-
-				return cfg
-			},
-			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				name := "test-snapshot"
-				identity := ocmmetav1.Identity{
-					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
-					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
-					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
-					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
-				}
-				snapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: cv.Namespace,
-					},
-					Spec: v1alpha1.SnapshotSpec{
-						Identity: identity,
-					},
-				}
-				resource.Status.SnapshotName = name
-
-				return snapshot
-			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
-				return v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       "Resource",
-						Name:       "test-resource",
-						Namespace:  snapshot.Namespace,
-					},
-				}
-			},
-			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "merge-target.tar.gz"))
-				require.NoError(t, err)
-				fakeCache.FetchDataByDigestReturns(content, nil)
-				fakeOcm.GetResourceReturnsOnCall(0, nil, nil)
-				fakeOcm.GetResourceReturnsOnCall(1, nil, nil)
-			},
-			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
-		},
-		{
-			name: "it applies config from flux sources",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ComponentDescriptor = v1alpha1.Reference{
-					Name:    "test-component",
-					Version: "v0.0.1",
-					ComponentDescriptorRef: meta.NamespacedObjectReference{
-						Name:      cv.Name + "-descriptor",
-						Namespace: cv.Namespace,
-					},
-				}
-
-				return cv
-			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
-			},
-			valuesFrom: func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration {
-				cfg.Spec.ValuesFrom = &v1alpha1.ValuesSource{
-					FluxSource: &v1alpha1.FluxValuesSource{
-						SourceRef: meta.NamespacedObjectKindReference{
-							Kind:      "GitRepository",
-							Name:      source.GetName(),
-							Namespace: source.GetNamespace(),
-						},
-						Path:    "config/values.yaml",
-						SubPath: "test.backend",
-					},
-				}
-				cfg.Spec.Values = nil
-
-				return cfg
-			},
-			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				name := "test-snapshot"
-				identity := ocmmetav1.Identity{
-					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
-					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
-					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
-					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
-				}
-				snapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: cv.Namespace,
-					},
-					Spec: v1alpha1.SnapshotSpec{
-						Identity: identity,
-					},
-				}
-				resource.Status.SnapshotName = name
-
-				return snapshot
-			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
-				return v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       "Resource",
-						Name:       "test-resource",
-						Namespace:  snapshot.Namespace,
-					},
-				}
-			},
-			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
-				require.NoError(t, err)
-				fakeCache.FetchDataByDigestReturns(content, nil)
-				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
-				cmp := getMockComponent(DefaultComponent)
-				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
-			},
-			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
-		},
-		{
-			name: "it applies config from configmap",
-			componentVersion: func() *v1alpha1.ComponentVersion {
-				cv := DefaultComponent.DeepCopy()
-				cv.Status.ComponentDescriptor = v1alpha1.Reference{
-					Name:    "test-component",
-					Version: "v0.0.1",
-					ComponentDescriptorRef: meta.NamespacedObjectReference{
-						Name:      cv.Name + "-descriptor",
-						Namespace: cv.Namespace,
-					},
-				}
-
-				return cv
-			},
-			componentDescriptor: func() *v1alpha1.ComponentDescriptor {
-				return DefaultComponentDescriptor.DeepCopy()
-			},
-			valuesFrom: func(cfg *v1alpha1.Configuration, source client.Object) *v1alpha1.Configuration {
-				cfg.Spec.ValuesFrom = &v1alpha1.ValuesSource{
-					ConfigMapSource: &v1alpha1.ConfigMapSource{
-						SourceRef: meta.LocalObjectReference{
-							Name: "test-config-data",
-						},
-						Key:     "values.yaml",
-						SubPath: "test.backend",
-					},
-				}
-				cfg.Spec.Values = nil
-
-				return cfg
-			},
-			valuesFromType: "configmap",
-			snapshot: func(cv *v1alpha1.ComponentVersion, resource *v1alpha1.Resource) *v1alpha1.Snapshot {
-				name := "test-snapshot"
-				identity := ocmmetav1.Identity{
-					v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
-					v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
-					v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
-					v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
-				}
-				snapshot := &v1alpha1.Snapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: cv.Namespace,
-					},
-					Spec: v1alpha1.SnapshotSpec{
-						Identity: identity,
-					},
-				}
-				resource.Status.SnapshotName = name
-
-				return snapshot
-			},
-			source: func(snapshot *v1alpha1.Snapshot) v1alpha1.ObjectReference {
-				return v1alpha1.ObjectReference{
-					NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
-						APIVersion: v1alpha1.GroupVersion.String(),
-						Kind:       "Resource",
-						Name:       "test-resource",
-						Namespace:  snapshot.Namespace,
-					},
-				}
-			},
-			mock: func(fakeCache *cachefakes.FakeCache, fakeOcm *fakes.MockFetcher) {
-				content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
-				require.NoError(t, err)
-				fakeCache.FetchDataByDigestReturns(content, nil)
-				fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
-				cmp := getMockComponent(DefaultComponent)
-				fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
-			},
-			expectedContent: map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"},
-		},
 	}
 	for i, tt := range testCases {
 		t.Run(fmt.Sprintf("%d: %s", i, tt.name), func(t *testing.T) {
@@ -981,11 +753,8 @@ configuration:
 			conditions.MarkTrue(cv, meta.ReadyCondition, meta.SucceededReason, "test")
 
 			cd := tt.componentDescriptor()
-
 			resource := DefaultResource.DeepCopy()
-
 			snapshot := tt.snapshot(cv, resource)
-
 			source := tt.source(snapshot)
 
 			configuration := DefaultConfiguration.DeepCopy()
@@ -997,46 +766,6 @@ configuration:
 			if snapshot != nil {
 				conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "test")
 				objs = append(objs, snapshot)
-			}
-
-			if tt.patchStrategicMerge != nil {
-				path := "/file.tar.gz"
-				server := ghttp.NewServer()
-				server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
-					http.ServeFile(writer, request, "testdata/git-repo.tar.gz")
-				})
-				checksum := "87670827f3d1a10094e3226381c95168b6ce92344ac1a1c2345caaeb7cc6b7d8"
-				gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
-				configuration = tt.patchStrategicMerge(configuration, gitRepo)
-				objs = append(objs, gitRepo)
-			}
-
-			if tt.valuesFrom != nil {
-				if tt.valuesFromType == "configmap" {
-					valuesFile, err := os.ReadFile("testdata/values.yaml")
-					require.NoError(t, err)
-					configMap := &corev1.ConfigMap{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "test-config-data",
-							Namespace: configuration.Namespace,
-						},
-						Data: map[string]string{
-							"values.yaml": string(valuesFile),
-						},
-					}
-					configuration = tt.valuesFrom(configuration, configMap)
-					objs = append(objs, configMap)
-				} else {
-					path := "/file.tar.gz"
-					server := ghttp.NewServer()
-					server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
-						http.ServeFile(writer, request, "testdata/git-repo.tar.gz")
-					})
-					checksum := "87670827f3d1a10094e3226381c95168b6ce92344ac1a1c2345caaeb7cc6b7d8"
-					gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
-					configuration = tt.valuesFrom(configuration, gitRepo)
-					objs = append(objs, gitRepo)
-				}
 			}
 
 			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
@@ -1094,29 +823,14 @@ configuration:
 			t.Log("check if target snapshot has been created and cache was called")
 			require.NoError(t, err)
 
-			if tt.patchStrategicMerge != nil {
-				t.Log("verifying that the strategic merge was performed")
-				args := cache.PushDataCallingArgumentsOnCall(0)
-				data := args.Content
-				sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(data))), "merge-target.yaml")
-				deployment := appsv1.Deployment{}
-				err = yaml.Unmarshal(sourceFile, &deployment)
-				assert.NoError(t, err)
-				assert.Equal(t, int32(2), *deployment.Spec.Replicas, "has correct number of replicas")
-				assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Containers), "has correct number of containers")
-				assert.Equal(t, corev1.PullPolicy("Always"), deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy)
-			} else {
-				t.Log("extracting the passed in data and checking if the configuration worked")
-				args := cache.PushDataCallingArgumentsOnCall(0)
-				assert.Equal(t, "sha-18322151501422808564", args.Name)
-				assert.Equal(t, "999", args.Version)
-				sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
-				configMap := corev1.ConfigMap{}
-				assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
-				assert.Equal(t, tt.expectedContent, configMap.Data)
-				// assert.Equal(t, "bittersweet", configMap.Data["PODINFO_UI_COLOR"])
-				// assert.Equal(t, "this is a new message", configMap.Data["PODINFO_UI_MESSAGE"])
-			}
+			t.Log("extracting the passed in data and checking if the configuration worked")
+			args := cache.PushDataCallingArgumentsOnCall(0)
+			assert.Equal(t, "sha-18322151501422808564", args.Name)
+			assert.Equal(t, "999", args.Version)
+			sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
+			configMap := corev1.ConfigMap{}
+			assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
+			assert.Equal(t, tt.expectedContent, configMap.Data)
 
 			err = client.Get(context.Background(), types.NamespacedName{
 				Namespace: configuration.Namespace,
@@ -1138,6 +852,355 @@ configuration:
 			assert.Contains(t, event, "Reconciliation finished, next run in")
 		})
 	}
+}
+
+func TestConfigurationValuesFrom(t *testing.T) {
+	testCases := []struct {
+		name          string
+		configuration func(source client.Object) *v1alpha1.Configuration
+		setup         func() client.Object
+	}{
+		{
+			name: "configuration values from GitRepository",
+			configuration: func(source client.Object) *v1alpha1.Configuration {
+				configuration := DefaultConfiguration.DeepCopy()
+				configuration.Status.SnapshotName = "configuration-snapshot"
+				configuration.Spec.ValuesFrom = &v1alpha1.ValuesSource{
+					FluxSource: &v1alpha1.FluxValuesSource{
+						SourceRef: meta.NamespacedObjectKindReference{
+							Kind:      "GitRepository",
+							Name:      source.GetName(),
+							Namespace: source.GetNamespace(),
+						},
+						Path:    "config/values.yaml",
+						SubPath: "test.backend",
+					},
+				}
+				configuration.Spec.Values = nil
+
+				return configuration
+			},
+			setup: func() client.Object {
+				path := "/file.tar.gz"
+				server := ghttp.NewServer()
+				server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
+					http.ServeFile(writer, request, "testdata/git-repo.tar.gz")
+				})
+				checksum := "87670827f3d1a10094e3226381c95168b6ce92344ac1a1c2345caaeb7cc6b7d8"
+				gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
+				return gitRepo
+			},
+		},
+		{
+			name: "configuration values from ConfigMap",
+			configuration: func(source client.Object) *v1alpha1.Configuration {
+				configuration := DefaultConfiguration.DeepCopy()
+				configuration.Status.SnapshotName = "configuration-snapshot"
+				configuration.Spec.ValuesFrom = &v1alpha1.ValuesSource{
+					ConfigMapSource: &v1alpha1.ConfigMapSource{
+						SourceRef: meta.LocalObjectReference{
+							Name: "test-config-data",
+						},
+						Key:     "values.yaml",
+						SubPath: "test.backend",
+					},
+				}
+				configuration.Spec.Values = nil
+
+				return configuration
+			},
+			setup: func() client.Object {
+				valuesFile, err := os.ReadFile("testdata/values.yaml")
+				require.NoError(t, err)
+				configMap := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-config-data",
+						Namespace: "default",
+					},
+					Data: map[string]string{
+						"values.yaml": string(valuesFile),
+					},
+				}
+
+				return configMap
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cv := DefaultComponent.DeepCopy()
+			conditions.MarkTrue(cv, meta.ReadyCondition, meta.SucceededReason, "test")
+
+			cd := DefaultComponentDescriptor.DeepCopy()
+			resource := DefaultResource.DeepCopy()
+			name := "test-snapshot"
+			identity := ocmmetav1.Identity{
+				v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+				v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+				v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+				v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+			}
+			snapshot := &v1alpha1.Snapshot{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: cv.Namespace,
+				},
+				Spec: v1alpha1.SnapshotSpec{
+					Identity: identity,
+				},
+			}
+			conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "test")
+
+			resource.Status.SnapshotName = name
+
+			source := v1alpha1.ObjectReference{
+				NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+					APIVersion: v1alpha1.GroupVersion.String(),
+					Kind:       "Resource",
+					Name:       "test-resource",
+					Namespace:  snapshot.Namespace,
+				},
+			}
+
+			configSource := tc.setup()
+			objs := []client.Object{cv, cd, resource, configSource}
+
+			configuration := tc.configuration(configSource)
+			configuration.Spec.SourceRef = source
+			objs = append(objs, configuration, snapshot)
+
+			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
+			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
+			cache := &cachefakes.FakeCache{}
+			snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
+			fakeOcm := &fakes.MockFetcher{}
+			recorder := record.NewFakeRecorder(32)
+			content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
+			require.NoError(t, err)
+			cache.FetchDataByDigestReturns(content, nil)
+			fakeOcm.GetResourceReturns(io.NopCloser(bytes.NewBuffer(configurationConfigData)), "", nil)
+			cmp := getMockComponent(DefaultComponent)
+			fakeOcm.GetComponentVersionReturnsForName(cmp.GetName(), cmp, nil)
+
+			cr := ConfigurationReconciler{
+				Client:        client,
+				DynamicClient: dynClient,
+				Scheme:        env.scheme,
+				EventRecorder: recorder,
+				MutationReconciler: MutationReconcileLooper{
+					Client:         client,
+					DynamicClient:  dynClient,
+					Scheme:         env.scheme,
+					OCMClient:      fakeOcm,
+					Cache:          cache,
+					SnapshotWriter: snapshotWriter,
+				},
+			}
+
+			t.Log("reconciling configuration")
+			_, err = cr.Reconcile(context.Background(), ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: configuration.Namespace,
+					Name:      configuration.Name,
+				},
+			})
+			require.NoError(t, err)
+
+			getErr := client.Get(context.Background(), types.NamespacedName{
+				Namespace: configuration.Namespace,
+				Name:      configuration.Name,
+			}, configuration)
+			require.NoError(t, getErr)
+
+			snapshotOutput := &v1alpha1.Snapshot{}
+			err = client.Get(context.Background(), types.NamespacedName{
+				Namespace: configuration.Namespace,
+				Name:      configuration.Status.SnapshotName,
+			}, snapshotOutput)
+
+			t.Log("check if target snapshot has been created and cache was called")
+			require.NoError(t, err)
+
+			t.Log("extracting the passed in data and checking if the configuration worked")
+			args := cache.PushDataCallingArgumentsOnCall(0)
+			assert.Equal(t, "sha-6142814068768493943", args.Name)
+			assert.Equal(t, "999", args.Version)
+			sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
+			configMap := corev1.ConfigMap{}
+			assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
+			assert.Equal(t, map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"}, configMap.Data)
+
+			err = client.Get(context.Background(), types.NamespacedName{
+				Namespace: configuration.Namespace,
+				Name:      configuration.Name,
+			}, configuration)
+			require.NoError(t, err)
+
+			assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
+
+			close(recorder.Events)
+			event := ""
+			for e := range recorder.Events {
+				if strings.Contains(e, "Reconciliation finished, next run in") {
+					event = e
+
+					break
+				}
+			}
+			assert.Contains(t, event, "Reconciliation finished, next run in")
+		})
+	}
+}
+
+func TestPatchStrategicMergeWithGitRepositorySource(t *testing.T) {
+	cv := DefaultComponent.DeepCopy()
+	cv.Status.ComponentDescriptor = v1alpha1.Reference{
+		Name:    "test-component",
+		Version: "v0.0.1",
+		ComponentDescriptorRef: meta.NamespacedObjectReference{
+			Name:      cv.Name + "-descriptor",
+			Namespace: cv.Namespace,
+		},
+	}
+	conditions.MarkTrue(cv, meta.ReadyCondition, meta.SucceededReason, "test")
+
+	cd := DefaultComponentDescriptor.DeepCopy()
+
+	resource := DefaultResource.DeepCopy()
+
+	name := "test-snapshot"
+	identity := ocmmetav1.Identity{
+		v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
+		v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
+		v1alpha1.ResourceNameKey:     resource.Spec.SourceRef.ResourceRef.Name,
+		v1alpha1.ResourceVersionKey:  resource.Spec.SourceRef.ResourceRef.Version,
+	}
+	snapshot := &v1alpha1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: cv.Namespace,
+		},
+		Spec: v1alpha1.SnapshotSpec{
+			Identity: identity,
+		},
+	}
+
+	resource.Status.SnapshotName = name
+	conditions.MarkTrue(resource, meta.ReadyCondition, meta.SucceededReason, "test")
+
+	source := v1alpha1.ObjectReference{
+		NamespacedObjectKindReference: meta.NamespacedObjectKindReference{
+			APIVersion: v1alpha1.GroupVersion.String(),
+			Kind:       "Resource",
+			Name:       "test-resource",
+			Namespace:  snapshot.Namespace,
+		},
+	}
+
+	path := "/file.tar.gz"
+	server := ghttp.NewServer()
+	server.RouteToHandler("GET", path, func(writer http.ResponseWriter, request *http.Request) {
+		http.ServeFile(writer, request, "testdata/git-repo.tar.gz")
+	})
+	checksum := "87670827f3d1a10094e3226381c95168b6ce92344ac1a1c2345caaeb7cc6b7d8"
+	gitRepo := createGitRepository("patch-repo", "default", server.URL()+path, checksum)
+
+	configuration := DefaultConfiguration.DeepCopy()
+	configuration.Spec.SourceRef = source
+	configuration.Spec.ConfigRef = nil
+	configuration.Status.SnapshotName = "configuration-snapshot"
+	configuration.Spec.PatchStrategicMerge = &v1alpha1.PatchStrategicMerge{
+		Source: v1alpha1.PatchStrategicMergeSource{
+			SourceRef: meta.NamespacedObjectKindReference{
+				Kind:      "GitRepository",
+				Name:      gitRepo.Name,
+				Namespace: gitRepo.Namespace,
+			},
+			Path: "sites/eu-west-1/deployment.yaml",
+		},
+		Target: v1alpha1.PatchStrategicMergeTarget{
+			Path: "merge-target/merge-target.yaml",
+		},
+	}
+
+	objs := []client.Object{cv, cd, resource, gitRepo, configuration}
+	conditions.MarkTrue(snapshot, meta.ReadyCondition, meta.SucceededReason, "test")
+	conditions.MarkTrue(gitRepo, meta.ReadyCondition, meta.SucceededReason, "test")
+	objs = append(objs, snapshot)
+
+	client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(sourcev1.AddToScheme))
+	dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
+	cache := &cachefakes.FakeCache{}
+	snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
+	fakeOcm := &fakes.MockFetcher{}
+	recorder := record.NewFakeRecorder(32)
+	content, err := os.Open(filepath.Join("testdata", "merge-target.tar.gz"))
+	require.NoError(t, err)
+	patchContent, err := os.Open(filepath.Join("testdata", "git-repo.tar.gz"))
+	require.NoError(t, err)
+	cache.FetchDataByDigestReturnsOnCall(0, content, nil)
+	cache.FetchDataByDigestReturnsOnCall(1, patchContent, nil)
+	fakeOcm.GetResourceReturnsOnCall(0, nil, nil)
+	fakeOcm.GetResourceReturnsOnCall(1, nil, nil)
+
+	cr := ConfigurationReconciler{
+		Client:        client,
+		DynamicClient: dynClient,
+		Scheme:        env.scheme,
+		EventRecorder: recorder,
+		MutationReconciler: MutationReconcileLooper{
+			Client:         client,
+			DynamicClient:  dynClient,
+			Scheme:         env.scheme,
+			OCMClient:      fakeOcm,
+			Cache:          cache,
+			SnapshotWriter: snapshotWriter,
+		},
+	}
+
+	t.Log("reconciling configuration")
+	_, err = cr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: configuration.Namespace,
+			Name:      configuration.Name,
+		},
+	})
+	require.NoError(t, err)
+
+	getErr := client.Get(context.Background(), types.NamespacedName{
+		Namespace: configuration.Namespace,
+		Name:      configuration.Name,
+	}, configuration)
+	require.NoError(t, getErr)
+
+	snapshotOutput := &v1alpha1.Snapshot{}
+	err = client.Get(context.Background(), types.NamespacedName{
+		Namespace: configuration.Namespace,
+		Name:      configuration.Status.SnapshotName,
+	}, snapshotOutput)
+
+	t.Log("verifying that the strategic merge was performed")
+	args := cache.PushDataCallingArgumentsOnCall(0)
+	data := args.Content
+	sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(data))), "merge-target.yaml")
+	deployment := appsv1.Deployment{}
+	err = yaml.Unmarshal(sourceFile, &deployment)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(2), *deployment.Spec.Replicas, "has correct number of replicas")
+	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Containers), "has correct number of containers")
+	assert.Equal(t, corev1.PullPolicy("Always"), deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy)
+
+	close(recorder.Events)
+	event := ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "Reconciliation finished, next run in") {
+			event = e
+
+			break
+		}
+	}
+	assert.Contains(t, event, "Reconciliation finished, next run in")
 }
 
 func TestConfigurationShouldReconcile(t *testing.T) {
