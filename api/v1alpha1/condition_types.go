@@ -74,6 +74,9 @@ const (
 	// SourceRefNotReadyReason is used when the source ref is not ready and there was no error.
 	SourceRefNotReadyReason = "SourceRefNotReady"
 
+	// CreatedObjectsNotReadyReason is used when the created resources aren't ready yet.
+	CreatedObjectsNotReadyReason = "CreatedObjectsNotReady"
+
 	// PatchStrategicMergeSourceRefNotReadyWithErrorReason is used when source ref for patch strategic merge is not ready and there was an error.
 	PatchStrategicMergeSourceRefNotReadyWithErrorReason = "PatchStrategicMergeSourceRefNotReadyWithError"
 

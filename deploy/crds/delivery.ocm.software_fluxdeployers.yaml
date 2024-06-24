@@ -148,6 +148,10 @@ spec:
                 - kind
                 - name
                 type: object
+              waitForReady:
+                description: WaitForReady if set will wait for all created resources
+                  to be ready before itself becomes Ready.
+                type: boolean
             required:
             - interval
             - sourceRef
@@ -224,6 +228,8 @@ spec:
                   - type
                   type: object
                 type: array
+              helmRelease:
+                type: string
               kustomization:
                 type: string
               observedGeneration:

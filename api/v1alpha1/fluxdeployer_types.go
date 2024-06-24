@@ -30,6 +30,10 @@ type FluxDeployerSpec struct {
 	// +kubebuilder:validation:Schemaless
 	// +optional
 	HelmReleaseTemplate *helmv2.HelmReleaseSpec `json:"helmReleaseTemplate,omitempty"`
+
+	// WaitForReady if set will wait for all created resources to be ready before itself becomes Ready.
+	// +optional
+	WaitForReady bool `json:"waitForReady,omitempty"`
 }
 
 // FluxDeployerStatus defines the observed state of FluxDeployer.
@@ -46,6 +50,9 @@ type FluxDeployerStatus struct {
 
 	// +optional
 	OCIRepository string `json:"ociRepository"`
+
+	// +optional
+	HelmRelease string `json:"helmRelease"`
 }
 
 // GetConditions returns the conditions of the ComponentVersion.
