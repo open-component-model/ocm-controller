@@ -72,13 +72,8 @@ func TestFluxDeployerReconcile(t *testing.T) {
 							Kind:      "Resource",
 						},
 					},
-					HelmReleaseTemplate: &helmv2.HelmReleaseSpec{
-						Chart: &helmv2.HelmChartTemplate{
-							Spec: helmv2.HelmChartTemplateSpec{
-								Chart:   "podinfo",
-								Version: "6.3.5",
-							},
-						},
+					KustomizationTemplate: &kustomizev1.KustomizationSpec{
+						Path: "bla",
 					},
 					WaitForReady: true,
 				},
