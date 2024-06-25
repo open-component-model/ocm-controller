@@ -133,7 +133,7 @@ func (m *MockFetcher) VerifyComponentWasNotCalled() bool {
 }
 
 func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error) {
-	m.getComponentVersionCalledWith = append(m.getComponentVersionCalledWith, []any{obj})
+	m.getLatestComponentVersionCalledWith = append(m.getLatestComponentVersionCalledWith, []any{obj})
 	return m.getLatestComponentVersionVersion, m.getLatestComponentVersionErr
 }
 
