@@ -58,11 +58,10 @@ spec:
           periodSeconds: 10
         resources:
           limits:
-            cpu: 500m
-            memory: 256Mi
+            memory: 1024Mi
           requests:
-            cpu: 10m
-            memory: 64Mi
+            cpu: 200m
+            memory: 512Mi
       serviceAccountName: ocm-controller
       terminationGracePeriodSeconds: 10
       {{- if .Values.registry.tls.enabled }}
