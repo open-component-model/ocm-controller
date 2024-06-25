@@ -374,7 +374,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(
 		return nil, fmt.Errorf("failed to create authenticated client: %w", err)
 	}
 
-	compvers, err := m.OCMClient.GetComponentVersion(ctx, octx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
+	compvers, err := m.OCMClient.GetComponentVersion(ctx, octx, cv.Status.ReplicatedRepositoryURL, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get component version: %w", err)
 	}

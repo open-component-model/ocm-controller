@@ -172,6 +172,11 @@ func (in *ComponentVersionSpec) DeepCopyInto(out *ComponentVersionSpec) {
 	*out = *in
 	out.Version = in.Version
 	in.Repository.DeepCopyInto(&out.Repository)
+	if in.Destination != nil {
+		in, out := &in.Destination, &out.Destination
+		*out = new(Repository)
+		(*in).DeepCopyInto(*out)
+	}
 	out.Interval = in.Interval
 	if in.Verify != nil {
 		in, out := &in.Verify, &out.Verify

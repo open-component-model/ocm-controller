@@ -284,7 +284,7 @@ func (r *ResourcePipelineReconciler) getComponentVersionAccess(
 	return r.OCMClient.GetComponentVersion(
 		ctx,
 		octx,
-		&componentVersion,
+		componentVersion.Status.ReplicatedRepositoryURL,
 		componentVersion.GetComponentName(),
 		componentVersion.GetVersion(),
 	)

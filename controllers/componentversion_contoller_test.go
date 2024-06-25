@@ -157,6 +157,145 @@ func TestComponentVersionReconcile(t *testing.T) {
 	assert.Contains(t, event, "kind=ComponentVersion")
 }
 
+func TestComponentVersionWithTransferReconcile(t *testing.T) {
+	secretName := "test-secret"
+	cv := DefaultComponent.DeepCopy()
+	cv.Spec.Destination = &v1alpha1.Repository{
+		URL: "github.com/open-component-model/internal-test",
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: cv.Namespace,
+		},
+		Data: map[string][]byte{
+			"creds": []byte("whatever"),
+		},
+	}
+	client := env.FakeKubeClient(WithObjects(secret, cv))
+	root := &ocmfake.Component{
+		Name:    cv.Spec.Component,
+		Version: "v0.0.1",
+		ComponentDescriptor: &ocmdesc.ComponentDescriptor{
+			ComponentSpec: ocmdesc.ComponentSpec{
+				ObjectMeta: v1.ObjectMeta{
+					Name:    cv.Spec.Component,
+					Version: "v0.0.1",
+					Labels: []v1.Label{
+						{
+							Name:    "ocm.software/label-value",
+							Value:   []byte("\"string-value\""),
+							Version: "1.0.0",
+						},
+						{
+							Name:    "ocm.software/label-bool",
+							Value:   []byte("true"),
+							Version: "1.0.0",
+						},
+					},
+				},
+				References: ocmdesc.References{
+					{
+						ElementMeta: ocmdesc.ElementMeta{
+							Name:    "test-ref-1",
+							Version: "v0.0.1",
+						},
+						ComponentName: "github.com/open-component-model/embedded",
+					},
+				},
+			},
+		},
+	}
+
+	embedded := &ocmfake.Component{
+		ComponentDescriptor: &ocmdesc.ComponentDescriptor{
+			ComponentSpec: ocmdesc.ComponentSpec{
+				ObjectMeta: v1.ObjectMeta{
+					Name:    "github.com/open-component-model/embedded",
+					Version: "v0.0.1",
+					Labels: []v1.Label{
+						{
+							Name:    "ocm.software/label-value-2",
+							Value:   []byte("1.32"),
+							Version: "1.0.1",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fakeOcm := &fakes.MockFetcher{}
+	fakeOcm.VerifyComponentReturns(true, nil)
+	fakeOcm.GetComponentVersionReturnsForName(embedded.ComponentDescriptor.ComponentSpec.Name, embedded, nil)
+	fakeOcm.GetComponentVersionReturnsForName(root.ComponentDescriptor.ComponentSpec.Name, root, nil)
+	fakeOcm.VerifyComponentReturns(true, nil)
+	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+	fakeOcm.TransferComponentReturns(nil)
+	recorder := &record.FakeRecorder{
+		Events:        make(chan string, 32),
+		IncludeObject: true,
+	}
+
+	cvr := ComponentVersionReconciler{
+		Scheme:        env.scheme,
+		Client:        client,
+		EventRecorder: recorder,
+		OCMClient:     fakeOcm,
+	}
+	_, err := cvr.Reconcile(context.Background(), ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      cv.Name,
+			Namespace: cv.Namespace,
+		},
+	})
+	require.NoError(t, err)
+
+	t.Log("verifying updated object status")
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      cv.Name,
+		Namespace: cv.Namespace,
+	}, cv)
+	require.NoError(t, err)
+
+	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
+	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
+	assert.Equal(t, "github.com/open-component-model/internal-test", cv.Status.ReplicatedRepositoryURL)
+	assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
+
+	t.Log("checking label values")
+	nns := types.NamespacedName{Name: cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name, Namespace: cv.Status.ComponentDescriptor.ComponentDescriptorRef.Namespace}
+	cd := &v1alpha1.ComponentDescriptor{}
+	err = client.Get(context.Background(), nns, cd)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		"ocm.software/label-value": "string-value",
+		"ocm.software/label-bool":  "true",
+	}, cd.Labels)
+
+	nns = types.NamespacedName{Name: cv.Status.ComponentDescriptor.References[0].ComponentDescriptorRef.Name, Namespace: cv.Namespace}
+	err = client.Get(context.Background(), nns, cd)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		"ocm.software/label-value-2": "1.32",
+	}, cd.Labels)
+
+	// the second call to GetComponentVersion should fetch it from the new place
+	args := fakeOcm.GetComponentVersionCallingArgumentsOnCall(1)
+	assert.Equal(t, "github.com/open-component-model/internal-test", args[0])
+
+	close(recorder.Events)
+	event := ""
+	for e := range recorder.Events {
+		if strings.Contains(e, "Reconciliation finished, next run in") {
+			event = e
+			break
+		}
+	}
+	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "kind=ComponentVersion")
+}
+
 func TestComponentVersionReconcileFailure(t *testing.T) {
 	cv := DefaultComponent.DeepCopy()
 	cv.Spec.Version.Semver = "invalid"
