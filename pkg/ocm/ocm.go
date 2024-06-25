@@ -27,6 +27,8 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/download"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/standard"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	"helm.sh/helm/v3/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
@@ -53,12 +55,16 @@ type Contract interface {
 	GetComponentVersion(
 		ctx context.Context,
 		octx ocm.Context,
-		obj *v1alpha1.ComponentVersion,
-		name, version string,
+		repositoryURL, name, version string,
 	) (ocm.ComponentVersionAccess, error)
 	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
 	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 	VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
+	TransferComponent(
+		octx ocm.Context,
+		obj *v1alpha1.ComponentVersion,
+		sourceComponentVersion ocm.ComponentVersionAccess,
+	) error
 }
 
 // Client implements the OCM fetcher interface.
@@ -219,7 +225,7 @@ func (c *Client) GetResource(
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
 
-	cva, err := c.GetComponentVersion(ctx, octx, cv, cv.Spec.Component, cv.Status.ReconciledVersion)
+	cva, err := c.GetComponentVersion(ctx, octx, cv.Status.ReplicatedRepositoryURL, cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to get component Version: %w", err)
 	}
@@ -279,12 +285,11 @@ func (c *Client) GetResource(
 func (c *Client) GetComponentVersion(
 	_ context.Context,
 	octx ocm.Context,
-	obj *v1alpha1.ComponentVersion,
-	name, version string,
+	repositoryURL, name, version string,
 ) (ocm.ComponentVersionAccess, error) {
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
+	repoSpec := ocireg.NewRepositorySpec(repositoryURL, nil)
 	if repoSpec == nil {
-		return nil, fmt.Errorf("failed to construct repository spec for url: %s", obj.Spec.Repository.URL)
+		return nil, fmt.Errorf("failed to construct repository spec for url: %s", repositoryURL)
 	}
 
 	repo, err := octx.RepositoryForSpec(repoSpec)
@@ -496,6 +501,49 @@ func (c *Client) ListComponentVersions(
 	}
 
 	return result, nil
+}
+
+func (c *Client) TransferComponent(
+	octx ocm.Context,
+	obj *v1alpha1.ComponentVersion,
+	sourceComponentVersion ocm.ComponentVersionAccess,
+) error {
+	sourceRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
+	source, err := octx.RepositoryForSpec(sourceRepoSpec)
+	if err != nil {
+		return fmt.Errorf("failed to get source repo: %w", err)
+	}
+	defer source.Close()
+
+	targetRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Destination.URL, nil)
+	target, err := octx.RepositoryForSpec(targetRepoSpec)
+	if err != nil {
+		return fmt.Errorf("failed to get target repo: %w", err)
+	}
+	defer target.Close()
+
+	handler, err := standard.New(
+		standard.Recursive(true),
+		standard.ResourcesByValue(true),
+		standard.Overwrite(true),
+		standard.Resolver(source),
+		standard.Resolver(target),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to construct target handler: %w", err)
+	}
+
+	if err := transfer.TransferVersion(
+		nil,
+		transfer.TransportClosure{},
+		sourceComponentVersion,
+		target,
+		handler,
+	); err != nil {
+		return fmt.Errorf("failed to transfer version to destination repository: %w", err)
+	}
+
+	return nil
 }
 
 // We add this decision because OCM is storing the Helm artifact as an ociArtifact at the

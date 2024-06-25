@@ -85,4 +85,7 @@ const (
 
 	// SnapshotNameEmptyReason is used for a failure to generate a snapshot name.
 	SnapshotNameEmptyReason = "SnapshotNameEmpty"
+
+	// TransferFailedReason is used when we fail to transfer a component.
+	TransferFailedReason = "TransferFailed"
 )

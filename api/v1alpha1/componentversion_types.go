@@ -35,6 +35,11 @@ type ComponentVersionSpec struct {
 	// +required
 	Repository Repository `json:"repository"`
 
+	// Destination defines the destination repository to transfer this component into.
+	// If defined this destination is used for any further operations like fetching a Resource.
+	// +optional
+	Destination *Repository `json:"destination,omitempty"`
+
 	// Interval specifies the interval at which the Repository will be checked for updates.
 	// +required
 	Interval metav1.Duration `json:"interval"`
@@ -151,6 +156,10 @@ type ComponentVersionStatus struct {
 	// Verified is a boolean indicating whether all the specified signatures have been verified and are valid.
 	// +optional
 	Verified bool `json:"verified,omitempty"`
+
+	// ReplicatedRepositoryURL defines the final location of the reconciled Component.
+	// +optional
+	ReplicatedRepositoryURL string `json:"replicatedRepositoryURL,omitempty"`
 }
 
 func (in *ComponentVersion) GetVID() map[string]string {
