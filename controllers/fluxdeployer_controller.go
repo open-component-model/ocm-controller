@@ -220,26 +220,17 @@ func (r *FluxDeployerReconciler) reconcile(
 	if obj.Spec.WaitForReady {
 		var objs []conditions.Getter
 
-		helmRelease, err := r.findHelmRelease(ctx, obj)
-		if err != nil {
+		if err := r.findHelmRelease(ctx, obj, &objs); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to find helm release: %w", err)
 		}
 
-		objs = append(objs, helmRelease)
-
-		ociRepository, err := r.findOCIRepository(ctx, obj)
-		if err != nil {
+		if err := r.findOCIRepository(ctx, obj, &objs); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to find oci repository: %w", err)
 		}
 
-		objs = append(objs, ociRepository)
-
-		kustomization, err := r.findKustomization(ctx, obj)
-		if err != nil {
+		if err := r.findKustomization(ctx, obj, &objs); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to find kustomization: %w", err)
 		}
-
-		objs = append(objs, kustomization)
 
 		for _, o := range objs {
 			if !conditions.IsReady(o) {
@@ -485,56 +476,62 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(
 	return nil
 }
 
-func (r *FluxDeployerReconciler) findHelmRelease(ctx context.Context, obj *v1alpha1.FluxDeployer) (conditions.Getter, error) {
+func (r *FluxDeployerReconciler) findHelmRelease(ctx context.Context, obj *v1alpha1.FluxDeployer, objs *[]conditions.Getter) error {
 	if obj.Status.HelmRelease == "" {
-		return nil, nil
+		return nil
 	}
 
 	helmRelease := &helmv2.HelmRelease{}
 	split := strings.Split(obj.Status.HelmRelease, "/")
 	if len(split) == 0 || len(split) != 2 {
-		return nil, fmt.Errorf("failed to find helm release in status: %s", obj.Status.HelmRelease)
+		return fmt.Errorf("failed to find helm release in status: %s", obj.Status.HelmRelease)
 	}
 
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: split[0], Name: split[1]}, helmRelease); err != nil {
-		return nil, fmt.Errorf("failed to find helm release: %w", err)
+		return fmt.Errorf("failed to find helm release: %w", err)
 	}
 
-	return helmRelease, nil
+	*objs = append(*objs, helmRelease)
+
+	return nil
 }
 
-func (r *FluxDeployerReconciler) findOCIRepository(ctx context.Context, obj *v1alpha1.FluxDeployer) (conditions.Getter, error) {
+func (r *FluxDeployerReconciler) findOCIRepository(ctx context.Context, obj *v1alpha1.FluxDeployer, objs *[]conditions.Getter) error {
 	if obj.Status.OCIRepository == "" {
-		return nil, nil
+		return nil
 	}
 
 	ociRepo := &sourcev1beta2.OCIRepository{}
 	split := strings.Split(obj.Status.OCIRepository, "/")
 	if len(split) == 0 || len(split) != 2 {
-		return nil, fmt.Errorf("failed to find oci repository in status: %s", obj.Status.OCIRepository)
+		return fmt.Errorf("failed to find oci repository in status: %s", obj.Status.OCIRepository)
 	}
 
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: split[0], Name: split[1]}, ociRepo); err != nil {
-		return nil, fmt.Errorf("failed to find oci repository: %w", err)
+		return fmt.Errorf("failed to find oci repository: %w", err)
 	}
 
-	return ociRepo, nil
+	*objs = append(*objs, ociRepo)
+
+	return nil
 }
 
-func (r *FluxDeployerReconciler) findKustomization(ctx context.Context, obj *v1alpha1.FluxDeployer) (conditions.Getter, error) {
+func (r *FluxDeployerReconciler) findKustomization(ctx context.Context, obj *v1alpha1.FluxDeployer, objs *[]conditions.Getter) error {
 	if obj.Status.Kustomization == "" {
-		return nil, nil
+		return nil
 	}
 
 	kustomization := &kustomizev1.Kustomization{}
 	split := strings.Split(obj.Status.Kustomization, "/")
 	if len(split) == 0 || len(split) != 2 {
-		return nil, fmt.Errorf("failed to find kustomization in status: %s", obj.Status.Kustomization)
+		return fmt.Errorf("failed to find kustomization in status: %s", obj.Status.Kustomization)
 	}
 
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: split[0], Name: split[1]}, kustomization); err != nil {
-		return nil, fmt.Errorf("failed to find kustomization: %w", err)
+		return fmt.Errorf("failed to find kustomization: %w", err)
 	}
 
-	return kustomization, nil
+	*objs = append(*objs, kustomization)
+
+	return nil
 }
