@@ -84,6 +84,11 @@ func (w *OCIWriter) Write(
 	tag := owner.GetResourceVersion()
 	if v, ok := identity[v1alpha1.ResourceHelmChartVersion]; ok {
 		tag = v
+	} else if v, ok = identity[v1alpha1.ResourceVersionKey]; ok {
+		// 2024-07-10 d :
+		// Partial fix for #68.   If available, default to using the resource
+		// version as the tag.
+		tag = v
 	}
 
 	snapshotDigest, size, err := w.Cache.PushData(ctx, file, "", name, tag)
