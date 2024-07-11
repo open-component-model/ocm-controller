@@ -15,6 +15,7 @@ const (
 	SourceNameKey             = "source-name"
 	SourceNamespaceKey        = "source-namespace"
 	SourceArtifactChecksumKey = "source-artifact-checksum"
+	MutationObjectUUIDKey     = "mutation-object-uuid"
 )
 
 // Externally defined extra identity keys.
