@@ -338,7 +338,7 @@ redis: replicas: 1
 
 This is a basic CUE config that will be used to set the Redis deployment's replica count.
 
-### Flux Deployer
+### FluxDeployer
 
 Creates a Flux `Kustomization` object and points it to a [snapshot](#snapshot). This resource represents a connection with Flux to be used to
 deploy a resource that might contain a set of manifest files. Other deployers can later be implemented if requested.
@@ -365,12 +365,12 @@ spec:
   tag: "7833"
 status:
   conditions:
-  - lastTransitionTime: "2024-04-04T11:20:38Z"
-    message: Snapshot with name 'podinfo-localization-6t34w4w' is ready
-    observedGeneration: 2
-    reason: Succeeded
-    status: "True"
-    type: Ready
+    - lastTransitionTime: "2024-04-04T11:20:38Z"
+      message: Snapshot with name 'podinfo-localization-6t34w4w' is ready
+      observedGeneration: 2
+      reason: Succeeded
+      status: "True"
+      type: Ready
   digest: sha256:1ecc4af8574082e411b9c90903c73befbf5c8aefb98eae835ddbcd3d60ee1795
   observedGeneration: 2
   repositoryURL: https://registry.ocm-system.svc.cluster.local:5000/sha-3967392847701103634
