@@ -155,8 +155,7 @@ components:
       path: charts/podinfo-6.3.5.tgz
 ```
 
-In order to identify a Resource as a HelmChart an extra identify needs to be added. The key is `helmChart` and the
-value is the name of the chart. For example:
+The following `Resource` CRD will fetch this reasource:
 
 ```yaml
 apiVersion: delivery.ocm.software/v1alpha1
@@ -173,11 +172,7 @@ spec:
     resourceRef:
       name: charts
       version: 6.3.5
-      extraIdentity:
-        helmChart: podinfo # name of the chart
 ```
-
-This extra information is needed, because it cannot be inferred from the resource's information.
 
 _Note_: `resourceRef.Version` here must match the resource's meta version in order to create the right
 layer information and tag in our internal OCI repository. If there is a mismatch here, the helm deployer
@@ -197,14 +192,57 @@ spec:
     kind: Resource
     name: ocm-with-helm-deployment
   helmReleaseTemplate:
-    chart:
-      spec:
-        chart: podinfo
-        version: 6.3.5 # this is the version that must match with the resource version.
     interval: 5m
 ```
 
-It's possible to leave out the version in which case `latest` is used. But that might cause problems down the line later on.
+This will use and OCIRepository source for the helm chart in our registry using latest (2.3.0) Flux capability described
+in [this](https://fluxcd.io/blog/2024/05/flux-v2.3.0/#enhanced-helm-oci-support) blog post.
+
+To configure a helm chart value's file the following configuration can be used:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: Configuration
+metadata:
+  name: ocm-with-helm-configured
+  namespace: ocm-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: Resource
+    name: ocm-with-helm-deployment
+  configRef:
+    kind: ComponentVersion
+    name: ocm-with-helm
+    resourceRef:
+      name: config
+      version: 1.0.3
+      extraIdentity:
+        chartVersion: 6.3.5
+  values:
+    replicas: 2
+```
+
+Notice the `extraIdentity` field. When we create a configuration OCI repository, Flux makes sure that the TAG matches
+the chart version. We use this extra information to set the correct version of the layer so Flux finds the chart to
+deploy. It's possible to omit it if the version of the resource matches the chart version.
+
+Once the resource is configured, the following FluxDeployer can be used to deploy it:
+
+```yaml
+apiVersion: delivery.ocm.software/v1alpha1
+kind: FluxDeployer
+metadata:
+  name: fluxdeployer-podinfo-configured
+  namespace: ocm-system
+spec:
+  interval: 1m0s
+  sourceRef:
+    kind: Configuration
+    name: ocm-with-helm-configured
+  helmReleaseTemplate:
+    interval: 5m
+```
 
 ### Localization
 
@@ -300,7 +338,7 @@ redis: replicas: 1
 
 This is a basic CUE config that will be used to set the Redis deployment's replica count.
 
-### Flux Deployer
+### FluxDeployer
 
 Creates a Flux `Kustomization` object and points it to a [snapshot](#snapshot). This resource represents a connection with Flux to be used to
 deploy a resource that might contain a set of manifest files. Other deployers can later be implemented if requested.
@@ -327,12 +365,12 @@ spec:
   tag: "7833"
 status:
   conditions:
-  - lastTransitionTime: "2024-04-04T11:20:38Z"
-    message: Snapshot with name 'podinfo-localization-6t34w4w' is ready
-    observedGeneration: 2
-    reason: Succeeded
-    status: "True"
-    type: Ready
+    - lastTransitionTime: "2024-04-04T11:20:38Z"
+      message: Snapshot with name 'podinfo-localization-6t34w4w' is ready
+      observedGeneration: 2
+      reason: Succeeded
+      status: "True"
+      type: Ready
   digest: sha256:1ecc4af8574082e411b9c90903c73befbf5c8aefb98eae835ddbcd3d60ee1795
   observedGeneration: 2
   repositoryURL: https://registry.ocm-system.svc.cluster.local:5000/sha-3967392847701103634
