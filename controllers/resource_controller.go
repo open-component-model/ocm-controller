@@ -171,8 +171,8 @@ func (r *ResourceReconciler) reconcile(
 		return ctrl.Result{}, err
 	}
 
-	var componentVersion v1alpha1.ComponentVersion
-	if err := r.Get(ctx, obj.Spec.SourceRef.GetObjectKey(), &componentVersion); err != nil {
+	componentVersion := &v1alpha1.ComponentVersion{}
+	if err := r.Get(ctx, obj.Spec.SourceRef.GetObjectKey(), componentVersion); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 		}
@@ -183,7 +183,7 @@ func (r *ResourceReconciler) reconcile(
 		return ctrl.Result{}, err
 	}
 
-	if !conditions.IsReady(&componentVersion) {
+	if !conditions.IsReady(componentVersion) || componentVersion.GetRepositoryURL() == "" {
 		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ComponentVersionNotReadyReason, "component version not ready yet")
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
@@ -191,7 +191,7 @@ func (r *ResourceReconciler) reconcile(
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "component version %s ready, processing ocm resource", componentVersion.Name)
 
-	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, &componentVersion)
+	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, componentVersion)
 	if err != nil {
 		err = fmt.Errorf("failed to create authenticated client: %w", err)
 		status.MarkAsStalled(r.EventRecorder, obj, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
@@ -199,7 +199,7 @@ func (r *ResourceReconciler) reconcile(
 		return ctrl.Result{}, nil
 	}
 
-	reader, digest, size, err := r.OCMClient.GetResource(ctx, octx, &componentVersion, obj.Spec.SourceRef.ResourceRef)
+	reader, digest, size, err := r.OCMClient.GetResource(ctx, octx, componentVersion, obj.Spec.SourceRef.ResourceRef)
 	if err != nil {
 		err = fmt.Errorf("failed to get resource: %w", err)
 		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.GetResourceFailedReason, err.Error())

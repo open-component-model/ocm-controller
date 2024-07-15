@@ -179,6 +179,11 @@ func (in *ComponentVersion) GetComponentName() string {
 	return in.Spec.Component
 }
 
+// GetRepositoryURL returns the repository URL that the component version has been reconciled to.
+func (in *ComponentVersion) GetRepositoryURL() string {
+	return in.Status.ReplicatedRepositoryURL
+}
+
 // GetVersion returns the reconciled version for the component.
 func (in *ComponentVersion) GetVersion() string {
 	return in.Status.ReconciledVersion

@@ -260,7 +260,7 @@ func TestComponentVersionWithTransferReconcile(t *testing.T) {
 
 	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
-	assert.Equal(t, "github.com/open-component-model/internal-test", cv.Status.ReplicatedRepositoryURL)
+	assert.Equal(t, "github.com/open-component-model/internal-test", cv.GetRepositoryURL())
 	assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
 
 	t.Log("checking label values")

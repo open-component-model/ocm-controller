@@ -99,6 +99,9 @@ var (
 			},
 			Verify: []v1alpha1.Signature{},
 		},
+		Status: v1alpha1.ComponentVersionStatus{
+			ReplicatedRepositoryURL: "github.com/open-component-model/test",
+		},
 	}
 	DefaultResource = &v1alpha1.Resource{
 		TypeMeta: metav1.TypeMeta{
