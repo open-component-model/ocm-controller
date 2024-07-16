@@ -242,7 +242,8 @@ func (r *ComponentVersionReconciler) reconcile(
 
 	obj.Status.ReplicatedRepositoryURL = obj.Spec.Repository.URL
 
-	cv, err := r.OCMClient.GetComponentVersion(ctx, octx, obj.Status.ReplicatedRepositoryURL, obj.Spec.Component, version)
+	// Get the component version from the original repository URL.
+	cv, err := r.OCMClient.GetComponentVersion(ctx, octx, obj.GetRepositoryURL(), obj.Spec.Component, version)
 	if err != nil {
 		err = fmt.Errorf("failed to get component version: %w", err)
 		status.MarkNotReady(
@@ -257,6 +258,7 @@ func (r *ComponentVersionReconciler) reconcile(
 
 	defer cv.Close()
 
+	// If there is a transfer requested, transfer the cv to that location.
 	if obj.Spec.Destination != nil {
 		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "transferring component to target repository: %s", obj.Spec.Destination.URL)
 
@@ -267,10 +269,11 @@ func (r *ComponentVersionReconciler) reconcile(
 			return ctrl.Result{}, err
 		}
 
+		// set the new URL to the destination URL
 		obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
 
-		// overwrite the component version
-		cv, err = r.OCMClient.GetComponentVersion(ctx, octx, obj.Status.ReplicatedRepositoryURL, obj.Spec.Component, version)
+		// update the ocm component version to be the new version from the replicated destination
+		cv, err = r.OCMClient.GetComponentVersion(ctx, octx, obj.GetRepositoryURL(), obj.Spec.Component, version)
 		if err != nil {
 			err = fmt.Errorf("failed to get transferred component version: %w", err)
 			status.MarkNotReady(
@@ -444,7 +447,7 @@ func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(
 	ref ocmdesc.ComponentReference,
 ) (*v1alpha1.Reference, error) {
 	// get component version
-	rcv, err := r.OCMClient.GetComponentVersion(ctx, octx, parent.Status.ReplicatedRepositoryURL, ref.ComponentName, ref.Version)
+	rcv, err := r.OCMClient.GetComponentVersion(ctx, octx, parent.GetRepositoryURL(), ref.ComponentName, ref.Version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get component version: %w", err)
 	}

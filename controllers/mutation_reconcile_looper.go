@@ -199,6 +199,10 @@ func (m *MutationReconcileLooper) localize(
 		return "", fmt.Errorf("failed to get component version: %w", err)
 	}
 
+	if !conditions.IsReady(cv) || cv.GetRepositoryURL() == "" {
+		return "", fmt.Errorf("component version is not ready yet")
+	}
+
 	var refPath []ocmmetav1.Identity
 	if mutationSpec.ConfigRef.ResourceRef != nil {
 		refPath = mutationSpec.ConfigRef.ResourceRef.ReferencePath
@@ -374,7 +378,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(
 		return nil, fmt.Errorf("failed to create authenticated client: %w", err)
 	}
 
-	compvers, err := m.OCMClient.GetComponentVersion(ctx, octx, cv.Status.ReplicatedRepositoryURL, cv.Spec.Component, cv.Status.ReconciledVersion)
+	compvers, err := m.OCMClient.GetComponentVersion(ctx, octx, cv.GetRepositoryURL(), cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get component version: %w", err)
 	}

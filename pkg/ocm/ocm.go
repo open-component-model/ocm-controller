@@ -225,7 +225,7 @@ func (c *Client) GetResource(
 		return c.cache.FetchDataByIdentity(ctx, name, version)
 	}
 
-	cva, err := c.GetComponentVersion(ctx, octx, cv.Status.ReplicatedRepositoryURL, cv.Spec.Component, cv.Status.ReconciledVersion)
+	cva, err := c.GetComponentVersion(ctx, octx, cv.GetRepositoryURL(), cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to get component Version: %w", err)
 	}

@@ -263,20 +263,20 @@ func (r *ResourcePipelineReconciler) getComponentVersionAccess(
 	ctx context.Context,
 	obj *v1alpha1.ResourcePipeline,
 ) (ocmcore.ComponentVersionAccess, error) {
-	var componentVersion v1alpha1.ComponentVersion
+	componentVersion := &v1alpha1.ComponentVersion{}
 	key := types.NamespacedName{
 		Name:      obj.Spec.SourceRef.Name,
 		Namespace: obj.Spec.SourceRef.Namespace,
 	}
-	if err := r.Get(ctx, key, &componentVersion); err != nil {
+	if err := r.Get(ctx, key, componentVersion); err != nil {
 		return nil, err
 	}
 
-	if !conditions.IsReady(&componentVersion) {
+	if !conditions.IsReady(componentVersion) {
 		return nil, errCVNotReady
 	}
 
-	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, &componentVersion)
+	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, componentVersion)
 	if err != nil {
 		return nil, fmt.Errorf("could not create auth context: %w", err)
 	}
@@ -284,7 +284,7 @@ func (r *ResourcePipelineReconciler) getComponentVersionAccess(
 	return r.OCMClient.GetComponentVersion(
 		ctx,
 		octx,
-		componentVersion.Status.ReplicatedRepositoryURL,
+		componentVersion.GetRepositoryURL(),
 		componentVersion.GetComponentName(),
 		componentVersion.GetVersion(),
 	)

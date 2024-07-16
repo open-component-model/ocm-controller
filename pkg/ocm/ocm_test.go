@@ -430,7 +430,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 		},
 	}
 
-	cva, err := ocmClient.GetComponentVersion(context.Background(), octx, cv.Status.ReplicatedRepositoryURL, component, "v0.0.1")
+	cva, err := ocmClient.GetComponentVersion(context.Background(), octx, cv.GetRepositoryURL(), component, "v0.0.1")
 	assert.NoError(t, err)
 	assert.Equal(t, cv.Spec.Component, cva.GetName())
 }
