@@ -32,6 +32,8 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/untar"
 	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/utils/tarutils"
+	artifactv1 "github.com/openfluxcd/artifact/api/v1alpha1"
+	"github.com/openfluxcd/controller-manager/storage"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -70,6 +72,7 @@ type MutationReconcileLooper struct {
 	Cache          cache.Cache
 	DynamicClient  dynamic.Interface
 	SnapshotWriter snapshot.Writer
+	Storage        *storage.Storage
 }
 
 // ReconcileMutationObject reconciles mutation objects and writes a snapshot to the cache.
@@ -98,6 +101,24 @@ func (m *MutationReconcileLooper) ReconcileMutationObject(ctx context.Context, o
 	}
 
 	defer os.RemoveAll(sourceDir)
+
+	if err := m.Storage.ReconcileStorage(ctx, obj); err != nil {
+		return -1, err
+	}
+
+	// Revision here is the hash of the content of the downloaded file for example.
+	if err := m.Storage.ReconcileArtifact(ctx, obj, sourceID.String(), sourceDir, sourceID.String()+".tar.gz", func(art *artifactv1.Artifact, s string) error {
+		// Archive directory to storage
+		if err := m.Storage.Archive(art, sourceDir, nil); err != nil {
+			return fmt.Errorf("unable to archive artifact to storage: %w", err)
+		}
+
+		obj.SetArtifactName(art.Name)
+
+		return nil
+	}); err != nil {
+		return -1, fmt.Errorf("failed to reconcile artifact: %w", err)
+	}
 
 	digest, size, err := m.SnapshotWriter.Write(ctx, obj, sourceDir, snapshotID)
 	if err != nil {

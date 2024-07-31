@@ -47,7 +47,8 @@ manager:
     - mountPath: "/etc/ssl/certs/registry-root.pem"
       subPath: "registry-root.pem"
       name: "certificates"
-
+    - mountPath: "/data"
+      name: "data"
   volumes:
     - name: "certificates"
       secret:
@@ -55,6 +56,8 @@ manager:
         items:
           - key: "ca.crt"
             path: "registry-root.pem"
+    - name: "data"
+      emptyDir: {}
   resources:
     limits:
       memory: 2048Mi

@@ -78,6 +78,20 @@ func (in *Localization) GetStatus() *MutationStatus {
 	return &in.Status
 }
 
+// GetObjectMeta returns the object meta for a Localization.
+func (in *Localization) GetObjectMeta() *metav1.ObjectMeta {
+	return &in.ObjectMeta
+}
+
+// GetKind returns the kind for a Localization.
+func (in *Localization) GetKind() string {
+	return "Localization"
+}
+
+func (in *Localization) SetArtifactName(name string) {
+	in.Status.ArtifactName = name
+}
+
 //+kubebuilder:object:root=true
 
 // LocalizationList contains a list of Localization.

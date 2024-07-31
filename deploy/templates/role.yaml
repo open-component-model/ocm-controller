@@ -269,6 +269,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - openfluxcd.mandelsoft.org
+  resources:
+  - artifacts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - source.toolkit.fluxcd.io
   resources:
   - buckets

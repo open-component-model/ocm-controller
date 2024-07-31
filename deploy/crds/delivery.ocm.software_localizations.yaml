@@ -452,6 +452,8 @@ spec:
             description: MutationStatus defines a common status for Localizations
               and Configurations.
             properties:
+              artifactName:
+                type: string
               conditions:
                 items:
                   description: "Condition contains details for one aspect of the current
@@ -523,7 +525,7 @@ spec:
                 type: array
               latestConfigVersion:
                 type: string
-              latestPatchSourceVersio:
+              latestPatchSourceVersion:
                 type: string
               latestSnapshotDigest:
                 type: string
