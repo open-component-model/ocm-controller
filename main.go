@@ -14,6 +14,8 @@ import (
 	"github.com/fluxcd/pkg/runtime/events"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	artifactv1 "github.com/openfluxcd/artifact/api/v1alpha1"
+	"github.com/openfluxcd/controller-manager/server"
 	glog "gopkg.in/op/go-logging.v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -39,8 +41,10 @@ import (
 const controllerName = "ocm-controller"
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme                   = runtime.NewScheme()
+	setupLog                 = ctrl.Log.WithName("setup")
+	artifactRetentionTTL     = 60 * time.Second
+	artifactRetentionRecords = 2
 )
 
 func init() {
@@ -50,6 +54,7 @@ func init() {
 	utilruntime.Must(sourcev1beta2.AddToScheme(scheme))
 	utilruntime.Must(kustomizev1.AddToScheme(scheme))
 	utilruntime.Must(helmv2.AddToScheme(scheme))
+	utilruntime.Must(artifactv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -63,6 +68,9 @@ func main() {
 		ociRegistryCertSecretName     string
 		ociRegistryInsecureSkipVerify bool
 		ociRegistryNamespace          string
+		storageAddr                   string
+		storageAdvAddr                string
+		storagePath                   string
 	)
 
 	flag.StringVar(
@@ -105,6 +113,9 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&storageAddr, "storage-addr", ":9090", "The address the static file server binds to.")
+	flag.StringVar(&storageAdvAddr, "storage-adv-addr", "", "The advertised address of the static file server.")
+	flag.StringVar(&storagePath, "storage-path", "/data", "The local storage path.")
 
 	opts := zap.Options{
 		Development: true,
@@ -139,7 +150,7 @@ func main() {
 		ociRegistryAddr = v
 	}
 
-	setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify, restConfig, eventsAddr)
+	starter := setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify, restConfig, eventsAddr, storagePath, storageAdvAddr)
 
 	//+kubebuilder:scaffold:builder
 
@@ -152,6 +163,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	go func() {
+		// Block until our controller manager is elected leader. We presume our
+		// entire process will terminate if we lose leadership, so we don't need
+		// to handle that.
+		<-mgr.Elected()
+
+		if err := starter(storagePath, storageAddr); err != nil {
+			setupLog.Error(err, "unable to start storage server")
+		}
+	}()
+
 	ctx := ctrl.SetupSignalHandler()
 
 	setupLog.Info("starting manager")
@@ -161,14 +183,7 @@ func main() {
 	}
 }
 
-func setupManagers(
-	ociRegistryAddr string,
-	mgr manager.Manager,
-	ociRegistryNamespace, ociRegistryCertSecretName string,
-	ociRegistryInsecureSkipVerify bool,
-	restConfig *rest.Config,
-	eventsAddr string,
-) {
+func setupManagers(ociRegistryAddr string, mgr manager.Manager, ociRegistryNamespace, ociRegistryCertSecretName string, ociRegistryInsecureSkipVerify bool, restConfig *rest.Config, eventsAddr, path, addv string) server.StartServer {
 	cache := oci.NewClient(
 		ociRegistryAddr,
 		oci.WithClient(mgr.GetClient()),
@@ -223,6 +238,12 @@ func setupManagers(
 		os.Exit(1)
 	}
 
+	starter, storage, err := server.InitializeStorage(mgr.GetClient(), mgr.GetScheme(), path, addv, artifactRetentionTTL, artifactRetentionRecords)
+	if err != nil {
+		setupLog.Error(err, "unable to initialize storage")
+		os.Exit(1)
+	}
+
 	mutationReconciler := controllers.MutationReconcileLooper{
 		Client:         mgr.GetClient(),
 		Scheme:         mgr.GetScheme(),
@@ -230,6 +251,7 @@ func setupManagers(
 		DynamicClient:  dynClient,
 		Cache:          cache,
 		SnapshotWriter: snapshotWriter,
+		Storage:        storage,
 	}
 
 	if err = (&controllers.LocalizationReconciler{
@@ -284,4 +306,6 @@ func setupManagers(
 		setupLog.Error(err, "unable to create controller", "controller", "ResourcePipeline")
 		os.Exit(1)
 	}
+
+	return starter
 }

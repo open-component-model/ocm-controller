@@ -79,6 +79,20 @@ func (in *Configuration) GetStatus() *MutationStatus {
 	return &in.Status
 }
 
+// GetObjectMeta returns the object meta for a Configuration.
+func (in *Configuration) GetObjectMeta() *metav1.ObjectMeta {
+	return &in.ObjectMeta
+}
+
+// GetKind returns the kind for a Configuration.
+func (in *Configuration) GetKind() string {
+	return "Configuration"
+}
+
+func (in *Configuration) SetArtifactName(name string) {
+	in.Status.ArtifactName = name
+}
+
 //+kubebuilder:object:root=true
 
 // ConfigurationList contains a list of Configuration.

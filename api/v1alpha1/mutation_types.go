@@ -18,6 +18,9 @@ type MutationObject interface {
 	SnapshotWriter
 	GetSpec() *MutationSpec
 	GetStatus() *MutationStatus
+	GetObjectMeta() *metav1.ObjectMeta
+	GetKind() string
+	SetArtifactName(string)
 }
 
 // MutationSpec defines a common spec for Localization and Configuration of OCM resources.
@@ -124,8 +127,11 @@ type MutationStatus struct {
 	LatestConfigVersion string `json:"latestConfigVersion,omitempty"`
 
 	// +optional
-	LatestPatchSourceVersion string `json:"latestPatchSourceVersio,omitempty"`
+	LatestPatchSourceVersion string `json:"latestPatchSourceVersion,omitempty"`
 
 	// +optional
 	SnapshotName string `json:"snapshotName,omitempty"`
+
+	// +optional
+	ArtifactName string `json:"artifactName,omitempty"`
 }
