@@ -11,4 +11,4 @@ flux create source git flux-system \
 
 flux create kustomization flux-system \
   --source=flux-system \
-  --path=./deploy/flux/
+  --path=./deploy/flux/infra
