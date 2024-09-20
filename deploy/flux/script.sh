@@ -8,6 +8,7 @@ flux create source git flux-system \
   --username=${GITHUB_USER} \
   --password=${GITHUB_TOKEN} \
   --ignore-paths="clusters/**/flux-system/"
+
 flux create kustomization flux-system \
   --source=flux-system \
   --path=./deploy/flux/

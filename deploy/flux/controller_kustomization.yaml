@@ -15,7 +15,7 @@ spec:
   prune: true
   wait: true
   dependsOn:
-    - name: cert-manager
+    - name: cert-manager-config
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -23,8 +23,6 @@ metadata:
   name: cert-manager
   namespace: flux-system
 spec:
-  dependsOn:
-    - name: cert-manager-config
   interval: 1h
   retryInterval: 1m
   timeout: 5m
@@ -41,7 +39,7 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    - name: infra-controllers
+    - name: cert-manager
   interval: 1h
   retryInterval: 1m
   timeout: 5m
