@@ -28,4 +28,4 @@ spec:
   releaseName: ocm-controller
   values:
     cert-manager:
-      enabled: true
+      enabled: false
