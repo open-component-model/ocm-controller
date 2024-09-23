@@ -6,8 +6,8 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h
-  retryInterval: 1m
-  timeout: 5m
+  retryInterval: 10m
+  timeout: 15m
   sourceRef:
     kind: GitRepository
     name: flux-system
@@ -24,8 +24,8 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h
-  retryInterval: 1m
-  timeout: 5m
+  retryInterval: 10m
+  timeout: 15m
   sourceRef:
     kind: GitRepository
     name: flux-system
@@ -41,8 +41,8 @@ spec:
   dependsOn:
     - name: cert-manager
   interval: 1h
-  retryInterval: 1m
-  timeout: 5m
+  retryInterval: 10m
+  timeout: 15m
   sourceRef:
     kind: GitRepository
     name: flux-system
