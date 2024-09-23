@@ -10,7 +10,10 @@ metadata:
   name: ocm-controller
   namespace: ocm-system
 spec:
-  interval: 5m
+  interval: 15m
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
   url: oci://ghcr.io/open-component-model/helm/ocm-controller
   ref:
     semver: "v0.24.0"
