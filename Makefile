@@ -161,19 +161,6 @@ dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernete
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-
-##@ Component
-
-GEN ?= $(REPO_ROOT)/gen
-
-$(GEN)/.exists:
-	@mkdir -p $(GEN)
-	@touch $@
-
-.PHONY: plain-push
-plain-push: ocm $(GEN)/.exists
-	$(OCM) transfer ctf -f $(GEN)/component/ctf $(OCMREPO)
-
 ##@ Documentation
 
 api-docs: gen-crd-api-reference-docs  ## Generate API reference documentation

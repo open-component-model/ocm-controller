@@ -1,10 +1,6 @@
 name: component CTFs
 
 on:
-  pull_request_target:
-  push:
-    branches:
-      - main
   workflow_dispatch:
   workflow_call:
 
@@ -38,4 +34,4 @@ jobs:
       - name: CTF
         run: |
           cd component/
-          PATH=$PATH:$(go env GOPATH)/bin make ocm && make ctf
+          PATH=$PATH:$(go env GOPATH)/bin make ocm && make ctf && make push
