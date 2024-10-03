@@ -19,6 +19,12 @@ jobs:
     permissions:
       contents: read
       pull-requests: 'read'
+  components:
+    name: Component CTF Builds
+    uses: ./.github/workflows/components.yaml
+    permissions:
+      contents: read
+      pull-requests: read
   release:
     needs: tests
     name: Trigger release build
@@ -114,3 +120,8 @@ jobs:
         helm registry login ghcr.io -u open-component-model -p ${{ secrets.GITHUB_TOKEN }}
         helm package --version ${{ env.RELEASE_VERSION }} --app-version ${{ env.RELEASE_VERSION }} ./deploy
         helm push ${{ github.event.repository.name }}-${{ env.RELEASE_VERSION }}.tgz oci://ghcr.io/open-component-model/helm
+    - name: Push OCM Components
+      env:
+        GITHUBORG: ${{ github.repository_owner }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: make plain-push
