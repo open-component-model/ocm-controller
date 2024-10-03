@@ -6,8 +6,13 @@
 IMG ?= ghcr.io/open-component-model/ocm-controller
 TAG ?= v0.11.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+GITHUBORG                                      ?= open-component-model
+OCMREPO                                        ?= ghcr.io/$(GITHUBORG)/ocm-controller
 ENVTEST_K8S_VERSION = 1.24.1
-
+OCM_CLI_VERSION ?= 0.15.0
+REPO_ROOT                                      := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+PLATFORM_OS                                    := $(shell go env GOOS)
+PLATFORM_ARCH                                  := $(shell go env GOARCH)
 GOTESTSUM ?= $(LOCALBIN)/gotestsum
 MKCERT ?= $(LOCALBIN)/mkcert
 UNAME ?= $(shell uname|tr '[:upper:]' '[:lower:]')
@@ -34,6 +39,14 @@ GO_WASM_BUILD = tinygo build -target=wasi -panic=trap -scheduler=none -no-debug 
 
 .PHONY: all
 all: build
+
+CREDS ?=
+OCM ?= $(LOCALBIN)/ocm $(CREDS)
+
+.PHONY: ocm
+ocm: $(OCM)
+$(OCM): $(LOCALBIN)
+	curl -L "https://github.com/open-component-model/ocm/releases/download/v$(OCM_CLI_VERSION)/ocm-$(OCM_CLI_VERSION)-$(PLATFORM_OS)-$(PLATFORM_ARCH).tar.gz" | tar -xz -C $(LOCALBIN)
 
 ##@ General
 
@@ -147,6 +160,15 @@ dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernete
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+
+
+##@ Component
+
+GEN ?= $(REPO_ROOT)/gen
+
+.PHONY: plain-push
+plain-push: ocm $(GEN)
+	$(OCM) transfer ctf -f $(GEN)/component/ctf $(OCMREPO)
 
 ##@ Documentation
 
