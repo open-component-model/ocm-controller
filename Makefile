@@ -166,8 +166,12 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 
 GEN ?= $(REPO_ROOT)/gen
 
+$(GEN)/.exists:
+	@mkdir -p $(GEN)
+	@touch $@
+
 .PHONY: plain-push
-plain-push: ocm $(GEN)
+plain-push: ocm $(GEN)/.exists
 	$(OCM) transfer ctf -f $(GEN)/component/ctf $(OCMREPO)
 
 ##@ Documentation
