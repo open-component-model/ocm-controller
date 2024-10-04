@@ -26,6 +26,8 @@ jobs:
       contents: write
       pull-requests: read
       packages: write
+    with:
+      token: ${{ secrets.GITHUB_TOKEN }}
   release:
     needs: tests
     name: Trigger release build
