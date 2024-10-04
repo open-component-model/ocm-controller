@@ -16,6 +16,7 @@ PLATFORM_ARCH                                  := $(shell go env GOARCH)
 GOTESTSUM ?= $(LOCALBIN)/gotestsum
 MKCERT ?= $(LOCALBIN)/mkcert
 UNAME ?= $(shell uname|tr '[:upper:]' '[:lower:]')
+GEN := $(REPO_ROOT)/gen
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -160,6 +161,13 @@ dev-deploy: kustomize ## Deploy controller dev image in the configured Kubernete
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+
+##@ Component
+
+.PHONY: plain-push
+plain-push:
+	$(MAKE) -C component ctf
+	$(OCM) transfer ctf -f $(GEN)/component/ctf $(OCMREPO)
 
 ##@ Documentation
 
