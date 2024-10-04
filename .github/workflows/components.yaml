@@ -1,16 +1,16 @@
 name: component CTFs
 
 on:
+  pull_request_target:
+  push:
+    branches:
+      - main
   workflow_dispatch:
   workflow_call:
-    secrets:
-      token:
-        required: true
 
 permissions:
   contents: read
   pull-requests: read
-  packages: write
 
 jobs:
   build-cli:
@@ -36,8 +36,6 @@ jobs:
         with:
           go-version-file: '${{ github.workspace }}/go.mod'
       - name: CTF
-        env:
-          GITHUB_TOKEN: ${{ secrets.token }}
         run: |
           cd component/
-          PATH=$PATH:$(go env GOPATH)/bin make ocm && make ctf && make push
+          PATH=$PATH:$(go env GOPATH)/bin make ocm && make ctf
