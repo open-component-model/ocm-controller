@@ -97,7 +97,7 @@ $(GEN)/image.multi: Dockerfile $(GEN)/build
 	@touch $(GEN)/image.multi
 
 .PHONY: ctf
-ctf: $(GEN)/ctf
+ctf: ocm $(GEN)/ctf
 
 $(GEN)/ctf: $(GEN)/ca.done
 	@rm -rf "$(GEN)/ctf"

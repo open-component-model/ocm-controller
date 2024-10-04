@@ -165,7 +165,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 ##@ Component
 
 .PHONY: plain-push
-plain-push:
+plain-push: ocm
 	$(MAKE) -C component ctf
 	$(OCM) transfer ctf -f $(GEN)/component/ctf $(OCMREPO)
 
