@@ -749,11 +749,39 @@ func (m *MutationReconcileLooper) getIdentity(ctx context.Context, obj *v1alpha1
 			v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
 			v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
 		}
+
 		if obj.ResourceRef != nil {
 			id[v1alpha1.ResourceNameKey] = obj.ResourceRef.Name
 			id[v1alpha1.ResourceVersionKey] = obj.ResourceRef.Version
 
+			// 2024-07-10 d :
+			// Partial solution for #68
+			// Helm chart in the private OCI repository must have a tag that matches the version
+			// of the helm chart.
+			// So we make sure that if not specified, the id includes the version of the resource
+			// in the componentdescriptor.
+			// Elsewhere there is a change that will use this as the tag by default.
+			// This way none of the Localization, Configuration or FluxDeployer objects need to
+			// hard code a version.  i.e.  Neither the Component authors nor the ops folks managing
+			// the k8s cluster have to maintain a version spec if they don't want to.
+			if id[v1alpha1.ResourceVersionKey] == "" {
+				if cd, err := component.GetComponentDescriptor(ctx, m.Client, nil, cv.Status.ComponentDescriptor); err == nil {
+					for _, r := range cd.Spec.Resources {
+						if obj.ResourceRef.Name == r.Name {
+							id[v1alpha1.ResourceVersionKey] = r.Version
+
+							break
+						}
+					}
+				} else {
+					return nil, err
+				}
+			}
+
 			for k, v := range obj.ResourceRef.ExtraIdentity {
+				if k == v1alpha1.ResourceVersionKey {
+					continue
+				}
 				id[k] = v
 			}
 		}
@@ -960,6 +988,18 @@ func (m *MutationReconcileLooper) mutateConfigRef(
 	}
 
 	snapshotID, err := m.getIdentity(ctx, spec.ConfigRef)
+
+	// 2024-07-10 d :
+	// Another part of fix for #68
+	// If you try to have
+	// componentversion--(helmchart)-->localization--(helmchart)->configuration-->fluxdeployer
+	// then without this change the controllers may overwrite each other's images.
+	// This because the repo is determined by the config resource's id, which may not be unique
+	// in this case, and the tag is either the mutation object's resource version or it is the
+	// version of your resource. ( e.g. your helm chart version )
+	// In order to avoid these overwrites we make sure the snapshotID incorporates the id of
+	// the mutation object.   This the repos for each mutation object will be distinct.
+	snapshotID[v1alpha1.MutationObjectUUIDKey] = string(obj.GetUID())
 	if err != nil {
 		return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get identity for config ref: %w", err)
 	}
