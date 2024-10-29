@@ -28,12 +28,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	ocmfake "github.com/open-component-model/ocm-controller/pkg/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 	ocmsnapshot "github.com/open-component-model/ocm-controller/pkg/snapshot"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 var localizationConfigData = []byte(`kind: ConfigData
@@ -762,8 +763,8 @@ localization:
 			}, snapshotOutput)
 			require.NoError(t, err)
 			args := cache.PushDataCallingArgumentsOnCall(0)
-			assert.Equal(t, "sha-18322151501422808564", args.Name)
-			assert.Equal(t, "999", args.Version)
+			assert.Equal(t, "sha-5540475038233850640", args.Name)
+			assert.Equal(t, "1.0.0", args.Version)
 
 			t.Log("extracting the passed in data and checking if the localization worked")
 			require.NoError(t, err)

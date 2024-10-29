@@ -33,11 +33,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
+	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	cachefakes "github.com/open-component-model/ocm-controller/pkg/cache/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 	ocmsnapshot "github.com/open-component-model/ocm-controller/pkg/snapshot"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 var configurationConfigData = []byte(`kind: ConfigData
@@ -825,8 +826,8 @@ configuration:
 
 			t.Log("extracting the passed in data and checking if the configuration worked")
 			args := cache.PushDataCallingArgumentsOnCall(0)
-			assert.Equal(t, "sha-18322151501422808564", args.Name)
-			assert.Equal(t, "999", args.Version)
+			assert.Equal(t, "sha-5540475038233850640", args.Name)
+			assert.Equal(t, "1.0.0", args.Version)
 			sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
 			configMap := corev1.ConfigMap{}
 			assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
@@ -1024,8 +1025,8 @@ func TestConfigurationValuesFrom(t *testing.T) {
 
 			t.Log("extracting the passed in data and checking if the configuration worked")
 			args := cache.PushDataCallingArgumentsOnCall(0)
-			assert.Equal(t, "sha-6142814068768493943", args.Name)
-			assert.Equal(t, "999", args.Version)
+			assert.Equal(t, "sha-13092443426051895747", args.Name)
+			assert.Equal(t, "1.0.0", args.Version)
 			sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
 			configMap := corev1.ConfigMap{}
 			assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))

@@ -28,8 +28,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
-	"github.com/open-component-model/ocm-controller/pkg/snapshot"
-	"github.com/open-component-model/ocm-controller/pkg/untar"
 	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/utils/tarutils"
 	"gopkg.in/yaml.v3"
@@ -43,11 +41,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm-controller/pkg/cache"
-	"github.com/open-component-model/ocm-controller/pkg/component"
-	"github.com/open-component-model/ocm-controller/pkg/configdata"
-	"github.com/open-component-model/ocm-controller/pkg/ocm"
+	"github.com/open-component-model/ocm-controller/pkg/snapshot"
+	"github.com/open-component-model/ocm-controller/pkg/untar"
+
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartifact"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
@@ -57,6 +53,12 @@ import (
 	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
 	"github.com/open-component-model/ocm/pkg/spiff"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
+	"github.com/open-component-model/ocm-controller/pkg/cache"
+	"github.com/open-component-model/ocm-controller/pkg/component"
+	"github.com/open-component-model/ocm-controller/pkg/configdata"
+	"github.com/open-component-model/ocm-controller/pkg/ocm"
 )
 
 // errTar defines an error that occurs when the resource is not a tar archive.
@@ -749,13 +751,9 @@ func (m *MutationReconcileLooper) getIdentity(ctx context.Context, obj *v1alpha1
 			v1alpha1.ComponentNameKey:    cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name,
 			v1alpha1.ComponentVersionKey: cv.Status.ComponentDescriptor.Version,
 		}
-		if obj.ResourceRef != nil {
-			id[v1alpha1.ResourceNameKey] = obj.ResourceRef.Name
-			id[v1alpha1.ResourceVersionKey] = obj.ResourceRef.Version
 
-			for k, v := range obj.ResourceRef.ExtraIdentity {
-				id[k] = v
-			}
+		if err := m.configureResourceVersion(ctx, obj, id, cv); err != nil {
+			return nil, err
 		}
 	default:
 		// if kind is not ComponentVersion, then fetch resource using dynamic client
@@ -783,6 +781,54 @@ func (m *MutationReconcileLooper) getIdentity(ctx context.Context, obj *v1alpha1
 	}
 
 	return id, err
+}
+
+// 2024-07-10 d :
+// Partial solution for #68
+// Helm chart in the private OCI repository must have a tag that matches the version
+// of the helm chart.
+// So we make sure that if not specified, the id includes the version of the resource
+// in the ComponentDescriptor.
+// Elsewhere, there is a change that will use this as the tag by default.
+// This way none of the Localization, Configuration or FluxDeployer objects need to
+// hard code a version.  i.e.  Neither the Component authors nor the ops folks managing
+// the k8s cluster have to maintain a version spec if they don't want to.
+func (m *MutationReconcileLooper) configureResourceVersion(
+	ctx context.Context,
+	obj *v1alpha1.ObjectReference,
+	id ocmmetav1.Identity,
+	cv *v1alpha1.ComponentVersion,
+) error {
+	if obj.ResourceRef == nil {
+		return nil
+	}
+
+	id[v1alpha1.ResourceNameKey] = obj.ResourceRef.Name
+	id[v1alpha1.ResourceVersionKey] = obj.ResourceRef.Version
+
+	if id[v1alpha1.ResourceVersionKey] == "" {
+		cd, err := component.GetComponentDescriptor(ctx, m.Client, nil, cv.Status.ComponentDescriptor)
+		if err != nil {
+			return err
+		}
+
+		for _, r := range cd.Spec.Resources {
+			if obj.ResourceRef.Name == r.Name {
+				id[v1alpha1.ResourceVersionKey] = r.Version
+
+				break
+			}
+		}
+	}
+
+	for k, v := range obj.ResourceRef.ExtraIdentity {
+		if k == v1alpha1.ResourceVersionKey {
+			continue
+		}
+		id[k] = v
+	}
+
+	return nil
 }
 
 func (m *MutationReconcileLooper) getComponentVersion(ctx context.Context, obj *v1alpha1.ObjectReference) (*v1alpha1.ComponentVersion, error) {
@@ -960,6 +1006,18 @@ func (m *MutationReconcileLooper) mutateConfigRef(
 	}
 
 	snapshotID, err := m.getIdentity(ctx, spec.ConfigRef)
+
+	// 2024-07-10 d :
+	// Another part of fix for #68
+	// If you try to have
+	// componentversion--(helmchart)-->localization--(helmchart)->configuration-->fluxdeployer
+	// then without this change the controllers may overwrite each other's images.
+	// This because the repo is determined by the config resource's id, which may not be unique
+	// in this case, and the tag is either the mutation object's resource version or it is the
+	// version of your resource. ( e.g. your helm chart version )
+	// In order to avoid these overwrites we make sure the snapshotID incorporates the id of
+	// the mutation object.   This the repos for each mutation object will be distinct.
+	snapshotID[v1alpha1.MutationObjectUUIDKey] = string(obj.GetUID())
 	if err != nil {
 		return "", ocmmetav1.Identity{}, fmt.Errorf("failed to get identity for config ref: %w", err)
 	}
