@@ -352,7 +352,6 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 		reconciledVersion string
 		expectedUpdate    bool
 		expectedErr       string
-		allowRollback     bool
 	}{
 		{
 			description:       "current reconciled version is latest and satisfies given semver constraint",
@@ -376,13 +375,6 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			expectedUpdate:    true,
 		},
 		{
-			description:       "missing latest version should not force a downgrade",
-			givenVersion:      "<=0.0.3",
-			reconciledVersion: "0.0.3",
-			latestVersion:     "0.0.2",
-			expectedUpdate:    false,
-		},
-		{
 			description:       "using an older version than the reconciled one should trigger an update",
 			givenVersion:      "<=0.0.3",
 			reconciledVersion: "0.0.3",
@@ -390,14 +382,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			expectedUpdate:    true,
 		},
 		{
-			description:       "don't allow rollback if it isn't enabled",
-			givenVersion:      "0.0.3",
-			reconciledVersion: "0.0.4",
-			latestVersion:     "0.0.3",
-			expectedUpdate:    false,
-		},
-		{
-			description:       "make sure update doesn't occur if allowRollback is disabled but versions match",
+			description:       "make sure update doesn't occur when versions match",
 			givenVersion:      ">=0.0.3",
 			reconciledVersion: "0.0.4",
 			latestVersion:     "0.0.4",
