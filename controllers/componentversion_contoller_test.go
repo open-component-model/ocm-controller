@@ -375,10 +375,17 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			expectedUpdate:    true,
 		},
 		{
-			description:       "using an older version than the reconciled one should trigger an update",
-			givenVersion:      "<=0.0.3",
+			description:       "using an older version should work if the current constraint disallows the current greater version",
+			givenVersion:      "!=0.0.3",
 			reconciledVersion: "0.0.3",
 			latestVersion:     "0.0.2",
+			expectedUpdate:    true,
+		},
+		{
+			description:       "using a newer version should work if the current constraint disallows the current greater version",
+			givenVersion:      "!=0.0.3",
+			reconciledVersion: "0.0.3",
+			latestVersion:     "0.0.4",
 			expectedUpdate:    true,
 		},
 		{

@@ -411,13 +411,16 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.
 		latest,
 	)
 
-	if latestSemver.Equal(current) {
-		logger.V(v1alpha1.LevelDebug).Info("Reconciled version equal to current version", "version", latestSemver)
-
-		return false, latest, nil
+	constraint, err := semver.NewConstraint(obj.Spec.Version.Semver)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to parse constraint version: %w", err)
 	}
 
-	return true, latest, nil
+	if current.LessThan(latestSemver) || !constraint.Check(current) {
+		return true, latest, nil
+	}
+
+	return false, "", nil
 }
 
 // parseReferences takes a list of references to embedded components and constructs a dependency tree out of them.
