@@ -20,11 +20,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	ocmfake "github.com/open-component-model/ocm-controller/pkg/fakes"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 )
 
 func TestComponentVersionReconcile(t *testing.T) {
@@ -382,11 +383,11 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			expectedUpdate:    false,
 		},
 		{
-			description:       "using an older version than the reconciled one should not trigger an update",
+			description:       "using an older version than the reconciled one should trigger an update",
 			givenVersion:      "<=0.0.3",
 			reconciledVersion: "0.0.3",
 			latestVersion:     "0.0.2",
-			expectedUpdate:    false,
+			expectedUpdate:    true,
 		},
 		{
 			description:       "don't allow rollback if it isn't enabled",

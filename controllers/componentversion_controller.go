@@ -15,8 +15,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
-	"github.com/open-component-model/ocm-controller/pkg/metrics"
-	"github.com/open-component-model/ocm-controller/pkg/status"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
@@ -36,6 +34,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/open-component-model/ocm-controller/pkg/metrics"
+	"github.com/open-component-model/ocm-controller/pkg/status"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/component"
@@ -401,12 +402,6 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.
 	}
 	logger.V(v1alpha1.LevelDebug).Info("current reconciled version is", "reconciled", current.String())
 
-	if latestSemver.Equal(current) || current.GreaterThan(latestSemver) {
-		logger.V(v1alpha1.LevelDebug).Info("Reconciled version equal to or greater than newest available version", "version", latestSemver)
-
-		return false, latest, nil
-	}
-
 	event.New(
 		r.EventRecorder,
 		obj,
@@ -415,6 +410,12 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.
 		"Version check succeeded, found latest version: %s",
 		latest,
 	)
+
+	if latestSemver.Equal(current) {
+		logger.V(v1alpha1.LevelDebug).Info("Reconciled version equal to current version", "version", latestSemver)
+
+		return false, latest, nil
+	}
 
 	return true, latest, nil
 }
