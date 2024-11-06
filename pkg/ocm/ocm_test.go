@@ -679,6 +679,36 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 
 			expectedVersion: "v0.0.1",
 		},
+		{
+			name: "we are able to skip a version",
+			componentVersion: func(name string) *v1alpha1.ComponentVersion {
+				return &v1alpha1.ComponentVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentVersionSpec{
+						Component: name,
+						Version: v1alpha1.Version{
+							Semver: "!=v0.0.4",
+						},
+						Repository: v1alpha1.Repository{
+							URL: "localhost",
+						},
+					},
+				}
+			},
+			setupComponents: func(name string, context *fakeocm.Context) {
+				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.4", "v0.0.5"} {
+					_ = context.AddComponent(&fakeocm.Component{
+						Name:    name,
+						Version: v,
+					})
+				}
+			},
+
+			expectedVersion: "v0.0.5",
+		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
