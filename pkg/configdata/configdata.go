@@ -10,10 +10,10 @@ import (
 )
 
 // ConfigData defines configuration options.
-// This data is not promoted to being a CRD but it contains versionable properties.
+// This data is not promoted to being a CRD, but it contains versionable properties.
 // The following is an example structure of this data:
-// apiVersion: config.ocm.software/v1alpha1
 /*
+apiVersion: config.ocm.software/v1alpha1
 kind: ConfigData
 metadata:
   name: ocm-config
@@ -58,13 +58,18 @@ localization:
 */
 // Localization and Configuration are both provided in the same struct. This is to minimize
 // duplication and having to learn multiple structures and Kubernetes Objects.
-// ConfigData is not a full fledged Kubernetes object because nothing is reconciling it
+// ConfigData is not a full-fledged Kubernetes object because nothing is reconciling it
 // and there is no need for the cluster to be aware of its presence. It's meant to be created
 // and maintained by the Component Consumer.
 // Various configuration and localization methods are available to the consumer:
-// - plain yaml substitution
-// - cue lang
-// - strategic patch merge.
+// - **plain yaml substitution**
+// - **cue lang** ( https://cuelang.org/ ) with a playground (https://cuelang.org/play/)
+// - **strategic patch merge**
+// The available Localization resource properties are:
+// - **image**
+// - **repository**
+// - **registry**
+// - **tag**.
 type ConfigData struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
