@@ -178,7 +178,7 @@ jobs:
         sha: ${{ github.event.pull_request.head.sha }}
     - name: Comment Mend Status on PR
       if: ${{ github.event_name != 'schedule' && steps.pr_exists.outputs.pr_found == 'true' }}
-      uses: thollander/actions-comment-pull-request@v2.5.0
+      uses: thollander/actions-comment-pull-request@v3.0.1
       with:
         message: |
           ## Mend Scan Summary: :${{ steps.report.outputs.status }}:
