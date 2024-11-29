@@ -93,6 +93,7 @@ lint: golangci-lint ## Run golangci-lint.
 
 ##@ Testing
 
+# Note: Requires tinygo (0.31.2) and wasm-opt
 .PHONY: test
 test: manifests generate fmt vet build-wasm-testdata envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
