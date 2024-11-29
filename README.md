@@ -428,7 +428,7 @@ The other way is using the provided helm chart for the project under `./deploy` 
 To do this, use the following command:
 
 ```
-helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --version v0.21.3
+helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --version v0.25.3
 ```
 
 This does require that certain items, like certificate secrets are pre-created by the user.
