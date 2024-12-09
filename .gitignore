@@ -48,3 +48,4 @@ hack/cert-manager.yaml
 
 transport-archive
 gen/
+/.project
