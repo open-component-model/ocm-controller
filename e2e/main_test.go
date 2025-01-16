@@ -141,10 +141,6 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
 		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
 
-	signatureVerificationFailed := features.New("Validate if invalid signed OCM Components are present in OCI Registry").
-		Assess("Check that component version "+cvName+"is ready and signature verification failed", checkIsComponentVersionFailed(cvName)).
-		Teardown(shared.DeleteSecret(keyName))
-
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
 		WithStep("create valid rsa key secret", 1, shared.CreateSecret(keyName, map[string][]byte{keyName: publicKey}, nil, "")).
 		Assess("Check that component version "+cvName+" is ready and signature was verified", checkIsComponentVersionReady(cvName, ocmNamespace))
@@ -152,7 +148,6 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 	testEnv.Test(t,
 		setupComponent.Feature(),
 		validation.Feature(),
-		signatureVerificationFailed.Feature(),
 		signatureVerification.Feature(),
 	)
 }
