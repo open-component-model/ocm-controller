@@ -489,7 +489,7 @@ func (c *Client) ListComponentVersions(
 
 	var result []Version
 	for _, v := range versions {
-		// make sure we don't do any lookup if we don't need to
+		// make sure to verify the component if specified
 		if len(obj.Spec.Verify) > 0 {
 			if _, err := c.VerifyComponent(ctx, octx, obj, v); err != nil {
 				logger.Error(err, "ignoring version as it failed verification", "version", v, "component", obj.Spec.Component)
