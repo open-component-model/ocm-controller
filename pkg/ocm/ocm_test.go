@@ -555,6 +555,11 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 }
 
 func TestClient_GetLatestValidComponentVersion(t *testing.T) {
+	publicKey1, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+	require.NoError(t, err)
+
 	testCases := []struct {
 		name             string
 		componentVersion func(name string) *v1alpha1.ComponentVersion
@@ -709,12 +714,79 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 
 			expectedVersion: "v0.0.5",
 		},
+		{
+			name: "latest _verified_ version is returned",
+			componentVersion: func(name string) *v1alpha1.ComponentVersion {
+				return &v1alpha1.ComponentVersion{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentVersionSpec{
+						Component: name,
+						Version: v1alpha1.Version{
+							Semver: ">=v0.0.1",
+						},
+						Repository: v1alpha1.Repository{
+							URL: "localhost",
+						},
+						Verify: []v1alpha1.Signature{
+							{
+								Name: Signature,
+								PublicKey: v1alpha1.PublicKey{
+									SecretRef: &corev1.LocalObjectReference{
+										Name: "sign-secret",
+									},
+								},
+							},
+						},
+					},
+				}
+			},
+			setupComponents: func(name string, context *fakeocm.Context) {
+				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.4", "v0.0.5"} {
+					if v == "v0.0.4" {
+						// sign it
+						_ = context.AddComponent(&fakeocm.Component{
+							Name:    name,
+							Version: v,
+							Sign: &fakeocm.Sign{
+								Name:    Signature,
+								PrivKey: privateKey,
+								PubKey:  publicKey1,
+								Digest:  "3d879ecdea45acb7f8d85b89fd653288d84af4476eac4141822142ec59c13745",
+							},
+						})
+
+						continue
+					}
+
+					_ = context.AddComponent(&fakeocm.Component{
+						Name:    name,
+						Version: v,
+					})
+				}
+			},
+
+			expectedVersion: "v0.0.4", // v0.0.4 is the only signed version and should be returned.
+		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Helper()
 
-			fakeKubeClient := env.FakeKubeClient()
+			secretName := "sign-secret"
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					Signature: publicKey1,
+				},
+			}
+
+			fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 			cache := &fakes.FakeCache{}
 			ocmClient := NewClient(fakeKubeClient, cache)
 			octx := fakeocm.NewFakeOCMContext()
