@@ -447,6 +447,15 @@ func (c *Client) GetLatestValidComponentVersion(
 
 	for _, v := range versions {
 		if valid, _ := constraint.Validate(v.Semver); valid {
+			// make sure we don't do any lookup if we don't need to
+			if len(obj.Spec.Verify) > 0 {
+				if _, err := c.VerifyComponent(ctx, octx, obj, v.Version); err != nil {
+					logger.Error(err, "ignoring version as it failed verification", "version", v.Version, "component", obj.Spec.Component)
+
+					continue
+				}
+			}
+
 			return v.Version, nil
 		}
 	}
@@ -489,15 +498,6 @@ func (c *Client) ListComponentVersions(
 
 	var result []Version
 	for _, v := range versions {
-		// make sure we don't do any lookup if we don't need to
-		if len(obj.Spec.Verify) > 0 {
-			if _, err := c.VerifyComponent(ctx, octx, obj, v); err != nil {
-				logger.Error(err, "ignoring version as it failed verification", "version", v, "component", obj.Spec.Component)
-
-				continue
-			}
-		}
-
 		parsed, err := semver.NewVersion(v)
 		if err != nil {
 			logger.Error(err, "ignoring version as it was invalid semver", "version", v)
