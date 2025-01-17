@@ -105,7 +105,7 @@ jobs:
       with:
         distribution: goreleaser
         version: latest
-        args: release --clean --timeout 60m --skip-validate --config=./.goreleaser.yaml --release-notes=${{ env.RELEASE_NOTES_FILE }}
+        args: release --clean --timeout 60m --config=./.goreleaser.yaml --release-notes=${{ env.RELEASE_NOTES_FILE }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GORELEASER_CURRENT_TAG: ${{ env.RELEASE_VERSION }}
