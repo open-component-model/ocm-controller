@@ -150,7 +150,7 @@ func (m *MockFetcher) GetLatestComponentVersionWasNotCalled() bool {
 	return len(m.getLatestComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
+func (m *MockFetcher) ListComponentVersions(_ context.Context, _ logr.Logger, _ ocm.Context, obj *v1alpha1.ComponentVersion) ([]ocmctrl.Version, error) {
 	m.listComponentVersionsCalledWith = append(m.listComponentVersionsCalledWith, []any{obj})
 	return m.listComponentVersionsVersions, m.listComponentVersionsErr
 }

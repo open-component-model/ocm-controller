@@ -58,7 +58,7 @@ type Contract interface {
 		repositoryURL, name, version string,
 	) (ocm.ComponentVersionAccess, error)
 	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
-	ListComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
+	ListComponentVersions(ctx context.Context, logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 	VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
 	TransferComponent(
 		octx ocm.Context,
@@ -427,7 +427,7 @@ func (c *Client) GetLatestValidComponentVersion(
 ) (string, error) {
 	logger := log.FromContext(ctx)
 
-	versions, err := c.ListComponentVersions(logger, octx, obj)
+	versions, err := c.ListComponentVersions(ctx, logger, octx, obj)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component versions: %w", err)
 	}
@@ -447,6 +447,14 @@ func (c *Client) GetLatestValidComponentVersion(
 
 	for _, v := range versions {
 		if valid, _ := constraint.Validate(v.Semver); valid {
+			if len(obj.Spec.Verify) > 0 {
+				if _, err := c.VerifyComponent(ctx, octx, obj, v.Version); err != nil {
+					logger.Error(err, "ignoring version as it failed verification", "version", v.Version, "component", obj.Spec.Component)
+
+					continue
+				}
+			}
+
 			return v.Version, nil
 		}
 	}
@@ -462,6 +470,7 @@ type Version struct {
 }
 
 func (c *Client) ListComponentVersions(
+	_ context.Context,
 	logger logr.Logger,
 	octx ocm.Context,
 	obj *v1alpha1.ComponentVersion,
