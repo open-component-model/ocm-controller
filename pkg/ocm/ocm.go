@@ -470,7 +470,7 @@ type Version struct {
 }
 
 func (c *Client) ListComponentVersions(
-	ctx context.Context,
+	_ context.Context,
 	logger logr.Logger,
 	octx ocm.Context,
 	obj *v1alpha1.ComponentVersion,
