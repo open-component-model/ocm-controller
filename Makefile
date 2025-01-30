@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Gardener contributors.
-#
-# SPDX-License-Identifier: Apache-2.0
-
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/open-component-model/ocm-controller
 TAG ?= v0.11.0
@@ -74,7 +70,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..." paths="./controllers/..."
+	$(CONTROLLER_GEN) object paths="./api/..." paths="./controllers/..."
 
 tidy:  ## Run go mod tidy
 	rm -f go.sum; go mod tidy
@@ -89,7 +85,7 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint.
-	$(GOLANGCI_LINT) run
+	$(GOLANGCI_LINT) run --timeout 10m
 
 ##@ Testing
 
