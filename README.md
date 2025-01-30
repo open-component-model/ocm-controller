@@ -5,6 +5,7 @@
 This is the main repository for `ocm-controller`. The `ocm-controller` is designed to enable the automated deployment of software using the [Open Component Model](https://ocm.software) and Flux.
 
 It has the following features:
+
 - Resolves [`ComponentDescriptor`](https://github.com/open-component-model/ocm-spec/blob/ed97a6a924f514c78acfe29ee7973ed91b0ddba0/doc/glossary.md#component-descriptor) metadata for a particular [component version](https://github.com/open-component-model/ocm-spec/blob/ed97a6a924f514c78acfe29ee7973ed91b0ddba0/doc/glossary.md#component-version)
 - Performs authentication with [OCM repositories](https://github.com/open-component-model/ocm-spec/blob/ed97a6a924f514c78acfe29ee7973ed91b0ddba0/doc/glossary.md#component-descriptor#component-repository)
 - Retrieves [artifacts](https://github.com/open-component-model/ocm-spec/blob/ed97a6a924f514c78acfe29ee7973ed91b0ddba0/doc/glossary.md#artifact) from OCM repositories
@@ -97,7 +98,7 @@ spec:
 
 Apply the `FluxDeployer`:
 
-```
+```bash
 kubectl apply -f deployer.yaml
 ```
 
@@ -427,7 +428,7 @@ The other way is using the provided helm chart for the project under `./deploy` 
 
 To do this, use the following command:
 
-```
+```bash
 helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --version v0.25.3
 ```
 
@@ -440,12 +441,12 @@ Again, there are two ways to uninstall the controller. Using the ocm cli run `oc
 
 With helm, run:
 
-```
+```bash
 helm uninstall ocm-controller
 ```
 
 ## Licensing
 
-Copyright 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
+Copyright 2025 SAP SE or an SAP affiliate company and Open Component Model contributors.
 Please see our [LICENSE](LICENSE) for copyright and license information.
 Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/open-component-model/ocm-controller).
