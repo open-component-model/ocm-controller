@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Gardener contributors.
-#
-# SPDX-License-Identifier: Apache-2.0
-
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/open-component-model/ocm-controller
 TAG ?= v0.11.0
