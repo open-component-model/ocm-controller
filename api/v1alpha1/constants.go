@@ -35,5 +35,5 @@ const (
 // Ocm credential config key for secrets.
 const (
 	// OCMCredentialConfigKey defines the secret key to look for in case a user provides an ocm credential config.
-	OCMCredentialConfigKey = ".ocmcredentialconfig" //nolint:gosec // it isn't a cred
+	OCMCredentialConfigKey = ".ocmcredentialconfig" // nolint:gosec // it isn't a cred
 )
