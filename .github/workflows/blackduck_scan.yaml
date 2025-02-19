@@ -66,7 +66,7 @@ jobs:
       - name: Run Black Duck SCA Scan (Pull Request or Push)
         if: github.event_name != 'workflow_dispatch'
             # The action sets blackducksca_scan_full internally: for pushes to true and PRs to false
-        uses: blackduck-inc/black-duck-security-scan@v2.0.0
+        uses: blackduck-inc/black-duck-security-scan@805cbd09e806b01907bbea0f990723c2bb85abe9
         env:
           DETECT_PROJECT_USER_GROUPS: opencomponentmodel
           DETECT_PROJECT_VERSION_DISTRIBUTION: opensource
