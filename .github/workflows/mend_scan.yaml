@@ -28,21 +28,21 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
     - name: Set up Java 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12
       with:
         java-version: '17'
         distribution: 'temurin'
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
 
     - name: 'Setup jq'
-      uses: dcarbone/install-jq-action@v3.0.1
+      uses: dcarbone/install-jq-action@e397bd87438d72198f81efd21f876461183d383a
       with:
         version: '1.7'
 
@@ -171,14 +171,14 @@ jobs:
           echo "status=white_check_mark" >> $GITHUB_OUTPUT
         fi
     - name: Check if PR exists
-      uses: 8BitJonny/gh-get-current-pr@3.0.0
+      uses: 8BitJonny/gh-get-current-pr@08e737c57a3a4eb24cec6487664b243b77eb5e36
       id: pr_exists
       with:
         filterOutClosed: true
         sha: ${{ github.event.pull_request.head.sha }}
     - name: Comment Mend Status on PR
       if: ${{ github.event_name != 'schedule' && steps.pr_exists.outputs.pr_found == 'true' }}
-      uses: thollander/actions-comment-pull-request@v3.0.1
+      uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b
       with:
         message: |
           ## Mend Scan Summary: :${{ steps.report.outputs.status }}:

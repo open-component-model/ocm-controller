@@ -31,15 +31,15 @@ jobs:
       packages: 'write'
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       with:
         fetch-depth: 0
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
     - name: Cache go-build and mod
-      uses: actions/cache@v4
+      uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f
       with:
         path: |
           ~/.cache/go-build/
