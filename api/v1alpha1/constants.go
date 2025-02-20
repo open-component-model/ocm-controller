@@ -2,7 +2,7 @@ package v1alpha1
 
 const (
 	// DefaultRegistryCertificateSecretName is the name of the of certificate secret for client and registry.
-	DefaultRegistryCertificateSecretName = "ocm-registry-tls-certs" // nolint:gosec // not a credential
+	DefaultRegistryCertificateSecretName = "ocm-registry-tls-certs" // #nosec G101 // not a credential
 )
 
 // Internal ExtraIdentity keys.
@@ -35,5 +35,5 @@ const (
 // Ocm credential config key for secrets.
 const (
 	// OCMCredentialConfigKey defines the secret key to look for in case a user provides an ocm credential config.
-	OCMCredentialConfigKey = ".ocmcredentialconfig" // nolint:gosec // it isn't a cred
+	OCMCredentialConfigKey = ".ocmcredentialconfig" // #nosec G101 // not a credential
 )
