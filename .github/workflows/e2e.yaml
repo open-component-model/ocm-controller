@@ -6,11 +6,13 @@ on:
       - 'CODE_OF_CONDUCT.md'
       - 'README.md'
       - 'Contributing.md'
-      - '.github/**'
+      - '.github/workflows/**'
     branches:
       - main
 
   push:
+    paths-ignore:
+      - '.github/workflows/**'
     branches:
       - main
   schedule:
