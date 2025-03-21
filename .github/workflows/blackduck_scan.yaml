@@ -91,4 +91,3 @@ jobs:
         with:
           name: status-json
           path: ${{ steps.check_blackduck_status.outputs.status_file_path }}
-  
