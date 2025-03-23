@@ -31,8 +31,8 @@ require (
 	github.com/fluxcd/source-controller/api v1.3.0
 	github.com/google/go-containerregistry v0.19.1
 	github.com/mandelsoft/logging v0.0.0-20240201091719-67180059d6bf
-	github.com/mandelsoft/spiff v1.7.0-beta-5
-	github.com/mandelsoft/vfs v0.4.3
+	github.com/mandelsoft/spiff v1.7.0-beta-7
+	github.com/mandelsoft/vfs v0.4.4
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.34.1
