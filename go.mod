@@ -1,8 +1,7 @@
 module github.com/open-component-model/ocm-controller
 
 go 1.22.7
-
-toolchain go1.23.2
+toolchain go1.24.1
 
 // ocm dependent re-writes.
 replace (
@@ -19,7 +18,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/containers/image/v5 v5.31.0
 	github.com/cyphar/filepath-securejoin v0.3.6
-	github.com/distribution/distribution/v3 v3.0.0-rc.2
+	github.com/distribution/distribution/v3 v3.0.0-rc.4
 	github.com/fluxcd/helm-controller/api v1.0.1
 	github.com/fluxcd/kustomize-controller/api v1.3.0
 	github.com/fluxcd/pkg/apis/event v0.9.0
@@ -182,7 +181,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.6.1 // indirect
 	github.com/go-git/go-git/v5 v5.13.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.23.0 // indirect
 	github.com/go-openapi/errors v0.22.0 // indirect
@@ -334,7 +333,7 @@ require (
 	go.starlark.net v0.0.0-20240520160348-046347dcd104 // indirect
 	go.step.sm/crypto v0.47.0 // indirect
 	golang.org/x/mod v0.19.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	google.golang.org/api v0.197.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241104194629-dd2ea8efbc28 // indirect
@@ -382,12 +381,12 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/net v0.33.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/term v0.27.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/term v0.29.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
