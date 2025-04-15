@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
+	"math"
 
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
@@ -33,6 +34,9 @@ func makeYqNode(docBytes []byte, fileName string, docIndex, fileIndex uint) (*yq
 
 	ret.SetDocument(docIndex)
 	ret.SetFilename(fileName)
+	if fileIndex > math.MaxInt {
+		return nil, fmt.Errorf("file index value would cause integer overflow: %d", fileIndex)
+	}
 	ret.SetFileIndex(int(fileIndex))
 
 	return ret, nil

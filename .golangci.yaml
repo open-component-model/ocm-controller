@@ -1,116 +1,126 @@
+version: "2"
 run:
   go: "1.22"
-  timeout: 10m
   tests: false
   allow-parallel-runners: true
-linters-settings:
-  funlen:
-    lines: 150
-    statements: 60
-  cyclop:
-    max-complexity: 20
-    skip-tests: true
-  gosec:
-    exclude-generated: true
-  lll:
-    line-length: 150
-  misspell:
-    locale: US
-  nolintlint:
-    allow-unused: false
-    require-explanation: true
-    require-specific: false
-  varnamelen:
-    ignore-names:
-      - err
-      - wg
-      - fs
-      - id
-      - vm
-      - ns
-      - ip
-
-issues:
-  exclude-dirs:
-    - "./*/mock"
-  exclude-files:
-    - pkg/ocm/fakes/fakes.go
-    - pkg/cache/fakes/cache.go
-    - pkg/untar/untar.go
-  max-same-issues: 0
-  max-issues-per-linter: 0
-  exclude-rules:
-    - text: "should not use dot imports|don't use an underscore in package name"
-      linters:
-        - golint
-    - source: "https://"
-      linters:
-        - lll
-    - path: pkg/defaults/
-      linters:
-        - lll
-    - path: _test\.go
-      linters:
-        - goerr113
-        - gocyclo
-        - errcheck
-        - gosec
-        - dupl
-        - funlen
-        - scopelint
-        - testpackage
-        - goconst
-        - godox
-    - path: internal/version/
-      linters:
-        - gochecknoglobals
-    - path: internal/command/
-      linters:
-        - exhaustivestruct
-        - lll
-        - wrapcheck
-    - source: "// .* #\\d+"
-      linters:
-        - godox
-    - path: test/e2e/
-      linters:
-        - goerr113
-        - gomnd
-    # remove this once https://github.com/golangci/golangci-lint/issues/2649 is closed
-    - path: /
-      linters:
-        - typecheck
-
 linters:
-  enable-all: true
+  default: all
   disable:
-    - gci
+    - copyloopvar
     - depguard
-    - exhaustivestruct
-    - golint
-    - interfacer
-    - ireturn
-    - maligned
-    - nilnil
-    - scopelint
-    - tagliatelle
-    - gomoddirectives
-    - varcheck
-    - nosnakecase
-    - structcheck
-    - ifshort
-    - deadcode
-    - forbidigo
-    - prealloc
-    - gochecknoinits
+    - err113
     - exhaustruct
-    - goerr113
+    - forbidigo
+    - gochecknoglobals
+    - gochecknoinits
+    - gomoddirectives
     - govet
+    - ireturn
+    - nilnil
     - nonamedreturns
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - staticcheck
+    - tagliatelle
     - varnamelen
     - wrapcheck
-    - staticcheck
-    - gochecknoglobals
-    - paralleltest
     - wsl
-    - perfsprint
+    - funcorder
+    - recvcheck
+  settings:
+    cyclop:
+      max-complexity: 20
+    funlen:
+      lines: 150
+      statements: 60
+    lll:
+      line-length: 150
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: false
+      allow-unused: false
+    varnamelen:
+      ignore-names:
+        - err
+        - wg
+        - fs
+        - id
+        - vm
+        - ns
+        - ip
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - golint
+        text: should not use dot imports|don't use an underscore in package name
+      - linters:
+          - lll
+        source: https://
+      - linters:
+          - lll
+        path: pkg/defaults/
+      - linters:
+          - dupl
+          - err113
+          - errcheck
+          - funlen
+          - goconst
+          - gocyclo
+          - godox
+          - gosec
+          - scopelint
+          - testpackage
+        path: _test\.go
+      - linters:
+          - gochecknoglobals
+        path: internal/version/
+      - linters:
+          - exhaustivestruct
+          - lll
+          - wrapcheck
+        path: internal/command/
+      - linters:
+          - godox
+        source: '// .* #\d+'
+      - linters:
+          - err113
+          - mnd
+        path: test/e2e/
+      - linters:
+          - cyclop
+        path: (.+)_test\.go
+    paths:
+      - pkg/ocm/fakes/fakes.go
+      - pkg/cache/fakes/cache.go
+      - pkg/untar/untar.go
+      - ./*/mock
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - pkg/ocm/fakes/fakes.go
+      - pkg/cache/fakes/cache.go
+      - pkg/untar/untar.go
+      - ./*/mock
+      - third_party$
+      - builtin$
+      - examples$

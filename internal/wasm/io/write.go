@@ -2,6 +2,7 @@ package io
 
 import (
 	"context"
+	"math"
 
 	wasmerr "github.com/open-component-model/ocm-controller/pkg/wasm/errors"
 	"github.com/tetratelabs/wazero/api"
@@ -27,6 +28,9 @@ func Write(ctx context.Context, m api.Module, data []byte) (result uint64) {
 		}
 	}()
 
+	if ptr > math.MaxUint32 {
+		return wasmerr.ErrWrite
+	}
 	if !mem.Write(uint32(ptr), data) {
 		return wasmerr.ErrWrite
 	}
