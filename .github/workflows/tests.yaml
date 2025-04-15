@@ -28,9 +28,6 @@ jobs:
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
         with:
           go-version-file: '${{ github.workspace }}/go.mod'
-      - uses: acifani/setup-tinygo@b2ba42b249c7d3efdfe94166ec0f48b3191404f7
-        with:
-          tinygo-version: '0.31.2'
       - name: Restore Go cache
         uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f
         with:
