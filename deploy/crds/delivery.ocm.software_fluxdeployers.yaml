@@ -142,6 +142,7 @@ spec:
                       version:
                         type: string
                     required:
+                    - ""
                     - name
                     type: object
                 required:
