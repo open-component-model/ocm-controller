@@ -32,8 +32,6 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
-GO_WASM_BUILD = tinygo build -target=wasi -panic=trap -scheduler=none -no-debug -o
-
 .PHONY: all
 all: build
 
@@ -89,9 +87,8 @@ lint: golangci-lint ## Run golangci-lint.
 
 ##@ Testing
 
-# Note: Requires tinygo (0.31.2) and wasm-opt
 .PHONY: test
-test: manifests generate fmt vet build-wasm-testdata envtest ## Run tests.
+test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 .PHONY: e2e
@@ -106,11 +103,6 @@ e2e-verbose: prime-test-cluster test-summary-tool ## Runs e2e tests in verbose
 prime-test-cluster: mkcert
 	./hack/prime_test_cluster.sh
 
-.PHONY: build-wasm-testdata
-build-wasm-testdata:
-	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_bytes.go
-	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_labels.go
-	${GO_WASM_BUILD} ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.wasm  ./internal/wasm/hostfuncs/resource/testdata/get_resource_url.go
 ##@ Build
 
 .PHONY: build
