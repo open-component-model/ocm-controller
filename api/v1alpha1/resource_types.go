@@ -3,8 +3,8 @@ package v1alpha1
 import (
 	"time"
 
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 )
 
 const ResourceKind = "Resource"

@@ -658,8 +658,8 @@ string
 <td>
 <code>extraIdentity</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Identity">
-github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
+<a href="https://pkg.go.dev/ocm.software/ocm/api/ocm/compdesc/meta/v1#Identity">
+ocm.software/ocm/api/ocm/compdesc/meta/v1.Identity
 </a>
 </em>
 </td>
@@ -670,8 +670,8 @@ github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
 <td>
 <code>labels</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Labels">
-github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Labels
+<a href="https://pkg.go.dev/ocm.software/ocm/api/ocm/compdesc/meta/v1#Labels">
+ocm.software/ocm/api/ocm/compdesc/meta/v1.Labels
 </a>
 </em>
 </td>
@@ -2237,8 +2237,8 @@ ElementMeta
 <td>
 <code>referencePath</code><br>
 <em>
-<a href="https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Identity">
-[]github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1.Identity
+<a href="https://pkg.go.dev/ocm.software/ocm/api/ocm/compdesc/meta/v1#Identity">
+[]ocm.software/ocm/api/ocm/compdesc/meta/v1.Identity
 </a>
 </em>
 </td>

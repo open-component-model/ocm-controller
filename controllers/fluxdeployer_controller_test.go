@@ -20,7 +20,7 @@ import (
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 )
 
 func TestFluxDeployerReconcile(t *testing.T) {

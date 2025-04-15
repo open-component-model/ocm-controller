@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 )
 
 // ObjectReference defines a resource which may be accessed via a snapshot or component version

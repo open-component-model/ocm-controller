@@ -12,10 +12,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
+	v1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
+	"ocm.software/ocm/api/ocm/compdesc/versions/ocm.software/v3alpha1"
+	"ocm.software/ocm/api/ocm/ocmutils/localize"
+	ocmruntime "ocm.software/ocm/api/utils/runtime"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/component"

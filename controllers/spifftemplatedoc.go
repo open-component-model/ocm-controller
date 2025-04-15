@@ -7,8 +7,8 @@ import (
 	"math"
 
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
+	"ocm.software/ocm/api/ocm/ocmutils/localize"
+	ocmruntime "ocm.software/ocm/api/utils/runtime"
 )
 
 // Key we store spiff rules under within spiff template doc.

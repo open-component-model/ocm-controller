@@ -5,18 +5,18 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
+	"ocm.software/ocm/api/ocm"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
+	"ocm.software/ocm/api/ocm/compdesc/versions/ocm.software/v3alpha1"
+	ocmruntime "ocm.software/ocm/api/utils/runtime"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	ocmfake "github.com/open-component-model/ocm-controller/pkg/fakes"
