@@ -22,7 +22,6 @@ type ObjectReference struct {
 }
 
 type ResourceReference struct {
-	// +required
 	ElementMeta `json:",inline"`
 
 	// +optional
@@ -30,12 +29,16 @@ type ResourceReference struct {
 }
 
 type ElementMeta struct {
+	// +required
 	Name string `json:"name"`
 
+	// +optional
 	Version string `json:"version,omitempty"`
 
+	// +optional
 	ExtraIdentity ocmmetav1.Identity `json:"extraIdentity,omitempty"`
 
+	// +optional
 	Labels ocmmetav1.Labels `json:"labels,omitempty"`
 }
 
