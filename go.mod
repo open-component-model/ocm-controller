@@ -7,7 +7,6 @@ toolchain go1.23.8
 // ocm dependent re-writes.
 replace (
 	github.com/google/go-containerregistry => github.com/google/go-containerregistry v0.14.1-0.20230409045903-ed5c185df419
-	github.com/open-component-model/ocm-e2e-framework => github.com/fabianburth/ocm-e2e-framework v0.0.0-20250415114731-dda4a619e40a
 	github.com/opencontainers/go-digest => github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be
 	github.com/sigstore/cosign/v2 => github.com/sigstore/cosign/v2 v2.0.2
 	// this is needed for OCM to compile
@@ -37,7 +36,7 @@ require (
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.36.2
-	github.com/open-component-model/ocm-e2e-framework v0.9.1
+	github.com/open-component-model/ocm-e2e-framework v0.10.0
 	github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
