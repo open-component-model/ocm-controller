@@ -832,8 +832,8 @@ github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAl
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
 github.com/onsi/gomega v1.36.2 h1:koNYke6TVk6ZmnyHrCXba/T/MoLBXFjeC1PtvYgw0A8=
 github.com/onsi/gomega v1.36.2/go.mod h1:DdwyADRjrc825LhMEkD76cHR5+pUnjhUN8GlHlRPHzY=
-github.com/open-component-model/ocm-e2e-framework v0.10.1-0.20250416110616-fd1131ad053c h1:yAZhOMVMULex/CO7RK6e2kXr7v897s6V63v4x320iKs=
-github.com/open-component-model/ocm-e2e-framework v0.10.1-0.20250416110616-fd1131ad053c/go.mod h1:l+zQDj5NA89vEQlHwCCRqE+KANXxDaDuGSor4vvtw2s=
+github.com/open-component-model/ocm-e2e-framework v0.11.0 h1:CMTbuKExNv6C+OBw9SeMyTHO9mFykS7iMyCht49Z+Og=
+github.com/open-component-model/ocm-e2e-framework v0.11.0/go.mod h1:l+zQDj5NA89vEQlHwCCRqE+KANXxDaDuGSor4vvtw2s=
 github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b h1:Z95/2zF9f7xeTmtIWNB9oDq9jiQlkRzuOUzMNSeU1qQ=
 github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b/go.mod h1:frQj/b3+bzniEC/qUbSNUYm+pHZbjd6l0ofAsPgmEF0=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be h1:f2PlhC9pm5sqpBZFvnAoKj+KzXRzbjFMA+TqXfJdgho=
