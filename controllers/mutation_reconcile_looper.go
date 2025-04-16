@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	ocmcore "ocm.software/ocm/api/ocm"
+	"ocm.software/ocm/api/ocm/resourcerefs"
 	"ocm.software/ocm/api/utils/tarutils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -45,7 +46,6 @@ import (
 	"ocm.software/ocm/api/ocm/extensions/accessmethods/localblob"
 	"ocm.software/ocm/api/ocm/extensions/accessmethods/ociartifact"
 	"ocm.software/ocm/api/ocm/extensions/accessmethods/ociblob"
-	utils2 "ocm.software/ocm/api/ocm/ocmutils"
 	"ocm.software/ocm/api/ocm/ocmutils/localize"
 	ocmruntime "ocm.software/ocm/api/utils/runtime"
 	"ocm.software/ocm/api/utils/spiff"
@@ -414,7 +414,7 @@ func (m *MutationReconcileLooper) performLocalization(
 ) error {
 	resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), refPath)
 
-	resource, _, err := utils2.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
+	resource, _, err := resourcerefs.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
 	if err != nil {
 		return fmt.Errorf("failed to fetch resource from component version: %w", err)
 	}
