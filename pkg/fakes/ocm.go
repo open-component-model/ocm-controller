@@ -6,16 +6,16 @@ import (
 	"io"
 
 	"github.com/mandelsoft/logging"
-	"github.com/open-component-model/ocm/pkg/contexts/credentials"
-	"github.com/open-component-model/ocm/pkg/contexts/datacontext"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
-	ocmsigning "github.com/open-component-model/ocm/pkg/signing"
-	"github.com/open-component-model/ocm/pkg/signing/handlers/rsa"
+	"ocm.software/ocm/api/credentials"
+	"ocm.software/ocm/api/datacontext"
+	"ocm.software/ocm/api/ocm"
+	"ocm.software/ocm/api/ocm/compdesc"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
+	"ocm.software/ocm/api/ocm/extensions/attrs/signingattr"
+	"ocm.software/ocm/api/ocm/tools/signing"
+	ocmsigning "ocm.software/ocm/api/tech/signing"
+	"ocm.software/ocm/api/tech/signing/handlers/rsa"
+	ocmruntime "ocm.software/ocm/api/utils/runtime"
 )
 
 // AccessOptionFunc modifies the resource's access settings.
