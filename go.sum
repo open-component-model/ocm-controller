@@ -366,8 +366,6 @@ github.com/evanphx/json-patch/v5 v5.9.11 h1:/8HVnzMq13/3x9TPvjG08wUGqBTmZBsCWzjT
 github.com/evanphx/json-patch/v5 v5.9.11/go.mod h1:3j+LviiESTElxA4p3EMKAB9HXj3/XEtnUf6OZxqIQTM=
 github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f h1:Wl78ApPPB2Wvf/TIe2xdyJxTlb6obmF18d8QdkxNDu4=
 github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f/go.mod h1:OSYXu++VVOHnXeitef/D8n/6y4QV8uLHSFXX4NeXMGc=
-github.com/fabianburth/ocm-e2e-framework v0.0.0-20250415114731-dda4a619e40a h1:GHFpip11mZI+YKksgHScwX2ZImq0OtSjzupAp7YOzEc=
-github.com/fabianburth/ocm-e2e-framework v0.0.0-20250415114731-dda4a619e40a/go.mod h1:V0vzvumIRXKEHGgviJWz9w/LFpwZbNKsBVX4n0cQr9c=
 github.com/fatih/color v1.17.0 h1:GlRw1BRJxkpqUCBKzKOw098ed57fEsKeNjpTe3cSjK4=
 github.com/fatih/color v1.17.0/go.mod h1:YZ7TlrGPkiz6ku9fK3TLD/pl3CpsiFyu8N92HLgmosI=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
@@ -818,6 +816,8 @@ github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAl
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
 github.com/onsi/gomega v1.36.2 h1:koNYke6TVk6ZmnyHrCXba/T/MoLBXFjeC1PtvYgw0A8=
 github.com/onsi/gomega v1.36.2/go.mod h1:DdwyADRjrc825LhMEkD76cHR5+pUnjhUN8GlHlRPHzY=
+github.com/open-component-model/ocm-e2e-framework v0.10.0 h1:d4p3WqZPCVkr1b8guZ2KKbVZeC5Tu1e3ZuKoetMlfEg=
+github.com/open-component-model/ocm-e2e-framework v0.10.0/go.mod h1:lU0KcwcH+N3F+iKOOKlysdvqXe2R9Pxh4QkP4uhmJYY=
 github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b h1:Z95/2zF9f7xeTmtIWNB9oDq9jiQlkRzuOUzMNSeU1qQ=
 github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b/go.mod h1:frQj/b3+bzniEC/qUbSNUYm+pHZbjd6l0ofAsPgmEF0=
 github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be h1:f2PlhC9pm5sqpBZFvnAoKj+KzXRzbjFMA+TqXfJdgho=
