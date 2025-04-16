@@ -135,7 +135,7 @@ func TestClient_GetResourceFromNestedComponent(t *testing.T) {
 		Name:    component,
 		Version: "v0.0.1",
 		References: map[string]ocm.ComponentReference{
-			`{"name":"nested-1"}`: {
+			string(ocmmetav1.Identity{"name": "nested-1"}.Digest()): {
 				ElementMeta: compdesc.ElementMeta{
 					Version: "v0.0.1",
 					Name:    component,
@@ -149,7 +149,7 @@ func TestClient_GetResourceFromNestedComponent(t *testing.T) {
 		Name:    component2,
 		Version: "v0.0.1",
 		References: map[string]ocm.ComponentReference{
-			`{"name":"nested-2"}`: {
+			string(ocmmetav1.Identity{"name": "nested-2"}.Digest()): {
 				ElementMeta: compdesc.ElementMeta{
 					Version: "v0.0.1",
 					Name:    component2,
