@@ -12,6 +12,7 @@ import (
 	"ocm.software/ocm/api/ocm/compdesc"
 	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 	"ocm.software/ocm/api/ocm/extensions/attrs/signingattr"
+	"ocm.software/ocm/api/ocm/resolvers"
 	"ocm.software/ocm/api/ocm/tools/signing"
 	ocmsigning "ocm.software/ocm/api/tech/signing"
 	"ocm.software/ocm/api/tech/signing/handlers/rsa"
@@ -120,7 +121,7 @@ func (c *Context) AddComponent(component *Component) error {
 	c.repo.cva = append(c.repo.cva, component)
 
 	if component.Sign != nil {
-		resolver := ocm.NewCompoundResolver(c.repo)
+		resolver := resolvers.NewCompoundResolver(c.repo)
 		opts := signing.NewOptions(
 			signing.Sign(
 				ocmsigning.DefaultHandlerRegistry().GetSigner(rsa.Algorithm),
