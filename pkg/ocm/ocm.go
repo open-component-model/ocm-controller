@@ -25,7 +25,8 @@ import (
 	"ocm.software/ocm/api/ocm/extensions/attrs/signingattr"
 	"ocm.software/ocm/api/ocm/extensions/download"
 	"ocm.software/ocm/api/ocm/extensions/repositories/ocireg"
-	utils "ocm.software/ocm/api/ocm/ocmutils"
+	"ocm.software/ocm/api/ocm/resolvers"
+	"ocm.software/ocm/api/ocm/resourcerefs"
 	"ocm.software/ocm/api/ocm/tools/signing"
 	"ocm.software/ocm/api/ocm/tools/transfer"
 	"ocm.software/ocm/api/ocm/tools/transfer/transferhandler/standard"
@@ -234,7 +235,7 @@ func (c *Client) GetResource(
 	var identities []ocmmetav1.Identity
 	identities = append(identities, resource.ReferencePath...)
 
-	res, _, err := utils.ResolveResourceReference(
+	res, _, err := resourcerefs.ResolveResourceReference(
 		cva,
 		ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities),
 		cva.Repository(),
@@ -323,7 +324,7 @@ func (c *Client) VerifyComponent(
 	}
 	defer cv.Close()
 
-	resolver := ocm.NewCompoundResolver(repo)
+	resolver := resolvers.NewCompoundResolver(repo)
 
 	for _, signature := range obj.Spec.Verify {
 		var (

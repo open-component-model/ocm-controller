@@ -444,7 +444,7 @@ func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(
 	ctx context.Context,
 	octx ocm.Context,
 	parent *v1alpha1.ComponentVersion,
-	ref ocmdesc.ComponentReference,
+	ref ocmdesc.Reference,
 ) (*v1alpha1.Reference, error) {
 	// get component version
 	rcv, err := r.OCMClient.GetComponentVersion(ctx, octx, parent.GetRepositoryURL(), ref.ComponentName, ref.Version)
@@ -490,7 +490,7 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(
 	ctx context.Context,
 	rcv ocm.ComponentVersionAccess,
 	parent *v1alpha1.ComponentVersion,
-	ref ocmdesc.ComponentReference,
+	ref ocmdesc.Reference,
 ) (*v1alpha1.ComponentDescriptor, error) {
 	// convert ComponentDescriptor to v3alpha1
 	dv := &compdesc.DescriptorVersion{}
@@ -500,7 +500,7 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(
 	}
 
 	// setup the component descriptor kubernetes resource
-	componentName, err := component.ConstructUniqueName(ref.ComponentName, ref.Version, ref.GetMeta().ExtraIdentity)
+	componentName, err := component.ConstructUniqueName(ref.ComponentName, ref.Version, ref.GetMeta().GetExtraIdentity())
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate name: %w", err)
 	}
