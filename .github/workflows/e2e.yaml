@@ -23,8 +23,10 @@ permissions:
 
 jobs:
   run-e2e-suite:
-    runs-on: ubuntu-latest
+    runs-on: large_runner
     steps:
+      - name: Self Hosted Runner Post Job Cleanup Action
+        uses: TooMuch4U/actions-clean@v2.2
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Setup Go
