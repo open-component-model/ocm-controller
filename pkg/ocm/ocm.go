@@ -16,19 +16,20 @@ import (
 	"github.com/mandelsoft/vfs/pkg/memoryfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/mitchellh/hashstructure/v2"
-	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/download"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/standard"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
 	"helm.sh/helm/v3/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"ocm.software/ocm/api/credentials/extensions/repositories/dockerconfig"
+	"ocm.software/ocm/api/ocm"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
+	"ocm.software/ocm/api/ocm/extensions/attrs/signingattr"
+	"ocm.software/ocm/api/ocm/extensions/download"
+	"ocm.software/ocm/api/ocm/extensions/repositories/ocireg"
+	"ocm.software/ocm/api/ocm/resolvers"
+	"ocm.software/ocm/api/ocm/resourcerefs"
+	"ocm.software/ocm/api/ocm/tools/signing"
+	"ocm.software/ocm/api/ocm/tools/transfer"
+	"ocm.software/ocm/api/ocm/tools/transfer/transferhandler/standard"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -234,7 +235,7 @@ func (c *Client) GetResource(
 	var identities []ocmmetav1.Identity
 	identities = append(identities, resource.ReferencePath...)
 
-	res, _, err := utils.ResolveResourceReference(
+	res, _, err := resourcerefs.ResolveResourceReference(
 		cva,
 		ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities),
 		cva.Repository(),
@@ -323,7 +324,7 @@ func (c *Client) VerifyComponent(
 	}
 	defer cv.Close()
 
-	resolver := ocm.NewCompoundResolver(repo)
+	resolver := resolvers.NewCompoundResolver(repo)
 
 	for _, signature := range obj.Spec.Verify {
 		var (

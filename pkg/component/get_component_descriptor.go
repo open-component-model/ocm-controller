@@ -5,12 +5,12 @@ import (
 	"fmt"
 
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	"k8s.io/apimachinery/pkg/types"
+	"ocm.software/ocm/api/ocm/compdesc"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 )
 
 func getComponentDescriptorObject(ctx context.Context, c client.Client, ref meta.NamespacedObjectReference) (*v1alpha1.ComponentDescriptor, error) {

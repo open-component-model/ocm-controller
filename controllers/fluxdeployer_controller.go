@@ -178,11 +178,13 @@ func (r *FluxDeployerReconciler) reconcile(
 				meta.ReadyCondition,
 				v1alpha1.CreateOrUpdateKustomizationFailedReason,
 				err.Error(),
+				[]any{}...,
 			)
 			conditions.MarkStalled(
 				obj,
 				v1alpha1.CreateOrUpdateKustomizationFailedReason,
 				err.Error(),
+				[]any{}...,
 			)
 			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg)
 
@@ -204,8 +206,9 @@ func (r *FluxDeployerReconciler) reconcile(
 				meta.ReadyCondition,
 				v1alpha1.CreateOrUpdateHelmFailedReason,
 				err.Error(),
+				[]any{}...,
 			)
-			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error())
+			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error(), []any{}...)
 			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg)
 
 			return ctrl.Result{}, err

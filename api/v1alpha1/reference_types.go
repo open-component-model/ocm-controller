@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 )
 
 // ObjectReference defines a resource which may be accessed via a snapshot or component version
@@ -22,7 +22,6 @@ type ObjectReference struct {
 }
 
 type ResourceReference struct {
-	// +required
 	ElementMeta `json:",inline"`
 
 	// +optional
@@ -30,12 +29,16 @@ type ResourceReference struct {
 }
 
 type ElementMeta struct {
+	// +required
 	Name string `json:"name"`
 
+	// +optional
 	Version string `json:"version,omitempty"`
 
+	// +optional
 	ExtraIdentity ocmmetav1.Identity `json:"extraIdentity,omitempty"`
 
+	// +optional
 	Labels ocmmetav1.Labels `json:"labels,omitempty"`
 }
 

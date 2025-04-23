@@ -24,8 +24,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mandelsoft/spiff/spiffing"
 	"github.com/mandelsoft/vfs/pkg/osfs"
-	ocmcore "github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/utils/tarutils"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,21 +32,23 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
+	ocmcore "ocm.software/ocm/api/ocm"
+	"ocm.software/ocm/api/ocm/resourcerefs"
+	"ocm.software/ocm/api/utils/tarutils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	"github.com/open-component-model/ocm-controller/pkg/untar"
 
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/localblob"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartifact"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociblob"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	utils2 "github.com/open-component-model/ocm/pkg/contexts/ocm/utils"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/utils/localize"
-	ocmruntime "github.com/open-component-model/ocm/pkg/runtime"
-	"github.com/open-component-model/ocm/pkg/spiff"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
+	"ocm.software/ocm/api/ocm/extensions/accessmethods/localblob"
+	"ocm.software/ocm/api/ocm/extensions/accessmethods/ociartifact"
+	"ocm.software/ocm/api/ocm/extensions/accessmethods/ociblob"
+	"ocm.software/ocm/api/ocm/ocmutils/localize"
+	ocmruntime "ocm.software/ocm/api/utils/runtime"
+	"ocm.software/ocm/api/utils/spiff"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
@@ -414,7 +414,7 @@ func (m *MutationReconcileLooper) performLocalization(
 ) error {
 	resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), refPath)
 
-	resource, _, err := utils2.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
+	resource, _, err := resourcerefs.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
 	if err != nil {
 		return fmt.Errorf("failed to fetch resource from component version: %w", err)
 	}

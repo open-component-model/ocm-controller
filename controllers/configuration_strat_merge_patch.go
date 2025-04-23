@@ -13,6 +13,10 @@ import (
 	kustypes "sigs.k8s.io/kustomize/api/types"
 )
 
+const (
+	FSOwnerReadWrite = 0o600
+)
+
 // the following is influenced by https://github.com/fluxcd/kustomize-controller
 func (m *MutationReconcileLooper) strategicMergePatch(
 	resource []byte,
@@ -53,7 +57,7 @@ func (m *MutationReconcileLooper) strategicMergePatch(
 	}
 
 	kustomize := filepath.Join(workDir, "kustomization.yaml")
-	err = os.WriteFile(kustomize, manifest, os.ModePerm)
+	err = os.WriteFile(kustomize, manifest, FSOwnerReadWrite)
 	if err != nil {
 		return "", err
 	}

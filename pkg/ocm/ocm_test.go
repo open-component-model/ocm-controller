@@ -13,16 +13,16 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	ocmmetav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"ocm.software/ocm/api/ocm"
+	"ocm.software/ocm/api/ocm/compdesc"
+	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 
-	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
-	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
+	"ocm.software/ocm/api/credentials/cpi"
+	"ocm.software/ocm/api/tech/oci/identity"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/cache/fakes"
@@ -30,7 +30,7 @@ import (
 )
 
 func TestClient_GetResource(t *testing.T) {
-	component := "github.com/open-component-model/ocm-demo-index"
+	component := "ocm.software/ocm-demo-index"
 	resource := "remote-controller-demo"
 	resourceVersion := "v0.0.1"
 	data := "testdata"
@@ -122,9 +122,9 @@ func TestClient_GetResource(t *testing.T) {
 }
 
 func TestClient_GetResourceFromNestedComponent(t *testing.T) {
-	component := "github.com/open-component-model/ocm-demo-index"
-	component2 := "github.com/open-component-model/ocm-demo-index-2"
-	component3 := "github.com/open-component-model/ocm-demo-index-3"
+	component := "ocm.software/ocm-demo-index"
+	component2 := "ocm.software/ocm-demo-index-2"
+	component3 := "ocm.software/ocm-demo-index-3"
 	resource := "remote-controller-demo"
 	resourceVersion := "v0.0.1"
 	data := "testdata"
@@ -135,7 +135,7 @@ func TestClient_GetResourceFromNestedComponent(t *testing.T) {
 		Name:    component,
 		Version: "v0.0.1",
 		References: map[string]ocm.ComponentReference{
-			`{"name":"nested-1"}`: {
+			string(ocmmetav1.Identity{"name": "nested-1"}.Digest()): {
 				ElementMeta: compdesc.ElementMeta{
 					Version: "v0.0.1",
 					Name:    component,
@@ -149,7 +149,7 @@ func TestClient_GetResourceFromNestedComponent(t *testing.T) {
 		Name:    component2,
 		Version: "v0.0.1",
 		References: map[string]ocm.ComponentReference{
-			`{"name":"nested-2"}`: {
+			string(ocmmetav1.Identity{"name": "nested-2"}.Digest()): {
 				ElementMeta: compdesc.ElementMeta{
 					Version: "v0.0.1",
 					Name:    component2,
@@ -296,7 +296,7 @@ func TestClient_GetResourceFromNestedComponent(t *testing.T) {
 }
 
 func TestClient_GetHelmResource(t *testing.T) {
-	component := "github.com/open-component-model/ocm-demo-index"
+	component := "ocm.software/ocm-demo-index"
 	resource := "remote-controller-demo"
 	resourceVersion := "v0.0.1"
 	data, err := os.ReadFile(filepath.Join("testdata", "podinfo-6.3.5.tgz"))
@@ -393,7 +393,7 @@ func TestClient_GetHelmResource(t *testing.T) {
 }
 
 func TestClient_GetComponentVersion(t *testing.T) {
-	component := "github.com/open-component-model/ocm-demo-index"
+	component := "ocm.software/ocm-demo-index"
 	octx := fakeocm.NewFakeOCMContext()
 	comp := &fakeocm.Component{
 		Name:    component,
@@ -432,7 +432,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 }
 
 func TestClient_CreateAuthenticatedOCMContextWithSecret(t *testing.T) {
-	component := "github.com/open-component-model/ocm-demo-index"
+	component := "ocm.software/ocm-demo-index"
 	cs := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -492,7 +492,7 @@ func TestClient_CreateAuthenticatedOCMContextWithServiceAccount(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.ComponentVersionSpec{
-			Component: "github.com/open-component-model/ocm-demo-index",
+			Component: "ocm.software/ocm-demo-index",
 			Repository: v1alpha1.Repository{
 				URL: "localhost",
 			},
@@ -786,7 +786,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			cache := &fakes.FakeCache{}
 			ocmClient := NewClient(fakeKubeClient, cache)
 			octx := fakeocm.NewFakeOCMContext()
-			component := "github.com/open-component-model/ocm-demo-index"
+			component := "ocm.software/ocm-demo-index"
 
 			tt.setupComponents(component, octx)
 			cv := tt.componentVersion(component)
@@ -817,7 +817,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/open-component-model/ocm-demo-index"
+	component := "ocm.software/ocm-demo-index"
 
 	octx := fakeocm.NewFakeOCMContext()
 
@@ -873,7 +873,7 @@ func TestClient_VerifyComponentWithValueKey(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient()
 	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/open-component-model/ocm-demo-index"
+	component := "ocm.software/ocm-demo-index"
 
 	octx := fakeocm.NewFakeOCMContext()
 
@@ -928,7 +928,7 @@ func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient()
 	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/open-component-model/ocm-demo-index"
+	component := "ocm.software/ocm-demo-index"
 
 	octx := fakeocm.NewFakeOCMContext()
 
@@ -990,7 +990,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	cache := &fakes.FakeCache{}
 	ocmClient := NewClient(fakeKubeClient, cache)
-	component := "github.com/open-component-model/ocm-demo-index"
+	component := "ocm.software/ocm-demo-index"
 
 	octx := fakeocm.NewFakeOCMContext()
 
