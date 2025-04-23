@@ -6,13 +6,14 @@ import (
 	"net/url"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
-	"github.com/open-component-model/ocm/pkg/common"
-	"github.com/open-component-model/ocm/pkg/contexts/credentials"
-	credconfig "github.com/open-component-model/ocm/pkg/contexts/credentials/config"
-	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	"github.com/open-component-model/ocm/pkg/runtime"
 	corev1 "k8s.io/api/core/v1"
+	"ocm.software/ocm/api/credentials"
+	credconfig "ocm.software/ocm/api/credentials/config"
+	"ocm.software/ocm/api/credentials/extensions/repositories/dockerconfig"
+	"ocm.software/ocm/api/ocm"
+	common "ocm.software/ocm/api/utils/misc"
+
+	"ocm.software/ocm/api/utils/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

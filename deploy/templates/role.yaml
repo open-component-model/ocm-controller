@@ -53,161 +53,10 @@ rules:
   resources:
   - componentdescriptors
   - componentversions
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - componentversions/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - componentversions/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
   - configurations
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - configurations/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - configurations/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
   - fluxdeployers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - fluxdeployers/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - fluxdeployers/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
   - localizations
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - localizations/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - localizations/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - resourcepipelines
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - resourcepipelines/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - resourcepipelines/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
   - resources
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - resources/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
-  - resources/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - delivery.ocm.software
-  resources:
   - snapshots
   verbs:
   - create
@@ -220,30 +69,27 @@ rules:
 - apiGroups:
   - delivery.ocm.software
   resources:
+  - componentversions/finalizers
+  - configurations/finalizers
+  - fluxdeployers/finalizers
+  - localizations/finalizers
+  - resources/finalizers
   - snapshots/finalizers
   verbs:
   - update
 - apiGroups:
   - delivery.ocm.software
   resources:
+  - componentversions/status
+  - configurations/status
+  - fluxdeployers/status
+  - localizations/status
+  - resources/status
   - snapshots/status
   verbs:
   - get
   - patch
   - update
-- apiGroups:
-  - external-secrets.io
-  resources:
-  - secretstores
-  - secretstores/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - helm.toolkit.fluxcd.io
   resources:
@@ -273,7 +119,6 @@ rules:
   resources:
   - buckets
   - gitrepositories
-  - ocirepositories
   verbs:
   - get
   - list

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	hash "github.com/mitchellh/hashstructure"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	v1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 )
 
 type namingScheme struct {

@@ -11,9 +11,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	compdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm.software/v3alpha1"
 	mh "github.com/open-component-model/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,6 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
+	"ocm.software/ocm/api/ocm"
+	ocmdesc "ocm.software/ocm/api/ocm/compdesc"
+	compdesc "ocm.software/ocm/api/ocm/compdesc/versions/ocm.software/v3alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -444,7 +444,7 @@ func (r *ComponentVersionReconciler) constructComponentDescriptorsForReference(
 	ctx context.Context,
 	octx ocm.Context,
 	parent *v1alpha1.ComponentVersion,
-	ref ocmdesc.ComponentReference,
+	ref ocmdesc.Reference,
 ) (*v1alpha1.Reference, error) {
 	// get component version
 	rcv, err := r.OCMClient.GetComponentVersion(ctx, octx, parent.GetRepositoryURL(), ref.ComponentName, ref.Version)
@@ -490,7 +490,7 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(
 	ctx context.Context,
 	rcv ocm.ComponentVersionAccess,
 	parent *v1alpha1.ComponentVersion,
-	ref ocmdesc.ComponentReference,
+	ref ocmdesc.Reference,
 ) (*v1alpha1.ComponentDescriptor, error) {
 	// convert ComponentDescriptor to v3alpha1
 	dv := &compdesc.DescriptorVersion{}
@@ -500,7 +500,7 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(
 	}
 
 	// setup the component descriptor kubernetes resource
-	componentName, err := component.ConstructUniqueName(ref.ComponentName, ref.Version, ref.GetMeta().ExtraIdentity)
+	componentName, err := component.ConstructUniqueName(ref.ComponentName, ref.Version, ref.GetMeta().GetExtraIdentity())
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate name: %w", err)
 	}

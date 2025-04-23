@@ -39,19 +39,19 @@
     },
     {
       "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm\\.software/v3alpha1\\.ComponentVersionSpec",
-      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm\\.software/v3alpha1\\.ComponentVersionSpec"
+      "docsURLTemplate": "https://pkg.go.dev/ocm.software/ocm/api/ocm/compdesc/versions/ocm\\.software/v3alpha1\\.ComponentVersionSpec"
     },
     {
       "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm\\.software/v3alpha1\\.ElementMeta",
-      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/versions/ocm\\.software/v3alpha1\\.ElementMeta"
+      "docsURLTemplate": "https://pkg.go.dev/ocm.software/ocm/api/ocm/compdesc/versions/ocm\\.software/v3alpha1\\.ElementMeta"
     },
     {
       "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1\\.Identity",
-      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Identity"
+      "docsURLTemplate": "https://pkg.go.dev/ocm.software/ocm/api/ocm/compdesc/meta/v1#Identity"
     },
     {
       "typeMatchPrefix": "github\\.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1\\.Labels",
-      "docsURLTemplate": "https://pkg.go.dev/github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1#Labels"
+      "docsURLTemplate": "https://pkg.go.dev/ocm.software/ocm/api/ocm/compdesc/meta/v1#Labels"
     }
   ],
   "typeDisplayNamePrefixOverrides": {
