@@ -22,12 +22,12 @@ require (
 	github.com/distribution/distribution/v3 v3.0.0
 	github.com/fluxcd/helm-controller/api v1.2.0
 	github.com/fluxcd/kustomize-controller/api v1.5.1
-	github.com/fluxcd/pkg/apis/event v0.16.0
-	github.com/fluxcd/pkg/apis/meta v1.10.0
-	github.com/fluxcd/pkg/http/fetch v0.15.0
-	github.com/fluxcd/pkg/kustomize v1.16.0
-	github.com/fluxcd/pkg/runtime v0.58.0
-	github.com/fluxcd/pkg/tar v0.11.0
+	github.com/fluxcd/pkg/apis/event v0.17.0
+	github.com/fluxcd/pkg/apis/meta v1.11.0
+	github.com/fluxcd/pkg/http/fetch v0.16.0
+	github.com/fluxcd/pkg/kustomize v1.17.0
+	github.com/fluxcd/pkg/runtime v0.59.0
+	github.com/fluxcd/pkg/tar v0.12.0
 	github.com/fluxcd/source-controller/api v1.5.0
 	github.com/google/go-containerregistry v0.20.3
 	github.com/mandelsoft/logging v0.0.0-20240618075559-fdca28a87b0a
@@ -77,10 +77,10 @@ require (
 	github.com/InfiniteLoopSpace/go_S-MIME v0.0.0-20181221134359-3f58f9a4b2b6 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ProtonMail/go-crypto v1.1.5 // indirect
+	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/ThalesIgnite/crypto11 v1.2.5 // indirect
 	github.com/a8m/envsubst v1.4.2 // indirect
-	github.com/alecthomas/participle/v2 v2.1.1 // indirect
+	github.com/alecthomas/participle/v2 v2.1.4 // indirect
 	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
 	github.com/alibabacloud-go/cr-20160607 v1.0.1 // indirect
 	github.com/alibabacloud-go/cr-20181201 v1.0.10 // indirect
@@ -128,7 +128,7 @@ require (
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20230304212654-82a0ddb27589 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/cloudflare/cfssl v1.6.5 // indirect
-	github.com/cloudflare/circl v1.6.0 // indirect
+	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be // indirect
 	github.com/containerd/containerd v1.7.27 // indirect
@@ -156,7 +156,7 @@ require (
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20191028211022-135eb7262960 // indirect
-	github.com/elliotchance/orderedmap v1.7.1 // indirect
+	github.com/elliotchance/orderedmap v1.8.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
@@ -164,15 +164,15 @@ require (
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fluxcd/cli-utils v0.36.0-flux.12 // indirect
+	github.com/fluxcd/cli-utils v0.36.0-flux.13 // indirect
 	github.com/fluxcd/flux2/v2 v2.5.1 // indirect
 	github.com/fluxcd/image-automation-controller/api v0.40.0 // indirect
 	github.com/fluxcd/image-reflector-controller/api v0.34.0 // indirect
 	github.com/fluxcd/notification-controller/api v1.5.0 // indirect
-	github.com/fluxcd/pkg/apis/acl v0.6.0 // indirect
-	github.com/fluxcd/pkg/apis/kustomize v1.9.0 // indirect
-	github.com/fluxcd/pkg/envsubst v1.3.0 // indirect
-	github.com/fluxcd/pkg/sourceignore v0.11.0 // indirect
+	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.10.0 // indirect
+	github.com/fluxcd/pkg/envsubst v1.4.0 // indirect
+	github.com/fluxcd/pkg/sourceignore v0.12.0 // indirect
 	github.com/fluxcd/pkg/ssa v0.45.1 // indirect
 	github.com/fluxcd/pkg/version v0.6.0 // indirect
 	github.com/fvbommel/sortorder v1.1.0 // indirect
@@ -183,7 +183,7 @@ require (
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
-	github.com/go-git/go-git/v5 v5.14.0 // indirect
+	github.com/go-git/go-git/v5 v5.16.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -196,7 +196,7 @@ require (
 	github.com/go-openapi/validate v0.24.0 // indirect
 	github.com/go-test/deep v1.1.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/goccy/go-json v0.10.4 // indirect
+	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.13.3 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -234,11 +234,11 @@ require (
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20241010192615-6692160cedfa // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
-	github.com/magiconair/properties v1.8.9 // indirect
+	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mandelsoft/filepath v0.0.0-20240223090642-3e2777258aa3 // indirect
 	github.com/mandelsoft/goutils v0.0.0-20241005173814-114fa825bbdc // indirect
 	github.com/marstr/guid v1.1.0 // indirect
@@ -265,7 +265,7 @@ require (
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/oleiade/reflections v1.1.0 // indirect
-	github.com/opencontainers/go-digest/blake3 v0.0.0-20240426182413-22b78e47854a // indirect
+	github.com/opencontainers/go-digest/blake3 v0.0.0-20250116041648-1e56c6daea3b // indirect
 	github.com/opencontainers/runtime-spec v1.2.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
@@ -360,8 +360,8 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	k8s.io/cli-runtime v0.32.3 // indirect
-	k8s.io/kubectl v0.32.2 // indirect
+	k8s.io/cli-runtime v0.33.0 // indirect
+	k8s.io/kubectl v0.33.0 // indirect
 	oras.land/oras-go v1.2.6 // indirect
 	oras.land/oras-go/v2 v2.5.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.19.0 // indirect
@@ -386,7 +386,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
-	github.com/mikefarah/yq/v4 v4.45.1
+	github.com/mikefarah/yq/v4 v4.45.2
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -399,7 +399,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
@@ -415,7 +415,7 @@ require (
 	k8s.io/component-base v0.33.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
-	k8s.io/utils v0.0.0-20241210054802-24370beab758 // indirect
+	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/yaml v1.4.0
