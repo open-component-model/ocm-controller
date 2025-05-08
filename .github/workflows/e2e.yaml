@@ -58,13 +58,11 @@ jobs:
         uses: slackapi/slack-github-action@b0fa283ad8fea605de13dc3f449259339835fc52
         if: ${{ github.ref_name  == 'main' && github.event_name == 'schedule' && always() }}
         with:
-          # Slack channel id, channel name, or user id to post message.
-          # See also: https://api.slack.com/methods/chat.postMessage#channels
-          # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
-          channel-id: 'C03NF7KH128'
-          # For posting a simple plain text message
+          method: chat.postMessage
+          token: ${{ secrets.OCM_GITHUB_SLACK_BOT_TOKEN }}
           payload: |
             {
+              "channel": "C03NF7KH128",
               "text": "${{ github.repository }} e2e Tests Status: ${{ steps.e2e-tests.conclusion }}",
               "blocks": [
                 {
@@ -77,5 +75,3 @@ jobs:
                 }
               ]
             }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.OCM_GITHUB_SLACK_BOT_TOKEN }}
