@@ -1,7 +1,9 @@
 name: component CTFs
 
 on:
-  pull_request_target:
+  pull_request:
+    branches:
+      -main
   push:
     branches:
       - main
@@ -36,6 +38,4 @@ jobs:
         with:
           go-version-file: '${{ github.workspace }}/go.mod'
       - name: CTF
-        run: |
-          cd component/
-          PATH=$PATH:$(go env GOPATH)/bin make ocm && make ctf
+        run: PATH=$PATH:$(go env GOPATH)/bin make -C component/ ctf
