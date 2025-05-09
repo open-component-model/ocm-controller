@@ -28,7 +28,7 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
-OCM_CLI_VERSION ?= 0.15.0
+OCM_CLI_VERSION ?= 0.24.0
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
