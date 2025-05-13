@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"ocm.software/ocm/api/credentials"
 	credconfig "ocm.software/ocm/api/credentials/config"
 	"ocm.software/ocm/api/credentials/extensions/repositories/dockerconfig"
 	"ocm.software/ocm/api/ocm"
 	common "ocm.software/ocm/api/utils/misc"
-
 	"ocm.software/ocm/api/utils/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 // ConfigureCredentials takes a repository url and secret ref and configures access to an OCI repository.

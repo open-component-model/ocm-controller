@@ -51,6 +51,7 @@ type Resource[M any] struct {
 
 	// AccessOptions to modify the access of the resource.
 	AccessOptions []AccessOptionFunc
+	ExtraIdentity ocmmetav1.Identity
 }
 
 // Sign defines the two needed values to perform a component signing.
@@ -389,8 +390,15 @@ func (c *Component) GetResources() []ocm.ResourceAccess {
 
 func (c *Component) GetResource(meta ocmmetav1.Identity) (ocm.ResourceAccess, error) {
 	for _, r := range c.Resources {
-		//  && r.Version == meta["version"] --> add this at some point
 		if r.Name == meta["name"] {
+			if r.ExtraIdentity != nil {
+				if r.ExtraIdentity.Equals(meta.ExtraIdentity()) {
+					return r, nil
+				}
+
+				continue
+			}
+
 			return r, nil
 		}
 	}
@@ -413,9 +421,10 @@ var _ ocm.ResourceAccess = &Resource[*ocm.ResourceMeta]{}
 func (r *Resource[M]) Meta() *ocm.ResourceMeta {
 	return &ocm.ResourceMeta{
 		ElementMeta: compdesc.ElementMeta{
-			Name:    r.Name,
-			Version: r.Version,
-			Labels:  r.Labels,
+			Name:          r.Name,
+			Version:       r.Version,
+			Labels:        r.Labels,
+			ExtraIdentity: r.ExtraIdentity,
 		},
 		Type:     r.Type,
 		Relation: r.Relation,

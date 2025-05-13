@@ -1036,3 +1036,115 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	require.Error(t, err)
 	assert.False(t, verified, "verified should have been false, but it did not")
 }
+
+func TestResourceLookupWithVersionAndExtraIdentity(t *testing.T) {
+	// Create Two resources, identical in name but differs in extraIdentity.
+	// It should find the right resource.
+	component := "ocm.software/ocm-demo-index"
+	resource := "remote-controller-demo"
+	resourceVersion := "v0.0.1"
+	data1 := "testdata1"
+	data2 := "testdata2"
+
+	octx := fakeocm.NewFakeOCMContext()
+
+	comp := &fakeocm.Component{
+		Name:    component,
+		Version: "v0.0.1",
+	}
+	res1 := &fakeocm.Resource[*ocm.ResourceMeta]{
+		ExtraIdentity: map[string]string{
+			"type": "chart",
+		},
+		Name:      resource,
+		Version:   resourceVersion,
+		Data:      []byte(data1),
+		Component: comp,
+		Kind:      "localBlob",
+		Type:      "ociBlob",
+	}
+	res2 := &fakeocm.Resource[*ocm.ResourceMeta]{
+		ExtraIdentity: map[string]string{
+			"type": "config",
+		},
+		Name:      resource,
+		Version:   resourceVersion,
+		Data:      []byte(data2),
+		Component: comp,
+		Kind:      "localBlob",
+		Type:      "ociBlob",
+	}
+	comp.Resources = append(comp.Resources, res1, res2)
+
+	_ = octx.AddComponent(comp)
+
+	cd := &v1alpha1.ComponentDescriptor{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "github.com-open-component-model-ocm-demo-index-v0.0.1-12345",
+		},
+		Spec: v1alpha1.ComponentDescriptorSpec{
+			Version: "v0.0.1",
+		},
+	}
+
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cd))
+	cache := &fakes.FakeCache{}
+	cache.IsCachedReturns(false, nil)
+	cache.FetchDataByDigestReturns(io.NopCloser(strings.NewReader("mockdata")), nil)
+	cache.PushDataReturns("sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", nil)
+
+	ocmClient := NewClient(fakeKubeClient, cache)
+
+	cv := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: component,
+			Version: v1alpha1.Version{
+				Semver: "v0.0.1",
+			},
+			Repository: v1alpha1.Repository{
+				URL: "localhost",
+			},
+		},
+		Status: v1alpha1.ComponentVersionStatus{
+			ReconciledVersion: "v0.0.1",
+			ComponentDescriptor: v1alpha1.Reference{
+				Name:    component,
+				Version: "v0.0.1",
+				ComponentDescriptorRef: meta.NamespacedObjectReference{
+					Name:      "github.com-open-component-model-ocm-demo-index-v0.0.1-12345",
+					Namespace: "default",
+				},
+			},
+		},
+	}
+
+	resourceRef := &v1alpha1.ResourceReference{
+		ElementMeta: v1alpha1.ElementMeta{
+			Name:    "remote-controller-demo",
+			Version: "v0.0.1",
+			ExtraIdentity: map[string]string{
+				"type": "config",
+			},
+		},
+	}
+
+	reader, digest, _, err := ocmClient.GetResource(context.Background(), octx, cv, resourceRef)
+	require.NoError(t, err)
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.Equal(t, "mockdata", string(content))
+	require.Equal(t, "sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", digest)
+
+	// verify that the cache has been called with the right resource data to cache.
+	args := cache.PushDataCallingArgumentsOnCall(0)
+
+	require.Equal(t, data2, args.Content)
+
+	require.Equal(t, "sha-17579917197306559277", args.Name, "pushed name did not match constructed name from identity of the resource")
+	require.Equal(t, resourceRef.Version, args.Version)
+}

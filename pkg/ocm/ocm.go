@@ -235,9 +235,15 @@ func (c *Client) GetResource(
 	var identities []ocmmetav1.Identity
 	identities = append(identities, resource.ReferencePath...)
 
+	var extras []string
+	for k, v := range resource.ExtraIdentity {
+		extras = append(extras, k, v)
+	}
+
+	// NewIdentity creates name based identity, and extra identity is added as a key value pair.
 	res, _, err := resourcerefs.ResolveResourceReference(
 		cva,
-		ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name), identities),
+		ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name, extras...), identities),
 		cva.Repository(),
 	)
 	if err != nil {

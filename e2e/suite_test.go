@@ -16,7 +16,6 @@ import (
 
 var (
 	testEnv           env.Environment
-	kindClusterName   string
 	ocmNamespace      string
 	registryPort      = 5000
 	gitRepositoryPort = 3000
@@ -32,14 +31,12 @@ func TestMain(m *testing.M) {
 	path := conf.ResolveKubeConfigFile()
 	cfg := envconf.NewWithKubeConfig(path)
 	testEnv = env.NewWithConfig(cfg)
-	kindClusterName = envconf.RandomName("ocm-ctrl-e2e", 32)
 	ocmNamespace = "ocm-system"
 
 	stopChannelRegistry := make(chan struct{}, 1)
 	stopChannelGitea := make(chan struct{}, 1)
 
 	testEnv.Setup(
-		//envfuncs.CreateKindCluster(kindClusterName),
 		envfuncs.CreateNamespace(ocmNamespace),
 		shared.StartGitServer(ocmNamespace),
 		shared.InstallFlux("latest"),
@@ -53,7 +50,6 @@ func TestMain(m *testing.M) {
 		shared.ShutdownPortForward(stopChannelRegistry),
 		shared.ShutdownPortForward(stopChannelGitea),
 		envfuncs.DeleteNamespace(ocmNamespace),
-		//envfuncs.DestroyKindCluster(kindClusterName),
 	)
 
 	os.Exit(testEnv.Run(m))
