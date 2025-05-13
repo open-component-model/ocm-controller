@@ -39,6 +39,7 @@ var (
 	testRepoName               = "ocm-controller-test"
 	testRepoSignedName         = "ocm-controller-signed-test"
 	testRepoHelmName           = "ocm-controller-helm-test"
+	testRepoSameName           = "ocm-controller-same-test"
 	testHelmChartBasedResource = "testHelmChartResource"
 	testOCMControllerPath      = "testOCMController"
 	testSignedComponentsPath   = "testSignedOCIRegistryComponents"

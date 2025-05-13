@@ -1,0 +1,12 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ComponentVersion
+metadata:
+  name: same-resource-component
+  namespace: ocm-system
+spec:
+  component: component.name.resources/same
+  interval: 5s
+  repository:
+    url: registry.ocm-system.svc.cluster.local:5000
+  version:
+    semver: ">=v1.0.0"
