@@ -61,21 +61,20 @@ func TestSameResource(t *testing.T) {
 		},
 	}
 
-	gitRepositoryName := "ocm-controller-test"
 	testName := "testOCMControllerMultipleSameResources"
 
 	setupComponentFeature := features.New("Setup Component").Setup(setup.AddComponentVersions(component))
 	componentVersionFeature := features.New("Create Manifests").
 		Setup(setup.AddFilesToGitRepository(setup.File{
-			RepoName:       gitRepositoryName,
+			RepoName:       testRepoSameName,
 			SourceFilepath: filepath.Join(testName, "component_version.yaml"),
 			DestFilepath:   destinationPrefix + testName + "component_version.yaml",
 		}, setup.File{
-			RepoName:       gitRepositoryName,
+			RepoName:       testRepoSameName,
 			SourceFilepath: filepath.Join(testName, "resource1.yaml"),
 			DestFilepath:   destinationPrefix + testName + "resource1.yaml",
 		}, setup.File{
-			RepoName:       gitRepositoryName,
+			RepoName:       testRepoSameName,
 			SourceFilepath: filepath.Join(testName, "resource2.yaml"),
 			DestFilepath:   destinationPrefix + testName + "resource2.yaml",
 		})).Assess("check that component version component_version.yaml is ready and valid", checkIsComponentVersionReady("same-resource-component", ocmNamespace))
