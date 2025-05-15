@@ -120,12 +120,8 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, invalidPublicKey, err := createRSAKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	setupComponent := createTestComponentVersionSigned(t, "Add signed components to component-version", privateKey, keyName, invalidPublicKey, componentNameIdentifier, testSignedComponentsPath, version1)
+	createSigningSecret := features.New("Create signing secret").WithStep("create valid rsa key secret", 1, shared.CreateSecret(keyName, map[string][]byte{keyName: publicKey}, nil, ""))
+	setupComponent := createTestComponentVersionSigned(t, "Add signed components to component-version", privateKey, keyName, componentNameIdentifier, testSignedComponentsPath, version1)
 	validation := features.New("Validate if signed OCM Components are present in OCI Registry").
 		Setup(setup.AddScheme(v1alpha1.AddToScheme)).
 		Setup(setup.AddScheme(sourcev1.AddToScheme)).
@@ -136,16 +132,14 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
 		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
-		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName)).
-		Teardown(shared.DeleteSecret(keyName))
+		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
 
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
-		WithStep("create valid rsa key secret", 1, shared.CreateSecret(keyName, map[string][]byte{keyName: publicKey}, nil, "")).
-		Assess("Check that component version "+cvName+" is ready and signature was verified", checkIsComponentVersionReady(cvName, ocmNamespace)).
-		Teardown(shared.DeleteSecret(keyName))
+		Assess("Check that component version "+cvName+" is ready and signature was verified", checkIsComponentVersionReady(cvName, ocmNamespace))
 
 	testEnv.Test(t,
 		setupComponent.Feature(),
+		createSigningSecret.Feature(),
 		validation.Feature(),
 		signatureVerification.Feature(),
 	)

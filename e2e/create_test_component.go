@@ -35,13 +35,9 @@ func createTestComponentVersionUnsigned(t *testing.T, componentNameIdentifier st
 		Setup(setup.AddComponentVersions(podinfo(t, nil, "", componentNameIdentifier, testPath, version)))
 }
 
-func createTestComponentVersionSigned(t *testing.T, featureString string, privateKey []byte, keyName string, publicKey []byte, componentNameIdentifier string, testPath string, version string) *features.FeatureBuilder {
+func createTestComponentVersionSigned(t *testing.T, featureString string, privateKey []byte, keyName string, componentNameIdentifier string, testPath string, version string) *features.FeatureBuilder {
 	t.Helper()
-	secretData := map[string][]byte{
-		keyName: publicKey,
-	}
 	return features.New(featureString).
-		WithStep("create secret", 1, shared.CreateSecret(keyName, secretData, nil, "")).
 		WithStep("", 2, setup.AddComponentVersions(podinfoBackend(t, privateKey, keyName, componentNameIdentifier, testPath, version))).
 		WithStep("", 2, setup.AddComponentVersions(podinfoFrontend(t, privateKey, keyName, componentNameIdentifier, testPath, version))).
 		WithStep("", 2, setup.AddComponentVersions(podinfoRedis(t, privateKey, keyName, componentNameIdentifier, testPath, version))).
