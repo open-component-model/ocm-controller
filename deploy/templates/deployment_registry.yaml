@@ -15,6 +15,7 @@ spec:
       labels:
         app: registry
     spec:
+      imagePullSecrets: {{ $.Values.registry.image.imagePullSecrets | toJson }}
       enableServiceLinks: true
       containers:
         - name: registry
