@@ -18,6 +18,7 @@ spec:
       labels:
         app: ocm-controller
     spec:
+      imagePullSecrets: {{ $.Values.manager.image.imagePullSecrets | toJson }}
       securityContext:
         runAsNonRoot: true
         seccompProfile:

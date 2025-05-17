@@ -1,6 +1,11 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 registry:
+  image:
+    repository: registry
+    pullPolicy: IfNotPresent
+    tag: 2
+    imagePullSecrets:
   address: registry.ocm-system.svc.cluster.local:5000
   tls:
     enabled: true
@@ -33,6 +38,7 @@ manager:
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
+    imagePullSecrets:
   volumeMounts:
     - mountPath: "/etc/ssl/certs/registry-root.pem"
       subPath: "registry-root.pem"
