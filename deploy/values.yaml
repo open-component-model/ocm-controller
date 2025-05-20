@@ -14,8 +14,6 @@ registry:
         value: "/certs/cert.pem"
       - name: REGISTRY_HTTP_TLS_KEY
         value: "/certs/key.pem"
-      - name: REGISTRY_HTTP_TLS_CLIENTCAS_0
-        value: "/certs/ca.pem"
     volumeMounts:
       - mountPath: "/certs"
         name: "ocm-registry-tls-certs"
