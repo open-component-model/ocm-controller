@@ -4,7 +4,7 @@ registry:
   image:
     repository: registry
     pullPolicy: IfNotPresent
-    tag: 2
+    tag: 3
     imagePullSecrets:
   address: registry.ocm-system.svc.cluster.local:5000
   tls:
@@ -14,8 +14,6 @@ registry:
         value: "/certs/cert.pem"
       - name: REGISTRY_HTTP_TLS_KEY
         value: "/certs/key.pem"
-      - name: REGISTRY_HTTP_TLS_CLIENTCAS_0
-        value: "/certs/ca.pem"
     volumeMounts:
       - mountPath: "/certs"
         name: "ocm-registry-tls-certs"
