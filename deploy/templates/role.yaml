@@ -1,8 +1,14 @@
+{{/* 
+  2025-06-10 : 
+  Switched from generating this with controller-gen to maintaining it by hand.  
+  See https://github.com/open-component-model/ocm-project/issues/518
+*/ -}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ocm-controller-manager-role
+  labels: {{ $.Values.manager.clusterRole.labels | toJson }}
 rules:
 - apiGroups:
   - ""

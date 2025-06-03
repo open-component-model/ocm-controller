@@ -62,9 +62,12 @@ help: ## Display this help.
 
 ##@ Development
 
-.PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=ocm-controller-manager-role crd webhook paths="./api/..." paths="./controllers/..." output:crd:artifacts:config=deploy/crds output:rbac:artifacts:config=deploy/templates
+.PHONY: manifests 
+
+## 2025-06-10 : Removed RBAC gen from manifest target.  See https://github.com/open-component-model/ocm-project/issues/518
+manifests: controller-gen ## Generate WebhookConfiguration and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) crd webhook paths="./api/..." paths="./controllers/..." output:crd:artifacts:config=deploy/crds
+
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
