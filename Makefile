@@ -65,6 +65,7 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=ocm-controller-manager-role crd webhook paths="./api/..." paths="./controllers/..." output:crd:artifacts:config=deploy/crds output:rbac:artifacts:config=deploy/templates
+	# Templatize the cluster role so that whomever is installing the chart can add labels.  See issue 518.
 	sed -i '/name: ocm-controller-manager-role/a\  labels: {{ $.Values.manager.clusterRole.labels | toJson }}' deploy/templates/role.yaml
 
 
