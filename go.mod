@@ -45,7 +45,7 @@ require (
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
 	github.com/xeipuuv/gojsonschema v1.2.0
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
-	helm.sh/helm/v3 v3.18.1
+	helm.sh/helm/v3 v3.18.2
 	k8s.io/apimachinery v0.33.1
 	k8s.io/client-go v0.33.1
 	ocm.software/ocm v0.24.0
