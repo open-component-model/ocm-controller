@@ -59,6 +59,8 @@ manager:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  clusterRole:
+    labels:
 
 monitoring:
   enabled: false
