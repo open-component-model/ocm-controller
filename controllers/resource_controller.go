@@ -205,7 +205,7 @@ func (r *ResourceReconciler) reconcile(
 	// The reader is unused here, but we should still close it, so it's not left over.
 	defer reader.Close()
 
-	version := "latest"
+	version := componentVersion.Status.ReconciledVersion
 	// GetVersion returns resourceRef.Version
 	if obj.Spec.SourceRef.GetVersion() != "" {
 		version = obj.Spec.SourceRef.GetVersion()
