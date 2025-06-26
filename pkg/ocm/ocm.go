@@ -172,7 +172,8 @@ func (c *Client) GetResource(
 	cv *v1alpha1.ComponentVersion,
 	resource *v1alpha1.ResourceReference,
 ) (io.ReadCloser, string, int64, error) {
-	version := "latest"
+	// we default to the latest component version if we don't have any versions for the resource.
+	version := cv.Status.ReconciledVersion
 	if resource.ElementMeta.Version != "" {
 		version = resource.ElementMeta.Version
 	}
