@@ -172,12 +172,6 @@ func (c *Client) GetResource(
 	cv *v1alpha1.ComponentVersion,
 	resource *v1alpha1.ResourceReference,
 ) (io.ReadCloser, string, int64, error) {
-	// we default to the latest component version if we don't have any versions for the resource.
-	version := cv.Status.ReconciledVersion
-	if resource.ElementMeta.Version != "" {
-		version = resource.ElementMeta.Version
-	}
-
 	cd, err := component.GetComponentDescriptor(ctx, c.client, resource.ReferencePath, cv.Status.ComponentDescriptor)
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to find component descriptor for reference: %w", err)
@@ -188,6 +182,12 @@ func (c *Client) GetResource(
 			"component descriptor not found for reference path: %+v",
 			resource.ReferencePath,
 		)
+	}
+
+	// we default to the latest component version that this resource belongs to if we don't have any versions for the resource.
+	version := cd.Spec.Version
+	if resource.ElementMeta.Version != "" {
+		version = resource.ElementMeta.Version
 	}
 
 	identity := ocmmetav1.Identity{
