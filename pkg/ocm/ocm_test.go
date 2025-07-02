@@ -1037,6 +1037,98 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	assert.False(t, verified, "verified should have been false, but it did not")
 }
 
+func TestClient_GetResourceUsesComponentDescriptorVersionAsDefault(t *testing.T) {
+	component := "ocm.software/ocm-demo-index"
+	resource := "remote-controller-demo"
+	componentVersion := "v1.2.3"
+	reconciledVersion := "v0.9.9"
+	data := "testdata"
+
+	octx := fakeocm.NewFakeOCMContext()
+
+	// Create component with actual component version, not reconciled version
+	comp := &fakeocm.Component{
+		Name:    component,
+		Version: reconciledVersion,
+	}
+	res := &fakeocm.Resource[*ocm.ResourceMeta]{
+		Name:      resource,
+		Version:   componentVersion,
+		Data:      []byte(data),
+		Component: comp,
+		Kind:      "localBlob",
+		Type:      "ociBlob",
+	}
+	comp.Resources = append(comp.Resources, res)
+
+	_ = octx.AddComponent(comp)
+
+	cd := &v1alpha1.ComponentDescriptor{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "github.com-open-component-model-ocm-demo-index-v1.2.3-12345",
+		},
+		Spec: v1alpha1.ComponentDescriptorSpec{
+			Version: componentVersion,
+		},
+	}
+
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cd))
+	cache := &fakes.FakeCache{}
+	cache.IsCachedReturns(false, nil)
+	cache.FetchDataByDigestReturns(io.NopCloser(strings.NewReader("mockdata")), nil)
+	cache.PushDataReturns("sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", nil)
+
+	ocmClient := NewClient(fakeKubeClient, cache)
+
+	cv := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: component,
+			Version: v1alpha1.Version{
+				Semver: componentVersion,
+			},
+			Repository: v1alpha1.Repository{
+				URL: "localhost",
+			},
+		},
+		Status: v1alpha1.ComponentVersionStatus{
+			ReconciledVersion: reconciledVersion,
+			ComponentDescriptor: v1alpha1.Reference{
+				Name:    component,
+				Version: componentVersion,
+				ComponentDescriptorRef: meta.NamespacedObjectReference{
+					Name:      "github.com-open-component-model-ocm-demo-index-v1.2.3-12345",
+					Namespace: "default",
+				},
+			},
+		},
+	}
+
+	// Test resource reference without explicit version - should use cd.Spec.Version as default
+	resourceRef := &v1alpha1.ResourceReference{
+		ElementMeta: v1alpha1.ElementMeta{
+			Name: "remote-controller-demo",
+		},
+	}
+
+	reader, digest, _, err := ocmClient.GetResource(context.Background(), octx, cv, resourceRef)
+	assert.NoError(t, err)
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	assert.Equal(t, "mockdata", string(content))
+	assert.Equal(t, "sha256:8fa155245ea8d3f2ea3add7d090d42dfb0e22799018fded6aae24f0c1a1c3f38", digest)
+
+	// This assertion verifies that the resource version used is the component descriptor version
+	// (v1.2.3) rather than the reconciled version (v0.9.9)
+	args := cache.PushDataCallingArgumentsOnCall(0)
+	assert.Equal(t, data, args.Content)
+	assert.Equal(t, componentVersion, args.Version, "resource version should default to component descriptor version (v1.2.3), not reconciled version (v0.9.9)")
+}
+
 func TestResourceLookupWithVersionAndExtraIdentity(t *testing.T) {
 	// Create Two resources, identical in name but differs in extraIdentity.
 	// It should find the right resource.
