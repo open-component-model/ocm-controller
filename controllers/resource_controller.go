@@ -205,12 +205,6 @@ func (r *ResourceReconciler) reconcile(
 	// The reader is unused here, but we should still close it, so it's not left over.
 	defer reader.Close()
 
-	version := componentVersion.Status.ReconciledVersion
-	// GetVersion returns resourceRef.Version
-	if obj.Spec.SourceRef.GetVersion() != "" {
-		version = obj.Spec.SourceRef.GetVersion()
-	}
-
 	// This is important because THIS is the actual component for our resource. If we used ComponentVersion in the
 	// below identity, that would be the top-level component instead of the component that this resource belongs to.
 	componentDescriptor, err := component.GetComponentDescriptor(ctx, r.Client, obj.GetReferencePath(), componentVersion.Status.ComponentDescriptor)
@@ -229,6 +223,12 @@ func (r *ResourceReconciler) reconcile(
 		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
 
 		return ctrl.Result{}, err
+	}
+
+	version := componentDescriptor.Spec.Version
+	// GetVersion returns resourceRef.Version
+	if obj.Spec.SourceRef.GetVersion() != "" {
+		version = obj.Spec.SourceRef.GetVersion()
 	}
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "resource retrieve, constructing snapshot with name %s", obj.GetSnapshotName())
@@ -265,7 +265,7 @@ func (r *ResourceReconciler) reconcile(
 		return ctrl.Result{}, err
 	}
 
-	obj.Status.LastAppliedResourceVersion = obj.Spec.SourceRef.GetVersion()
+	obj.Status.LastAppliedResourceVersion = version
 	obj.Status.LastAppliedComponentVersion = componentVersion.Status.ReconciledVersion
 
 	metrics.SnapshotNumberOfBytesReconciled.WithLabelValues(obj.GetSnapshotName(), digest, componentVersion.Name).Set(float64(size))
