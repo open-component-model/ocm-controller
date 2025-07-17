@@ -69,3 +69,7 @@ spec:
       volumes:
       {{- toYaml .Values.manager.volumes | nindent 8 }}
       {{- end}}
+      {{- if .Values.manager.nodeSelector }}
+      nodeSelector:
+      {{- toYaml .Values.manager.nodeSelector | nindent 8 }}
+      {{- end}}
