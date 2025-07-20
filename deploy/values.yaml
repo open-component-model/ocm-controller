@@ -28,6 +28,7 @@ registry:
               path: "key.pem"
             - key: "ca.crt"
               path: "ca.pem"
+  nodeSelector: {}
 
 manager:
   replicaCount: 1
