@@ -63,5 +63,8 @@ manager:
   clusterRole:
     labels:
 
+# Generate TLS Certificate for registry and manager 
+generateTlsCert: false
+
 monitoring:
   enabled: false
