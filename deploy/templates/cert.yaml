@@ -1,11 +1,11 @@
-{{- if .Values.generateTlsCert }}
+{{- if .Values.tlsCert.generateTlsCert }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: ocm-registry-tls-certs
+  name: {{ .Values.tlsCert.defaultSecretName }}
   namespace: {{ .Release.Namespace }}
 spec:
-  secretName: ocm-registry-tls-certs
+  secretName: {{ .Values.tlsCert.defaultSecretName }}
   dnsNames:
     - registry.{{ .Release.Namespace }}.svc.cluster.local
     - localhost
@@ -17,15 +17,15 @@ spec:
     encoding: PKCS8
     size: 2048
   issuerRef:
-    name: ocm-certificate-issuer
+    name: {{ .Values.tlsCert.defaultIssuerName }}
     kind: ClusterIssuer
     group: cert-manager.io
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: ocm-certificate-issuer
+  name: {{ .Values.tlsCert.defaultIssuerName }}
 spec:
   ca:
-    secretName: ocm-registry-tls-certs
+    secretName: {{ .Values.tlsCert.defaultSecretName }}
 {{- end}}
