@@ -3,11 +3,11 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: ocm-registry-tls-certs
-  namespace: sap-ocm-controller
+  namespace: {{ .Release.Namespace }}
 spec:
   secretName: ocm-registry-tls-certs
   dnsNames:
-    - registry.sap-ocm-controller.svc.cluster.local
+    - registry.{{ .Release.Namespace }}.svc.cluster.local
     - localhost
   ipAddresses:
     - 127.0.0.1
