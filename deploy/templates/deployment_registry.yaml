@@ -49,6 +49,8 @@ spec:
             periodSeconds: 20
             successThreshold: 1
             failureThreshold: 3
+          resources:
+          {{- toYaml .Values.registry.resources | nindent 10 }}
       volumes:
         - name: registry
           emptyDir: {}

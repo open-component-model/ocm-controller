@@ -35,6 +35,12 @@ registry:
               path: "key.pem"
             - key: "ca.crt"
               path: "ca.pem"
+  resources:
+    limits:
+      memory: 1024Mi
+    requests:
+      cpu: 200m
+      memory: 512Mi
   nodeSelector: {}
 
 manager:
@@ -59,10 +65,10 @@ manager:
             path: "registry-root.pem"
   resources:
     limits:
-      memory: 2048Mi
-    requests:
-      cpu: 300m
       memory: 1024Mi
+    requests:
+      cpu: 200m
+      memory: 512Mi
   # optional values defined by the user
   nodeSelector: {}
   tolerations: []
