@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
+	"gopkg.in/yaml.v3"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
-	"sigs.k8s.io/yaml"
 )
 
 func setupLog(msg string) env.Func {
