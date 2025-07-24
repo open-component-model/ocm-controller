@@ -1,0 +1,31 @@
+{{- if .Values.tlsCert.generateTlsCert }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.tlsCert.defaultSecretName }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: {{ .Values.tlsCert.defaultSecretName }}
+  dnsNames:
+    - registry.{{ .Release.Namespace }}.svc.cluster.local
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+    - ::1
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS8
+    size: 2048
+  issuerRef:
+    name: {{ .Values.tlsCert.defaultIssuerName }}
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.tlsCert.defaultIssuerName }}
+spec:
+  ca:
+    secretName: {{ .Values.tlsCert.defaultSecretName }}
+{{- end}}
