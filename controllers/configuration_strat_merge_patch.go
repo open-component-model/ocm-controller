@@ -9,8 +9,8 @@ import (
 	securejoin "github.com/cyphar/filepath-securejoin"
 	generator "github.com/fluxcd/pkg/kustomize"
 	"github.com/fluxcd/pkg/tar"
-	"gopkg.in/yaml.v2"
 	kustypes "sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/yaml"
 )
 
 const (
