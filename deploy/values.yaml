@@ -1,3 +1,10 @@
+# Generate TLS Certificate for registry and manager 
+tlsCert:
+  # If cert-manager is installed, set generateTlsCert to true to generate a cert
+  generateTlsCert: false
+  defaultSecretName: &tlsSecretName "ocm-registry-tls-certs"
+  defaultIssuerName: "ocm-certificate-issuer"
+
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 registry:
@@ -16,11 +23,11 @@ registry:
         value: "/certs/key.pem"
     volumeMounts:
       - mountPath: "/certs"
-        name: "ocm-registry-tls-certs"
+        name: *tlsSecretName
     volumes:
-      - name: "ocm-registry-tls-certs"
+      - name: *tlsSecretName
         secret:
-          secretName: "ocm-registry-tls-certs"
+          secretName: *tlsSecretName
           items:
             - key: "tls.crt"
               path: "cert.pem"
@@ -28,6 +35,12 @@ registry:
               path: "key.pem"
             - key: "ca.crt"
               path: "ca.pem"
+  resources:
+    limits:
+      memory: 1024Mi
+    requests:
+      cpu: 200m
+      memory: 512Mi
   nodeSelector: {}
 
 manager:
@@ -46,16 +59,16 @@ manager:
   volumes:
     - name: "certificates"
       secret:
-        secretName: "ocm-registry-tls-certs" # must match with ocm-controller's certificate-secret-name argument
+        secretName: *tlsSecretName # must match with ocm-controller's certificate-secret-name argument
         items:
           - key: "ca.crt"
             path: "registry-root.pem"
   resources:
     limits:
-      memory: 2048Mi
-    requests:
-      cpu: 300m
       memory: 1024Mi
+    requests:
+      cpu: 200m
+      memory: 512Mi
   # optional values defined by the user
   nodeSelector: {}
   tolerations: []
