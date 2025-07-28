@@ -58,11 +58,7 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         resources:
-          limits:
-            memory: 1024Mi
-          requests:
-            cpu: 200m
-            memory: 512Mi
+        {{- toYaml .Values.manager.resources | nindent 10 }}
       serviceAccountName: ocm-controller
       terminationGracePeriodSeconds: 10
       {{- if .Values.registry.tls.enabled }}
