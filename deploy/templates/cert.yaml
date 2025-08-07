@@ -1,11 +1,18 @@
 {{- if .Values.tlsCert.generateTlsCert }}
+
+---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ .Values.tlsCert.defaultSecretName }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ .Values.tlsCert.bootstrap.certificateName }}
+  namespace: cert-manager
 spec:
-  secretName: {{ .Values.tlsCert.defaultSecretName }}
+  commonName: {{ .Values.tlsCert.bootstrap.commonName }}
+  isCA: true
+  secretName: {{ .Values.tlsCert.bootstrap.secretName }}
+  subject:
+    organizations:
+      - ocm.software
   dnsNames:
     - registry.{{ .Release.Namespace }}.svc.cluster.local
     - localhost
@@ -17,15 +24,51 @@ spec:
     encoding: PKCS8
     size: 2048
   issuerRef:
-    name: {{ .Values.tlsCert.defaultIssuerName }}
+    name: {{ .Values.tlsCert.bootstrap.issuerName }}
     kind: ClusterIssuer
     group: cert-manager.io
+
 ---
+
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: {{ .Values.tlsCert.defaultIssuerName }}
+  name: {{ .Values.tlsCert.bootstrap.issuerName }}
+spec:
+  selfSigned: {}
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.tlsCert.certificateName }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: {{ .Values.tlsCert.secretName }}
+  dnsNames:
+    - registry.{{ .Release.Namespace }}.svc.cluster.local
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+    - ::1
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS8
+    size: 2048
+  issuerRef:
+    name: {{ .Values.tlsCert.issuerName }}
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.tlsCert.issuerName }}
 spec:
   ca:
-    secretName: {{ .Values.tlsCert.defaultSecretName }}
+    secretName: {{ .Values.tlsCert.secretName }}
+
 {{- end}}

@@ -2,8 +2,16 @@
 tlsCert:
   # If cert-manager is installed, set generateTlsCert to true to generate a cert
   generateTlsCert: false
-  defaultSecretName: &tlsSecretName "ocm-registry-tls-certs"
-  defaultIssuerName: "ocm-certificate-issuer"
+
+  bootstrap:
+    certificateName: "ocm-bootstrap-certificate"
+    issuerName: "ocm-bootstrap-issuer"
+    secretName: &tlsSecretName "ocm-registry-tls-certs"
+    commonName: "cert-manager-ocm-tls"
+
+  certificateName: *tlsSecretName
+  secretName: *tlsSecretName
+  issuerName: "ocm-certificate-issuer"
 
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
