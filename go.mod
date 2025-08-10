@@ -14,7 +14,7 @@ replace (
 require (
 	cuelang.org/go v0.14.0
 	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/containers/image/v5 v5.36.0
+	github.com/containers/image/v5 v5.36.1
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/distribution/distribution/v3 v3.0.0
 	github.com/fluxcd/helm-controller/api v1.3.0
@@ -23,7 +23,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.18.0
 	github.com/fluxcd/pkg/http/fetch v0.17.0
 	github.com/fluxcd/pkg/kustomize v1.19.0
-	github.com/fluxcd/pkg/runtime v0.78.0
+	github.com/fluxcd/pkg/runtime v0.79.0
 	github.com/fluxcd/pkg/tar v0.13.0
 	github.com/fluxcd/source-controller/api v1.6.2
 	github.com/go-logr/logr v1.4.3
@@ -31,7 +31,7 @@ require (
 	github.com/mandelsoft/logging v0.0.0-20240618075559-fdca28a87b0a
 	github.com/mandelsoft/spiff v1.7.0-beta-7
 	github.com/mandelsoft/vfs v0.4.4
-	github.com/mikefarah/yq/v4 v4.45.4
+	github.com/mikefarah/yq/v4 v4.47.1
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.38.0
@@ -144,7 +144,7 @@ require (
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/containers/ocicrypt v1.2.1 // indirect
-	github.com/containers/storage v1.59.0 // indirect
+	github.com/containers/storage v1.59.1 // indirect
 	github.com/coreos/go-oidc/v3 v3.14.1 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -194,6 +194,7 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/go-git/go-git/v5 v5.16.2 // indirect
+	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
