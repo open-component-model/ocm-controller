@@ -23,7 +23,7 @@ registry:
     imagePullSecrets:
     # A fully qualified image should be with format [registry_hostname[:port]/][namespace/]repository_name[:tag|@digest]
     # If set, it will override the repository and tag above
-    fullyQualifiedImageName: ""
+    fullyQualifiedImageName: "" 
   address: registry.ocm-system.svc.cluster.local:5000
   tls:
     enabled: true
