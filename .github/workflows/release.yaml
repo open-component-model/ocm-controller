@@ -33,7 +33,7 @@ jobs:
     - name: Self Hosted Runner Post Job Cleanup Action
       uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
     - name: Checkout
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       with:
         fetch-depth: 0
     - name: Setup Go
@@ -103,7 +103,7 @@ jobs:
     - name: Setup Cosign
       uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159
     - name: Run goreleaser
-      uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552
+      uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a
       with:
         distribution: goreleaser
         version: latest

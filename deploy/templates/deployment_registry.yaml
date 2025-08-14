@@ -38,16 +38,20 @@ spec:
           {{- toYaml .Values.registry.tls.volumeMounts | nindent 12 }}
           {{- end}}
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /v2/
               port: 5000
+              scheme: HTTPS
             initialDelaySeconds: 2
             timeoutSeconds: 1
             periodSeconds: 5
             successThreshold: 1
             failureThreshold: 3
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /v2/
               port: 5000
+              scheme: HTTPS
             initialDelaySeconds: 15
             timeoutSeconds: 1
             periodSeconds: 20
