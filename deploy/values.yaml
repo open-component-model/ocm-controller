@@ -21,6 +21,9 @@ registry:
     pullPolicy: IfNotPresent
     tag: 3
     imagePullSecrets:
+    # A fully qualified image should be with format [registry_hostname[:port]/][namespace/]repository_name[:tag|@digest]
+    # If set, it will override the repository and tag above
+    fullyQualifiedImageName: "" 
   address: registry.ocm-system.svc.cluster.local:5000
   tls:
     enabled: true
@@ -59,6 +62,9 @@ manager:
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
     imagePullSecrets:
+    # A fully qualified image should be with format [registry_hostname[:port]/][namespace/]repository_name[:tag|@digest]
+    # If set, it will override the repository and tag above
+    fullyQualifiedImageName: ""
   volumeMounts:
     - mountPath: "/etc/ssl/certs/registry-root.pem"
       subPath: "registry-root.pem"

@@ -19,7 +19,11 @@ spec:
       enableServiceLinks: true
       containers:
         - name: registry
+          {{- if .Values.registry.image.fullyQualifiedImageName }}
+          image: "{{ .Values.registry.image.fullyQualifiedImageName }}"
+          {{- else }}
           image: "{{ .Values.registry.image.repository }}:{{ .Values.registry.image.tag }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.registry.image.pullPolicy }}
           ports:
             - containerPort: 5000
