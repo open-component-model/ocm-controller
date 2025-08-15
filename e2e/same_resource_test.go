@@ -81,7 +81,19 @@ func TestSameResource(t *testing.T) {
 		})).Assess("check that component version component_version.yaml is ready and valid", checkIsComponentVersionReady("same-resource-component", ocmNamespace))
 
 	resourceAssertFeatures := features.New("Validate Resources").Setup(checkIsResourceReady("resource-1")).Setup(checkIsResourceReady("resource-2"))
-	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState("ocm-controller", "source-controller", "kustomize-controller", "helm-controller"))
+	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState(teardown.Controller{
+		LabelSelector: map[string]string{"app": "ocm-controller"},
+		Namespace:     ocmNamespace,
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "source-controller"},
+		Namespace:     "flux-system",
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "helm-controller"},
+		Namespace:     "flux-system",
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "kustomize-controller"},
+		Namespace:     "flux-system",
+	}))
 
 	testEnv.Test(t,
 		setupComponentFeature.Feature(),

@@ -64,7 +64,19 @@ func TestHelmChartResource(t *testing.T) {
 
 	validationDeploymentBackend := checkDeploymentReadiness("fluxdeployer-podinfo-pipeline-backend", "ghcr.io/stefanprodan/podinfo")
 
-	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState("ocm-controller", "source-controller", "kustomize-controller", "helm-controller"))
+	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState(teardown.Controller{
+		LabelSelector: map[string]string{"app": "ocm-controller"},
+		Namespace:     ocmNamespace,
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "source-controller"},
+		Namespace:     "flux-system",
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "helm-controller"},
+		Namespace:     "flux-system",
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "kustomize-controller"},
+		Namespace:     "flux-system",
+	}))
 	dumpRepo := features.New("dump repository content").Teardown(teardown.DumpRepositoryContent(shared.Owner, testRepoHelmName))
 
 	testEnv.Test(t,

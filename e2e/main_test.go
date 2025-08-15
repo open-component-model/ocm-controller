@@ -93,7 +93,19 @@ func TestOCMController(t *testing.T) {
 	validationConfigMapBackend := checkConfigMapReadiness("backend-config", "This is a test message Pipeline Backend")
 	validationConfigMapFrontend := checkConfigMapReadiness("frontend-config", "This is a test message Pipeline Frontend")
 
-	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState("ocm-controller", "source-controller", "kustomize-controller", "helm-controller"))
+	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState(teardown.Controller{
+		LabelSelector: map[string]string{"app": "ocm-controller"},
+		Namespace:     ocmNamespace,
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "source-controller"},
+		Namespace:     "flux-system",
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "helm-controller"},
+		Namespace:     "flux-system",
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "kustomize-controller"},
+		Namespace:     "flux-system",
+	}))
 
 	testEnv.Test(t,
 		setupComponent.Feature(),
