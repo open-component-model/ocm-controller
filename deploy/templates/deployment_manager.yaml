@@ -33,7 +33,11 @@ spec:
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify
         {{- end }}
+        {{- if .Values.manager.image.fullyQualifiedImageName }}
+        image: "{{ .Values.manager.image.fullyQualifiedImageName }}"
+        {{- else }}
         image: "{{ .Values.manager.image.repository }}:{{ .Values.manager.image.tag | default .Chart.AppVersion }}"
+        {{- end }}
         name: manager
         imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
         {{- if .Values.registry.tls.enabled }}
