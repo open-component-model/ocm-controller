@@ -20,8 +20,10 @@ import (
 	fconditions "github.com/fluxcd/pkg/runtime/conditions"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-e2e-framework/shared"
 	"github.com/open-component-model/ocm-e2e-framework/shared/steps/setup"
+	"github.com/open-component-model/ocm-e2e-framework/shared/steps/teardown"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,8 +32,6 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
-
-	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 )
 
 var (
@@ -93,6 +93,20 @@ func TestOCMController(t *testing.T) {
 	validationConfigMapBackend := checkConfigMapReadiness("backend-config", "This is a test message Pipeline Backend")
 	validationConfigMapFrontend := checkConfigMapReadiness("frontend-config", "This is a test message Pipeline Frontend")
 
+	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState(teardown.Controller{
+		LabelSelector: map[string]string{"app": "ocm-controller"},
+		Namespace:     ocmNamespace,
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "source-controller"},
+		Namespace:     "flux-system",
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "helm-controller"},
+		Namespace:     "flux-system",
+	}, teardown.Controller{
+		LabelSelector: map[string]string{"app": "kustomize-controller"},
+		Namespace:     "flux-system",
+	}))
+
 	testEnv.Test(t,
 		setupComponent.Feature(),
 		management.Feature(),
@@ -107,6 +121,7 @@ func TestOCMController(t *testing.T) {
 		validationDeploymentRedis.Feature(),
 		validationConfigMapBackend.Feature(),
 		validationConfigMapFrontend.Feature(),
+		dumpState.Feature(),
 	)
 }
 
