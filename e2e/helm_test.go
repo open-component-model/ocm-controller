@@ -62,7 +62,7 @@ func TestHelmChartResource(t *testing.T) {
 		Setup(setup.AddFilesToGitRepository(getHelmManifests(testHelmChartBasedResource, testRepoHelmName)...)).
 		Assess("check that component version is ready and valid", checkIsComponentVersionReady("ocm-with-helm", ocmNamespace))
 
-	validationDeploymentBackend := checkDeploymentReadiness("fluxdeployer-podinfo-pipeline-backend", "ghcr.io/stefanprodan/podinfo")
+	validationDeploymentBackend := checkDeploymentReadiness("fluxdeployer-helm-podinfo-pipeline-backend", "ghcr.io/stefanprodan/podinfo")
 
 	dumpState := features.New("dump cluster state").Teardown(teardown.DumpClusterState(teardown.Controller{
 		LabelSelector: map[string]string{"app": "ocm-controller"},
