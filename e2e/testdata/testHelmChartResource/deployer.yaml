@@ -1,7 +1,7 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: FluxDeployer
 metadata:
-  name: fluxdeployer-podinfo-pipeline-backend
+  name: fluxdeployer-helm-podinfo-pipeline-backend
   namespace: ocm-system
 spec:
   interval: 5s
