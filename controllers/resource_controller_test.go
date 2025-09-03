@@ -271,11 +271,11 @@ func TestResourceReconcilerVersionDefaulting(t *testing.T) {
 	t.Log("setting up component version with different reconciled version")
 	cv := DefaultComponent.DeepCopy()
 	cv.Status.ReconciledVersion = "v0.9.9"
-	
+
 	t.Log("setting up component descriptor with different version")
 	cd := DefaultComponentDescriptor.DeepCopy()
 	cd.Spec.Version = "v1.2.3"
-	
+
 	cv.Status.ComponentDescriptor = v1alpha1.Reference{
 		Name:    resource.Spec.SourceRef.Name,
 		Version: resource.Spec.SourceRef.GetVersion(),
