@@ -41,7 +41,7 @@ jobs:
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
     - name: Cache go-build and mod
-      uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
         path: |
           ~/.cache/go-build/
@@ -87,7 +87,7 @@ jobs:
         git tag --annotate --message "${msg}" ${{ env.RELEASE_VERSION }}
         git push origin ${{ env.RELEASE_VERSION }}
     - name: Log in to the Container registry
-      uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1
+      uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
