@@ -117,6 +117,11 @@ func main() {
 	glog.SetLevel(glog.WARNING, "yq-lib")
 
 	restConfig := ctrl.GetConfigOrDie()
+	// Stop enabling client-side ratelimiter by default (https://github.com/kubernetes-sigs/controller-runtime/pull/3119)
+	// Previous behavior can be preserved by setting QPS 20 and Burst 30 on the rest.Config
+	restConfig.Burst = 30
+	restConfig.QPS = 20
+
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
