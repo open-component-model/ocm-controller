@@ -4,7 +4,7 @@ TAG ?= v0.11.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 GITHUBORG                                      ?= open-component-model
 OCMREPO                                        ?= ghcr.io/$(GITHUBORG)/ocm-controller
-ENVTEST_K8S_VERSION = 1.24.1
+ENVTEST_K8S_VERSION = 1.33.0
 OCM_CLI_VERSION ?= 0.15.0
 REPO_ROOT                                      := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PLATFORM_OS                                    := $(shell go env GOOS)
@@ -147,7 +147,7 @@ GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.17.3
+CONTROLLER_TOOLS_VERSION ?= v0.19.0
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
 MKCERT_VERSION ?= v1.4.4
 GOLANGCI_LINT_VERSION ?= v2.5.0
