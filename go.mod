@@ -1,6 +1,6 @@
 module github.com/open-component-model/ocm-controller
 
-go 1.24.4
+go 1.25.3
 
 // flux dependent rewrite
 replace github.com/opencontainers/go-digest => github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be

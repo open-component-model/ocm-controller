@@ -150,7 +150,7 @@ KUSTOMIZE_VERSION ?= v3.8.7
 CONTROLLER_TOOLS_VERSION ?= v0.17.3
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
 MKCERT_VERSION ?= v1.4.4
-GOLANGCI_LINT_VERSION ?= v2.1.1
+GOLANGCI_LINT_VERSION ?= v2.5.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize

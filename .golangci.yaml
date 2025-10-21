@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.22"
+  go: "1.25"
   tests: false
   allow-parallel-runners: true
 linters:
@@ -8,6 +8,7 @@ linters:
   disable:
     - copyloopvar
     - depguard
+    - embeddedstructfieldcheck
     - err113
     - exhaustruct
     - forbidigo
@@ -18,6 +19,7 @@ linters:
     - ireturn
     - nilnil
     - nonamedreturns
+    - noinlineerr
     - paralleltest
     - perfsprint
     - prealloc
@@ -26,6 +28,7 @@ linters:
     - varnamelen
     - wrapcheck
     - wsl
+    - wsl_v5
     - funcorder
     - recvcheck
   settings:

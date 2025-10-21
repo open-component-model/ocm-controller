@@ -1,4 +1,4 @@
-FROM golang:1.20.1
+FROM golang:1.25.3
 WORKDIR /
 COPY ./bin/manager /manager
 
