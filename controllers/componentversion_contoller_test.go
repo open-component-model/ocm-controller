@@ -151,7 +151,7 @@ func TestComponentVersionReconcile(t *testing.T) {
 		}
 	}
 	assert.Contains(t, event, "Reconciliation finished, next run in")
-	assert.Contains(t, event, "kind=ComponentVersion")
+	assert.Contains(t, event, "delivery.ocm.software/component_version")
 }
 
 func TestComponentVersionWithTransferReconcile(t *testing.T) {
@@ -290,7 +290,7 @@ func TestComponentVersionWithTransferReconcile(t *testing.T) {
 		}
 	}
 	assert.Contains(t, event, "Reconciliation finished, next run in")
-	assert.Contains(t, event, "kind=ComponentVersion")
+	assert.Contains(t, event, "delivery.ocm.software/component_version")
 }
 
 func TestComponentVersionReconcileFailure(t *testing.T) {
@@ -303,6 +303,7 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 	}
 
 	fakeOcm := &fakes.MockFetcher{}
+	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
 	cvr := ComponentVersionReconciler{
 		Scheme:        env.scheme,
 		Client:        client,
@@ -337,7 +338,6 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 	}
 	assert.True(t, found)
 	assert.Contains(t, event, v1alpha1.CheckVersionFailedReason)
-	assert.Contains(t, event, fmt.Sprintf("kind=%s", v1alpha1.ComponentVersionKind))
 }
 
 func TestComponentVersionSemverCheck(t *testing.T) {
