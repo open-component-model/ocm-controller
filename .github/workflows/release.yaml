@@ -99,9 +99,9 @@ jobs:
         mkdir -p output
         helm template ./deploy --namespace ocm-system --set "manager.image.tag=${{ env.RELEASE_VERSION }}" --include-crds > ./output/install.yaml
     - name: Setup Syft
-      uses: anchore/sbom-action/download-syft@aa0e114b2e19480f157109b9922bda359bd98b90 # v0.20.8
+      uses: anchore/sbom-action/download-syft@8e94d75ddd33f69f691467e42275782e4bfefe84 # v0.20.9
     - name: Setup Cosign
-      uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62
+      uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
     - name: Run goreleaser
       uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a
       with:
