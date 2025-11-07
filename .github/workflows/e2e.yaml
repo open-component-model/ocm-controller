@@ -43,7 +43,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Setup Kubernetes
-        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3
+        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
         with:
           install_only: true
       - uses: yokawasa/action-setup-kube-tools@3e3886c11bfa25fe33f8eb90f59542dd151da442
