@@ -99,10 +99,9 @@ func (c *Client) WithTransport(ctx context.Context) Option {
 			return nil
 		}
 
-		if c.certPem == nil && c.keyPem == nil {
-			if err := c.setupCertificates(ctx); err != nil {
-				return fmt.Errorf("failed to set up certificates for transport: %w", err)
-			}
+		// always refresh certificates to handle cert-manager rotation
+		if err := c.setupCertificates(ctx); err != nil {
+			return fmt.Errorf("failed to set up certificates for transport: %w", err)
 		}
 
 		o.remoteOpts = append(o.remoteOpts, remote.WithTransport(c.constructTLSRoundTripper()))
