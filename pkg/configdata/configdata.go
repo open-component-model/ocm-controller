@@ -86,13 +86,14 @@ type ConfigRule struct {
 }
 
 type LocalizationRule struct {
-	Resource   ResourceItem `json:"resource"`
-	File       string       `json:"file"`
-	Registry   string       `json:"registry,omitempty"`
-	Mapping    *Mapping     `json:"mapping,omitempty"`
-	Repository string       `json:"repository,omitempty"`
-	Image      string       `json:"image,omitempty"`
-	Tag        string       `json:"tag,omitempty"`
+	Resource                 ResourceItem `json:"resource"`
+	File                     string       `json:"file"`
+	Registry                 string       `json:"registry,omitempty"`
+	Mapping                  *Mapping     `json:"mapping,omitempty"`
+	Repository               string       `json:"repository,omitempty"`
+	FullyQualifiedRepository string       `json:"fullyQualifiedRepository,omitempty"`
+	Image                    string       `json:"image,omitempty"`
+	Tag                      string       `json:"tag,omitempty"`
 }
 
 type Mapping struct {

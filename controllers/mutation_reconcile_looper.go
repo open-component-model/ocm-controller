@@ -467,6 +467,14 @@ func (m *MutationReconcileLooper) performLocalization(
 		}
 	}
 
+	if l.FullyQualifiedRepository != "" {
+		ctxt := pRef.Context()
+		if err := localizations.Add("fullyQualifiedRepository", l.File, l.FullyQualifiedRepository
+		, ctxt.Registry.Name() + "/" + ctxt.RepositoryStr()); err != nil {
+			return fmt.Errorf("failed to add repository: %w", err)
+		}
+	}
+
 	if l.Image != "" {
 		if err := localizations.Add("image", l.File, l.Image, pRef.Name()); err != nil {
 			return fmt.Errorf("failed to add image ref name: %w", err)
