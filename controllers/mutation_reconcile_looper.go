@@ -412,16 +412,62 @@ func (m *MutationReconcileLooper) performLocalization(
 	refPath []ocmmetav1.Identity,
 	compvers ocmcore.ComponentVersionAccess,
 ) error {
+	pRef, err := resolveReference(l, refPath, compvers, octx)
+	if err != nil {
+		return err
+	}
+
+	if l.Registry != "" {
+		if err := localizations.Add("registry", l.File, l.Registry, pRef.Context().Registry.Name()); err != nil {
+			return fmt.Errorf("failed to add registry: %w", err)
+		}
+	}
+
+	if l.Repository != "" {
+		if err := localizations.Add("repository", l.File, l.Repository, pRef.Context().RepositoryStr()); err != nil {
+			return fmt.Errorf("failed to add repository: %w", err)
+		}
+	}
+
+	if l.FullyQualifiedRepository != "" {
+		ctxt := pRef.Context()
+		if err := localizations.Add("fullyQualifiedRepository", l.File, l.FullyQualifiedRepository,
+			ctxt.Registry.Name()+"/"+ctxt.RepositoryStr()); err != nil {
+			return fmt.Errorf("failed to add repository: %w", err)
+		}
+	}
+
+	if l.Image != "" {
+		if err := localizations.Add("image", l.File, l.Image, pRef.Name()); err != nil {
+			return fmt.Errorf("failed to add image ref name: %w", err)
+		}
+	}
+
+	if l.Tag != "" {
+		if err := localizations.Add("tag", l.File, l.Tag, pRef.Identifier()); err != nil {
+			return fmt.Errorf("failed to add identifier: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func resolveReference(
+	l configdata.LocalizationRule,
+	refPath []ocmmetav1.Identity,
+	compvers ocmcore.ComponentVersionAccess,
+	octx ocmcore.Context,
+) (name.Reference, error) {
 	resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), refPath)
 
 	resource, _, err := resourcerefs.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
 	if err != nil {
-		return fmt.Errorf("failed to fetch resource from component version: %w", err)
+		return nil, fmt.Errorf("failed to fetch resource from component version: %w", err)
 	}
 
 	accSpec, err := resource.Access()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var (
@@ -447,39 +493,15 @@ func (m *MutationReconcileLooper) performLocalization(
 	}
 
 	if refErr != nil {
-		return fmt.Errorf("failed to parse access reference: %w", refErr)
+		return nil, fmt.Errorf("failed to parse access reference: %w", refErr)
 	}
 
 	pRef, err := name.ParseReference(ref)
 	if err != nil {
-		return fmt.Errorf("failed to parse access reference: %w", err)
+		return nil, fmt.Errorf("failed to parse access reference: %w", err)
 	}
 
-	if l.Registry != "" {
-		if err := localizations.Add("registry", l.File, l.Registry, pRef.Context().Registry.Name()); err != nil {
-			return fmt.Errorf("failed to add registry: %w", err)
-		}
-	}
-
-	if l.Repository != "" {
-		if err := localizations.Add("repository", l.File, l.Repository, pRef.Context().RepositoryStr()); err != nil {
-			return fmt.Errorf("failed to add repository: %w", err)
-		}
-	}
-
-	if l.Image != "" {
-		if err := localizations.Add("image", l.File, l.Image, pRef.Name()); err != nil {
-			return fmt.Errorf("failed to add image ref name: %w", err)
-		}
-	}
-
-	if l.Tag != "" {
-		if err := localizations.Add("tag", l.File, l.Tag, pRef.Identifier()); err != nil {
-			return fmt.Errorf("failed to add identifier: %w", err)
-		}
-	}
-
-	return nil
+	return pRef, nil
 }
 
 func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
