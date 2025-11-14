@@ -469,8 +469,8 @@ func (m *MutationReconcileLooper) performLocalization(
 
 	if l.FullyQualifiedRepository != "" {
 		ctxt := pRef.Context()
-		if err := localizations.Add("fullyQualifiedRepository", l.File, l.FullyQualifiedRepository
-		, ctxt.Registry.Name() + "/" + ctxt.RepositoryStr()); err != nil {
+		if err := localizations.Add("fullyQualifiedRepository", l.File, l.FullyQualifiedRepository,
+			ctxt.Registry.Name()+"/"+ctxt.RepositoryStr()); err != nil {
 			return fmt.Errorf("failed to add repository: %w", err)
 		}
 	}
