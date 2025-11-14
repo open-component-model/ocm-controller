@@ -410,7 +410,8 @@ func (m *MutationReconcileLooper) performLocalization(
 	l configdata.LocalizationRule,
 	localizations *localize.Substitutions,
 	refPath []ocmmetav1.Identity,
-	compvers ocmcore.ComponentVersionAccess) error {
+	compvers ocmcore.ComponentVersionAccess,
+) error {
 
 	pRef, err := resolveReference(l, refPath, compvers, octx)
 	if err != nil {
