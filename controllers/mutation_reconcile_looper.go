@@ -412,47 +412,10 @@ func (m *MutationReconcileLooper) performLocalization(
 	refPath []ocmmetav1.Identity,
 	compvers ocmcore.ComponentVersionAccess,
 ) error {
-	resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), refPath)
 
-	resource, _, err := resourcerefs.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
-	if err != nil {
-		return fmt.Errorf("failed to fetch resource from component version: %w", err)
-	}
-
-	accSpec, err := resource.Access()
+	pRef, err := resolveReference(l, refPath, compvers, octx)
 	if err != nil {
 		return err
-	}
-
-	var (
-		ref    string
-		refErr error
-	)
-
-	for ref == "" && refErr == nil {
-		switch x := accSpec.(type) {
-		case *ociartifact.AccessSpec:
-			ref = x.ImageReference
-		case *ociblob.AccessSpec:
-			ref = fmt.Sprintf("%s@%s", x.Reference, x.Digest)
-		case *localblob.AccessSpec:
-			if x.GlobalAccess == nil {
-				refErr = errors.New("cannot determine image digest")
-			} else {
-				accSpec, refErr = octx.AccessSpecForSpec(x.GlobalAccess)
-			}
-		default:
-			refErr = errors.New("cannot determine access spec type")
-		}
-	}
-
-	if refErr != nil {
-		return fmt.Errorf("failed to parse access reference: %w", refErr)
-	}
-
-	pRef, err := name.ParseReference(ref)
-	if err != nil {
-		return fmt.Errorf("failed to parse access reference: %w", err)
 	}
 
 	if l.Registry != "" {
@@ -488,6 +451,57 @@ func (m *MutationReconcileLooper) performLocalization(
 	}
 
 	return nil
+}
+
+func resolveReference(
+	l configdata.LocalizationRule,
+	refPath []ocmmetav1.Identity,
+	compvers ocmcore.ComponentVersionAccess,
+	octx ocmcore.Context,
+) (name.Reference, error) {
+	resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), refPath)
+
+	resource, _, err := resourcerefs.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch resource from component version: %w", err)
+	}
+
+	accSpec, err := resource.Access()
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		ref    string
+		refErr error
+	)
+
+	for ref == "" && refErr == nil {
+		switch x := accSpec.(type) {
+		case *ociartifact.AccessSpec:
+			ref = x.ImageReference
+		case *ociblob.AccessSpec:
+			ref = fmt.Sprintf("%s@%s", x.Reference, x.Digest)
+		case *localblob.AccessSpec:
+			if x.GlobalAccess == nil {
+				refErr = errors.New("cannot determine image digest")
+			} else {
+				accSpec, refErr = octx.AccessSpecForSpec(x.GlobalAccess)
+			}
+		default:
+			refErr = errors.New("cannot determine access spec type")
+		}
+	}
+
+	if refErr != nil {
+		return nil, fmt.Errorf("failed to parse access reference: %w", refErr)
+	}
+
+	pRef, err := name.ParseReference(ref)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse access reference: %w", err)
+	}
+	return pRef, nil
 }
 
 func (m *MutationReconcileLooper) createSubstitutionRulesForConfigurationValues(
