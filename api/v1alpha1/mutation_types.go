@@ -59,6 +59,11 @@ type ConfigMapSource struct {
 	Key string `json:"key"`
 	// +optional
 	SubPath string `json:"subPath,omitempty"`
+	// Optional marks this ConfigMapSource as optional. When set, a not found
+	// error for the configmap reference is ignored, but any Key, Subpath or
+	// transient error will still result in a reconciliation failure.
+	// +optional
+	Optional bool `json:"optional,omitempty"`
 }
 
 type FluxValuesSource struct {

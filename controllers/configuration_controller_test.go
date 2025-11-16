@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sapierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -852,13 +853,18 @@ configuration:
 }
 
 func TestConfigurationValuesFrom(t *testing.T) {
+	commonExpectedData := map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"}
+
 	testCases := []struct {
-		name          string
-		configuration func(source client.Object) *v1alpha1.Configuration
-		setup         func() client.Object
+		name           string
+		expectedError  error
+		expectedConfig map[string]string
+		configuration  func(source client.Object) *v1alpha1.Configuration
+		setup          func() client.Object
 	}{
 		{
-			name: "configuration values from GitRepository",
+			name:           "configuration values from GitRepository",
+			expectedConfig: commonExpectedData,
 			configuration: func(source client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
 				configuration.Status.SnapshotName = "configuration-snapshot"
@@ -889,7 +895,8 @@ func TestConfigurationValuesFrom(t *testing.T) {
 			},
 		},
 		{
-			name: "configuration values from ConfigMap",
+			name:           "configuration values from ConfigMap",
+			expectedConfig: commonExpectedData,
 			configuration: func(source client.Object) *v1alpha1.Configuration {
 				configuration := DefaultConfiguration.DeepCopy()
 				configuration.Status.SnapshotName = "configuration-snapshot"
@@ -920,6 +927,57 @@ func TestConfigurationValuesFrom(t *testing.T) {
 				}
 
 				return configMap
+			},
+		},
+		{
+			name:           "configuration values from optional missing ConfigMap",
+			expectedConfig: map[string]string{"PODINFO_UI_MESSAGE": "Hello, world!", "PODINFO_UI_COLOR": "red"},
+			configuration: func(client.Object) *v1alpha1.Configuration {
+				configuration := DefaultConfiguration.DeepCopy()
+				configuration.Status.SnapshotName = "configuration-snapshot"
+				configuration.Spec.ValuesFrom = &v1alpha1.ValuesSource{
+					ConfigMapSource: &v1alpha1.ConfigMapSource{
+						SourceRef: meta.LocalObjectReference{
+							Name: "test-config-data-does-not-exist",
+						},
+						Key:      "values.yaml",
+						SubPath:  "test.backend",
+						Optional: true,
+					},
+				}
+				configuration.Spec.Values = nil
+
+				return configuration
+			},
+			setup: func() client.Object {
+				return nil
+			},
+		},
+		{
+			name: "configuration values from missing ConfigMap",
+			expectedError: &k8sapierr.StatusError{
+				ErrStatus: metav1.Status{
+					Reason: metav1.StatusReasonNotFound,
+				},
+			},
+			configuration: func(client.Object) *v1alpha1.Configuration {
+				configuration := DefaultConfiguration.DeepCopy()
+				configuration.Status.SnapshotName = "configuration-snapshot"
+				configuration.Spec.ValuesFrom = &v1alpha1.ValuesSource{
+					ConfigMapSource: &v1alpha1.ConfigMapSource{
+						SourceRef: meta.LocalObjectReference{
+							Name: "test-config-data-does-not-exist",
+						},
+						Key:     "values.yaml",
+						SubPath: "test.backend",
+					},
+				}
+				configuration.Spec.Values = nil
+
+				return configuration
+			},
+			setup: func() client.Object {
+				return nil
 			},
 		},
 	}
@@ -960,8 +1018,12 @@ func TestConfigurationValuesFrom(t *testing.T) {
 				},
 			}
 
+			objs := []client.Object{cv, cd, resource}
 			configSource := tc.setup()
-			objs := []client.Object{cv, cd, resource, configSource}
+			if configSource != nil {
+				objs = append(objs, configSource)
+
+			}
 
 			configuration := tc.configuration(configSource)
 			configuration.Spec.SourceRef = source
@@ -1017,35 +1079,39 @@ func TestConfigurationValuesFrom(t *testing.T) {
 			}, snapshotOutput)
 
 			t.Log("check if target snapshot has been created and cache was called")
-			require.NoError(t, err)
-
-			t.Log("extracting the passed in data and checking if the configuration worked")
-			args := cache.PushDataCallingArgumentsOnCall(0)
-			assert.Equal(t, "sha-13092443426051895747", args.Name)
-			assert.Equal(t, "1.0.0", args.Version)
-			sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
-			configMap := corev1.ConfigMap{}
-			assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
-			assert.Equal(t, map[string]string{"PODINFO_UI_MESSAGE": "this is a new message", "PODINFO_UI_COLOR": "bittersweet"}, configMap.Data)
-
-			err = client.Get(context.Background(), types.NamespacedName{
-				Namespace: configuration.Namespace,
-				Name:      configuration.Name,
-			}, configuration)
-			require.NoError(t, err)
-
-			assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
-
 			close(recorder.Events)
 			event := ""
-			for e := range recorder.Events {
-				if strings.Contains(e, "Reconciliation finished, next run in") {
-					event = e
+			if tc.expectedError == nil {
+				require.NoError(t, err)
+				t.Log("extracting the passed in data and checking if the configuration worked")
+				args := cache.PushDataCallingArgumentsOnCall(0)
+				assert.Equal(t, "sha-13092443426051895747", args.Name)
+				assert.Equal(t, "1.0.0", args.Version)
+				sourceFile := extractFileFromTarGz(t, io.NopCloser(bytes.NewBuffer([]byte(args.Content))), "configmap.yaml")
+				configMap := corev1.ConfigMap{}
+				assert.NoError(t, yaml.Unmarshal(sourceFile, &configMap))
+				assert.Equal(t, tc.expectedConfig, configMap.Data)
 
-					break
+				err = client.Get(context.Background(), types.NamespacedName{
+					Namespace: configuration.Namespace,
+					Name:      configuration.Name,
+				}, configuration)
+				require.NoError(t, err)
+
+				assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
+
+				for e := range recorder.Events {
+					if strings.Contains(e, "Reconciliation finished, next run in") {
+						event = e
+
+						break
+					}
 				}
+				assert.Contains(t, event, "Reconciliation finished, next run in")
+			} else {
+				assert.Equal(t, k8sapierr.ReasonForError(tc.expectedError), k8sapierr.ReasonForError(err))
 			}
-			assert.Contains(t, event, "Reconciliation finished, next run in")
+
 		})
 	}
 }
