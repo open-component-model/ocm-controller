@@ -914,7 +914,11 @@ func (m *MutationReconcileLooper) getValues(
 	return nil, errors.New("no values found")
 }
 
-func (m *MutationReconcileLooper) fromConfigMapSource(ctx context.Context, obj *v1alpha1.MutationSpec, namespace, name string) (map[string]any, error) {
+func (m *MutationReconcileLooper) fromConfigMapSource(
+	ctx context.Context,
+	obj *v1alpha1.MutationSpec,
+	namespace, name string,
+) (map[string]any, error) {
 	data := make(map[string]any)
 	cm := &corev1.ConfigMap{}
 	key := types.NamespacedName{
