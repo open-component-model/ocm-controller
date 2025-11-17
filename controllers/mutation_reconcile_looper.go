@@ -140,9 +140,9 @@ func (m *MutationReconcileLooper) configure(
 	ctx context.Context,
 	data, configObj []byte,
 	mutationSpec *v1alpha1.MutationSpec,
-	namespace string,
+	namespace, name string,
 ) (string, error) {
-	configValues, err := m.getValues(ctx, mutationSpec, namespace)
+	configValues, err := m.getValues(ctx, mutationSpec, namespace, name)
 	if err != nil {
 		return "", fmt.Errorf("failed to get values: %w", err)
 	}
@@ -868,7 +868,9 @@ func (m *MutationReconcileLooper) getComponentVersion(ctx context.Context, obj *
 
 // getValues returns values that can be used for the configuration
 // currently it only possible to use inline values OR values from an external source.
-func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.MutationSpec, namespace string) (*apiextensionsv1.JSON, error) {
+func (m *MutationReconcileLooper) getValues(
+	ctx context.Context, obj *v1alpha1.MutationSpec, namespace, name string,
+) (*apiextensionsv1.JSON, error) {
 	if obj.Values != nil {
 		return obj.Values, nil
 	}
@@ -882,7 +884,7 @@ func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.M
 		}
 		data = content
 	case obj.ValuesFrom.ConfigMapSource != nil:
-		content, err := m.fromConfigMapSource(ctx, obj, namespace)
+		content, err := m.fromConfigMapSource(ctx, obj, namespace, name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get values from configmap source: %w", err)
 		}
@@ -912,7 +914,11 @@ func (m *MutationReconcileLooper) getValues(ctx context.Context, obj *v1alpha1.M
 	return nil, errors.New("no values found")
 }
 
-func (m *MutationReconcileLooper) fromConfigMapSource(ctx context.Context, obj *v1alpha1.MutationSpec, namespace string) (map[string]any, error) {
+func (m *MutationReconcileLooper) fromConfigMapSource(
+	ctx context.Context,
+	obj *v1alpha1.MutationSpec,
+	namespace, name string,
+) (map[string]any, error) {
 	data := make(map[string]any)
 	cm := &corev1.ConfigMap{}
 	key := types.NamespacedName{
@@ -920,6 +926,12 @@ func (m *MutationReconcileLooper) fromConfigMapSource(ctx context.Context, obj *
 		Namespace: namespace,
 	}
 	if err := m.Client.Get(ctx, key, cm); err != nil {
+		if obj.ValuesFrom.ConfigMapSource.Optional && apierrors.IsNotFound(err) {
+			log.FromContext(ctx).Info("optional configmap not found for Configuration", "namespace", namespace, "configuration", name, "configmap", key.Name)
+
+			return data, nil
+		}
+
 		return nil, fmt.Errorf("failed to get configmap: %w", err)
 	}
 
@@ -996,11 +1008,11 @@ func (m *MutationReconcileLooper) mutate(
 	ctx context.Context,
 	mutationSpec *v1alpha1.MutationSpec,
 	sourceData, configData []byte,
-	namespace string,
+	namespace, name string,
 ) (string, error) {
 	// if values are not nil then this is configuration
 	if mutationSpec.Values != nil || mutationSpec.ValuesFrom != nil {
-		sourceDir, err := m.configure(ctx, sourceData, configData, mutationSpec, namespace)
+		sourceDir, err := m.configure(ctx, sourceData, configData, mutationSpec, namespace, name)
 		if err != nil {
 			return "", fmt.Errorf("failed to configure resource: %w", err)
 		}
@@ -1042,7 +1054,7 @@ func (m *MutationReconcileLooper) mutateConfigRef(
 
 	obj.GetStatus().LatestConfigVersion = snapshotID[v1alpha1.ComponentVersionKey]
 
-	sourceDir, err := m.mutate(ctx, spec, sourceData, configData, obj.GetNamespace())
+	sourceDir, err := m.mutate(ctx, spec, sourceData, configData, obj.GetNamespace(), obj.GetName())
 	if err != nil {
 		return "", ocmmetav1.Identity{}, err
 	}
