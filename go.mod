@@ -6,20 +6,20 @@ go 1.25.4
 replace github.com/opencontainers/go-digest => github.com/opencontainers/go-digest v1.0.1-0.20220411205349-bde1400a84be
 
 require (
-	cuelang.org/go v0.15.0
+	cuelang.org/go v0.15.1
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/containers/image/v5 v5.36.2
-	github.com/cyphar/filepath-securejoin v0.6.0
+	github.com/cyphar/filepath-securejoin v0.6.1
 	github.com/distribution/distribution/v3 v3.0.0
-	github.com/fluxcd/helm-controller/api v1.4.3
-	github.com/fluxcd/kustomize-controller/api v1.7.2
+	github.com/fluxcd/helm-controller/api v1.4.4
+	github.com/fluxcd/kustomize-controller/api v1.7.3
 	github.com/fluxcd/pkg/apis/event v0.21.0
 	github.com/fluxcd/pkg/apis/meta v1.23.0
 	github.com/fluxcd/pkg/http/fetch v0.21.0
-	github.com/fluxcd/pkg/kustomize v1.23.0
-	github.com/fluxcd/pkg/runtime v0.90.0
+	github.com/fluxcd/pkg/kustomize v1.24.0
+	github.com/fluxcd/pkg/runtime v0.91.0
 	github.com/fluxcd/pkg/tar v0.16.0
-	github.com/fluxcd/source-controller/api v1.7.3
+	github.com/fluxcd/source-controller/api v1.7.4
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-containerregistry v0.20.6
 	github.com/mandelsoft/logging v0.0.0-20240618075559-fdca28a87b0a
