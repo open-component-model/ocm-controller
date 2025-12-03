@@ -33,7 +33,7 @@ jobs:
     - name: Self Hosted Runner Post Job Cleanup Action
       uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
     - name: Checkout
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       with:
         fetch-depth: 0
     - name: Setup Go
