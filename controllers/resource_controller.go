@@ -194,6 +194,9 @@ func (r *ResourceReconciler) reconcile(
 
 		return ctrl.Result{}, nil
 	}
+	defer func() {
+		_ = octx.Finalize()
+	}()
 
 	reader, digest, size, err := r.OCMClient.GetResource(ctx, octx, componentVersion, obj.Spec.SourceRef.ResourceRef)
 	if err != nil {
