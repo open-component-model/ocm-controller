@@ -25,7 +25,7 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-containerregistry v0.20.7
 	github.com/mandelsoft/logging v0.0.0-20240618075559-fdca28a87b0a
-	github.com/mandelsoft/spiff v1.7.0-beta-7
+	github.com/mandelsoft/spiff v1.7.0-beta-8
 	github.com/mandelsoft/vfs v0.4.4
 	github.com/mikefarah/yq/v4 v4.48.1
 	github.com/mitchellh/hashstructure v1.1.0
