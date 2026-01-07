@@ -8,7 +8,7 @@ replace github.com/opencontainers/go-digest => github.com/opencontainers/go-dige
 replace github.com/ThalesIgnite/crypto11 => github.com/ThalesGroup/crypto11 v1.6.0
 
 require (
-	cuelang.org/go v0.15.1
+	cuelang.org/go v0.15.3
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/containers/image/v5 v5.36.2
 	github.com/cyphar/filepath-securejoin v0.6.1
