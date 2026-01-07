@@ -154,7 +154,6 @@ func main() {
 	}
 
 	ctx := ctrl.SetupSignalHandler()
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
