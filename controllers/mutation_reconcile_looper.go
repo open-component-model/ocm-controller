@@ -347,6 +347,7 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
+	defer reader.Close()
 
 	if uncompress {
 		uncompressed, _, err := compression.AutoDecompress(reader)
