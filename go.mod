@@ -16,10 +16,10 @@ require (
 	github.com/fluxcd/helm-controller/api v1.4.5
 	github.com/fluxcd/kustomize-controller/api v1.7.3
 	github.com/fluxcd/pkg/apis/event v0.21.0
-	github.com/fluxcd/pkg/apis/meta v1.23.0
+	github.com/fluxcd/pkg/apis/meta v1.24.0
 	github.com/fluxcd/pkg/http/fetch v0.21.0
 	github.com/fluxcd/pkg/kustomize v1.24.0
-	github.com/fluxcd/pkg/runtime v0.92.0
+	github.com/fluxcd/pkg/runtime v0.94.0
 	github.com/fluxcd/pkg/tar v0.16.0
 	github.com/fluxcd/source-controller/api v1.7.4
 	github.com/go-logr/logr v1.4.3
@@ -30,7 +30,7 @@ require (
 	github.com/mikefarah/yq/v4 v4.48.1
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/onsi/gomega v1.38.3
+	github.com/onsi/gomega v1.39.0
 	github.com/open-component-model/ocm-e2e-framework v0.13.0
 	github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b
 	github.com/opencontainers/go-digest v1.0.0
