@@ -41,7 +41,7 @@ jobs:
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
     - name: Cache go-build and mod
-      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb
+      uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7
       with:
         path: |
           ~/.cache/go-build/
@@ -99,7 +99,7 @@ jobs:
         mkdir -p output
         helm template ./deploy --namespace ocm-system --set "manager.image.tag=${{ env.RELEASE_VERSION }}" --include-crds > ./output/install.yaml
     - name: Setup Syft
-      uses: anchore/sbom-action/download-syft@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0.21.1
+      uses: anchore/sbom-action/download-syft@62ad5284b8ced813296287a0b63906cb364b73ee # v0.22.0
     - name: Setup Cosign
       uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
     - name: Run goreleaser
