@@ -15,7 +15,7 @@ jobs:
     - name: Self Hosted Runner Post Job Cleanup Action
       uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
     - name: Checkout
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         fetch-depth: 0
     - name: Make manifests && generate
@@ -26,7 +26,7 @@ jobs:
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
     - name: Restore Go cache
-      uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb
+      uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7
       with:
         path: /home/runner/work/_temp/_github_home/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
