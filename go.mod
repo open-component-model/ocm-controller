@@ -8,7 +8,7 @@ replace github.com/opencontainers/go-digest => github.com/opencontainers/go-dige
 replace github.com/ThalesIgnite/crypto11 => github.com/ThalesGroup/crypto11 v1.6.0
 
 require (
-	cuelang.org/go v0.15.3
+	cuelang.org/go v0.15.4
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/containers/image/v5 v5.36.2
 	github.com/cyphar/filepath-securejoin v0.6.1
@@ -19,7 +19,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.25.0
 	github.com/fluxcd/pkg/http/fetch v0.22.0
 	github.com/fluxcd/pkg/kustomize v1.25.0
-	github.com/fluxcd/pkg/runtime v0.96.0
+	github.com/fluxcd/pkg/runtime v0.97.0
 	github.com/fluxcd/pkg/tar v0.17.0
 	github.com/fluxcd/source-controller/api v1.7.4
 	github.com/go-logr/logr v1.4.3
@@ -30,7 +30,7 @@ require (
 	github.com/mikefarah/yq/v4 v4.48.1
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/onsi/gomega v1.39.0
+	github.com/onsi/gomega v1.39.1
 	github.com/open-component-model/ocm-e2e-framework v0.13.0
 	github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b
 	github.com/opencontainers/go-digest v1.0.0
@@ -47,7 +47,7 @@ require (
 	k8s.io/apimachinery v0.35.0
 	k8s.io/client-go v0.35.0
 	ocm.software/ocm v0.35.0
-	sigs.k8s.io/controller-runtime v0.23.0
+	sigs.k8s.io/controller-runtime v0.23.1
 	sigs.k8s.io/e2e-framework v0.6.0
 	sigs.k8s.io/kustomize/api v0.21.0
 	sigs.k8s.io/yaml v1.6.0
@@ -395,7 +395,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/mod v0.31.0 // indirect
+	golang.org/x/mod v0.32.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
@@ -425,5 +425,5 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.21.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/release-utils v0.12.3 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v6 v6.3.2-0.20260122202528-d9cc6641c482 // indirect
 )
