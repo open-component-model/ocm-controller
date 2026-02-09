@@ -48,6 +48,9 @@ spec:
         {{- end }}
         {{- end }}
         {{- end }}
+        {{- if .Values.manager.pprofBindAddress }}
+        - --pprof-bind-address={{ .Values.manager.pprofBindAddress }}
+        {{- end }}
         {{- if .Values.manager.image.fullyQualifiedImageName }}
         image: "{{ .Values.manager.image.fullyQualifiedImageName }}"
         {{- else }}

@@ -57,6 +57,7 @@ func main() {
 		eventsAddr                    string
 		enableLeaderElection          bool
 		probeAddr                     string
+		pprofAddr                     string
 		ociRegistryAddr               string
 		ociRegistryCertSecretName     string
 		ociRegistryInsecureSkipVerify bool
@@ -78,6 +79,12 @@ func main() {
 		"health-probe-bind-address",
 		":8081",
 		"The address the probe endpoint binds to.",
+	)
+	flag.StringVar(
+		&pprofAddr,
+		"pprof-bind-address",
+		"",
+		"The address the pprof endpoint binds to. Disabled if empty.",
 	)
 	flag.StringVar(
 		&ociRegistryAddr,
@@ -154,6 +161,7 @@ func main() {
 			BindAddress: metricsAddr,
 		},
 		HealthProbeBindAddress: probeAddr,
+		PprofBindAddress:       pprofAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f8b21459.ocm.software",
 	})
