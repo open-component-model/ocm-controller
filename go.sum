@@ -389,8 +389,8 @@ github.com/fluxcd/notification-controller/api v1.7.5 h1:6CO5bKyjodiK9exQFOdBcz0X
 github.com/fluxcd/notification-controller/api v1.7.5/go.mod h1:IciwSg8Q0pVtdbsyDyEXx/MxBKWeagxAazpm64C8oCE=
 github.com/fluxcd/pkg/apis/acl v0.9.0 h1:wBpgsKT+jcyZEcM//OmZr9RiF8klL3ebrDp2u2ThsnA=
 github.com/fluxcd/pkg/apis/acl v0.9.0/go.mod h1:TttNS+gocsGLwnvmgVi3/Yscwqrjc17+vhgYfqkfrV4=
-github.com/fluxcd/pkg/apis/event v0.22.0 h1:nCW0TnneMnscSnj9NlaSKcvyC+436MbY1GyKn/4YnII=
-github.com/fluxcd/pkg/apis/event v0.22.0/go.mod h1:Hoi4DejaNKVahGkRXqGBjT9h1aKmhc7RCYcsgoTieqc=
+github.com/fluxcd/pkg/apis/event v0.24.0 h1:WVPf0FrJ5JExRDDGoo4W0jZgHZt0n4E48/e8b3TSmkA=
+github.com/fluxcd/pkg/apis/event v0.24.0/go.mod h1:Hoi4DejaNKVahGkRXqGBjT9h1aKmhc7RCYcsgoTieqc=
 github.com/fluxcd/pkg/apis/kustomize v1.15.0 h1:p8wPIxdmn0vy0a664rsE9JKCfnliZz4HUsDcTy4ZOxA=
 github.com/fluxcd/pkg/apis/kustomize v1.15.0/go.mod h1:XWdsx8P15OiMaQIvmUjYWdmD3zAwhl5q9osl5iCqcOk=
 github.com/fluxcd/pkg/apis/meta v1.25.0 h1:fmZgMoe7yITGfhFqdOs7w2GOu3Y/2Vvz4+4p/eay3eA=
@@ -401,8 +401,8 @@ github.com/fluxcd/pkg/http/fetch v0.22.0 h1:FT8CfstPE/e7+KRxNrx8ZJ1Uj5rkR5wXOtvQ
 github.com/fluxcd/pkg/http/fetch v0.22.0/go.mod h1:X+8wF3peP79TyyDSgCJiavz+fAcYaf7CRXSeu7ccsPA=
 github.com/fluxcd/pkg/kustomize v1.25.0 h1:0jjACHxaMif+RYwrlDDqA09vRtib7WbqU8MmF0k91bM=
 github.com/fluxcd/pkg/kustomize v1.25.0/go.mod h1:253Y78WyQJ+cD1krdoysluy9bsm5yee6SdmA4xf1hnk=
-github.com/fluxcd/pkg/runtime v0.97.0 h1:NZ9ZL2RE6J4yNDHI7ZNmL/OnCsDWurzVIvws73FYMz8=
-github.com/fluxcd/pkg/runtime v0.97.0/go.mod h1:FyjNMFNAERkCsF/muTWJYU9MZOsq/m4Sc4aQk/EgQ9E=
+github.com/fluxcd/pkg/runtime v0.99.0 h1:7UKcpXwdahCtmOxexKJK2BUTzcTLZlemmB5FdQAAJTM=
+github.com/fluxcd/pkg/runtime v0.99.0/go.mod h1:MlqGtL3CkfXeTP6Ih5p0R/GdFOWmrxZo3fPpaXYsxN8=
 github.com/fluxcd/pkg/sourceignore v0.16.0 h1:28+IBmNM1rGNQysiAZXyilFMgS0kno/aJM4zSPgqu2A=
 github.com/fluxcd/pkg/sourceignore v0.16.0/go.mod h1:Enjrk4gdk8t9VEp0dU3OHvMiS5ZHafZiL4H/FGNluh0=
 github.com/fluxcd/pkg/ssa v0.61.0 h1:GeueQfZVrjPLEzmEkq6gpFTBr1MDcqUihCQDf6AaIo8=
