@@ -269,6 +269,11 @@ func (c *Client) GetResource(
 	if err != nil {
 		return nil, "", -1, fmt.Errorf("failed to autodecompress content: %w", err)
 	}
+	defer func() {
+		if cerr := decompressedReader.Close(); cerr != nil {
+			err = errors.Join(err, cerr)
+		}
+	}()
 
 	// We need to push the media type... And construct the right layers I guess.
 	digest, size, err := c.cache.PushData(ctx, decompressedReader, mediaType, name, version)
