@@ -48,8 +48,8 @@ jobs:
           install_only: true
       - uses: yokawasa/action-setup-kube-tools@3e3886c11bfa25fe33f8eb90f59542dd151da442
         with:
-          kustomize: '5.0.1'
-          tilt: '0.32.2'
+          kustomize: '5.7.1'
+          tilt: '0.36.3'
       - name: Run E2E tests
         id: e2e-tests
         run: make e2e-verbose
