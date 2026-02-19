@@ -166,6 +166,9 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		return ctrl.Result{}, nil
 	}
+	defer func() {
+		_ = octx.Finalize()
+	}()
 
 	// reconcile the version before calling reconcile func
 	update, version, err := r.checkVersion(ctx, octx, obj)
