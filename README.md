@@ -2,6 +2,11 @@
 
 [![REUSE status](https://api.reuse.software/badge/github.com/open-component-model/ocm-controller)](https://api.reuse.software/info/github.com/open-component-model/ocm-controller)  [![e2e-tests workflow](https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml/badge.svg)](https://github.com/open-component-model/ocm-controller/actions/workflows/e2e.yaml)
 
+> [!NOTE]
+> We are currently rewriting the OCM controllers in the new [open-component-model](https://github.com/open-component-model/open-component-model/tree/main/kubernetes/controller)
+> mono-repository. You can find the related documentation on our [website](https://ocm.software/docs/getting-started/set-up-ocm-controller-environment/)
+> or our [Getting Started Guides](https://github.com/open-component-model/open-component-model/tree/main/kubernetes/controller/docs/getting-started).
+
 This is the main repository for `ocm-controller`. The `ocm-controller` is designed to enable the automated deployment of software using the [Open Component Model](https://ocm.software) and Flux.
 
 It has the following features:
