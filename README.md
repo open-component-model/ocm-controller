@@ -429,7 +429,8 @@ The other way is using the provided helm chart for the project under `./deploy` 
 To do this, use the following command:
 
 ```bash
-helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --version v0.25.3
+OCM_CONTROLLER_LATEST_VERSION=$(curl -s https://api.github.com/repos/open-component-model/ocm-controller/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controller --version $OCM_CONTROLLER_LATEST_VERSION
 ```
 
 This does require that certain items, like certificate secrets are pre-created by the user.
