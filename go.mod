@@ -31,7 +31,7 @@ require (
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.39.1
-	github.com/open-component-model/ocm-e2e-framework v0.13.0
+	github.com/open-component-model/ocm-e2e-framework v0.14.0
 	github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
@@ -57,7 +57,7 @@ require (
 	cloud.google.com/go/auth v0.18.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	code.gitea.io/sdk/gitea v0.22.1 // indirect
+	code.gitea.io/sdk/gitea v0.23.2 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/42wim/httpsig v1.2.3 // indirect
 	github.com/AliyunContainerService/ack-ram-tool/pkg/credentials/provider v0.19.0 // indirect
@@ -173,15 +173,15 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fluxcd/cli-utils v0.37.1-flux.1 // indirect
 	github.com/fluxcd/flux2/v2 v2.7.5 // indirect
-	github.com/fluxcd/image-automation-controller/api v1.0.4 // indirect
-	github.com/fluxcd/image-reflector-controller/api v1.0.4 // indirect
-	github.com/fluxcd/notification-controller/api v1.7.5 // indirect
+	github.com/fluxcd/image-automation-controller/api v1.1.0 // indirect
+	github.com/fluxcd/image-reflector-controller/api v1.1.0 // indirect
+	github.com/fluxcd/notification-controller/api v1.8.0 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.15.0 // indirect
 	github.com/fluxcd/pkg/envsubst v1.5.0 // indirect
 	github.com/fluxcd/pkg/sourceignore v0.17.0 // indirect
-	github.com/fluxcd/pkg/ssa v0.61.0 // indirect
-	github.com/fluxcd/pkg/version v0.11.0 // indirect
+	github.com/fluxcd/pkg/ssa v0.69.0 // indirect
+	github.com/fluxcd/pkg/version v0.14.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fvbommel/sortorder v1.1.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
@@ -414,7 +414,7 @@ require (
 	gopkg.in/ini.v1 v1.67.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/cli-runtime v0.35.0 // indirect
+	k8s.io/cli-runtime v0.35.1 // indirect
 	k8s.io/component-base v0.35.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect

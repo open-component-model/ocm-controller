@@ -13,7 +13,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	"github.com/fluxcd/source-controller/api/v1beta2"
 	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -133,7 +132,7 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Watches(
-			&v1beta2.GitRepository{},
+			&sourcev1.GitRepository{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey)),
 			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).

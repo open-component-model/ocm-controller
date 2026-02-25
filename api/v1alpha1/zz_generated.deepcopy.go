@@ -6,7 +6,7 @@ package v1alpha1
 
 import (
 	"github.com/fluxcd/helm-controller/api/v2"
-	"github.com/fluxcd/kustomize-controller/api/v1beta2"
+	apiv1 "github.com/fluxcd/kustomize-controller/api/v1"
 	"k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -386,7 +386,7 @@ func (in *FluxDeployerSpec) DeepCopyInto(out *FluxDeployerSpec) {
 	out.Interval = in.Interval
 	if in.KustomizationTemplate != nil {
 		in, out := &in.KustomizationTemplate, &out.KustomizationTemplate
-		*out = new(v1beta2.KustomizationSpec)
+		*out = new(apiv1.KustomizationSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.HelmReleaseTemplate != nil {
