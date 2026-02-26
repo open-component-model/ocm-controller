@@ -29,12 +29,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
-	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
@@ -295,7 +295,7 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(
 	obj *v1alpha1.FluxDeployer,
 	url, tag string,
 ) error {
-	ociRepoCR := &sourcev1beta2.OCIRepository{
+	ociRepoCR := &sourcev1.OCIRepository{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: obj.GetNamespace(),
 			Name:      obj.GetName(),
@@ -308,13 +308,13 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(
 				return fmt.Errorf("failed to set owner reference on oci repository source: %w", err)
 			}
 		}
-		ociRepoCR.Spec = sourcev1beta2.OCIRepositorySpec{
+		ociRepoCR.Spec = sourcev1.OCIRepositorySpec{
 			Interval: obj.Spec.Interval,
 			CertSecretRef: &meta.LocalObjectReference{
 				Name: r.CertSecretName,
 			},
 			URL: url,
-			Reference: &sourcev1beta2.OCIRepositoryRef{
+			Reference: &sourcev1.OCIRepositoryRef{
 				Tag: tag,
 			},
 		}
@@ -348,7 +348,7 @@ func (r *FluxDeployerReconciler) reconcileKustomization(
 			}
 		}
 		kust.Spec = *obj.Spec.KustomizationTemplate
-		kust.Spec.SourceRef.Kind = sourcev1beta2.OCIRepositoryKind
+		kust.Spec.SourceRef.Kind = sourcev1.OCIRepositoryKind
 		kust.Spec.SourceRef.Namespace = obj.GetNamespace()
 		kust.Spec.SourceRef.Name = obj.GetName()
 
@@ -500,7 +500,7 @@ func (r *FluxDeployerReconciler) findOCIRepository(ctx context.Context, obj *v1a
 		return nil
 	}
 
-	ociRepo := &sourcev1beta2.OCIRepository{}
+	ociRepo := &sourcev1.OCIRepository{}
 	split := strings.Split(obj.Status.OCIRepository, "/")
 	if len(split) == 0 || len(split) != 2 {
 		return fmt.Errorf("failed to find oci repository in status: %s", obj.Status.OCIRepository)
