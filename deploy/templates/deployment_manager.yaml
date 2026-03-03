@@ -33,6 +33,9 @@ spec:
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify
         {{- end }}
+        {{- if .Values.manager.pprofBindAddress }}
+        - --pprof-bind-address={{ .Values.manager.pprofBindAddress }}
+        {{- end }}
         {{- if .Values.manager.image.fullyQualifiedImageName }}
         image: "{{ .Values.manager.image.fullyQualifiedImageName }}"
         {{- else }}
