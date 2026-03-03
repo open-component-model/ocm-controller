@@ -132,10 +132,7 @@ manager:
         fluxReader:
           enabled: true
           aggregateToView: true
-        fluxWriterSource:
-          enabled: true
-          aggregateToEdit: false
-        fluxWriterDeploy:
+        fluxWriter:
           enabled: true
           aggregateToEdit: false
 

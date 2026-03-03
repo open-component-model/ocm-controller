@@ -6,7 +6,7 @@
   2026-03-02 :
   Added support for fine-grained aggregatable ClusterRoles.
   When manager.clusterRole.aggregation.enabled is true, this template generates
-  9 separate ClusterRoles that can be aggregated to standard K8s roles.
+  8 separate ClusterRoles that can be aggregated to standard K8s roles.
   When false (default), generates the original monolithic ClusterRole for
   backward compatibility.
 */ -}}
@@ -194,7 +194,7 @@ rules:
 
 {{- if .Values.manager.clusterRole.aggregation.roles.fluxReader.enabled }}
 ---
-# 6. Flux Reader - Read-only access to Flux source CRDs
+# 6. Flux Reader - Read-only access to all Flux CRDs
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -207,21 +207,39 @@ rules:
   resources:
   - buckets
   - gitrepositories
+  - helmrepositories
+  - ocirepositories
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - helm.toolkit.fluxcd.io
+  resources:
+  - helmreleases
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kustomize.toolkit.fluxcd.io
+  resources:
+  - kustomizations
   verbs:
   - get
   - list
   - watch
 {{- end }}
 
-{{- if .Values.manager.clusterRole.aggregation.roles.fluxWriterSource.enabled }}
+{{- if .Values.manager.clusterRole.aggregation.roles.fluxWriter.enabled }}
 ---
-# 7. Flux Source Writer - Full management of Flux source repositories
+# 7. Flux Writer - Full management of all Flux CRDs
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ocm-controller-flux-writer-source
+  name: ocm-controller-flux-writer
   labels:
-    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.fluxWriterSource "Values" .Values) | nindent 4 }}
+    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.fluxWriter "Values" .Values) | nindent 4 }}
 rules:
 - apiGroups:
   - source.toolkit.fluxcd.io
@@ -233,18 +251,6 @@ rules:
   - delete
   - patch
   - update
-{{- end }}
-
-{{- if .Values.manager.clusterRole.aggregation.roles.fluxWriterDeploy.enabled }}
----
-# 8. Flux Deploy Writer - Full management of Flux deployment resources
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: ocm-controller-flux-writer-deploy
-  labels:
-    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.fluxWriterDeploy "Values" .Values) | nindent 4 }}
-rules:
 - apiGroups:
   - helm.toolkit.fluxcd.io
   resources:
@@ -266,7 +272,7 @@ rules:
 {{- end }}
 
 ---
-# 9. Main Controller Role - Aggregates all sub-roles
+# 8. Main Controller Role - Aggregates all sub-roles
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
