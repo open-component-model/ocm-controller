@@ -14,7 +14,9 @@
 {{- /* Helper function to build aggregation labels */ -}}
 {{- define "ocm-controller.aggregationLabels" -}}
 {{- $config := .config -}}
+{{- if and (hasKey $config "aggregateToController") $config.aggregateToController }}
 ocm.software/aggregate-to-controller: "true"
+{{- end }}
 {{- if and (hasKey $config "aggregateToView") $config.aggregateToView }}
 {{- if $.Values.manager.clusterRole.aggregation.standardRoles.view.enabled }}
 rbac.authorization.k8s.io/aggregate-to-view: "true"
@@ -30,9 +32,9 @@ rbac.authorization.k8s.io/aggregate-to-edit: "true"
 {{- if .Values.manager.clusterRole.aggregation.enabled }}
 {{- /* AGGREGATION MODE: Create fine-grained ClusterRoles */ -}}
 
+{{- if .Values.manager.clusterRole.aggregation.roles.coreReader.enabled }}
 ---
 # 1. Core Reader - Read-only access to configmaps and serviceaccounts (NO secrets)
-{{- if .Values.manager.clusterRole.aggregation.roles.coreReader.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -51,9 +53,9 @@ rules:
   - watch
 {{- end }}
 
+{{- if .Values.manager.clusterRole.aggregation.roles.secretsReader.enabled }}
 ---
 # 2. Secrets Reader - Read-only access to secrets (separate for security)
-{{- if .Values.manager.clusterRole.aggregation.roles.secretsReader.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -71,9 +73,9 @@ rules:
   - watch
 {{- end }}
 
+{{- if .Values.manager.clusterRole.aggregation.roles.coreWriter.enabled }}
 ---
 # 3. Core Writer - Write access to core resources
-{{- if .Values.manager.clusterRole.aggregation.roles.coreWriter.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -96,7 +98,6 @@ rules:
   verbs:
   - create
   - delete
-  - get
   - patch
   - update
 - apiGroups:
@@ -112,14 +113,13 @@ rules:
   verbs:
   - create
   - delete
-  - get
   - patch
   - update
 {{- end }}
 
+{{- if .Values.manager.clusterRole.aggregation.roles.ocmReader.enabled }}
 ---
 # 4. OCM Reader - Read-only access to OCM CRDs
-{{- if .Values.manager.clusterRole.aggregation.roles.ocmReader.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -143,9 +143,9 @@ rules:
   - watch
 {{- end }}
 
+{{- if .Values.manager.clusterRole.aggregation.roles.ocmWriter.enabled }}
 ---
 # 5. OCM Writer - Full management of OCM CRDs
-{{- if .Values.manager.clusterRole.aggregation.roles.ocmWriter.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -166,11 +166,8 @@ rules:
   verbs:
   - create
   - delete
-  - get
-  - list
   - patch
   - update
-  - watch
 - apiGroups:
   - delivery.ocm.software
   resources:
@@ -197,9 +194,9 @@ rules:
   - update
 {{- end }}
 
+{{- if .Values.manager.clusterRole.aggregation.roles.fluxReader.enabled }}
 ---
 # 6. Flux Reader - Read-only access to Flux source CRDs
-{{- if .Values.manager.clusterRole.aggregation.roles.fluxReader.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -218,9 +215,9 @@ rules:
   - watch
 {{- end }}
 
+{{- if .Values.manager.clusterRole.aggregation.roles.fluxWriterSource.enabled }}
 ---
 # 7. Flux Source Writer - Full management of Flux source repositories
-{{- if .Values.manager.clusterRole.aggregation.roles.fluxWriterSource.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -236,16 +233,13 @@ rules:
   verbs:
   - create
   - delete
-  - get
-  - list
   - patch
   - update
-  - watch
 {{- end }}
 
+{{- if .Values.manager.clusterRole.aggregation.roles.fluxWriterDeploy.enabled }}
 ---
 # 8. Flux Deploy Writer - Full management of Flux deployment resources
-{{- if .Values.manager.clusterRole.aggregation.roles.fluxWriterDeploy.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -260,11 +254,8 @@ rules:
   verbs:
   - create
   - delete
-  - get
-  - list
   - patch
   - update
-  - watch
 - apiGroups:
   - kustomize.toolkit.fluxcd.io
   resources:
@@ -272,11 +263,8 @@ rules:
   verbs:
   - create
   - delete
-  - get
-  - list
   - patch
   - update
-  - watch
 {{- end }}
 
 ---
@@ -285,10 +273,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ocm-controller-manager-role
-  labels:
-    {{- if .Values.manager.clusterRole.labels }}
-    {{- toYaml .Values.manager.clusterRole.labels | nindent 4 }}
-    {{- end }}
+  labels: {{ $.Values.manager.clusterRole.labels | toJson }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -302,10 +287,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: ocm-controller-manager-role
-  labels:
-    {{- if .Values.manager.clusterRole.labels }}
-    {{- toYaml .Values.manager.clusterRole.labels | nindent 4 }}
-    {{- end }}
+  labels: {{ $.Values.manager.clusterRole.labels | toJson }}
 rules:
 - apiGroups:
   - ""

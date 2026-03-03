@@ -110,10 +110,6 @@ manager:
           # Aggregate write roles to 'edit'
           # Disabled by default for security - users should explicitly opt-in
           enabled: false
-        admin:
-          # Admin inherits from edit automatically in K8s
-          # This setting has no effect (included for documentation)
-          enabled: false
 
       # Advanced: Individual role control (optional)
       # Most users won't need to modify these
