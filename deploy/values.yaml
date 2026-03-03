@@ -117,35 +117,27 @@ manager:
         coreReader:
           enabled: true
           aggregateToView: true
-          aggregateToController: true
         secretsReader:
           enabled: true
           aggregateToView: false  # Never aggregate secrets to view
-          aggregateToController: true
         coreWriter:
           enabled: true
           aggregateToEdit: false
-          aggregateToController: true
         ocmReader:
           enabled: true
           aggregateToView: true
-          aggregateToController: true
         ocmWriter:
           enabled: true
           aggregateToEdit: false
-          aggregateToController: true
         fluxReader:
           enabled: true
           aggregateToView: true
-          aggregateToController: true
         fluxWriterSource:
           enabled: true
           aggregateToEdit: false
-          aggregateToController: true
         fluxWriterDeploy:
           enabled: true
           aggregateToEdit: false
-          aggregateToController: true
 
 monitoring:
   enabled: false
