@@ -14,15 +14,15 @@
 {{- /* Helper function to build aggregation labels */ -}}
 {{- define "ocm-controller.aggregationLabels" -}}
 {{- $config := .config -}}
-{{- if and (hasKey $config "aggregateToController") $config.aggregateToController }}
+{{- if dig "aggregateToController" false $config }}
 ocm.software/aggregate-to-controller: "true"
 {{- end }}
-{{- if and (hasKey $config "aggregateToView") $config.aggregateToView }}
+{{- if dig "aggregateToView" false $config }}
 {{- if $.Values.manager.clusterRole.aggregation.standardRoles.view.enabled }}
 rbac.authorization.k8s.io/aggregate-to-view: "true"
 {{- end }}
 {{- end }}
-{{- if and (hasKey $config "aggregateToEdit") $config.aggregateToEdit }}
+{{- if dig "aggregateToEdit" false $config }}
 {{- if $.Values.manager.clusterRole.aggregation.standardRoles.edit.enabled }}
 rbac.authorization.k8s.io/aggregate-to-edit: "true"
 {{- end }}
