@@ -89,6 +89,67 @@ manager:
   affinity: {}
   clusterRole:
     labels:
+      # Users can add custom labels here
+      # These labels are applied to the main ocm-controller-manager-role
+
+    # Fine-grained role aggregation configuration
+    aggregation:
+      # Enable fine-grained aggregatable roles
+      # When false (default), uses the existing monolithic ClusterRole
+      # When true, creates 9 separate ClusterRoles with aggregation labels
+      enabled: false  # DEFAULT: false for backward compatibility
+
+      # Control which fine-grained roles aggregate to standard K8s roles
+      standardRoles:
+        view:
+          # Aggregate read-only roles (core-reader, ocm-reader, flux-reader) to 'view'
+          # This allows users with 'view' role to see OCM/Flux CRDs
+          # Secrets are NOT included (handled by separate secrets-reader role)
+          enabled: true
+        edit:
+          # Aggregate write roles to 'edit'
+          # Disabled by default for security - users should explicitly opt-in
+          enabled: false
+        admin:
+          # Admin inherits from edit automatically in K8s
+          # This setting has no effect (included for documentation)
+          enabled: false
+
+      # Advanced: Individual role control (optional)
+      # Most users won't need to modify these
+      roles:
+        coreReader:
+          enabled: true
+          aggregateToView: true
+          aggregateToController: true
+        secretsReader:
+          enabled: true
+          aggregateToView: false  # Never aggregate secrets to view
+          aggregateToController: true
+        coreWriter:
+          enabled: true
+          aggregateToEdit: false
+          aggregateToController: true
+        ocmReader:
+          enabled: true
+          aggregateToView: true
+          aggregateToController: true
+        ocmWriter:
+          enabled: true
+          aggregateToEdit: false
+          aggregateToController: true
+        fluxReader:
+          enabled: true
+          aggregateToView: true
+          aggregateToController: true
+        fluxWriterSource:
+          enabled: true
+          aggregateToEdit: false
+          aggregateToController: true
+        fluxWriterDeploy:
+          enabled: true
+          aggregateToEdit: false
+          aggregateToController: true
 
 monitoring:
   enabled: false
