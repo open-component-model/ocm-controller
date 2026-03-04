@@ -89,6 +89,52 @@ manager:
   affinity: {}
   clusterRole:
     labels:
+      # Users can add custom labels here
+      # These labels are applied to the main ocm-controller-manager-role
+
+    # Fine-grained role aggregation configuration
+    aggregation:
+      # Enable fine-grained aggregatable roles
+      # When false (default), uses the existing monolithic ClusterRole
+      # When true, creates 9 separate ClusterRoles with aggregation labels
+      enabled: false  # DEFAULT: false for backward compatibility
+
+      # Control which fine-grained roles aggregate to standard K8s roles
+      standardRoles:
+        view:
+          # Aggregate read-only roles (core-reader, ocm-reader, flux-reader) to 'view'
+          # This allows users with 'view' role to see OCM/Flux CRDs
+          # Secrets are NOT included (handled by separate secrets-reader role)
+          enabled: true
+        edit:
+          # Aggregate write roles to 'edit'
+          # Disabled by default for security - users should explicitly opt-in
+          enabled: false
+
+      # Advanced: Individual role control (optional)
+      # Most users won't need to modify these
+      roles:
+        coreReader:
+          enabled: true
+          aggregateToView: true
+        secretsReader:
+          enabled: true
+          aggregateToView: false  # Never aggregate secrets to view
+        coreWriter:
+          enabled: true
+          aggregateToEdit: false
+        ocmReader:
+          enabled: true
+          aggregateToView: true
+        ocmWriter:
+          enabled: true
+          aggregateToEdit: false
+        fluxReader:
+          enabled: true
+          aggregateToView: true
+        fluxWriter:
+          enabled: true
+          aggregateToEdit: false
 
 monitoring:
   enabled: false
