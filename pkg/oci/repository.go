@@ -1,6 +1,7 @@
 package oci
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	ociname "github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -87,9 +89,11 @@ type Client struct {
 	Namespace          string
 	CertSecretName     string
 
-	certPem []byte
-	keyPem  []byte
-	ca      []byte
+	mu        sync.Mutex
+	certPem   []byte
+	keyPem    []byte
+	ca        []byte
+	transport *http.Transport
 }
 
 // WithTransport sets up insecure TLS so the library is forced to use HTTPS.
@@ -99,49 +103,57 @@ func (c *Client) WithTransport(ctx context.Context) Option {
 			return nil
 		}
 
-		// always refresh certificates to handle cert-manager rotation
-		if err := c.setupCertificates(ctx); err != nil {
-			return fmt.Errorf("failed to set up certificates for transport: %w", err)
+		t, err := c.getOrRefreshTransport(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to set up transport: %w", err)
 		}
 
-		o.remoteOpts = append(o.remoteOpts, remote.WithTransport(c.constructTLSRoundTripper()))
+		o.remoteOpts = append(o.remoteOpts, remote.WithTransport(t))
 
 		return nil
 	}
 }
 
-func (c *Client) setupCertificates(ctx context.Context) error {
+func (c *Client) getOrRefreshTransport(ctx context.Context) (http.RoundTripper, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.Client == nil {
-		return fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
+		return nil, fmt.Errorf("client must not be nil if certificate is requested, please set WithClient when creating the oci cache")
 	}
+
 	registryCerts := &corev1.Secret{}
 	if err := c.Client.Get(ctx, apitypes.NamespacedName{Name: c.CertSecretName, Namespace: c.Namespace}, registryCerts); err != nil {
-		return fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
+		return nil, fmt.Errorf("unable to find the secret containing the registry certificates: %w", err)
 	}
 
 	certFile, ok := registryCerts.Data["tls.crt"]
 	if !ok {
-		return fmt.Errorf("tls.crt data not found in registry certificate secret")
+		return nil, fmt.Errorf("tls.crt data not found in registry certificate secret")
 	}
 
 	keyFile, ok := registryCerts.Data["tls.key"]
 	if !ok {
-		return fmt.Errorf("tls.key data not found in registry certificate secret")
+		return nil, fmt.Errorf("tls.key data not found in registry certificate secret")
 	}
 
 	caFile, ok := registryCerts.Data["ca.crt"]
 	if !ok {
-		return fmt.Errorf("ca.crt data not found in registry certificate secret")
+		return nil, fmt.Errorf("ca.crt data not found in registry certificate secret")
+	}
+
+	if c.transport != nil && bytes.Equal(c.certPem, certFile) && bytes.Equal(c.keyPem, keyFile) && bytes.Equal(c.ca, caFile) {
+		return c.transport, nil
+	}
+
+	if c.transport != nil {
+		c.transport.CloseIdleConnections()
 	}
 
 	c.certPem = certFile
 	c.keyPem = keyFile
 	c.ca = caFile
 
-	return nil
-}
-
-func (c *Client) constructTLSRoundTripper() http.RoundTripper {
 	tlsConfig := &tls.Config{} //nolint:gosec // must provide lower version for quay.io
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(c.ca)
@@ -156,10 +168,11 @@ func (c *Client) constructTLSRoundTripper() http.RoundTripper {
 	tlsConfig.RootCAs = caCertPool
 	tlsConfig.InsecureSkipVerify = c.InsecureSkipVerify
 
-	// Create a new HTTP transport with the TLS configuration
-	return &http.Transport{
+	c.transport = &http.Transport{
 		TLSClientConfig: tlsConfig,
 	}
+
+	return c.transport, nil
 }
 
 // NewClient creates a new OCI Client.
