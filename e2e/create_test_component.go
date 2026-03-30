@@ -225,7 +225,7 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 				Type:    "PlainText",
 				Version: version,
 			}),
-			shared.ImageRefResource("redis:6.0.1", shared.Resource{
+			shared.ImageRefResource("redis:8.6.2", shared.Resource{
 				Name:    "image",
 				Version: "6.2.0",
 				Type:    "ociImage",
@@ -245,6 +245,7 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 		},
 	}
 }
+
 func getComponent(privateKeyName string, privateKey []byte, componentNameIdentifier string, componentName string, version string) shared.Component {
 	if len(privateKeyName) > 0 && privateKey != nil {
 		return shared.Component{
