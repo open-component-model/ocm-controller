@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"ocm.software/ocm/api/ocm"
+	"ocm.software/ocm/api/ocm/ocmutils"
 	"sigs.k8s.io/e2e-framework/klient/conf"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -27,6 +29,15 @@ var (
 
 func TestMain(m *testing.M) {
 	setupLog("starting e2e test suite")
+
+	ocmConfigPath := os.Getenv("OCM_CONFIG")
+	if ocmConfigPath == "" {
+		ocmConfigPath = ".ocmconfig"
+	}
+	if _, err := ocmutils.Configure(ocm.DefaultContext(), ocmConfigPath); err != nil {
+		setupLog("failed to configure OCM context: " + err.Error())
+		os.Exit(1)
+	}
 
 	path := conf.ResolveKubeConfigFile()
 	cfg := envconf.NewWithKubeConfig(path)

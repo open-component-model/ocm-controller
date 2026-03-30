@@ -225,7 +225,7 @@ func podinfoRedis(t *testing.T, privateKey []byte, privateKeyName string, compon
 				Type:    "PlainText",
 				Version: version,
 			}),
-			shared.ImageRefResource("redis:8.6.2", shared.Resource{
+			shared.ImageRefResource("ghcr.io/open-component-model/redis:6.0.1", shared.Resource{
 				Name:    "image",
 				Version: "6.2.0",
 				Type:    "ociImage",

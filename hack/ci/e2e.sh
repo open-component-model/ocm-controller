@@ -10,6 +10,7 @@ LOAD_IMG_INTO_KIND="${LOAD_IMG_INTO_KIND:-true}"
 IMG=test/ocm-controller
 REG_IMG=test/ocm-controller-registry
 TAG=latest
+REDIS_IMAGE="${REDIS_IMAGE:-ghcr.io/open-component-model/redis:6.0.1}"
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 BUILD_DIR="${ROOT_DIR}/build"
@@ -44,6 +45,10 @@ make docker-registry-server REG_IMG="${REG_IMG}" REG_TAG="${TAG}"
 if "${LOAD_IMG_INTO_KIND}"; then
     kind load docker-image --name "${KIND_CLUSTER_NAME}" "${REG_IMG}":"${TAG}"
 fi
+
+echo "Pre-loading redis image into kind cluster"
+docker pull --platform linux/amd64 "${REDIS_IMAGE}"
+kind load docker-image --name "${KIND_CLUSTER_NAME}" "${REDIS_IMAGE}"
 
 make dev-deploy IMG="${IMG}" TAG="${TAG}" REG_IMG="${REG_IMG}" REG_TAG="${TAG}"
 

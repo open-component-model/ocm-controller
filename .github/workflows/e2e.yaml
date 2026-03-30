@@ -20,8 +20,12 @@ on:
 
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+
 permissions:
   contents: read # for actions/checkout to fetch code
+  packages: read # for pulling private GHCR images
 
 jobs:
   run-e2e-suite:
@@ -50,6 +54,12 @@ jobs:
         with:
           kustomize: '5.7.1'
           tilt: '0.36.3'
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Run E2E tests
         id: e2e-tests
         run: make e2e-verbose
