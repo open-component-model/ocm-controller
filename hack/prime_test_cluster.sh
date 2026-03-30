@@ -12,14 +12,7 @@ if [ ! -e 'hack/cert-manager.yaml' ]; then
   curl -L https://github.com/cert-manager/cert-manager/releases/download/"${CERT_MANAGER_VERSION}"/cert-manager.yaml -o hack/cert-manager.yaml
 fi
 
-REDIS_IMAGE="${REDIS_IMAGE:-ghcr.io/open-component-model/redis:6.0.1}"
-
 kind create cluster --name=e2e-test-cluster
-
-echo 'pre-loading redis image into kind cluster'
-docker pull --platform linux/amd64 "${REDIS_IMAGE}"
-kind load docker-image --name=e2e-test-cluster "${REDIS_IMAGE}"
-echo 'done'
 
 echo 'installing cert-manager'
 kubectl apply -f hack/cert-manager.yaml

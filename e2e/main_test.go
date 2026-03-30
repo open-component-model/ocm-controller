@@ -72,8 +72,7 @@ func TestOCMController(t *testing.T) {
 	validateRegistry := features.New("Validate if OCM Components are present in OCI Registry").
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
-		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
-		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
+		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName))
 
 	componentVersion := features.New("Create Manifests").
 		Setup(setup.AddFilesToGitRepository(getManifests(testOCMControllerPath, testRepoName)...)).
@@ -84,11 +83,9 @@ func TestOCMController(t *testing.T) {
 
 	validationManifestsBackend := checkCustomResourcesReadiness(backend)
 	validationManifestsFrontend := checkCustomResourcesReadiness(frontend)
-	validationManifestsRedis := checkCustomResourcesReadiness(redis)
 
 	validationDeploymentBackend := checkDeploymentReadiness("backend", "ghcr.io/stefanprodan/podinfo")
 	validationDeploymentFrontend := checkDeploymentReadiness("frontend", "ghcr.io/stefanprodan/podinfo")
-	validationDeploymentRedis := checkDeploymentReadiness("redis", "redis")
 
 	validationConfigMapBackend := checkConfigMapReadiness("backend-config", "This is a test message Pipeline Backend")
 	validationConfigMapFrontend := checkConfigMapReadiness("frontend-config", "This is a test message Pipeline Frontend")
@@ -115,10 +112,8 @@ func TestOCMController(t *testing.T) {
 		componentDescriptor.Feature(),
 		validationManifestsBackend.Feature(),
 		validationManifestsFrontend.Feature(),
-		validationManifestsRedis.Feature(),
 		validationDeploymentBackend.Feature(),
 		validationDeploymentFrontend.Feature(),
-		validationDeploymentRedis.Feature(),
 		validationConfigMapBackend.Feature(),
 		validationConfigMapFrontend.Feature(),
 		dumpState.Feature(),
@@ -146,8 +141,7 @@ func TestSignedComponentUploadToLocalOCIRegistry(t *testing.T) {
 		Setup(setup.AddFluxSyncForRepo(testRepoSignedName, destinationPrefix, ocmNamespace)).
 		Assess("Validate Component "+podinfoComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoComponentName)).
 		Assess("Validate Component "+podinfoBackendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoBackendComponentName)).
-		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName)).
-		Assess("Validate Component "+redisComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+redisComponentName))
+		Assess("Validate Component "+podinfoFrontendComponentName, checkRepositoryExistsInRegistry(componentNamePrefix+componentNameIdentifier+podinfoFrontendComponentName))
 
 	signatureVerification := features.New("Validate if signed Component Versions of OCM Components exist").
 		Assess("Check that component version "+cvName+" is ready and signature was verified", checkIsComponentVersionReady(cvName, ocmNamespace))
@@ -273,27 +267,6 @@ func getManifests(testName string, gitRepositoryName string) []setup.File {
 		SourceFilepath: filepath.Join(testName, podinfoName, frontend, deployerFile),
 		DestFilepath:   destinationPrefix + testName + frontend + deployerFile,
 	}
-	resourceManifestRedis := setup.File{
-		RepoName:       gitRepositoryName,
-		SourceFilepath: filepath.Join(testName, podinfoName, redis, resourceFile),
-		DestFilepath:   destinationPrefix + testName + redis + resourceFile,
-	}
-	localizationManifestRedis := setup.File{
-		RepoName:       gitRepositoryName,
-		SourceFilepath: filepath.Join(testName, podinfoName, redis, localizationFile),
-		DestFilepath:   destinationPrefix + testName + redis + localizationFile,
-	}
-	configurationManifestRedis := setup.File{
-		RepoName:       gitRepositoryName,
-		SourceFilepath: filepath.Join(testName, podinfoName, redis, configurationFile),
-		DestFilepath:   destinationPrefix + testName + redis + configurationFile,
-	}
-	deployerManifestRedis := setup.File{
-		RepoName:       gitRepositoryName,
-		SourceFilepath: filepath.Join(testName, podinfoName, redis, deployerFile),
-		DestFilepath:   destinationPrefix + testName + redis + deployerFile,
-	}
-
 	return []setup.File{
 		cvManifest,
 		resourceManifestBackend,
@@ -304,10 +277,6 @@ func getManifests(testName string, gitRepositoryName string) []setup.File {
 		localizationManifestFrontend,
 		configurationManifestFrontend,
 		deployerManifestFrontend,
-		resourceManifestRedis,
-		localizationManifestRedis,
-		configurationManifestRedis,
-		deployerManifestRedis,
 	}
 }
 
@@ -413,7 +382,6 @@ func checkCompDescriptorsExistForCompVersion(componentVersionName string, compon
 		cdNameNested := []string{
 			strings.Join([]string{componentNamePrefix, podinfoName, backend, version1}, cdNameSeparator),
 			strings.Join([]string{componentNamePrefix, podinfoName, frontend, version1}, cdNameSeparator),
-			strings.Join([]string{componentNamePrefix, redis, version1}, cdNameSeparator),
 		}
 
 		if !strings.Contains(gr.Status.ComponentDescriptor.ComponentDescriptorRef.Name, cdName) {
