@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -291,9 +292,7 @@ func (r *ResourceReconciler) constructIdentity(
 		v1alpha1.ResourceNameKey:     obj.Spec.SourceRef.ResourceRef.Name,
 		v1alpha1.ResourceVersionKey:  version,
 	}
-	for k, v := range obj.Spec.SourceRef.ResourceRef.ExtraIdentity {
-		identity[k] = v
-	}
+	maps.Copy(identity, obj.Spec.SourceRef.ResourceRef.ExtraIdentity)
 
 	if len(obj.Spec.SourceRef.ResourceRef.ReferencePath) > 0 {
 		var builder strings.Builder

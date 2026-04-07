@@ -68,8 +68,8 @@ localization:
 // - **tag**.
 type ConfigData struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Configuration     ConfigurationSpec  `json:"configuration,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitzero"`
+	Configuration     ConfigurationSpec  `json:"configuration,omitzero"`
 	Localization      []LocalizationRule `json:"localization,omitempty"`
 }
 
