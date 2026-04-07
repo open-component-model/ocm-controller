@@ -37,7 +37,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Setup Go
-      uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417
+      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
     - name: Cache go-build and mod
@@ -87,7 +87,7 @@ jobs:
         git tag --annotate --message "${msg}" ${{ env.RELEASE_VERSION }}
         git push origin ${{ env.RELEASE_VERSION }}
     - name: Log in to the Container registry
-      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}

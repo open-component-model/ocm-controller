@@ -32,7 +32,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Setup Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
         with:
           go-version-file: '${{ github.workspace }}/go.mod'
       - name: Restore Go cache
@@ -46,7 +46,7 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
-      - uses: yokawasa/action-setup-kube-tools@4710caf20bc62368b8edab32f7c9cc7dc3a2ac31
+      - uses: yokawasa/action-setup-kube-tools@5778123f7b071387e9c8e522492d8f39427dc6c7
         with:
           kustomize: '5.7.1'
           tilt: '0.36.3'
