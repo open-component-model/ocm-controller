@@ -142,7 +142,7 @@ func (c *Client) setupCertificates(ctx context.Context) error {
 }
 
 func (c *Client) constructTLSRoundTripper() http.RoundTripper {
-	tlsConfig := &tls.Config{} //nolint:gosec // must provide lower version for quay.io
+	tlsConfig := &tls.Config{}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(c.ca)
 

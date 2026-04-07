@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -198,9 +199,7 @@ func (c *Client) GetResource(
 	}
 
 	// Add extra identity.
-	for k, v := range resource.ElementMeta.ExtraIdentity {
-		identity[k] = v
-	}
+	maps.Copy(identity, resource.ElementMeta.ExtraIdentity)
 	if len(resource.ReferencePath) > 0 {
 		var builder strings.Builder
 		for _, path := range resource.ReferencePath {

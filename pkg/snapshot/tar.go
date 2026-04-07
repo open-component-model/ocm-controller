@@ -70,7 +70,7 @@ func buildTar(artifactPath, sourceDir string) error {
 		if !fi.Mode().IsRegular() {
 			return nil
 		}
-		f, err := os.Open(p)
+		f, err := os.Open(p) //nolint:gosec // path is validated by filepath.Walk which skips symlinks
 		if err != nil {
 			f.Close()
 
