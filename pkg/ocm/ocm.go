@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/containers/image/v5/pkg/compression"
+	"go.podman.io/image/v5/pkg/compression"
 	"github.com/go-logr/logr"
 	"github.com/mandelsoft/vfs/pkg/memoryfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"

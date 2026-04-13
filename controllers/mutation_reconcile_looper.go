@@ -14,7 +14,7 @@ import (
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
-	"github.com/containers/image/v5/pkg/compression"
+	"go.podman.io/image/v5/pkg/compression"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/http/fetch"
