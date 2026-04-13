@@ -31,7 +31,7 @@ require (
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/gomega v1.39.1
-	github.com/open-component-model/ocm-e2e-framework v0.14.0
+	github.com/open-component-model/ocm-e2e-framework v0.15.0
 	github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
@@ -57,9 +57,9 @@ require (
 	cloud.google.com/go/auth v0.18.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	code.gitea.io/sdk/gitea v0.23.2 // indirect
+	code.gitea.io/sdk/gitea v0.24.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
-	github.com/42wim/httpsig v1.2.3 // indirect
+	github.com/42wim/httpsig v1.2.4 // indirect
 	github.com/AliyunContainerService/ack-ram-tool/pkg/credentials/provider v0.19.0 // indirect
 	github.com/AliyunContainerService/ack-ram-tool/pkg/ecsmetadata v0.0.9 // indirect
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible // indirect
@@ -103,7 +103,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.6 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.22 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.56.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.38.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.38.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.21 // indirect
@@ -171,11 +171,11 @@ require (
 	github.com/extism/go-sdk v1.7.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fluxcd/cli-utils v0.37.2-flux.1 // indirect
-	github.com/fluxcd/flux2/v2 v2.7.5 // indirect
-	github.com/fluxcd/image-automation-controller/api v1.1.0 // indirect
-	github.com/fluxcd/image-reflector-controller/api v1.1.0 // indirect
-	github.com/fluxcd/notification-controller/api v1.8.0 // indirect
+	github.com/fluxcd/cli-utils v1.0.0 // indirect
+	github.com/fluxcd/flux2/v2 v2.8.5 // indirect
+	github.com/fluxcd/image-automation-controller/api v1.1.1 // indirect
+	github.com/fluxcd/image-reflector-controller/api v1.1.1 // indirect
+	github.com/fluxcd/notification-controller/api v1.8.3 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.16.0 // indirect
 	github.com/fluxcd/pkg/envsubst v1.5.0 // indirect
@@ -247,7 +247,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
-	github.com/hashicorp/go-version v1.7.0 // indirect
+	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/hashicorp/golang-lru/arc/v2 v2.0.5 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/vault-client-go v0.4.3 // indirect
@@ -364,7 +364,7 @@ require (
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/zeebo/assert v1.3.0 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
-	gitlab.com/gitlab-org/api/client-go v1.25.0 // indirect
+	gitlab.com/gitlab-org/api/client-go v1.29.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/prometheus v0.67.0 // indirect
 	go.opentelemetry.io/contrib/exporters/autoexport v0.67.0 // indirect
@@ -401,7 +401,7 @@ require (
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/term v0.41.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
-	golang.org/x/time v0.14.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/api v0.269.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
@@ -418,7 +418,7 @@ require (
 	k8s.io/component-base v0.35.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
-	k8s.io/kubectl v0.35.2 // indirect
+	k8s.io/kubectl v0.35.3 // indirect
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 // indirect
 	oras.land/oras-go/v2 v2.6.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
