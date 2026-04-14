@@ -22,7 +22,7 @@ jobs:
   release:
     needs: tests
     name: Trigger release build
-    runs-on: large_runner
+    runs-on: ubuntu-latest
     permissions:
       contents: 'write'
       id-token: 'write'
