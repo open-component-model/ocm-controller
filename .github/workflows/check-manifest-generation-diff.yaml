@@ -10,7 +10,7 @@ permissions:
 jobs:
   diff-check-manifests:
     name: Check for diff
-    runs-on: large_runner
+    runs-on: ubuntu-latest
     steps:
     - name: Self Hosted Runner Post Job Cleanup Action
       uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563

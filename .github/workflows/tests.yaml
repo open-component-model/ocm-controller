@@ -2,16 +2,11 @@ name: test and lint
 
 on:
   pull_request:
-    paths-ignore:
-      - 'CODE_OF_CONDUCT.md'
-      - 'README.md'
-      - 'Contributing.md'
-      - '.github/workflows/**'
+    branches:
+      - main
   workflow_call:
 
   push:
-    paths-ignore:
-      - '.github/workflows/**'
     branches:
       - main
 
@@ -20,7 +15,7 @@ permissions:
 
 jobs:
   run-test-suite:
-    runs-on: large_runner
+    runs-on: ubuntu-latest
     steps:
       - name: Self Hosted Runner Post Job Cleanup Action
         uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
