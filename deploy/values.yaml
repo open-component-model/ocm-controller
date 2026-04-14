@@ -83,6 +83,7 @@ manager:
     requests:
       cpu: 200m
       memory: 512Mi
+  pprofBindAddress: ""
   # optional values defined by the user
   nodeSelector: {}
   tolerations: []
