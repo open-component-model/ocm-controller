@@ -3,7 +3,7 @@ name: component CTFs
 on:
   pull_request:
     branches:
-      -main
+      - main
   push:
     branches:
       - main
@@ -17,7 +17,7 @@ permissions:
 jobs:
   build-cli:
     name: Build component
-    runs-on: large_runner
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -25,7 +25,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
       - name: Cache go-build and mod
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: |
             ~/.cache/go-build/
