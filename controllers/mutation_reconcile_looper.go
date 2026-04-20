@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
+	"ocm.software/ocm/api/datacontext"
 	ocmcore "ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/resourcerefs"
 	"ocm.software/ocm/api/utils/tarutils"
@@ -308,7 +309,7 @@ func (m *MutationReconcileLooper) fetchDataFromComponentVersion(ctx context.Cont
 		return nil, fmt.Errorf("failed to create authenticated client: %w", err)
 	}
 	defer func() {
-		_ = octx.Finalize()
+		_ = datacontext.Close(octx)
 	}()
 
 	if obj.ResourceRef == nil {
@@ -380,7 +381,7 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(
 		return nil, fmt.Errorf("failed to create authenticated client: %w", err)
 	}
 	defer func() {
-		_ = octx.Finalize()
+		_ = datacontext.Close(octx)
 	}()
 
 	compvers, err := m.OCMClient.GetComponentVersion(ctx, octx, cv.GetRepositoryURL(), cv.Spec.Component, cv.Status.ReconciledVersion)
