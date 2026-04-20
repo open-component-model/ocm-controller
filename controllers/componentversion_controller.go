@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
+	"ocm.software/ocm/api/datacontext"
 	"ocm.software/ocm/api/ocm"
 	ocmdesc "ocm.software/ocm/api/ocm/compdesc"
 	compdesc "ocm.software/ocm/api/ocm/compdesc/versions/ocm.software/v3alpha1"
@@ -167,7 +168,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 	defer func() {
-		_ = octx.Finalize()
+		_ = datacontext.Close(octx)
 	}()
 
 	// reconcile the version before calling reconcile func

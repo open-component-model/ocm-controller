@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kuberecorder "k8s.io/client-go/tools/record"
+	"ocm.software/ocm/api/datacontext"
 	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -196,7 +197,7 @@ func (r *ResourceReconciler) reconcile(
 		return ctrl.Result{}, nil
 	}
 	defer func() {
-		_ = octx.Finalize()
+		_ = datacontext.Close(octx)
 	}()
 
 	reader, digest, size, err := r.OCMClient.GetResource(ctx, octx, componentVersion, obj.Spec.SourceRef.ResourceRef)
