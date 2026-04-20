@@ -16,10 +16,10 @@ require (
 	github.com/fluxcd/kustomize-controller/api v1.8.3
 	github.com/fluxcd/pkg/apis/event v0.25.0
 	github.com/fluxcd/pkg/apis/meta v1.26.0
-	github.com/fluxcd/pkg/http/fetch v0.22.0
-	github.com/fluxcd/pkg/kustomize v1.29.0
+	github.com/fluxcd/pkg/http/fetch v0.24.0
+	github.com/fluxcd/pkg/kustomize v1.30.0
 	github.com/fluxcd/pkg/runtime v0.103.0
-	github.com/fluxcd/pkg/tar v0.17.0
+	github.com/fluxcd/pkg/tar v1.1.0
 	github.com/fluxcd/source-controller/api v1.8.2
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-containerregistry v0.21.5
@@ -42,10 +42,10 @@ require (
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.20.2
-	k8s.io/api v0.35.3
-	k8s.io/apiextensions-apiserver v0.35.3
-	k8s.io/apimachinery v0.35.3
-	k8s.io/client-go v0.35.3
+	k8s.io/api v0.35.4
+	k8s.io/apiextensions-apiserver v0.35.4
+	k8s.io/apimachinery v0.35.4
+	k8s.io/client-go v0.35.4
 	ocm.software/ocm v0.39.0
 	sigs.k8s.io/controller-runtime v0.23.3
 	sigs.k8s.io/e2e-framework v0.6.0
@@ -178,7 +178,7 @@ require (
 	github.com/fluxcd/notification-controller/api v1.8.3 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.16.0 // indirect
-	github.com/fluxcd/pkg/envsubst v1.5.0 // indirect
+	github.com/fluxcd/pkg/envsubst v1.6.0 // indirect
 	github.com/fluxcd/pkg/sourceignore v0.17.0 // indirect
 	github.com/fluxcd/pkg/ssa v0.70.0 // indirect
 	github.com/fluxcd/pkg/version v0.14.0 // indirect
@@ -191,7 +191,7 @@ require (
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.8.0 // indirect
-	github.com/go-git/go-git/v5 v5.17.1 // indirect
+	github.com/go-git/go-git/v5 v5.18.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -279,7 +279,7 @@ require (
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/moby/api v1.54.1 // indirect
 	github.com/moby/moby/client v0.4.0 // indirect
-	github.com/moby/spdystream v0.5.0 // indirect
+	github.com/moby/spdystream v0.5.1 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/sys/capability v0.4.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
@@ -416,7 +416,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	helm.sh/helm/v4 v4.1.4 // indirect
 	k8s.io/cli-runtime v0.35.3 // indirect
-	k8s.io/component-base v0.35.3 // indirect
+	k8s.io/component-base v0.35.4 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/kubectl v0.35.3 // indirect
