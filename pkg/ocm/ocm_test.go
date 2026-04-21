@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/containers/image/v5/pkg/compression"
+	"go.podman.io/image/v5/pkg/compression"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/stretchr/testify/assert"
