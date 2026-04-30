@@ -87,7 +87,7 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.FluxDeployer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&v1alpha1.Snapshot{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey)),
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey))),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Complete(r)

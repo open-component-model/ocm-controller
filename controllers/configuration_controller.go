@@ -147,17 +147,17 @@ func (r *ConfigurationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.Configuration{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&v1alpha1.ComponentVersion{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey))),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
 		Watches(
 			&v1alpha1.Snapshot{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey))),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Watches(
 			&sourcev1.GitRepository{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey, valuesSourceKey)),
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey, valuesSourceKey))),
 			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).
 		Complete(r)

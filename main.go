@@ -31,7 +31,11 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 )
 
-const controllerName = "ocm-controller"
+const (
+	controllerName      = "ocm-controller"
+	defaultKubeAPIQPS   = 20
+	defaultKubeAPIBurst = 30
+)
 
 var (
 	scheme   = runtime.NewScheme()
@@ -57,6 +61,9 @@ func main() {
 		ociRegistryCertSecretName     string
 		ociRegistryInsecureSkipVerify bool
 		ociRegistryNamespace          string
+		kubeAPIQPS                    float64
+		kubeAPIBurst                  int
+		kubeAPIRateLimiterDisabled    bool
 	)
 
 	flag.StringVar(
@@ -99,6 +106,24 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.Float64Var(
+		&kubeAPIQPS,
+		"kube-api-qps",
+		defaultKubeAPIQPS,
+		"Maximum queries per second to the Kubernetes API. Ignored when --kube-api-rate-limiter-disabled is set.",
+	)
+	flag.IntVar(
+		&kubeAPIBurst,
+		"kube-api-burst",
+		defaultKubeAPIBurst,
+		"Maximum burst for Kubernetes API client throttling. Ignored when --kube-api-rate-limiter-disabled is set.",
+	)
+	flag.BoolVar(
+		&kubeAPIRateLimiterDisabled,
+		"kube-api-rate-limiter-disabled",
+		false,
+		"Disable the client-side Kubernetes API rate limiter and rely on API priority and fairness instead.",
+	)
 
 	opts := zap.Options{
 		Development: true,
@@ -115,10 +140,13 @@ func main() {
 	glog.SetLevel(glog.WARNING, "yq-lib")
 
 	restConfig := ctrl.GetConfigOrDie()
-	// Stop enabling client-side ratelimiter by default (https://github.com/kubernetes-sigs/controller-runtime/pull/3119)
-	// Previous behavior can be preserved by setting QPS 20 and Burst 30 on the rest.Config
-	restConfig.Burst = 30
-	restConfig.QPS = 20
+	if kubeAPIRateLimiterDisabled {
+		restConfig.QPS = -1
+		restConfig.Burst = 0
+	} else {
+		restConfig.QPS = float32(kubeAPIQPS)
+		restConfig.Burst = kubeAPIBurst
+	}
 
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme: scheme,

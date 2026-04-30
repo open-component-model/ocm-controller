@@ -76,7 +76,7 @@ func (r *ResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.Resource{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&v1alpha1.ComponentVersion{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjects(resourceKey)),
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjects(resourceKey))),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
 		Complete(r)

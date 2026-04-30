@@ -33,6 +33,18 @@ spec:
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify
         {{- end }}
+        {{- if .Values.manager.kubeAPI }}
+        {{- if .Values.manager.kubeAPI.rateLimiterDisabled }}
+        - --kube-api-rate-limiter-disabled
+        {{- else }}
+        {{- if .Values.manager.kubeAPI.qps }}
+        - --kube-api-qps={{ .Values.manager.kubeAPI.qps }}
+        {{- end }}
+        {{- if .Values.manager.kubeAPI.burst }}
+        - --kube-api-burst={{ .Values.manager.kubeAPI.burst }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
         {{- if .Values.manager.image.fullyQualifiedImageName }}
         image: "{{ .Values.manager.image.fullyQualifiedImageName }}"
         {{- else }}
