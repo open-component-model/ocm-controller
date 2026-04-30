@@ -85,7 +85,7 @@ func (r *ComponentVersionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.ComponentVersion{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey))).
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey)))).
 		Complete(r)
 }
 

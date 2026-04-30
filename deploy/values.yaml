@@ -83,6 +83,10 @@ manager:
     requests:
       cpu: 200m
       memory: 512Mi
+  kubeAPI:
+    qps: 20
+    burst: 30
+    rateLimiterDisabled: false
   # optional values defined by the user
   nodeSelector: {}
   tolerations: []
