@@ -39,7 +39,7 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
-      - uses: yokawasa/action-setup-kube-tools@5778123f7b071387e9c8e522492d8f39427dc6c7
+      - uses: yokawasa/action-setup-kube-tools@9d39563c24d4a419d1a8289c34d6da5a6171252c
         with:
           kustomize: '5.7.1'
           tilt: '0.36.3'
@@ -48,7 +48,7 @@ jobs:
         run: make e2e-verbose
       - name: Notify on Failure
         id: slack-notification
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c
         if: ${{ github.ref_name  == 'main' && github.event_name == 'schedule' && always() }}
         with:
           method: chat.postMessage
