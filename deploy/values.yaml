@@ -53,6 +53,10 @@ registry:
       cpu: 200m
       memory: 512Mi
   nodeSelector: {}
+  # Extra annotations merged into the registry pod template metadata.
+  podAnnotations: {}
+  # Extra annotations merged into the registry Service metadata.
+  serviceAnnotations: {}
 
 manager:
   replicaCount: 1
@@ -91,6 +95,12 @@ manager:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Extra annotations merged into the manager pod template metadata.
+  # Useful for things like:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "8080"
+  #   prometheus.io/path: "/metrics"
+  podAnnotations: {}
   clusterRole:
     labels:
       # Users can add custom labels here
@@ -142,3 +152,5 @@ manager:
 
 monitoring:
   enabled: false
+  # Extra annotations merged into the metrics Service metadata.
+  serviceAnnotations: {}

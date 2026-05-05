@@ -12,6 +12,10 @@ metadata:
     app.kubernetes.io/part-of: ocm-controller
     app.kubernetes.io/managed-by: kustomize
   namespace: {{ .Release.Namespace }}
+  {{- with .Values.monitoring.serviceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   ports:
     - port: 8080
