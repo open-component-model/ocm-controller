@@ -3,6 +3,10 @@ kind: Service
 metadata:
   name: registry
   namespace: {{ .Release.Namespace }}
+  {{- with .Values.registry.serviceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   selector:
     app: registry
