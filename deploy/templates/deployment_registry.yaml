@@ -12,6 +12,10 @@ spec:
       app: registry
   template:
     metadata:
+      {{- with .Values.registry.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         app: registry
     spec:
