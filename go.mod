@@ -14,12 +14,12 @@ require (
 	github.com/distribution/distribution/v3 v3.1.1
 	github.com/fluxcd/helm-controller/api v1.5.4
 	github.com/fluxcd/kustomize-controller/api v1.8.4
-	github.com/fluxcd/pkg/apis/event v0.25.0
-	github.com/fluxcd/pkg/apis/meta v1.26.0
-	github.com/fluxcd/pkg/http/fetch v0.24.0
-	github.com/fluxcd/pkg/kustomize v1.31.0
-	github.com/fluxcd/pkg/runtime v0.105.0
-	github.com/fluxcd/pkg/tar v1.1.0
+	github.com/fluxcd/pkg/apis/event v0.26.0
+	github.com/fluxcd/pkg/apis/meta v1.27.0
+	github.com/fluxcd/pkg/http/fetch v0.25.0
+	github.com/fluxcd/pkg/kustomize v1.32.0
+	github.com/fluxcd/pkg/runtime v0.106.0
+	github.com/fluxcd/pkg/tar v1.2.0
 	github.com/fluxcd/source-controller/api v1.8.3
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-containerregistry v0.21.5
@@ -175,10 +175,10 @@ require (
 	github.com/fluxcd/image-automation-controller/api v1.1.2 // indirect
 	github.com/fluxcd/image-reflector-controller/api v1.1.1 // indirect
 	github.com/fluxcd/notification-controller/api v1.8.4 // indirect
-	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
-	github.com/fluxcd/pkg/apis/kustomize v1.17.0 // indirect
-	github.com/fluxcd/pkg/envsubst v1.6.0 // indirect
-	github.com/fluxcd/pkg/sourceignore v0.17.0 // indirect
+	github.com/fluxcd/pkg/apis/acl v0.10.0 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.18.0 // indirect
+	github.com/fluxcd/pkg/envsubst v1.7.0 // indirect
+	github.com/fluxcd/pkg/sourceignore v0.18.0 // indirect
 	github.com/fluxcd/pkg/ssa v0.73.0 // indirect
 	github.com/fluxcd/pkg/version v0.14.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
