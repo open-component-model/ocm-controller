@@ -15,6 +15,9 @@ spec:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
+        {{- with .Values.manager.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         app: ocm-controller
     spec:
@@ -35,6 +38,17 @@ spec:
         {{- end }}
         {{- if .Values.manager.pprofBindAddress }}
         - --pprof-bind-address={{ .Values.manager.pprofBindAddress }}
+        {{-end }}
+        {{- if .Values.manager.kubeAPI }}
+        {{- if .Values.manager.kubeAPI.rateLimiterDisabled }}
+        - --kube-api-rate-limiter-disabled
+        {{- else }}
+        {{- if .Values.manager.kubeAPI.qps }}
+        - --kube-api-qps={{ .Values.manager.kubeAPI.qps }}
+        {{- end }}
+        {{- if .Values.manager.kubeAPI.burst }}
+        - --kube-api-burst={{ .Values.manager.kubeAPI.burst }}
+        {{- end }}
         {{- end }}
         {{- if .Values.manager.image.fullyQualifiedImageName }}
         image: "{{ .Values.manager.image.fullyQualifiedImageName }}"

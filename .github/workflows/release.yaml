@@ -22,7 +22,7 @@ jobs:
   release:
     needs: tests
     name: Trigger release build
-    runs-on: large_runner
+    runs-on: ubuntu-latest
     permissions:
       contents: 'write'
       id-token: 'write'
@@ -41,7 +41,7 @@ jobs:
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
     - name: Cache go-build and mod
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
       with:
         path: |
           ~/.cache/go-build/
@@ -87,7 +87,7 @@ jobs:
         git tag --annotate --message "${msg}" ${{ env.RELEASE_VERSION }}
         git push origin ${{ env.RELEASE_VERSION }}
     - name: Log in to the Container registry
-      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
+      uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
@@ -101,9 +101,9 @@ jobs:
     - name: Setup Syft
       uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
     - name: Setup Cosign
-      uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
     - name: Run goreleaser
-      uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
+      uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89
       with:
         distribution: goreleaser
         version: latest

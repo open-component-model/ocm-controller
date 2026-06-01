@@ -87,7 +87,7 @@ func (r *FluxDeployerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.FluxDeployer{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&v1alpha1.Snapshot{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey)),
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey))),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Complete(r)
@@ -186,7 +186,7 @@ func (r *FluxDeployerReconciler) reconcile(
 				err.Error(),
 				[]any{}...,
 			)
-			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg)
+			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg, []any{}...)
 
 			return ctrl.Result{}, err
 		}
@@ -209,7 +209,7 @@ func (r *FluxDeployerReconciler) reconcile(
 				[]any{}...,
 			)
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error(), []any{}...)
-			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg)
+			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg, []any{})
 
 			return ctrl.Result{}, err
 		}

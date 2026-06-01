@@ -4,7 +4,8 @@ Welcome to the OCM community!
 
 We welcome many types of contributions.
 
-Please refer to the [Contributing Guide in the Community repository](https://github.com/open-component-model/community/blob/main/CONTRIBUTING.md) for more information on how to get support from maintainers, find work to contribute, the Pull Request checklist, the Pull Request process, and other useful information on how to contribute to OCM.
+For the general contribution process (fork-and-pull workflow, commit requirements, code of conduct, and more), see the
+[central contributing guide](https://ocm.software/community/contributing/) on the project website.
 
 ## This repository
 
