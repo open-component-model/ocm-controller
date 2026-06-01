@@ -38,7 +38,7 @@ spec:
         {{- end }}
         {{- if .Values.manager.pprofBindAddress }}
         - --pprof-bind-address={{ .Values.manager.pprofBindAddress }}
-        {{-end }}
+        {{- end }}
         {{- if .Values.manager.kubeAPI }}
         {{- if .Values.manager.kubeAPI.rateLimiterDisabled }}
         - --kube-api-rate-limiter-disabled
@@ -48,6 +48,7 @@ spec:
         {{- end }}
         {{- if .Values.manager.kubeAPI.burst }}
         - --kube-api-burst={{ .Values.manager.kubeAPI.burst }}
+        {{- end }}
         {{- end }}
         {{- end }}
         {{- if .Values.manager.image.fullyQualifiedImageName }}
