@@ -87,6 +87,7 @@ manager:
     requests:
       cpu: 200m
       memory: 512Mi
+  pprofBindAddress: ""
   kubeAPI:
     qps: 20
     burst: 30
