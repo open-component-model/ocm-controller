@@ -15,10 +15,10 @@ require (
 	github.com/fluxcd/helm-controller/api v1.5.5
 	github.com/fluxcd/kustomize-controller/api v1.8.5
 	github.com/fluxcd/pkg/apis/event v0.26.0
-	github.com/fluxcd/pkg/apis/meta v1.28.0
+	github.com/fluxcd/pkg/apis/meta v1.29.0
 	github.com/fluxcd/pkg/http/fetch v0.25.0
 	github.com/fluxcd/pkg/kustomize v1.32.0
-	github.com/fluxcd/pkg/runtime v0.107.0
+	github.com/fluxcd/pkg/runtime v0.108.0
 	github.com/fluxcd/pkg/tar v1.2.0
 	github.com/fluxcd/source-controller/api v1.8.5
 	github.com/go-logr/logr v1.4.3
@@ -46,7 +46,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.36.1
 	k8s.io/apimachinery v0.36.1
 	k8s.io/client-go v0.36.1
-	ocm.software/ocm v0.42.0
+	ocm.software/ocm v0.43.0
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/e2e-framework v0.7.0
 	sigs.k8s.io/kustomize/api v0.21.1
@@ -75,7 +75,7 @@ require (
 	github.com/InfiniteLoopSpace/go_S-MIME v0.0.0-20181221134359-3f58f9a4b2b6 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29 // indirect
-	github.com/ProtonMail/go-crypto v1.3.0 // indirect
+	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/ThalesIgnite/crypto11 v1.6.0 // indirect
 	github.com/a8m/envsubst v1.4.3 // indirect
 	github.com/alecthomas/participle/v2 v2.1.4 // indirect
@@ -97,7 +97,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.17 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.16 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.23 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.1.20 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.1.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.23 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.23 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.24 // indirect
@@ -107,7 +107,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.23 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.23 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.100.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.101.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.17 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.21 // indirect
@@ -165,9 +165,9 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/extism/go-sdk v1.7.1 // indirect
-	github.com/fatih/color v1.18.0 // indirect
+	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fluxcd/cli-utils v1.2.0 // indirect
+	github.com/fluxcd/cli-utils v1.2.1 // indirect
 	github.com/fluxcd/flux2/v2 v2.8.6 // indirect
 	github.com/fluxcd/image-automation-controller/api v1.1.2 // indirect
 	github.com/fluxcd/image-reflector-controller/api v1.1.1 // indirect
@@ -176,7 +176,7 @@ require (
 	github.com/fluxcd/pkg/apis/kustomize v1.18.0 // indirect
 	github.com/fluxcd/pkg/envsubst v1.7.0 // indirect
 	github.com/fluxcd/pkg/sourceignore v0.18.0 // indirect
-	github.com/fluxcd/pkg/ssa v0.73.0 // indirect
+	github.com/fluxcd/pkg/ssa v0.74.0 // indirect
 	github.com/fluxcd/pkg/version v0.14.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fvbommel/sortorder v1.1.0 // indirect
@@ -341,6 +341,10 @@ require (
 	github.com/thales-e-security/pool v0.0.2 // indirect
 	github.com/theupdateframework/go-tuf v0.7.0 // indirect
 	github.com/theupdateframework/go-tuf/v2 v2.4.1 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tonglil/buflogr v1.1.1 // indirect
@@ -351,6 +355,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/vbatts/tar-split v0.12.3 // indirect
 	github.com/vladimirvivien/gexe v0.5.0 // indirect
+	github.com/wI2L/jsondiff v0.6.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
@@ -409,8 +414,8 @@ require (
 	gopkg.in/ini.v1 v1.67.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	helm.sh/helm/v4 v4.1.4 // indirect
-	k8s.io/cli-runtime v0.36.0 // indirect
+	helm.sh/helm/v4 v4.2.0 // indirect
+	k8s.io/cli-runtime v0.36.1 // indirect
 	k8s.io/component-base v0.36.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260319004828-5883c5ee87b9 // indirect
