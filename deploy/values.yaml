@@ -8,10 +8,14 @@ tlsCert:
     issuerName: "ocm-bootstrap-issuer"
     secretName: &tlsSecretName "ocm-registry-tls-certs"
     commonName: "cert-manager-ocm-tls"
+    duration: "2160h"    # 90 days
+    renewBefore: "720h"  # 30 days before expiry
 
   certificateName: *tlsSecretName
   secretName: *tlsSecretName
   issuerName: "ocm-certificate-issuer"
+  duration: "720h"       # 30 days
+  renewBefore: "288h"    # 12 days before expiry
 
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
