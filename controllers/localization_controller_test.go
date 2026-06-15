@@ -14,7 +14,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	v1 "github.com/fluxcd/source-controller/api/v1"
-	"github.com/fluxcd/source-controller/api/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1006,10 +1005,10 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 
 			objs = append(objs, cv)
 
-			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(v1beta2.AddToScheme), WithAddToScheme(v1.AddToScheme))
+			client := env.FakeKubeClient(WithObjects(objs...), WithAddToScheme(v1.AddToScheme), WithAddToScheme(v1.AddToScheme))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
-			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...), WithAddToScheme(v1beta2.AddToScheme), WithAddToScheme(v1.AddToScheme))
+			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...), WithAddToScheme(v1.AddToScheme), WithAddToScheme(v1.AddToScheme))
 
 			rr := LocalizationReconciler{
 				Client:        client,

@@ -6,16 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/containers/image/v5/pkg/compression"
 	"github.com/go-logr/logr"
 	"github.com/mandelsoft/vfs/pkg/memoryfs"
 	"github.com/mandelsoft/vfs/pkg/vfs"
 	"github.com/mitchellh/hashstructure/v2"
+	"go.podman.io/image/v5/pkg/compression"
 	"helm.sh/helm/v3/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -198,9 +199,7 @@ func (c *Client) GetResource(
 	}
 
 	// Add extra identity.
-	for k, v := range resource.ElementMeta.ExtraIdentity {
-		identity[k] = v
-	}
+	maps.Copy(identity, resource.ElementMeta.ExtraIdentity)
 	if len(resource.ReferencePath) > 0 {
 		var builder strings.Builder
 		for _, path := range resource.ReferencePath {

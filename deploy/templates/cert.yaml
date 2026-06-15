@@ -9,6 +9,8 @@ metadata:
 spec:
   commonName: {{ .Values.tlsCert.bootstrap.commonName }}
   isCA: true
+  duration: {{ .Values.tlsCert.bootstrap.duration }}
+  renewBefore: {{ .Values.tlsCert.bootstrap.renewBefore }}
   secretName: {{ .Values.tlsCert.bootstrap.secretName }}
   subject:
     organizations:
@@ -46,6 +48,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   secretName: {{ .Values.tlsCert.secretName }}
+  duration: {{ .Values.tlsCert.duration }}
+  renewBefore: {{ .Values.tlsCert.renewBefore }}
   dnsNames:
     - registry.{{ .Release.Namespace }}.svc.cluster.local
     - localhost

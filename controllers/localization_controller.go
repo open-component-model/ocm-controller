@@ -13,7 +13,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	"github.com/fluxcd/source-controller/api/v1beta2"
 	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -124,17 +123,17 @@ func (r *LocalizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.Localization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
 			&v1alpha1.ComponentVersion{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey))),
 			builder.WithPredicates(ComponentVersionChangedPredicate{}),
 		).
 		Watches(
 			&v1alpha1.Snapshot{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey)),
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjects(sourceKey, configKey))),
 			builder.WithPredicates(SnapshotDigestChangedPredicate{}),
 		).
 		Watches(
-			&v1beta2.GitRepository{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey)),
+			&sourcev1.GitRepository{},
+			handler.WithLowPriorityWhenUnchanged(handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitRepository(patchSourceKey))),
 			builder.WithPredicates(SourceRevisionChangePredicate{}),
 		).
 		Complete(r)

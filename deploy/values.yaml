@@ -8,10 +8,14 @@ tlsCert:
     issuerName: "ocm-bootstrap-issuer"
     secretName: &tlsSecretName "ocm-registry-tls-certs"
     commonName: "cert-manager-ocm-tls"
+    duration: "2160h"    # 90 days
+    renewBefore: "720h"  # 30 days before expiry
 
   certificateName: *tlsSecretName
   secretName: *tlsSecretName
   issuerName: "ocm-certificate-issuer"
+  duration: "720h"       # 30 days
+  renewBefore: "288h"    # 12 days before expiry
 
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -53,6 +57,10 @@ registry:
       cpu: 200m
       memory: 512Mi
   nodeSelector: {}
+  # Extra annotations merged into the registry pod template metadata.
+  podAnnotations: {}
+  # Extra annotations merged into the registry Service metadata.
+  serviceAnnotations: {}
 
 manager:
   replicaCount: 1
@@ -83,12 +91,70 @@ manager:
     requests:
       cpu: 200m
       memory: 512Mi
+  kubeAPI:
+    qps: 20
+    burst: 30
+    rateLimiterDisabled: false
   # optional values defined by the user
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Extra annotations merged into the manager pod template metadata.
+  # Useful for things like:
+  #   prometheus.io/scrape: "true"
+  #   prometheus.io/port: "8080"
+  #   prometheus.io/path: "/metrics"
+  podAnnotations: {}
   clusterRole:
     labels:
+      # Users can add custom labels here
+      # These labels are applied to the main ocm-controller-manager-role
+
+    # Fine-grained role aggregation configuration
+    aggregation:
+      # Enable fine-grained aggregatable roles
+      # When false (default), uses the existing monolithic ClusterRole
+      # When true, creates 9 separate ClusterRoles with aggregation labels
+      enabled: false  # DEFAULT: false for backward compatibility
+
+      # Control which fine-grained roles aggregate to standard K8s roles
+      standardRoles:
+        view:
+          # Aggregate read-only roles (core-reader, ocm-reader, flux-reader) to 'view'
+          # This allows users with 'view' role to see OCM/Flux CRDs
+          # Secrets are NOT included (handled by separate secrets-reader role)
+          enabled: true
+        edit:
+          # Aggregate write roles to 'edit'
+          # Disabled by default for security - users should explicitly opt-in
+          enabled: false
+
+      # Advanced: Individual role control (optional)
+      # Most users won't need to modify these
+      roles:
+        coreReader:
+          enabled: true
+          aggregateToView: true
+        secretsReader:
+          enabled: true
+          aggregateToView: false  # Never aggregate secrets to view
+        coreWriter:
+          enabled: true
+          aggregateToEdit: false
+        ocmReader:
+          enabled: true
+          aggregateToView: true
+        ocmWriter:
+          enabled: true
+          aggregateToEdit: false
+        fluxReader:
+          enabled: true
+          aggregateToView: true
+        fluxWriter:
+          enabled: true
+          aggregateToEdit: false
 
 monitoring:
   enabled: false
+  # Extra annotations merged into the metrics Service metadata.
+  serviceAnnotations: {}

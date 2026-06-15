@@ -2,17 +2,10 @@ name: e2e
 
 on:
   pull_request:
-    paths-ignore:
-      - 'CODE_OF_CONDUCT.md'
-      - 'README.md'
-      - 'Contributing.md'
-      - '.github/workflows/**'
     branches:
       - main
 
   push:
-    paths-ignore:
-      - '.github/workflows/**'
     branches:
       - main
   schedule:
@@ -25,18 +18,21 @@ permissions:
 
 jobs:
   run-e2e-suite:
-    runs-on: large_runner
+    runs-on: ubuntu-latest
+    environment:
+      name: notifications
+      deployment: false
     steps:
       - name: Self Hosted Runner Post Job Cleanup Action
         uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
       - name: Setup Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
         with:
           go-version-file: '${{ github.workspace }}/go.mod'
       - name: Restore Go cache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: /home/runner/work/_temp/_github_home/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -46,7 +42,7 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
-      - uses: yokawasa/action-setup-kube-tools@3e3886c11bfa25fe33f8eb90f59542dd151da442
+      - uses: yokawasa/action-setup-kube-tools@9d39563c24d4a419d1a8289c34d6da5a6171252c
         with:
           kustomize: '5.7.1'
           tilt: '0.36.3'
@@ -55,7 +51,7 @@ jobs:
         run: make e2e-verbose
       - name: Notify on Failure
         id: slack-notification
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
         if: ${{ github.ref_name  == 'main' && github.event_name == 'schedule' && always() }}
         with:
           method: chat.postMessage

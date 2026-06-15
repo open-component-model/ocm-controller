@@ -1,8 +1,291 @@
-{{/* 
-  2025-06-10 : 
-  Switched from generating this with controller-gen to maintaining it by hand.  
+{{/*
+  2025-06-10 :
+  Switched from generating this with controller-gen to maintaining it by hand.
   See https://github.com/open-component-model/ocm-project/issues/518
+
+  2026-03-02 :
+  Added support for fine-grained aggregatable ClusterRoles.
+  When manager.clusterRole.aggregation.enabled is true, this template generates
+  8 separate ClusterRoles that can be aggregated to standard K8s roles.
+  When false (default), generates the original monolithic ClusterRole for
+  backward compatibility.
 */ -}}
+
+{{- /* Helper function to build aggregation labels */ -}}
+{{- define "ocm-controller.aggregationLabels" -}}
+{{- $config := .config -}}
+ocm.software/aggregate-to-controller: "true"
+{{- if dig "aggregateToView" false $config }}
+{{- if $.Values.manager.clusterRole.aggregation.standardRoles.view.enabled }}
+rbac.authorization.k8s.io/aggregate-to-view: "true"
+{{- end }}
+{{- end }}
+{{- if dig "aggregateToEdit" false $config }}
+{{- if $.Values.manager.clusterRole.aggregation.standardRoles.edit.enabled }}
+rbac.authorization.k8s.io/aggregate-to-edit: "true"
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- if .Values.manager.clusterRole.aggregation.enabled }}
+{{- /* AGGREGATION MODE: Create fine-grained ClusterRoles */ -}}
+
+{{- if .Values.manager.clusterRole.aggregation.roles.coreReader.enabled }}
+---
+# 1. Core Reader - Read-only access to configmaps and serviceaccounts (NO secrets)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocm-controller-core-reader
+  labels:
+    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.coreReader "Values" .Values) | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
+
+{{- if .Values.manager.clusterRole.aggregation.roles.secretsReader.enabled }}
+---
+# 2. Secrets Reader - Read-only access to secrets (separate for security)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocm-controller-secrets-reader
+  labels:
+    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.secretsReader "Values" .Values) | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
+
+{{- if .Values.manager.clusterRole.aggregation.roles.coreWriter.enabled }}
+---
+# 3. Core Writer - Write access to core resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocm-controller-core-writer
+  labels:
+    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.coreWriter "Values" .Values) | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+{{- end }}
+
+{{- if .Values.manager.clusterRole.aggregation.roles.ocmReader.enabled }}
+---
+# 4. OCM Reader - Read-only access to OCM CRDs
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocm-controller-ocm-reader
+  labels:
+    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.ocmReader "Values" .Values) | nindent 4 }}
+rules:
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - componentdescriptors
+  - componentversions
+  - configurations
+  - fluxdeployers
+  - localizations
+  - resources
+  - snapshots
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
+
+{{- if .Values.manager.clusterRole.aggregation.roles.ocmWriter.enabled }}
+---
+# 5. OCM Writer - Full management of OCM CRDs
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocm-controller-ocm-writer
+  labels:
+    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.ocmWriter "Values" .Values) | nindent 4 }}
+rules:
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - componentdescriptors
+  - componentversions
+  - configurations
+  - fluxdeployers
+  - localizations
+  - resources
+  - snapshots
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - componentversions/finalizers
+  - configurations/finalizers
+  - fluxdeployers/finalizers
+  - localizations/finalizers
+  - resources/finalizers
+  - snapshots/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - delivery.ocm.software
+  resources:
+  - componentversions/status
+  - configurations/status
+  - fluxdeployers/status
+  - localizations/status
+  - resources/status
+  - snapshots/status
+  verbs:
+  - get
+  - patch
+  - update
+{{- end }}
+
+{{- if .Values.manager.clusterRole.aggregation.roles.fluxReader.enabled }}
+---
+# 6. Flux Reader - Read-only access to all Flux CRDs
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocm-controller-flux-reader
+  labels:
+    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.fluxReader "Values" .Values) | nindent 4 }}
+rules:
+- apiGroups:
+  - source.toolkit.fluxcd.io
+  resources:
+  - buckets
+  - gitrepositories
+  - helmrepositories
+  - ocirepositories
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - helm.toolkit.fluxcd.io
+  resources:
+  - helmreleases
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kustomize.toolkit.fluxcd.io
+  resources:
+  - kustomizations
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
+
+{{- if .Values.manager.clusterRole.aggregation.roles.fluxWriter.enabled }}
+---
+# 7. Flux Writer - Full management of all Flux CRDs
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocm-controller-flux-writer
+  labels:
+    {{- include "ocm-controller.aggregationLabels" (dict "config" .Values.manager.clusterRole.aggregation.roles.fluxWriter "Values" .Values) | nindent 4 }}
+rules:
+- apiGroups:
+  - source.toolkit.fluxcd.io
+  resources:
+  - helmrepositories
+  - ocirepositories
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
+  - helm.toolkit.fluxcd.io
+  resources:
+  - helmreleases
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
+  - kustomize.toolkit.fluxcd.io
+  resources:
+  - kustomizations
+  verbs:
+  - create
+  - delete
+  - patch
+  - update
+{{- end }}
+
+---
+# 8. Main Controller Role - Aggregates all sub-roles
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ocm-controller-manager-role
+  labels: {{ $.Values.manager.clusterRole.labels | toJson }}
+aggregationRule:
+  clusterRoleSelectors:
+  - matchLabels:
+      ocm.software/aggregate-to-controller: "true"
+rules: []  # Automatically filled by aggregation
+
+{{- else }}
+{{- /* LEGACY MODE: Create monolithic ClusterRole (backward compatible) */ -}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -142,3 +425,4 @@ rules:
   - patch
   - update
   - watch
+{{- end }}

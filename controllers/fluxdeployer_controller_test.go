@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
-	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1beta2"
+	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
-	sourcev1beta2 "github.com/fluxcd/source-controller/api/v1beta2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -120,7 +120,7 @@ func TestFluxDeployerReconcile(t *testing.T) {
 
 			client := env.FakeKubeClient(
 				WithAddToScheme(helmv2.AddToScheme),
-				WithAddToScheme(sourcev1beta2.AddToScheme),
+				WithAddToScheme(sourcev1.AddToScheme),
 				WithAddToScheme(kustomizev1.AddToScheme),
 				WithObjects(snapshot, deployer, resourceV1),
 			)
