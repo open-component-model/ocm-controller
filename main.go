@@ -83,8 +83,8 @@ func main() {
 	flag.StringVar(
 		&pprofAddr,
 		"pprof-bind-address",
-		"",
-		"The address the pprof endpoint binds to. Disabled if empty.",
+		":6060",
+		"The address the pprof endpoint binds to (only used in builds with the pprof tag).",
 	)
 	flag.StringVar(
 		&ociRegistryAddr,
@@ -161,7 +161,6 @@ func main() {
 			BindAddress: metricsAddr,
 		},
 		HealthProbeBindAddress: probeAddr,
-		PprofBindAddress:       pprofAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f8b21459.ocm.software",
 	})
@@ -172,6 +171,11 @@ func main() {
 
 	if v, found := os.LookupEnv("OCI_REGISTRY_LOCALHOST"); found {
 		ociRegistryAddr = v
+	}
+
+	if pprofEnabled {
+		setupLog.Info("starting pprof server", "address", pprofAddr)
+		startPprof(pprofAddr)
 	}
 
 	setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify, restConfig, eventsAddr)

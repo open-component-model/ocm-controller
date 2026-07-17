@@ -11,12 +11,15 @@ RUN go mod download
 
 # Copy the go source
 COPY main.go main.go
+COPY pprof.go pprof.go
+COPY pprof_disabled.go pprof_disabled.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY pkg/ pkg/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
+ARG GO_TAGS=""
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "${GO_TAGS}" -a -o manager .
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
