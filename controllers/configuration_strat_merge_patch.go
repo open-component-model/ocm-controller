@@ -27,6 +27,8 @@ func (m *MutationReconcileLooper) strategicMergePatch(
 	gzipSnapshot := &bytes.Buffer{}
 	gz := gzip.NewWriter(gzipSnapshot)
 	if _, err := gz.Write(resource); err != nil {
+		gz.Close()
+
 		return "", err
 	}
 
@@ -89,6 +91,8 @@ func (m *MutationReconcileLooper) strategicMergePatch(
 	}
 
 	if _, err := patched.Write(contents); err != nil {
+		patched.Close()
+
 		return "", err
 	}
 

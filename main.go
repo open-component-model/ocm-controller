@@ -57,6 +57,7 @@ func main() {
 		eventsAddr                    string
 		enableLeaderElection          bool
 		probeAddr                     string
+		pprofAddr                     string
 		ociRegistryAddr               string
 		ociRegistryCertSecretName     string
 		ociRegistryInsecureSkipVerify bool
@@ -78,6 +79,12 @@ func main() {
 		"health-probe-bind-address",
 		":8081",
 		"The address the probe endpoint binds to.",
+	)
+	flag.StringVar(
+		&pprofAddr,
+		"pprof-bind-address",
+		":6060",
+		"The address the pprof endpoint binds to (only used in builds with the pprof tag).",
 	)
 	flag.StringVar(
 		&ociRegistryAddr,
@@ -166,6 +173,11 @@ func main() {
 		ociRegistryAddr = v
 	}
 
+	if pprofEnabled {
+		setupLog.Info("starting pprof server", "address", pprofAddr)
+		startPprof(pprofAddr)
+	}
+
 	setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify, restConfig, eventsAddr)
 
 	//+kubebuilder:scaffold:builder
@@ -180,7 +192,6 @@ func main() {
 	}
 
 	ctx := ctrl.SetupSignalHandler()
-
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
