@@ -108,17 +108,28 @@ prime-test-cluster: mkcert
 
 ##@ Build
 
+PPROF_GO_TAGS ?= pprof
+PPROF_IMAGE_TAG_SUFFIX ?= -debug
+
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -o bin/manager .
+
+.PHONY: build-debug
+build-debug: generate fmt vet ## Build manager binary with pprof enabled.
+	go build -tags=$(PPROF_GO_TAGS) -o bin/manager .
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	go run .
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
 	docker build -t ${IMG}:${TAG} .
+
+.PHONY: docker-build-debug
+docker-build-debug: ## Build docker image with pprof enabled.
+	docker build --build-arg GO_TAGS=$(PPROF_GO_TAGS) -t ${IMG}:${TAG}$(PPROF_IMAGE_TAG_SUFFIX) .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.

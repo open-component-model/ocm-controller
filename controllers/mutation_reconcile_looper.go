@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
+	"ocm.software/ocm/api/datacontext"
 	ocmcore "ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/resourcerefs"
 	"ocm.software/ocm/api/utils/tarutils"
@@ -307,6 +308,9 @@ func (m *MutationReconcileLooper) fetchDataFromComponentVersion(ctx context.Cont
 	if err != nil {
 		return nil, fmt.Errorf("failed to create authenticated client: %w", err)
 	}
+	defer func() {
+		_ = datacontext.Close(octx)
+	}()
 
 	if obj.ResourceRef == nil {
 		return nil, fmt.Errorf("no resource ref found for %s", key)
@@ -344,6 +348,7 @@ func (m *MutationReconcileLooper) getSnapshotBytes(ctx context.Context, snapshot
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
+	defer reader.Close()
 
 	if uncompress {
 		uncompressed, _, err := compression.AutoDecompress(reader)
@@ -375,6 +380,9 @@ func (m *MutationReconcileLooper) createSubstitutionRulesForLocalization(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create authenticated client: %w", err)
 	}
+	defer func() {
+		_ = datacontext.Close(octx)
+	}()
 
 	compvers, err := m.OCMClient.GetComponentVersion(ctx, octx, cv.GetRepositoryURL(), cv.Spec.Component, cv.Status.ReconciledVersion)
 	if err != nil {

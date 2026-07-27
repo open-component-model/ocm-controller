@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM docker.io/library/golang:1.25.4 as builder
+FROM docker.io/library/golang:1.26.4 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -11,13 +11,15 @@ RUN go mod download
 
 # Copy the go source
 COPY main.go main.go
+COPY pprof.go pprof.go
+COPY pprof_disabled.go pprof_disabled.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY pkg/ pkg/
-COPY internal/ internal/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
+ARG GO_TAGS=""
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "${GO_TAGS}" -a -o manager .
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
