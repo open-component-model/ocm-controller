@@ -222,8 +222,8 @@ func setupManagers(
 		os.Exit(1)
 	}
 
-	var eventsRecorder *events.Recorder
-	if eventsRecorder, err = events.NewRecorder(mgr, ctrl.Log, eventsAddr, controllerName); err != nil {
+	var eventsRecorder events.Recorder
+	if eventsRecorder, err = events.NewRecorder(ctrl.Log, eventsAddr, controllerName, events.WithManager(mgr)); err != nil {
 		setupLog.Error(err, "unable to create event recorder")
 		os.Exit(1)
 	}

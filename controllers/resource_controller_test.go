@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,7 +57,7 @@ func TestResourceReconciler(t *testing.T) {
 	t.Log("priming fake ocm client")
 	ocmClient := &fakes.MockFetcher{}
 	ocmClient.GetResourceReturns(io.NopCloser(bytes.NewBuffer([]byte("content"))), "digest", nil)
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 
 	rr := ResourceReconciler{
 		Scheme:        env.scheme,
@@ -148,7 +148,7 @@ func TestResourceReconcilerWithReferencePath(t *testing.T) {
 	t.Log("priming fake ocm client")
 	ocmClient := &fakes.MockFetcher{}
 	ocmClient.GetResourceReturns(io.NopCloser(bytes.NewBuffer([]byte("content"))), "digest", nil)
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 
 	rr := ResourceReconciler{
 		Scheme:        env.scheme,
@@ -239,7 +239,7 @@ func XTestResourceReconcilerFailed(t *testing.T) {
 		Scheme:        env.scheme,
 		Client:        client,
 		OCMClient:     ocmClient,
-		EventRecorder: record.NewFakeRecorder(32),
+		EventRecorder: events.NewFakeRecorder(32),
 		Cache:         cache,
 	}
 
@@ -297,7 +297,7 @@ func TestResourceReconcilerVersionDefaulting(t *testing.T) {
 	t.Log("priming fake ocm client")
 	ocmClient := &fakes.MockFetcher{}
 	ocmClient.GetResourceReturns(io.NopCloser(bytes.NewBuffer([]byte("content"))), "digest", nil)
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 
 	rr := ResourceReconciler{
 		Scheme:        env.scheme,
@@ -426,7 +426,7 @@ func XTestResourceShouldReconcile(t *testing.T) {
 				Client:        client,
 				Scheme:        env.scheme,
 				OCMClient:     fakeOcm,
-				EventRecorder: record.NewFakeRecorder(32),
+				EventRecorder: events.NewFakeRecorder(32),
 				Cache:         cache,
 			}
 

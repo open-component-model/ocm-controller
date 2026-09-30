@@ -16,7 +16,7 @@ import (
 	apierror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -45,7 +45,7 @@ func TestSnapshotReconciler(t *testing.T) {
 	}
 	client := env.FakeKubeClient(WithObjects(snapshot))
 	fakeCache := &fakes.FakeCache{}
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 
 	sr := SnapshotReconciler{
 		Client:              client,
@@ -104,7 +104,7 @@ func TestSnapshotReconcilerDelete(t *testing.T) {
 	controllerutil.AddFinalizer(snapshot, snapshotFinalizer)
 	client := env.FakeKubeClient(WithObjects(snapshot))
 	fakeCache := &fakes.FakeCache{}
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 
 	sr := SnapshotReconciler{
 		Client:              client,
@@ -149,7 +149,7 @@ func TestSnapshotReconcilerDeleteFails(t *testing.T) {
 	client := env.FakeKubeClient(WithObjects(snapshot))
 	fakeCache := &fakes.FakeCache{}
 	fakeCache.DeleteDataReturns(errors.New("nope"))
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 
 	sr := SnapshotReconciler{
 		Client:              client,
@@ -203,7 +203,7 @@ func TestSnapshotReconcilerDeleteFailsWithManifestNotFound(t *testing.T) {
 		StatusCode: 0,
 		Request:    nil,
 	})
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 
 	sr := SnapshotReconciler{
 		Client:              client,
@@ -255,7 +255,7 @@ func TestSnapshotReconcilerDeleteFailsWithNotFoundStatusCode(t *testing.T) {
 		StatusCode: http.StatusNotFound,
 		Request:    nil,
 	})
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 
 	sr := SnapshotReconciler{
 		Client:              client,

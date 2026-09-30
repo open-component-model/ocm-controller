@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
@@ -15,7 +16,6 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,8 +35,8 @@ const (
 // SnapshotReconciler reconciles a Snapshot object.
 type SnapshotReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	kuberecorder.EventRecorder
+	Scheme              *runtime.Scheme
+	EventRecorder       events.Recorder
 	RegistryServiceName string
 
 	Cache cache.Cache
@@ -110,7 +110,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	name, err := ocm.ConstructRepositoryName(obj.Spec.Identity)
 	if err != nil {
 		err = fmt.Errorf("failed to construct name: %w", err)
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.CreateRepositoryNameReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.CreateRepositoryNameReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -124,7 +124,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 	obj.Status.RepositoryURL = fmt.Sprintf("%s://%s/%s", scheme, r.RegistryServiceName, name)
 
-	status.MarkReady(r.EventRecorder, obj, "Snapshot with name '%s' is ready", obj.Name)
+	status.MarkReady(r.EventRecorder, obj, nil, "Snapshot with name '%s' is ready", obj.Name)
 	metrics.SnapshotReconcileSuccess.WithLabelValues(obj.Name).Inc()
 
 	return ctrl.Result{}, nil

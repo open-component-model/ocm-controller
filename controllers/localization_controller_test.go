@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -708,7 +708,7 @@ localization:
 			dynClient := env.FakeDynamicKubeClient(WithObjects(objs...))
 			cache := &cachefakes.FakeCache{}
 			fakeOcm := &fakes.MockFetcher{}
-			recorder := record.NewFakeRecorder(32)
+			recorder := events.NewFakeRecorder(32)
 			snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
 			tt.mock(cache, fakeOcm)
 
@@ -1015,7 +1015,7 @@ func TestLocalizationShouldReconcile(t *testing.T) {
 				DynamicClient: dynClient,
 				Scheme:        env.scheme,
 				OCMClient:     fakeOcm,
-				EventRecorder: record.NewFakeRecorder(32),
+				EventRecorder: events.NewFakeRecorder(32),
 				Cache:         cache,
 			}
 

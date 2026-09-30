@@ -25,7 +25,7 @@ import (
 	k8sapierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -771,7 +771,7 @@ configuration:
 			cache := &cachefakes.FakeCache{}
 			snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
 			fakeOcm := &fakes.MockFetcher{}
-			recorder := record.NewFakeRecorder(32)
+			recorder := events.NewFakeRecorder(32)
 			tt.mock(cache, fakeOcm)
 
 			cr := ConfigurationReconciler{
@@ -1034,7 +1034,7 @@ func TestConfigurationValuesFrom(t *testing.T) {
 			cache := &cachefakes.FakeCache{}
 			snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
 			fakeOcm := &fakes.MockFetcher{}
-			recorder := record.NewFakeRecorder(32)
+			recorder := events.NewFakeRecorder(32)
 			content, err := os.Open(filepath.Join("testdata", "configuration-map.tar"))
 			require.NoError(t, err)
 			cache.FetchDataByDigestReturns(content, nil)
@@ -1197,7 +1197,7 @@ func TestPatchStrategicMergeWithGitRepositorySource(t *testing.T) {
 	cache := &cachefakes.FakeCache{}
 	snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
 	fakeOcm := &fakes.MockFetcher{}
-	recorder := record.NewFakeRecorder(32)
+	recorder := events.NewFakeRecorder(32)
 	content, err := os.Open(filepath.Join("testdata", "merge-target.tar.gz"))
 	require.NoError(t, err)
 	patchContent, err := os.Open(filepath.Join("testdata", "git-repo.tar.gz"))
@@ -1456,7 +1456,7 @@ func TestConfigurationShouldReconcile(t *testing.T) {
 				Client:        client,
 				Scheme:        env.scheme,
 				OCMClient:     fakeOcm,
-				EventRecorder: record.NewFakeRecorder(32),
+				EventRecorder: events.NewFakeRecorder(32),
 				Cache:         cache,
 			}
 
@@ -1588,7 +1588,7 @@ func TestPatchStrategicMergeWithResourceSource(t *testing.T) {
 			cache := &cachefakes.FakeCache{}
 			snapshotWriter := ocmsnapshot.NewOCIWriter(client, cache, env.scheme)
 			fakeOcm := &fakes.MockFetcher{}
-			recorder := record.NewFakeRecorder(32)
+			recorder := events.NewFakeRecorder(32)
 			content, err := os.Open(filepath.Join("testdata", "merge-target.tar.gz"))
 			require.NoError(t, err)
 			patchContent, err := os.Open(filepath.Join("testdata", tt.fileName))

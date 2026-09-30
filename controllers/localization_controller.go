@@ -10,6 +10,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -21,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
-	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,9 +41,9 @@ import (
 type LocalizationReconciler struct {
 	client.Client
 
-	DynamicClient dynamic.Interface
-	Scheme        *runtime.Scheme
-	kuberecorder.EventRecorder
+	DynamicClient      dynamic.Interface
+	Scheme             *runtime.Scheme
+	EventRecorder      events.Recorder
 	ReconcileInterval  time.Duration
 	RetryInterval      time.Duration
 	OCMClient          ocm.Contract
@@ -180,7 +180,7 @@ func (r *LocalizationReconciler) Reconcile(
 	// check dependencies are ready
 	ready, err := r.checkReadiness(ctx, obj.GetNamespace(), &obj.Spec.SourceRef)
 	if err != nil {
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.SourceRefNotReadyWithErrorReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.SourceRefNotReadyWithErrorReason, err.Error())
 
 		// we are watching the source object which should re-trigger the reconcile loop
 		return ctrl.Result{}, nil
@@ -190,6 +190,7 @@ func (r *LocalizationReconciler) Reconcile(
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.SourceRefNotReadyReason,
 			fmt.Sprintf("source ref not yet ready: %s", obj.Spec.SourceRef.Name),
 		)
@@ -204,6 +205,7 @@ func (r *LocalizationReconciler) Reconcile(
 			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
+				nil,
 				v1alpha1.ConfigRefNotReadyWithErrorReason,
 				fmt.Sprintf("config ref not yet ready with error: %s: %s", obj.Spec.ConfigRef.Name, err),
 			)
@@ -215,6 +217,7 @@ func (r *LocalizationReconciler) Reconcile(
 			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
+				nil,
 				v1alpha1.ConfigRefNotReadyReason,
 				fmt.Sprintf("config ref not yet ready: %s", obj.Spec.ConfigRef.Name),
 			)
@@ -229,6 +232,7 @@ func (r *LocalizationReconciler) Reconcile(
 			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
+				nil,
 				v1alpha1.PatchStrategicMergeSourceRefNotReadyWithErrorReason,
 				fmt.Sprintf("patch strategic merge source ref not yet ready with error: %s: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name, err),
 			)
@@ -240,6 +244,7 @@ func (r *LocalizationReconciler) Reconcile(
 			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
+				nil,
 				v1alpha1.PatchStrategicMergeSourceRefNotReadyReason,
 				fmt.Sprintf("patch strategic merge source ref not yet ready: %s", obj.Spec.PatchStrategicMerge.Source.SourceRef.Name),
 			)
@@ -254,7 +259,7 @@ func (r *LocalizationReconciler) Reconcile(
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
 			err = fmt.Errorf("failed to generate snapshot name for: %s: %w", obj.GetName(), err)
-			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
+			status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.NameGenerationFailedReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
@@ -290,18 +295,18 @@ func (r *LocalizationReconciler) reconcile(
 
 		if errors.Is(err, errTar) {
 			err = fmt.Errorf("source resource is not a tar archive: %w", err)
-			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
+			status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.SourceReasonNotATarArchiveReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
 
 		err = fmt.Errorf("failed to reconcile mutation object: %w", err)
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.ReconcileMutationObjectFailedReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
 
-	status.MarkReady(r.EventRecorder, obj, "Reconciliation success")
+	status.MarkReady(r.EventRecorder, obj, nil, "Reconciliation success")
 
 	metrics.SnapshotNumberOfBytesReconciled.WithLabelValues(obj.GetSnapshotName(), obj.GetSnapshotDigest(), obj.Spec.SourceRef.Name).Set(float64(size))
 	metrics.LocalizationReconcileSuccess.WithLabelValues(obj.Name).Inc()
