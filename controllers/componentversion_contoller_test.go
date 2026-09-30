@@ -13,7 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	ocmdesc "ocm.software/ocm/api/ocm/compdesc"
@@ -95,9 +95,9 @@ func TestComponentVersionReconcile(t *testing.T) {
 	fakeOcm.GetComponentVersionReturnsForName(root.ComponentDescriptor.ComponentSpec.Name, root, nil)
 	fakeOcm.VerifyComponentReturns(true, nil)
 	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
-	recorder := &record.FakeRecorder{
-		Events:        make(chan string, 32),
-		IncludeObject: true,
+	recorder := &events.FakeRecorder{
+		Events:  make(chan string, 32),
+		Verbose: true,
 	}
 
 	cvr := ComponentVersionReconciler{
@@ -229,9 +229,9 @@ func TestComponentVersionWithTransferReconcile(t *testing.T) {
 	fakeOcm.VerifyComponentReturns(true, nil)
 	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
 	fakeOcm.TransferComponentReturns(nil)
-	recorder := &record.FakeRecorder{
-		Events:        make(chan string, 32),
-		IncludeObject: true,
+	recorder := &events.FakeRecorder{
+		Events:  make(chan string, 32),
+		Verbose: true,
 	}
 
 	cvr := ComponentVersionReconciler{
@@ -297,9 +297,9 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 	cv := DefaultComponent.DeepCopy()
 	cv.Spec.Version.Semver = "invalid"
 	client := env.FakeKubeClient(WithObjects(cv))
-	recorder := &record.FakeRecorder{
-		Events:        make(chan string, 32),
-		IncludeObject: true,
+	recorder := &events.FakeRecorder{
+		Events:  make(chan string, 32),
+		Verbose: true,
 	}
 
 	fakeOcm := &fakes.MockFetcher{}
@@ -402,7 +402,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			fakeClient := env.FakeKubeClient(WithObjects(obj))
 			fakeOcm := &fakes.MockFetcher{}
 			fakeOcm.GetLatestComponentVersionReturns(tt.latestVersion, nil)
-			recorder := &record.FakeRecorder{
+			recorder := &events.FakeRecorder{
 				Events: make(chan string, 32),
 			}
 

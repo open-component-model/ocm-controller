@@ -9,6 +9,7 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -24,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	kuberecorder "k8s.io/client-go/tools/record"
 	"ocm.software/ocm/api/datacontext"
 	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,10 +39,10 @@ import (
 // ResourceReconciler reconciles a Resource object.
 type ResourceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	kuberecorder.EventRecorder
-	OCMClient ocm.Contract
-	Cache     cache.Cache
+	Scheme        *runtime.Scheme
+	EventRecorder events.Recorder
+	OCMClient     ocm.Contract
+	Cache         cache.Cache
 }
 
 // +kubebuilder:rbac:groups=delivery.ocm.software,resources=resources,verbs=get;list;watch;create;update;patch;delete
@@ -130,7 +130,7 @@ func (r *ResourceReconciler) Reconcile(
 		name, err := snapshot.GenerateSnapshotName(obj.GetName())
 		if err != nil {
 			err = fmt.Errorf("failed to generate snapshot name for: %s: %w", obj.GetName(), err)
-			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.NameGenerationFailedReason, err.Error())
+			status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.NameGenerationFailedReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
@@ -164,7 +164,7 @@ func (r *ResourceReconciler) reconcile(
 
 	if obj.GetSnapshotName() == "" {
 		err := errors.New("snapshot name should not be empty")
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.SnapshotNameEmptyReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.SnapshotNameEmptyReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -176,13 +176,13 @@ func (r *ResourceReconciler) reconcile(
 		}
 
 		err = fmt.Errorf("failed to get component version: %w", err)
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ComponentVersionNotFoundReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.ComponentVersionNotFoundReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
 
 	if !conditions.IsReady(componentVersion) || componentVersion.GetRepositoryURL() == "" {
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ComponentVersionNotReadyReason, "component version not ready yet")
+		status.MarkNotReady(r.EventRecorder, obj, componentVersion, v1alpha1.ComponentVersionNotReadyReason, "component version not ready yet")
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
@@ -192,7 +192,7 @@ func (r *ResourceReconciler) reconcile(
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, componentVersion)
 	if err != nil {
 		err = fmt.Errorf("failed to create authenticated client: %w", err)
-		status.MarkAsStalled(r.EventRecorder, obj, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
+		status.MarkAsStalled(r.EventRecorder, obj, componentVersion, v1alpha1.AuthenticatedContextCreationFailedReason, err.Error())
 
 		return ctrl.Result{}, nil
 	}
@@ -203,7 +203,7 @@ func (r *ResourceReconciler) reconcile(
 	reader, digest, size, err := r.OCMClient.GetResource(ctx, octx, componentVersion, obj.Spec.SourceRef.ResourceRef)
 	if err != nil {
 		err = fmt.Errorf("failed to get resource: %w", err)
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.GetResourceFailedReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, componentVersion, v1alpha1.GetResourceFailedReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -215,7 +215,7 @@ func (r *ResourceReconciler) reconcile(
 	componentDescriptor, err := component.GetComponentDescriptor(ctx, r.Client, obj.GetReferencePath(), componentVersion.Status.ComponentDescriptor)
 	if err != nil {
 		err = fmt.Errorf("failed to get component descriptor for resource: %w", err)
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, componentVersion, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -225,7 +225,7 @@ func (r *ResourceReconciler) reconcile(
 			"couldn't find component descriptor for reference '%s' or any root components",
 			obj.GetReferencePath(),
 		)
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, componentVersion, v1alpha1.ComponentDescriptorNotFoundReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -265,7 +265,7 @@ func (r *ResourceReconciler) reconcile(
 	})
 	if err != nil {
 		err = fmt.Errorf("failed to create or update snapshot: %w", err)
-		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.CreateOrUpdateSnapshotFailedReason, err.Error())
+		status.MarkNotReady(r.EventRecorder, obj, componentVersion, v1alpha1.CreateOrUpdateSnapshotFailedReason, err.Error())
 
 		return ctrl.Result{}, err
 	}
@@ -280,7 +280,7 @@ func (r *ResourceReconciler) reconcile(
 		metrics.MPASResourceReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
 	}
 
-	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
+	status.MarkReady(r.EventRecorder, obj, componentVersion, "Applied version: %s", obj.Status.LastAppliedComponentVersion)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }

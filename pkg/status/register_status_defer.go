@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	"github.com/open-component-model/ocm-controller/pkg/event"
-	kuberecorder "k8s.io/client-go/tools/record"
 )
 
 // UpdateStatus takes an object which can identify itself and updates its status including ObservedGeneration.
@@ -17,7 +17,7 @@ func UpdateStatus(
 	ctx context.Context,
 	patchHelper *patch.SerialPatcher,
 	obj IdentifiableClientObject,
-	recorder kuberecorder.EventRecorder,
+	recorder events.Recorder,
 	requeue time.Duration,
 	err error,
 ) error {
@@ -29,13 +29,13 @@ func UpdateStatus(
 		reconciling := conditions.Get(obj, meta.ReconcilingCondition)
 		reconciling.Reason = meta.ProgressingWithRetryReason
 		conditions.Set(obj, reconciling)
-		event.New(recorder, obj, obj.GetVID(), eventv1.EventSeverityError, "Reconciliation did not succeed, retrying in %s", requeue)
+		event.New(recorder, obj, nil, obj.GetVID(), eventv1.EventSeverityError, "Reconciliation did not succeed, retrying in %s", requeue)
 	}
 
 	// Set status observed generation option if the component is ready.
 	if conditions.IsReady(obj) {
 		obj.SetObservedGeneration(obj.GetGeneration())
-		event.New(recorder, obj, obj.GetVID(), eventv1.EventSeverityInfo, "Reconciliation finished, next run in %s", requeue)
+		event.New(recorder, obj, nil, obj.GetVID(), eventv1.EventSeverityInfo, "Reconciliation finished, next run in %s", requeue)
 	}
 
 	// Update the object.

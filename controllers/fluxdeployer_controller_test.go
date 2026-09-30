@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -128,7 +128,7 @@ func TestFluxDeployerReconcile(t *testing.T) {
 			content, err := os.Open(filepath.Join("testdata", "podinfo-6.3.5.tgz"))
 			require.NoError(t, err)
 			fakeCache.FetchDataByDigestReturns(content, nil)
-			recorder := record.NewFakeRecorder(32)
+			recorder := events.NewFakeRecorder(32)
 			dc := env.FakeDynamicKubeClient(WithObjects(snapshot, deployer, resourceV1))
 
 			sr := FluxDeployerReconciler{

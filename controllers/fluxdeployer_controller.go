@@ -8,6 +8,7 @@ import (
 	"time"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
@@ -19,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
-	kuberecorder "k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
@@ -43,8 +43,8 @@ import (
 // FluxDeployerReconciler reconciles a FluxDeployer object.
 type FluxDeployerReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	kuberecorder.EventRecorder
+	Scheme              *runtime.Scheme
+	EventRecorder       events.Recorder
 	ReconcileInterval   time.Duration
 	RegistryServiceName string
 	RetryInterval       time.Duration
@@ -186,7 +186,7 @@ func (r *FluxDeployerReconciler) reconcile(
 				err.Error(),
 				[]any{}...,
 			)
-			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg, []any{}...)
+			event.New(r.EventRecorder, obj, snapshot, nil, eventv1.EventSeverityError, msg, []any{}...)
 
 			return ctrl.Result{}, err
 		}
@@ -209,7 +209,7 @@ func (r *FluxDeployerReconciler) reconcile(
 				[]any{}...,
 			)
 			conditions.MarkStalled(obj, v1alpha1.CreateOrUpdateHelmFailedReason, err.Error(), []any{}...)
-			event.New(r.EventRecorder, obj, nil, eventv1.EventSeverityError, msg, []any{})
+			event.New(r.EventRecorder, obj, snapshot, nil, eventv1.EventSeverityError, msg, []any{})
 
 			return ctrl.Result{}, err
 		}
@@ -245,7 +245,7 @@ func (r *FluxDeployerReconciler) reconcile(
 		}
 	}
 
-	status.MarkReady(r.EventRecorder, obj, "FluxDeployer '%s' is ready", obj.Name)
+	status.MarkReady(r.EventRecorder, obj, nil, "FluxDeployer '%s' is ready", obj.Name)
 
 	metrics.FluxDeployerReconcileSuccess.WithLabelValues(obj.Name).Inc()
 

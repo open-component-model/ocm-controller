@@ -7,8 +7,9 @@ import (
 	"strconv"
 
 	"github.com/Masterminds/semver/v3"
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
+	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/fluxcd/pkg/runtime/events"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	mh "github.com/open-component-model/pkg/metrics"
@@ -18,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	kuberecorder "k8s.io/client-go/tools/record"
 	"ocm.software/ocm/api/datacontext"
 	"ocm.software/ocm/api/ocm"
 	ocmdesc "ocm.software/ocm/api/ocm/compdesc"
@@ -44,8 +44,8 @@ import (
 // ComponentVersionReconciler reconciles a ComponentVersion object.
 type ComponentVersionReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	kuberecorder.EventRecorder
+	Scheme        *runtime.Scheme
+	EventRecorder events.Recorder
 
 	OCMClient ocmclient.Contract
 }
@@ -160,6 +160,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		status.MarkAsStalled(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.AuthenticatedContextCreationFailedReason,
 			fmt.Sprintf("authentication failed for repository: %s with error: %s", obj.Spec.Repository.URL, err),
 		)
@@ -178,6 +179,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.CheckVersionFailedReason,
 			fmt.Sprintf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
 		)
@@ -189,7 +191,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !update {
-		status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
+		status.MarkReady(r.EventRecorder, obj, nil, "Applied version: %s", version)
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -203,6 +205,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.VerificationFailedReason,
 			fmt.Sprintf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
 		)
@@ -217,6 +220,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.VerificationFailedReason,
 			"attempted to verify component, but the digest didn't match",
 		)
@@ -250,6 +254,7 @@ func (r *ComponentVersionReconciler) reconcile(
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.ComponentVersionInvalidReason,
 			err.Error(),
 		)
@@ -265,7 +270,7 @@ func (r *ComponentVersionReconciler) reconcile(
 
 		if err := r.OCMClient.TransferComponent(octx, obj, cv); err != nil {
 			err := fmt.Errorf("failed to transfer components: %w", err)
-			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.TransferFailedReason, err.Error())
+			status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.TransferFailedReason, err.Error())
 
 			return ctrl.Result{}, err
 		}
@@ -280,6 +285,7 @@ func (r *ComponentVersionReconciler) reconcile(
 			status.MarkNotReady(
 				r.EventRecorder,
 				obj,
+				nil,
 				v1alpha1.ComponentVersionInvalidReason,
 				err.Error(),
 			)
@@ -296,6 +302,7 @@ func (r *ComponentVersionReconciler) reconcile(
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.ConvertComponentDescriptorFailedReason,
 			err.Error(),
 		)
@@ -327,6 +334,7 @@ func (r *ComponentVersionReconciler) reconcile(
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.CreateOrUpdateComponentDescriptorFailedReason,
 			err.Error(),
 		)
@@ -357,6 +365,7 @@ func (r *ComponentVersionReconciler) reconcile(
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
+			nil,
 			v1alpha1.ParseReferencesFailedReason,
 			err.Error(),
 		)
@@ -373,7 +382,7 @@ func (r *ComponentVersionReconciler) reconcile(
 		metrics.MPASComponentVersionReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
 	}
 
-	status.MarkReady(r.EventRecorder, obj, "Applied version: %s", version)
+	status.MarkReady(r.EventRecorder, obj, nil, "Applied version: %s", version)
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
@@ -405,6 +414,7 @@ func (r *ComponentVersionReconciler) checkVersion(ctx context.Context, octx ocm.
 	event.New(
 		r.EventRecorder,
 		obj,
+		nil,
 		nil,
 		eventv1.EventSeverityInfo,
 		"Version check succeeded, found latest version: %s",
