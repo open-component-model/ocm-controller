@@ -23,10 +23,10 @@ func New(recorder events.Recorder, obj conditions.Getter, related runtime.Object
 	eventType := corev1.EventTypeNormal
 	// events.k8s.io/v1 mandates an action; use the default Reconciled unless this is
 	// an error. Revisit if call sites need finer-grained actions.
-	action := eventv1.ActionReconciled
+	action := "Reconciled"
 	if severity == eventv1.EventSeverityError {
 		eventType = corev1.EventTypeWarning
-		action = eventv1.ActionFailed
+		action = "Failed"
 	}
 
 	recorder.AnnotatedEventf(obj, related, metadata, eventType, reason, action, msg, args...)
