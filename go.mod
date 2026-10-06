@@ -10,15 +10,15 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/cyphar/filepath-securejoin v0.7.0
 	github.com/distribution/distribution/v3 v3.1.2
-	github.com/fluxcd/helm-controller/api v1.6.4
-	github.com/fluxcd/kustomize-controller/api v1.9.5
-	github.com/fluxcd/pkg/apis/event v0.29.0
+	github.com/fluxcd/helm-controller/api v1.6.5
+	github.com/fluxcd/kustomize-controller/api v1.9.6
+	github.com/fluxcd/pkg/apis/event v0.30.0
 	github.com/fluxcd/pkg/apis/meta v1.32.0
 	github.com/fluxcd/pkg/http/fetch v0.26.0
 	github.com/fluxcd/pkg/kustomize v1.41.0
-	github.com/fluxcd/pkg/runtime v0.114.0
+	github.com/fluxcd/pkg/runtime v0.115.0
 	github.com/fluxcd/pkg/tar v1.2.0
-	github.com/fluxcd/source-controller/api v1.9.5
+	github.com/fluxcd/source-controller/api v1.9.6
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-containerregistry v0.22.1
 	github.com/mandelsoft/logging v0.0.0-20240618075559-fdca28a87b0a
@@ -27,7 +27,7 @@ require (
 	github.com/mikefarah/yq/v4 v4.48.1
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/onsi/gomega v1.43.1
+	github.com/onsi/gomega v1.44.0
 	github.com/open-component-model/ocm-e2e-framework v0.17.0
 	github.com/open-component-model/pkg/metrics v0.0.0-20240402143848-8961dae2122b
 	github.com/opencontainers/go-digest v1.0.0
@@ -45,9 +45,9 @@ require (
 	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
 	ocm.software/ocm v0.51.0
-	sigs.k8s.io/controller-runtime v0.25.1
+	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/e2e-framework v0.7.0
-	sigs.k8s.io/kustomize/api v0.21.1
+	sigs.k8s.io/kustomize/api v0.21.2
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -422,7 +422,7 @@ require (
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.21.2 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/release-utils v0.12.4 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
