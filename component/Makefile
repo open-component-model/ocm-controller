@@ -10,7 +10,12 @@ PLATFORMS = $(IMAGE_PLATFORMS) darwin/arm64 darwin/amd64
 
 REPO_ROOT                                      := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))..
 GIT_TREE_STATE                                 = $(shell [ -z "$$(git status --porcelain 2>/dev/null)" ] && echo clean || echo dirty)
-VERSION                                        = $(shell go run ../pkg/version/generate/release_generate.go print-rc-version $(CANDIDATE))
+RELEASE_CANDIDATE                              ?= false
+ifeq ($(RELEASE_CANDIDATE),true)
+VERSION                                        = $(shell go run ../pkg/version/generate/release_generate.go print-rc-version)
+else
+VERSION                                        = $(shell go run ../pkg/version/generate/release_generate.go print-version)
+endif
 COMMIT                                         = $(shell git rev-parse HEAD)
 EFFECTIVE_VERSION                              = $(VERSION)+$(COMMIT)
 PLATFORM_OS                                    := $(shell go env GOOS)
