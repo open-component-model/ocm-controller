@@ -122,4 +122,5 @@ jobs:
       env:
         GITHUBORG: ${{ github.repository_owner }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_CANDIDATE: ${{ inputs.release_candidate }}
       run: make plain-push
