@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -99,10 +98,8 @@ func (w *OCIWriter) Write(
 	logger.V(v1alpha1.LevelDebug).Info("pushed data to the cache with digest", "digest", snapshotDigest)
 
 	snapshotCR := &v1alpha1.Snapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      owner.GetSnapshotName(),
-			Namespace: owner.GetNamespace(),
-		},
+		Name:      owner.GetSnapshotName(),
+		Namespace: owner.GetNamespace(),
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, w.Client, snapshotCR, func() error {

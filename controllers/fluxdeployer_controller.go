@@ -296,10 +296,8 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(
 	url, tag string,
 ) error {
 	ociRepoCR := &sourcev1.OCIRepository{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.GetName(),
-		},
+		Namespace: obj.GetNamespace(),
+		Name:      obj.GetName(),
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, ociRepoCR, func() error {
@@ -335,10 +333,8 @@ func (r *FluxDeployerReconciler) reconcileKustomization(
 	obj *v1alpha1.FluxDeployer,
 ) error {
 	kust := &kustomizev1.Kustomization{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.GetName(),
-		},
+		Namespace: obj.GetNamespace(),
+		Name:      obj.GetName(),
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, kust, func() error {
@@ -429,10 +425,8 @@ func (r *FluxDeployerReconciler) findObjects(sourceKey string) handler.MapFunc {
 		requests := make([]reconcile.Request, len(sourceRefs.Items))
 		for i, item := range sourceRefs.Items {
 			requests[i] = reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Namespace: item.GetNamespace(),
-					Name:      item.GetName(),
-				},
+				Namespace: item.GetNamespace(),
+				Name:      item.GetName(),
 			}
 		}
 
@@ -445,10 +439,8 @@ func (r *FluxDeployerReconciler) reconcileHelmRelease(
 	obj *v1alpha1.FluxDeployer,
 ) error {
 	helmRelease := &helmv2.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.GetName(),
-		},
+		Namespace: obj.GetNamespace(),
+		Name:      obj.GetName(),
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, helmRelease, func() error {

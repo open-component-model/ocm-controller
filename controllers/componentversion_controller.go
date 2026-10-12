@@ -15,10 +15,8 @@ import (
 	mh "github.com/open-component-model/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"ocm.software/ocm/api/datacontext"
 	"ocm.software/ocm/api/ocm"
 	ocmdesc "ocm.software/ocm/api/ocm/compdesc"
@@ -103,10 +101,8 @@ func (r *ComponentVersionReconciler) findObjects(key string) handler.MapFunc {
 		requests := make([]reconcile.Request, len(list.Items))
 		for i, item := range list.Items {
 			requests[i] = reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      item.GetName(),
-					Namespace: item.GetNamespace(),
-				},
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
 			}
 		}
 
@@ -540,11 +536,9 @@ func (r *ComponentVersionReconciler) createComponentDescriptor(
 	}
 
 	descriptor := &v1alpha1.ComponentDescriptor{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: parent.GetNamespace(),
-			Name:      componentName,
-			Labels:    labelMap,
-		},
+		Namespace: parent.GetNamespace(),
+		Name:      componentName,
+		Labels:    labelMap,
 		Spec: v1alpha1.ComponentDescriptorSpec{
 			ComponentVersionSpec: componentDescriptor.Spec,
 			Version:              ref.Version,
@@ -603,11 +597,9 @@ func (r *ComponentVersionReconciler) createInitialComponentDescriptor(
 	}
 
 	descriptor := &v1alpha1.ComponentDescriptor{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      componentName,
-			Labels:    labelMap,
-		},
+		Namespace: obj.GetNamespace(),
+		Name:      componentName,
+		Labels:    labelMap,
 	}
 
 	return cd, descriptor, nil

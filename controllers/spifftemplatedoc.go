@@ -66,7 +66,7 @@ func (s *spiffTemplateDoc) addSpiffRules(subst []localize.Substitution) error {
 		return fmt.Errorf("failed to marshal adjustments: %w", err)
 	}
 
-	((*yqlib.CandidateNode)(s)).AddKeyValueChild(
+	(*yqlib.CandidateNode)(s).AddKeyValueChild(
 		&yqlib.CandidateNode{
 			Kind:  yqlib.ScalarNode,
 			Value: ocmAdjustmentsTemplateKey,
@@ -86,7 +86,7 @@ func (s *spiffTemplateDoc) marshal() ([]byte, error) {
 	// yaml files are.  Yaml files are sequences of yaml documents.
 	// This is one of those case.
 	nodes := list.New()
-	nodes.PushBack(((*yqlib.CandidateNode)(s)))
+	nodes.PushBack((*yqlib.CandidateNode)(s))
 
 	if err := p.PrintResults(nodes); err != nil {
 		return nil, fmt.Errorf("failed to print results: %w", err)
@@ -131,7 +131,7 @@ func mergeDefaultsAndConfigValues(defaults, configValues []byte) (*spiffTemplate
 		return nil, fmt.Errorf("merge of defaults and config values produced nil result. expression: '%v' defaults: '%v' config values '%v",
 			mergeExpression, defaultsDoc, configValuesDoc)
 	} else if node, ok := value.(*yqlib.CandidateNode); ok {
-		return ((*spiffTemplateDoc)(node)), nil
+		return (*spiffTemplateDoc)(node), nil
 	}
 
 	return nil, fmt.Errorf("merge of defaults and config values did not produce *CandidateNode. expression: '%v' defaults: '%v' config values '%v",

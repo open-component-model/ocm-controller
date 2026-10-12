@@ -41,10 +41,8 @@ func (m *MutationReconcileLooper) strategicMergePatch(
 	}
 
 	kus := kustypes.Kustomization{
-		TypeMeta: kustypes.TypeMeta{
-			APIVersion: kustypes.KustomizationVersion,
-			Kind:       kustypes.KustomizationKind,
-		},
+		APIVersion: kustypes.KustomizationVersion,
+		Kind:       kustypes.KustomizationKind,
 		Resources: []string{
 			sourcePath,
 		},

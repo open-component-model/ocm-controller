@@ -215,16 +215,12 @@ func (c *Context) constructComponentDescriptor(
 
 	for _, res := range component.Resources {
 		resources = append(resources, compdesc.Resource{
-			ResourceMeta: compdesc.ResourceMeta{
-				ElementMeta: compdesc.ElementMeta{
-					Name:    res.Name,
-					Version: res.Version,
-					Labels:  res.Labels,
-				},
-				Type:     res.Type,
-				Relation: res.Relation,
-			},
-			Access: res.AccessSpec(),
+			Name:     res.Name,
+			Version:  res.Version,
+			Labels:   res.Labels,
+			Type:     res.Type,
+			Relation: res.Relation,
+			Access:   res.AccessSpec(),
 		})
 	}
 
@@ -232,16 +228,12 @@ func (c *Context) constructComponentDescriptor(
 		Metadata: compdesc.Metadata{
 			ConfiguredVersion: "v2",
 		},
-		ComponentSpec: compdesc.ComponentSpec{
-			ObjectMeta: ocmmetav1.ObjectMeta{
-				Name:    component.Name,
-				Version: component.Version,
-				Provider: ocmmetav1.Provider{
-					Name: "acme",
-				},
-			},
-			Resources: resources,
+		Name:    component.Name,
+		Version: component.Version,
+		Provider: ocmmetav1.Provider{
+			Name: "acme",
 		},
+		Resources: resources,
 	}
 
 	return compd
@@ -420,14 +412,12 @@ var _ ocm.ResourceAccess = &Resource[*ocm.ResourceMeta]{}
 
 func (r *Resource[M]) Meta() *ocm.ResourceMeta {
 	return &ocm.ResourceMeta{
-		ElementMeta: compdesc.ElementMeta{
-			Name:          r.Name,
-			Version:       r.Version,
-			Labels:        r.Labels,
-			ExtraIdentity: r.ExtraIdentity,
-		},
-		Type:     r.Type,
-		Relation: r.Relation,
+		Name:          r.Name,
+		Version:       r.Version,
+		Labels:        r.Labels,
+		ExtraIdentity: r.ExtraIdentity,
+		Type:          r.Type,
+		Relation:      r.Relation,
 	}
 }
 
