@@ -17,6 +17,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -65,6 +66,7 @@ func main() {
 		kubeAPIQPS                    float64
 		kubeAPIBurst                  int
 		kubeAPIRateLimiterDisabled    bool
+		controllerConcurrency         string
 	)
 
 	flag.StringVar(
@@ -132,6 +134,15 @@ func main() {
 		"Disable the client-side Kubernetes API rate limiter and rely on API priority and fairness instead.",
 	)
 
+	flag.StringVar(
+		&controllerConcurrency,
+		"controller-concurrency",
+		"",
+		"Per-controller worker counts as comma-separated name=count pairs. " +
+			"Names: componentVersion, resource, snapshot, localization, configuration, fluxDeployer. " +
+			"Unspecified controllers retain their default concurrency.",
+	)
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -139,6 +150,11 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	groupKindConcurrency, err := parseControllerConcurrency(controllerConcurrency)
+	if err != nil {
+		setupLog.Error(err, "invalid --controller-concurrency")
+		os.Exit(1)
+	}
 	// 2024-05-11 :
 	// We're setting the go-log leve because it is used by yqlib
 	// If we ever make it possible to set the log level for the service
@@ -163,6 +179,9 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "f8b21459.ocm.software",
+		Controller: controllerconfig.Controller{
+			GroupKindConcurrency: groupKindConcurrency,
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

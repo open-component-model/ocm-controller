@@ -32,6 +32,20 @@ spec:
         args:
         - --zap-log-level=4
         - --leader-elect
+        {{- with .Values.manager.concurrency }}
+        {{- $entries := list }}
+        {{- $controllers := list "componentVersion" "resource" "snapshot" "localization" "configuration" "fluxDeployer" }}
+        {{- range $name, $count := . }}
+        {{- if not (has $name $controllers) }}
+        {{- fail (printf "unknown controller in manager.concurrency: %s" $name) }}
+        {{- end }}
+        {{- if not (regexMatch "^[1-9][0-9]*$" (toString $count)) }}
+        {{- fail (printf "manager.concurrency.%s must be a positive integer" $name) }}
+        {{- end }}
+        {{- $entries = append $entries (printf "%s=%v" $name $count) }}
+        {{- end }}
+        - {{ printf "--controller-concurrency=%s" (join "," $entries) | quote }}
+        {{- end }}
         - --oci-registry-addr={{ .Values.registry.address }}
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify
