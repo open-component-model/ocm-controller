@@ -21,10 +21,8 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"ocm.software/ocm/api/datacontext"
 	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -241,10 +239,8 @@ func (r *ResourceReconciler) reconcile(
 	identity := r.constructIdentity(componentDescriptor, obj, version)
 
 	snapshotCR := &v1alpha1.Snapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: obj.GetNamespace(),
-			Name:      obj.GetSnapshotName(),
-		},
+		Namespace: obj.GetNamespace(),
+		Name:      obj.GetSnapshotName(),
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, snapshotCR, func() error {
@@ -324,10 +320,8 @@ func (r *ResourceReconciler) findObjects(key string) handler.MapFunc {
 		requests := make([]reconcile.Request, len(resources.Items))
 		for i, item := range resources.Items {
 			requests[i] = reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      item.GetName(),
-					Namespace: item.GetNamespace(),
-				},
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
 			}
 		}
 
