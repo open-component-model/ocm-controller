@@ -64,6 +64,7 @@ registry:
 
 manager:
   replicaCount: 1
+  concurrency: 1
   image:
     repository: ghcr.io/open-component-model/ocm-controller
     pullPolicy: IfNotPresent

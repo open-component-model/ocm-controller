@@ -65,6 +65,7 @@ func main() {
 		kubeAPIQPS                    float64
 		kubeAPIBurst                  int
 		kubeAPIRateLimiterDisabled    bool
+		concurrency                   int
 	)
 
 	flag.StringVar(
@@ -131,6 +132,12 @@ func main() {
 		false,
 		"Disable the client-side Kubernetes API rate limiter and rely on API priority and fairness instead.",
 	)
+	flag.IntVar(
+		&concurrency,
+		"concurrency",
+		1,
+		"Maximum number of ComponentVersion objects reconciled concurrently. Must be at least 1.",
+	)
 
 	opts := zap.Options{
 		Development: true,
@@ -139,6 +146,10 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	if concurrency < 1 {
+		setupLog.Error(nil, "concurrency must be at least 1")
+		os.Exit(1)
+	}
 	// 2024-05-11 :
 	// We're setting the go-log leve because it is used by yqlib
 	// If we ever make it possible to set the log level for the service
@@ -178,7 +189,8 @@ func main() {
 		startPprof(pprofAddr)
 	}
 
-	setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify, restConfig, eventsAddr)
+	setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify,
+		restConfig, eventsAddr, concurrency)
 
 	//+kubebuilder:scaffold:builder
 
@@ -206,6 +218,7 @@ func setupManagers(
 	ociRegistryInsecureSkipVerify bool,
 	restConfig *rest.Config,
 	eventsAddr string,
+	concurrency int,
 ) {
 	cache := oci.NewClient(
 		ociRegistryAddr,
@@ -229,10 +242,11 @@ func setupManagers(
 	}
 
 	if err = (&controllers.ComponentVersionReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		EventRecorder: eventsRecorder,
-		OCMClient:     ocmClient,
+		Client:                  mgr.GetClient(),
+		Scheme:                  mgr.GetScheme(),
+		EventRecorder:           eventsRecorder,
+		OCMClient:               ocmClient,
+		MaxConcurrentReconciles: concurrency,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentVersion")
 		os.Exit(1)

@@ -32,6 +32,7 @@ spec:
         args:
         - --zap-log-level=4
         - --leader-elect
+        - --concurrency={{ .Values.manager.concurrency }}
         - --oci-registry-addr={{ .Values.registry.address }}
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify
