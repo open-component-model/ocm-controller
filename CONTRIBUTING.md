@@ -26,28 +26,34 @@ the manager first. Using kind, create a cluster with:
 kind create cluster --name controller-test
 ```
 
-If in-cluster is the preferred way to test the controller, create a kind registry that kind can pull images from.
-To do that follow [this](https://kind.sigs.k8s.io/docs/user/local-registry/) guide.
-
-Once a local registry exists, build the controller image with:
+The controller watches Flux source/kustomize/helm resources, so install Flux into the cluster first:
 
 ```
-docker build -t localhost:5001/ocm-controller/manager:v0.0.1 .
+flux install --components=source-controller,helm-controller,kustomize-controller
 ```
 
-When it's done, push it to the local registry:
+If in-cluster is the preferred way to test the controller, build the image and load it into kind directly
+(no local registry needed):
 
 ```
-docker push localhost:5001/ocm-controller/manager:v0.0.1
+make docker-build TAG=dev
+kind load docker-image ghcr.io/open-component-model/ocm-controller:dev --name controller-test
 ```
 
-Now the controller can be installed onto the cluster. Before that, install all crds and rbacs with `make install`.
-There is a deployment manifest located [here](config/manager/deployment.yaml) which can be used to install the
-controller.
+Install the controller with the Helm chart in `deploy/`, pointing the manager image at the tag you just loaded.
+`pullPolicy=Never` forces kind to use the loaded image instead of pulling from the registry:
 
-_Note_: If a local kind cluster with local registry is used, change the `image: ` value from 
-`image: open-component-model/ocm-controller` to `localhost:5001/ocm-controller/manager:v0.0.1` so the Kind workers can
-pull to image from the local registry.
+```
+helm upgrade --install ocm-controller ./deploy -n ocm-system --create-namespace \
+  --set manager.image.tag=dev \
+  --set manager.image.pullPolicy=Never
+```
+
+The chart also deploys an in-cluster OCI registry. Its TLS certificate is provisioned by cert-manager when
+`tlsCert.generateTlsCert=true`; if cert-manager is not installed, disable registry TLS with
+`--set registry.tls.enabled=false`.
+
+Per-controller concurrency can be set via `manager.concurrency`, e.g. `--set manager.concurrency.resource=3`.
 
 If it's enough to run the manager locally, you don't need a local registry. Simply run:
 
