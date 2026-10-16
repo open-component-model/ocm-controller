@@ -441,6 +441,24 @@ helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controll
 This does require that certain items, like certificate secrets are pre-created by the user.
 For details, checkout the prime-test-cluster scripts under the `hack` folder.
 
+### Controller concurrency
+
+By default each controller reconciles one object at a time. To let busier
+controllers process more objects in parallel, set per-controller worker counts
+via the `manager.concurrency` chart value:
+
+```yaml
+manager:
+  concurrency:
+    componentVersion: 4
+    resource: 2
+```
+
+Valid controller names: `componentVersion`, `resource`, `snapshot`,
+`localization`, `configuration`, `fluxDeployer`. Counts must be positive
+integers; controllers you omit keep the default of one worker. This renders the
+manager's `--controller-concurrency` flag (comma-separated `name=count` pairs).
+
 ## Uninstall
 
 Again, there are two ways to uninstall the controller. Using the ocm cli run `ocm controller uninstall`.

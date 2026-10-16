@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"go.podman.io/image/v5/pkg/compression"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/image/v5/pkg/compression"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ocm.software/ocm/api/ocm"
