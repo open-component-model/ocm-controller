@@ -22,7 +22,7 @@ func parseControllerConcurrency(value string) (map[string]int, error) {
 		"fluxDeployer":     "FluxDeployer",
 	}
 	concurrency := make(map[string]int)
-	for _, entry := range strings.Split(value, ",") {
+	for entry := range strings.SplitSeq(value, ",") {
 		name, count, ok := strings.Cut(strings.TrimSpace(entry), "=")
 		if !ok {
 			return nil, fmt.Errorf("expected controller=count, got %q", entry)
