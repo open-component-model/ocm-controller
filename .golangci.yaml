@@ -11,6 +11,7 @@ linters:
     - embeddedstructfieldcheck
     - err113
     - exhaustruct
+    - exhaustruct_v5
     - forbidigo
     - gochecknoglobals
     - gochecknoinits

@@ -480,10 +480,8 @@ func makeRequestsForLocalizations(ll ...v1alpha1.Localization) []reconcile.Reque
 	requests := make([]reconcile.Request, len(refs))
 	for i, item := range refs {
 		requests[i] = reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      item.GetName(),
-				Namespace: item.GetNamespace(),
-			},
+			Name:      item.GetName(),
+			Namespace: item.GetNamespace(),
 		}
 	}
 
