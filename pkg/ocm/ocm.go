@@ -204,7 +204,8 @@ func (c *Client) GetResource(
 	if len(resource.ReferencePath) > 0 {
 		var builder strings.Builder
 		for _, path := range resource.ReferencePath {
-			builder.WriteString(path.String() + ":")
+			builder.WriteString(path.String())
+			builder.WriteByte(':')
 		}
 
 		identity[v1alpha1.ResourceRefPath] = builder.String()
