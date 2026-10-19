@@ -4,22 +4,24 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"go.podman.io/image/v5/pkg/compression"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.podman.io/image/v5/pkg/compression"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/compdesc"
 	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"ocm.software/ocm/api/credentials/cpi"
 	"ocm.software/ocm/api/tech/oci/identity"
@@ -794,6 +796,82 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			latest, err := ocmClient.GetLatestValidComponentVersion(context.Background(), octx, cv)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedVersion, latest)
+		})
+	}
+}
+
+type signatureKeyLookupClient struct {
+	client.Client
+	gets int
+}
+
+func (c *signatureKeyLookupClient) Get(context.Context, client.ObjectKey, client.Object, ...client.GetOption) error {
+	c.gets++
+	return errors.New("unexpected public key lookup")
+}
+
+func TestClient_VerifyComponentChecksAllSignatureNamesBeforeKeys(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		available     []string
+		required      []string
+		expectedError string
+		keyLookups    int
+	}{
+		{
+			name:          "missing only required signature",
+			available:     []string{"development"},
+			required:      []string{"production"},
+			expectedError: "signature with name 'production' not found in the list of provided ocm signatures",
+		},
+		{
+			name:          "missing later signature prevents verification of earlier one",
+			available:     []string{"development"},
+			required:      []string{"development", "production"},
+			expectedError: "signature with name 'production' not found in the list of provided ocm signatures",
+		},
+		{
+			name:          "present signature still requires verification",
+			available:     []string{"production"},
+			required:      []string{"production"},
+			expectedError: "failed to get public key for verification: unexpected public key lookup",
+			keyLookups:    1,
+		},
+		{
+			name: "no required signatures",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			octx := fakeocm.NewFakeOCMContext()
+			component := &fakeocm.Component{Name: "example.com/component", Version: "1.0.0"}
+			require.NoError(t, octx.AddComponent(component))
+			for _, name := range tt.available {
+				component.ComponentDescriptor.Signatures = append(component.ComponentDescriptor.Signatures, ocmmetav1.Signature{Name: name})
+			}
+			obj := &v1alpha1.ComponentVersion{
+				Spec: v1alpha1.ComponentVersionSpec{
+					Component:  component.Name,
+					Repository: v1alpha1.Repository{URL: "localhost"},
+				},
+			}
+			for _, name := range tt.required {
+				obj.Spec.Verify = append(obj.Spec.Verify, v1alpha1.Signature{
+					Name: name,
+					PublicKey: v1alpha1.PublicKey{
+						SecretRef: &corev1.LocalObjectReference{Name: "signing-key"},
+					},
+				})
+			}
+			kubeClient := &signatureKeyLookupClient{}
+			verified, err := NewClient(kubeClient, nil).VerifyComponent(t.Context(), octx, obj, component.Version)
+			if tt.expectedError == "" {
+				require.NoError(t, err)
+				require.True(t, verified)
+			} else {
+				require.EqualError(t, err, tt.expectedError)
+				require.False(t, verified)
+			}
+			require.Equal(t, tt.keyLookups, kubeClient.gets)
 		})
 	}
 }

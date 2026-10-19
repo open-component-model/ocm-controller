@@ -337,6 +337,16 @@ func (c *Client) VerifyComponent(
 	}
 	defer cv.Close()
 
+	// Exit early if any required signature is missing, before loading keys or verifying digests.
+	for _, signature := range obj.Spec.Verify {
+		if cv.GetDescriptor().GetSignatureIndex(signature.Name) < 0 {
+			return false, fmt.Errorf(
+				"signature with name '%s' not found in the list of provided ocm signatures",
+				signature.Name,
+			)
+		}
+	}
+
 	resolver := resolvers.NewCompoundResolver(repo)
 
 	for _, signature := range obj.Spec.Verify {
