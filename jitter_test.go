@@ -20,7 +20,7 @@ func TestHelmIntervalJitterPercentage(t *testing.T) {
 		value string
 		want  string
 	}{
-		{name: "default", value: "{}", want: "5"},
+		{name: "default", value: "{}", want: "15"},
 		{name: "disabled", value: "manager: {intervalJitterPercentage: 0}", want: "0"},
 		{name: "custom", value: "manager: {intervalJitterPercentage: 25}", want: "25"},
 		{name: "largest", value: "manager: {intervalJitterPercentage: 99}", want: "99"},

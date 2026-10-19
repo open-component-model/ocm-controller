@@ -535,6 +535,7 @@ func TestJitterInterval(t *testing.T) {
 	}{
 		{name: "disabled", interval: time.Minute, minimum: time.Minute, maximum: time.Minute},
 		{name: "five percent", interval: time.Minute, percentage: 5, minimum: 57 * time.Second, maximum: 63 * time.Second},
+		{name: "fifteen percent", interval: time.Minute, percentage: 15, minimum: 51 * time.Second, maximum: 69 * time.Second},
 		{name: "largest percentage", interval: time.Second, percentage: 99, minimum: 10 * time.Millisecond, maximum: 1990 * time.Millisecond},
 		{name: "zero interval", percentage: 5},
 		{name: "negative interval", interval: -time.Second, percentage: 5, minimum: -time.Second, maximum: -time.Second},

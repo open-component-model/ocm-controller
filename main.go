@@ -36,7 +36,7 @@ const (
 	controllerName                  = "ocm-controller"
 	defaultKubeAPIQPS               = 20
 	defaultKubeAPIBurst             = 30
-	defaultIntervalJitterPercentage = 5
+	defaultIntervalJitterPercentage = 15
 	intervalJitterPercentageLimit   = 100
 )
 

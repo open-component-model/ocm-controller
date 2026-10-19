@@ -443,16 +443,16 @@ For details, checkout the prime-test-cluster scripts under the `hack` folder.
 
 ### ComponentVersion polling jitter
 
-ComponentVersion polling intervals use ±5% jitter by default to spread repository
+ComponentVersion polling intervals use ±15% jitter by default to spread repository
 scans when many objects have the same `spec.interval`. For example, a five-minute
-interval schedules the next poll between 4m45s and 5m15s after reconciliation
+interval schedules the next poll between 4m15s and 5m45s after reconciliation
 finishes, followed by any work queue delay.
 
 Configure the percentage with `--interval-jitter-percentage` or the Helm value:
 
 ```yaml
 manager:
-  intervalJitterPercentage: 5
+  intervalJitterPercentage: 15
 ```
 
 The value must be an integer from 0 to 99. Set it to `0` to disable jitter.
