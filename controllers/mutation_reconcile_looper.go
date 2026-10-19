@@ -468,10 +468,11 @@ func resolveReference(
 ) (name.Reference, error) {
 	resourceRef := ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(l.Resource.Name), refPath)
 
-	resource, _, err := resourcerefs.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
+	resource, resolvedCV, err := resourcerefs.ResolveResourceReference(compvers, resourceRef, compvers.Repository())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch resource from component version: %w", err)
 	}
+	defer resolvedCV.Close()
 
 	accSpec, err := resource.Access()
 	if err != nil {

@@ -31,6 +31,7 @@ import (
 	"ocm.software/ocm/api/ocm/tools/signing"
 	"ocm.software/ocm/api/ocm/tools/transfer"
 	"ocm.software/ocm/api/ocm/tools/transfer/transferhandler/standard"
+	"ocm.software/ocm/api/utils/iotools"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -241,7 +242,7 @@ func (c *Client) GetResource(
 	}
 
 	// NewIdentity creates name based identity, and extra identity is added as a key value pair.
-	res, _, err := resourcerefs.ResolveResourceReference(
+	res, resolvedCV, err := resourcerefs.ResolveResourceReference(
 		cva,
 		ocmmetav1.NewNestedResourceRef(ocmmetav1.NewIdentity(resource.Name, extras...), identities),
 		cva.Repository(),
@@ -253,6 +254,7 @@ func (c *Client) GetResource(
 			err,
 		)
 	}
+	defer resolvedCV.Close()
 
 	reader, mediaType, err := c.fetchResourceReader(res, cva)
 	if err != nil {
@@ -581,11 +583,11 @@ func (c *Client) fetchResourceReader(res ocm.ResourceAccess, cva ocm.ComponentVe
 
 	reader, err := access.Reader()
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to fetch reader: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch reader: %w", errors.Join(err, access.Close()))
 	}
 
 	// Ignore the media type as we set it to a default in OCI package
-	return reader, "", nil
+	return iotools.AddReaderCloser(reader, access), "", nil
 }
 
 func (c *Client) fetchHelmChartResource(res ocm.ResourceAccess, cva ocm.ComponentVersionAccess, err error) (io.ReadCloser, string, error) {
