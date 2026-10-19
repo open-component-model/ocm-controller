@@ -136,7 +136,8 @@ func main() {
 		"Disable the client-side Kubernetes API rate limiter and rely on API priority and fairness instead.",
 	)
 
-	bindIntervalJitterFlag(flag.CommandLine, &intervalJitterPercentage)
+	flag.UintVar(&intervalJitterPercentage, "interval-jitter-percentage", defaultIntervalJitterPercentage,
+		"Percentage of jitter applied above and below ComponentVersion polling intervals. Must be less than 100; 0 disables jitter.")
 
 	opts := zap.Options{
 		Development: true,
@@ -145,8 +146,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	if err := validateIntervalJitterPercentage(intervalJitterPercentage); err != nil {
-		setupLog.Error(err, "invalid --interval-jitter-percentage")
+	if intervalJitterPercentage >= intervalJitterPercentageLimit {
+		setupLog.Error(fmt.Errorf("interval jitter must be between 0 and 99, got %d", intervalJitterPercentage), "invalid --interval-jitter-percentage")
 		os.Exit(1)
 	}
 	// 2024-05-11 :
@@ -327,21 +328,4 @@ func setupManagers(
 		setupLog.Error(err, "unable to create controller", "controller", "FluxDeployer")
 		os.Exit(1)
 	}
-}
-
-func bindIntervalJitterFlag(flags *flag.FlagSet, percentage *uint) {
-	flags.UintVar(
-		percentage,
-		"interval-jitter-percentage",
-		defaultIntervalJitterPercentage,
-		"Percentage of jitter applied above and below ComponentVersion polling intervals. Must be less than 100; 0 disables jitter.",
-	)
-}
-
-func validateIntervalJitterPercentage(percentage uint) error {
-	if percentage >= intervalJitterPercentageLimit {
-		return fmt.Errorf("interval jitter percentage must be between 0 and 99, got %d", percentage)
-	}
-
-	return nil
 }

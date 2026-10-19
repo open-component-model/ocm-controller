@@ -32,15 +32,9 @@ spec:
         args:
         - --zap-log-level=4
         - --leader-elect
-        {{- $intervalJitterPercentage := 5 }}
         {{- if hasKey .Values.manager "intervalJitterPercentage" }}
-        {{- $value := toString .Values.manager.intervalJitterPercentage }}
-        {{- if not (regexMatch "^(0|[1-9][0-9]?)$" $value) }}
-        {{- fail "manager.intervalJitterPercentage must be an integer between 0 and 99" }}
+        - --interval-jitter-percentage={{ .Values.manager.intervalJitterPercentage }}
         {{- end }}
-        {{- $intervalJitterPercentage = int $value }}
-        {{- end }}
-        - --interval-jitter-percentage={{ $intervalJitterPercentage }}
         - --oci-registry-addr={{ .Values.registry.address }}
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify

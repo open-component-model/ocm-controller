@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand/v2"
 	"strconv"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
@@ -38,6 +41,8 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/event"
 	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 )
+
+const percentageScale = 100
 
 // ComponentVersionReconciler reconciles a ComponentVersion object.
 type ComponentVersionReconciler struct {
@@ -234,6 +239,20 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	return r.reconcile(ctx, octx, obj, version)
+}
+
+func jitterInterval(interval time.Duration, percentage uint) time.Duration {
+	if interval <= 0 || percentage == 0 {
+		return interval
+	}
+
+	//nolint:gosec // Polling jitter does not require cryptographic randomness.
+	offset := time.Duration(float64(interval) * (float64(percentage) / percentageScale) * (2*rand.Float64() - 1))
+	if offset > 0 && interval > time.Duration(math.MaxInt64)-offset {
+		return time.Duration(math.MaxInt64)
+	}
+
+	return interval + offset
 }
 
 func (r *ComponentVersionReconciler) reconcile(
