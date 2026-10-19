@@ -337,19 +337,24 @@ func (c *Client) VerifyComponent(
 	}
 	defer cv.Close()
 
+	descriptor := cv.GetDescriptor()
+	expectedDigests := make([]string, len(obj.Spec.Verify))
+
 	// Exit early if any required signature is missing, before loading keys or verifying digests.
-	for _, signature := range obj.Spec.Verify {
-		if cv.GetDescriptor().GetSignatureIndex(signature.Name) < 0 {
+	for i, signature := range obj.Spec.Verify {
+		index := descriptor.GetSignatureIndex(signature.Name)
+		if index < 0 {
 			return false, fmt.Errorf(
 				"signature with name '%s' not found in the list of provided ocm signatures",
 				signature.Name,
 			)
 		}
+		expectedDigests[i] = descriptor.Signatures[index].Digest.Value
 	}
 
 	resolver := resolvers.NewCompoundResolver(repo)
 
-	for _, signature := range obj.Spec.Verify {
+	for i, signature := range obj.Spec.Verify {
 		var (
 			cert []byte
 			err  error
@@ -391,15 +396,7 @@ func (c *Client) VerifyComponent(
 			return false, fmt.Errorf("failed to apply signing while verifying component: %w", err)
 		}
 
-		var value string
-		for _, s := range cv.GetDescriptor().Signatures {
-			if s.Name == signature.Name {
-				value = s.Digest.Value
-
-				break
-			}
-		}
-
+		value := expectedDigests[i]
 		if value == "" {
 			return false, fmt.Errorf(
 				"signature with name '%s' not found in the list of provided ocm signatures",
@@ -430,13 +427,12 @@ func (c *Client) getPublicKey(
 		return nil, err
 	}
 
-	for key, value := range secret.Data {
-		if key == signature {
-			return value, nil
-		}
+	value, ok := secret.Data[signature]
+	if !ok {
+		return nil, errors.New("public key not found")
 	}
 
-	return nil, errors.New("public key not found")
+	return value, nil
 }
 
 // GetLatestValidComponentVersion gets the latest version that still matches the constraint.

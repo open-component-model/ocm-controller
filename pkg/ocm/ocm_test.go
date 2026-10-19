@@ -889,7 +889,8 @@ func TestClient_VerifyComponent(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			Signature: publicKey1,
+			Signature:   publicKey1,
+			"unrelated": []byte("unrelated key"),
 		},
 	}
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
@@ -910,6 +911,10 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 	require.NoError(t, octx.AddComponent(c))
+	unrelatedSignature := c.ComponentDescriptor.Signatures[0]
+	unrelatedSignature.Name = "unrelated"
+	unrelatedSignature.Digest.Value = strings.Repeat("0", len(unrelatedSignature.Digest.Value))
+	c.ComponentDescriptor.Signatures = append(ocmmetav1.Signatures{unrelatedSignature}, c.ComponentDescriptor.Signatures...)
 
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
