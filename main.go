@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
@@ -32,9 +33,11 @@ import (
 )
 
 const (
-	controllerName      = "ocm-controller"
-	defaultKubeAPIQPS   = 20
-	defaultKubeAPIBurst = 30
+	controllerName                  = "ocm-controller"
+	defaultKubeAPIQPS               = 20
+	defaultKubeAPIBurst             = 30
+	defaultIntervalJitterPercentage = 5
+	intervalJitterPercentageLimit   = 100
 )
 
 var (
@@ -65,6 +68,7 @@ func main() {
 		kubeAPIQPS                    float64
 		kubeAPIBurst                  int
 		kubeAPIRateLimiterDisabled    bool
+		intervalJitterPercentage      uint
 	)
 
 	flag.StringVar(
@@ -132,6 +136,8 @@ func main() {
 		"Disable the client-side Kubernetes API rate limiter and rely on API priority and fairness instead.",
 	)
 
+	bindIntervalJitterFlag(flag.CommandLine, &intervalJitterPercentage)
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -139,6 +145,10 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	if err := validateIntervalJitterPercentage(intervalJitterPercentage); err != nil {
+		setupLog.Error(err, "invalid --interval-jitter-percentage")
+		os.Exit(1)
+	}
 	// 2024-05-11 :
 	// We're setting the go-log leve because it is used by yqlib
 	// If we ever make it possible to set the log level for the service
@@ -178,7 +188,10 @@ func main() {
 		startPprof(pprofAddr)
 	}
 
-	setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify, restConfig, eventsAddr)
+	setupManagers(
+		ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName,
+		ociRegistryInsecureSkipVerify, restConfig, eventsAddr, intervalJitterPercentage,
+	)
 
 	//+kubebuilder:scaffold:builder
 
@@ -206,6 +219,7 @@ func setupManagers(
 	ociRegistryInsecureSkipVerify bool,
 	restConfig *rest.Config,
 	eventsAddr string,
+	intervalJitterPercentage uint,
 ) {
 	cache := oci.NewClient(
 		ociRegistryAddr,
@@ -229,10 +243,11 @@ func setupManagers(
 	}
 
 	if err = (&controllers.ComponentVersionReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		EventRecorder: eventsRecorder,
-		OCMClient:     ocmClient,
+		Client:                   mgr.GetClient(),
+		Scheme:                   mgr.GetScheme(),
+		EventRecorder:            eventsRecorder,
+		OCMClient:                ocmClient,
+		IntervalJitterPercentage: intervalJitterPercentage,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentVersion")
 		os.Exit(1)
@@ -312,4 +327,21 @@ func setupManagers(
 		setupLog.Error(err, "unable to create controller", "controller", "FluxDeployer")
 		os.Exit(1)
 	}
+}
+
+func bindIntervalJitterFlag(flags *flag.FlagSet, percentage *uint) {
+	flags.UintVar(
+		percentage,
+		"interval-jitter-percentage",
+		defaultIntervalJitterPercentage,
+		"Percentage of jitter applied above and below ComponentVersion polling intervals. Must be less than 100; 0 disables jitter.",
+	)
+}
+
+func validateIntervalJitterPercentage(percentage uint) error {
+	if percentage >= intervalJitterPercentageLimit {
+		return fmt.Errorf("interval jitter percentage must be between 0 and 99, got %d", percentage)
+	}
+
+	return nil
 }

@@ -64,6 +64,8 @@ registry:
 
 manager:
   replicaCount: 1
+  # ComponentVersion polling jitter above and below spec.interval; 0 disables it.
+  intervalJitterPercentage: 5
   image:
     repository: ghcr.io/open-component-model/ocm-controller
     pullPolicy: IfNotPresent

@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
@@ -421,6 +423,87 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 				if tt.expectedUpdate {
 					assert.Contains(t, e, "Version check succeeded, found latest")
 				}
+			}
+		})
+	}
+}
+
+func TestComponentVersionPollingJitter(t *testing.T) {
+	for _, tt := range []struct {
+		name              string
+		percentage        uint
+		update            bool
+		checkFails        bool
+		verificationFails bool
+		repositoryFails   bool
+		suspended         bool
+	}{
+		{name: "already reconciled", percentage: 5},
+		{name: "successful update", percentage: 5, update: true},
+		{name: "version check failure", percentage: 5, checkFails: true},
+		{name: "verification failure", percentage: 5, update: true, verificationFails: true},
+		{name: "error retry", percentage: 5, update: true, repositoryFails: true},
+		{name: "suspended", percentage: 5, suspended: true},
+		{name: "disabled"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Interval = metav1.Duration{Duration: time.Minute}
+			obj.Spec.Version.Semver = ">=1.0.0"
+			obj.Spec.Suspend = tt.suspended
+			if !tt.update {
+				obj.Status.ReconciledVersion = "1.0.0"
+			}
+			root := &ocmfake.Component{
+				Name: obj.Spec.Component, Version: "1.0.0",
+				ComponentDescriptor: &ocmdesc.ComponentDescriptor{
+					ComponentSpec: ocmdesc.ComponentSpec{ObjectMeta: v1.ObjectMeta{Name: obj.Spec.Component, Version: "1.0.0"}},
+				},
+			}
+			fakeOcm := &fakes.MockFetcher{}
+			fakeOcm.GetLatestComponentVersionReturns("1.0.0", nil)
+			fakeOcm.VerifyComponentReturns(true, nil)
+			fakeOcm.GetComponentVersionReturnsForName(root.Name, root, nil)
+			if tt.checkFails {
+				fakeOcm.GetLatestComponentVersionReturns("", errors.New("no matching version"))
+			}
+			if tt.verificationFails {
+				fakeOcm.VerifyComponentReturns(false, errors.New("invalid signature"))
+			}
+			if tt.repositoryFails {
+				fakeOcm.GetComponentVersionReturnsForName(root.Name, nil, errors.New("repository unavailable"))
+			}
+			recorder := &events.FakeRecorder{Events: make(chan string, 32)}
+			reconciler := ComponentVersionReconciler{
+				Client: env.FakeKubeClient(WithObjects(obj)), Scheme: env.scheme,
+				EventRecorder: recorder, OCMClient: fakeOcm, IntervalJitterPercentage: tt.percentage,
+			}
+			result, err := reconciler.Reconcile(t.Context(), ctrl.Request{NamespacedName: types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}})
+			if tt.repositoryFails {
+				require.ErrorContains(t, err, "repository unavailable")
+				require.Zero(t, result.RequeueAfter)
+				return
+			}
+			require.NoError(t, err)
+			if tt.suspended {
+				require.Zero(t, result.RequeueAfter)
+				return
+			}
+			if tt.percentage == 0 {
+				require.Equal(t, time.Minute, result.RequeueAfter)
+			} else {
+				require.GreaterOrEqual(t, result.RequeueAfter, 57*time.Second)
+				require.LessOrEqual(t, result.RequeueAfter, 63*time.Second)
+			}
+			if !tt.checkFails && !tt.verificationFails {
+				close(recorder.Events)
+				var finishedEvent string
+				for event := range recorder.Events {
+					if strings.Contains(event, "Reconciliation finished, next run in") {
+						finishedEvent = event
+					}
+				}
+				require.Contains(t, finishedEvent, "Reconciliation finished, next run in "+result.RequeueAfter.String())
 			}
 		})
 	}

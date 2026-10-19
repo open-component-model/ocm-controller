@@ -45,7 +45,8 @@ type ComponentVersionReconciler struct {
 	Scheme        *runtime.Scheme
 	EventRecorder events.Recorder
 
-	OCMClient ocmclient.Contract
+	OCMClient                ocmclient.Contract
+	IntervalJitterPercentage uint
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentversions;componentdescriptors,verbs=get;list;watch;create;update;patch;delete
@@ -112,7 +113,7 @@ func (r *ComponentVersionReconciler) findObjects(key string) handler.MapFunc {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, retErr error) {
+func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
 	logger := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	logger.Info("starting ocm component loop")
@@ -136,7 +137,12 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter(), retErr); derr != nil {
+		requeueAfter := obj.GetRequeueAfter()
+		if retErr == nil && result.RequeueAfter > 0 {
+			result.RequeueAfter = jitterInterval(result.RequeueAfter, r.IntervalJitterPercentage)
+			requeueAfter = result.RequeueAfter
+		}
+		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, requeueAfter, retErr); derr != nil {
 			retErr = errors.Join(retErr, derr)
 		}
 
