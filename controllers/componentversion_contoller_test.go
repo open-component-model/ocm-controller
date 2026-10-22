@@ -4,14 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
+	"math/rand"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -149,12 +152,12 @@ func TestComponentVersionReconcile(t *testing.T) {
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 	assert.Contains(t, event, "delivery.ocm.software/component_version")
 }
 
@@ -288,12 +291,12 @@ func TestComponentVersionWithTransferReconcile(t *testing.T) {
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 	assert.Contains(t, event, "delivery.ocm.software/component_version")
 }
 
@@ -431,22 +434,40 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 }
 
 func TestComponentVersionPollingJitter(t *testing.T) {
+	// Flux initializes its global jitter only once. Use a fresh process for each
+	// percentage, including zero, without changing other controller tests.
+	const percentageEnv = "OCM_TEST_INTERVAL_JITTER_PERCENTAGE"
+	percentageValue := os.Getenv(percentageEnv)
+	if percentageValue == "" {
+		for _, value := range []string{"0", "5", "15", "99"} {
+			t.Run(value+" percent", func(t *testing.T) {
+				cmd := exec.Command(os.Args[0], "-test.run=^TestComponentVersionPollingJitter$", "-test.v")
+				cmd.Env = append(os.Environ(), percentageEnv+"="+value)
+				output, err := cmd.CombinedOutput()
+				require.NoError(t, err, string(output))
+			})
+		}
+		return
+	}
+	percentage, err := strconv.ParseUint(percentageValue, 10, 8)
+	require.NoError(t, err)
+	options := jitter.IntervalOptions{Percentage: uint8(percentage)}
+	require.NoError(t, options.SetGlobalJitter(rand.New(rand.NewSource(1))))
+
 	for _, tt := range []struct {
 		name              string
-		percentage        uint
 		update            bool
 		checkFails        bool
 		verificationFails bool
 		repositoryFails   bool
 		suspended         bool
 	}{
-		{name: "already reconciled", percentage: 5},
-		{name: "successful update", percentage: 5, update: true},
-		{name: "version check failure", percentage: 5, checkFails: true},
-		{name: "verification failure", percentage: 5, update: true, verificationFails: true},
-		{name: "error retry", percentage: 5, update: true, repositoryFails: true},
-		{name: "suspended", percentage: 5, suspended: true},
-		{name: "disabled"},
+		{name: "already reconciled"},
+		{name: "successful update", update: true},
+		{name: "version check failure", checkFails: true},
+		{name: "verification failure", update: true, verificationFails: true},
+		{name: "error retry", update: true, repositoryFails: true},
+		{name: "suspended", suspended: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			obj := DefaultComponent.DeepCopy()
@@ -482,98 +503,59 @@ func TestComponentVersionPollingJitter(t *testing.T) {
 				fakeOcm.GetComponentVersionReturnsForName(root.Name, nil, errors.New("repository unavailable"))
 			}
 			recorder := &events.FakeRecorder{Events: make(chan string, 32)}
+			testEnvironment := &testEnv{scheme: env.scheme}
+			kubeClient := testEnvironment.FakeKubeClient(WithObjects(obj))
 			reconciler := ComponentVersionReconciler{
-				Client:                   env.FakeKubeClient(WithObjects(obj)),
-				Scheme:                   env.scheme,
-				EventRecorder:            recorder,
-				OCMClient:                fakeOcm,
-				IntervalJitterPercentage: tt.percentage,
+				Client:        kubeClient,
+				Scheme:        testEnvironment.scheme,
+				EventRecorder: recorder,
+				OCMClient:     fakeOcm,
 			}
-			result, err := reconciler.Reconcile(t.Context(), ctrl.Request{
+			// Exercise concurrent access to Flux's shared random generator.
+			t.Parallel()
+			request := ctrl.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      obj.Name,
 					Namespace: obj.Namespace,
 				},
-			})
-			if tt.repositoryFails {
-				require.ErrorContains(t, err, "repository unavailable")
-				require.Zero(t, result.RequeueAfter)
-				return
 			}
-			require.NoError(t, err)
-			if tt.suspended {
-				require.Zero(t, result.RequeueAfter)
-				return
-			}
-			if tt.percentage == 0 {
-				require.Equal(t, time.Minute, result.RequeueAfter)
-			} else {
-				require.GreaterOrEqual(t, result.RequeueAfter, 57*time.Second)
-				require.LessOrEqual(t, result.RequeueAfter, 63*time.Second)
-			}
-			if !tt.checkFails && !tt.verificationFails {
-				close(recorder.Events)
-				var finishedEvent string
-				for event := range recorder.Events {
-					if strings.Contains(event, "Reconciliation finished, next run in") {
-						finishedEvent = event
+			var previousEvent string
+			for range 2 {
+				result, err := reconciler.Reconcile(t.Context(), request)
+				if tt.repositoryFails {
+					require.ErrorContains(t, err, "repository unavailable")
+					require.Zero(t, result.RequeueAfter)
+					return
+				}
+				require.NoError(t, err)
+				if tt.suspended {
+					require.Zero(t, result.RequeueAfter)
+					return
+				}
+				if percentage == 0 {
+					require.Equal(t, time.Minute, result.RequeueAfter)
+				} else {
+					minimum := time.Minute - time.Duration(percentage)*time.Minute/100
+					maximum := time.Minute + time.Duration(percentage)*time.Minute/100
+					require.GreaterOrEqual(t, result.RequeueAfter, minimum)
+					require.LessOrEqual(t, result.RequeueAfter, maximum)
+					require.NotEqual(t, time.Minute, result.RequeueAfter)
+				}
+				if !tt.checkFails && !tt.verificationFails {
+					var finishedEvent string
+					for len(recorder.Events) > 0 {
+						event := <-recorder.Events
+						if strings.Contains(event, "Reconciliation finished, polling interval") {
+							finishedEvent = event
+						}
 					}
-				}
-				require.Contains(t, finishedEvent, "Reconciliation finished, next run in "+result.RequeueAfter.String())
-			}
-		})
-	}
-}
-
-func TestJitterInterval(t *testing.T) {
-	for _, tt := range []struct {
-		name       string
-		interval   time.Duration
-		percentage uint
-		minimum    time.Duration
-		maximum    time.Duration
-	}{
-		{name: "disabled", interval: time.Minute, minimum: time.Minute, maximum: time.Minute},
-		{name: "five percent", interval: time.Minute, percentage: 5, minimum: 57 * time.Second, maximum: 63 * time.Second},
-		{name: "fifteen percent", interval: time.Minute, percentage: 15, minimum: 51 * time.Second, maximum: 69 * time.Second},
-		{name: "largest percentage", interval: time.Second, percentage: 99, minimum: 10 * time.Millisecond, maximum: 1990 * time.Millisecond},
-		{name: "zero interval", percentage: 5},
-		{name: "negative interval", interval: -time.Second, percentage: 5, minimum: -time.Second, maximum: -time.Second},
-		{name: "smallest interval", interval: time.Nanosecond, percentage: 99, minimum: time.Nanosecond, maximum: time.Nanosecond},
-		{name: "largest interval", interval: time.Duration(math.MaxInt64), percentage: 99, minimum: 1, maximum: time.Duration(math.MaxInt64)},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			for range 100 {
-				actual := jitterInterval(tt.interval, tt.percentage)
-				require.GreaterOrEqual(t, actual, tt.minimum)
-				require.LessOrEqual(t, actual, tt.maximum)
-			}
-		})
-	}
-}
-
-func TestJitterIntervalConcurrent(t *testing.T) {
-	var workers sync.WaitGroup
-	for range 8 {
-		workers.Go(func() {
-			for range 100 {
-				actual := jitterInterval(time.Minute, 5)
-				if actual < 57*time.Second || actual > 63*time.Second {
-					t.Errorf("jittered interval out of range: %s", actual)
+					require.Contains(t, finishedEvent, "Reconciliation finished, polling interval 1m0s")
+					if previousEvent != "" {
+						require.Equal(t, previousEvent, finishedEvent, "polling events must remain identical for aggregation")
+					}
+					previousEvent = finishedEvent
 				}
 			}
 		})
 	}
-	workers.Wait()
-}
-
-func TestJitterIntervalSpreadsPolls(t *testing.T) {
-	var earlier, later bool
-	for range 128 {
-		actual := jitterInterval(time.Minute, 5)
-		earlier = earlier || actual < time.Minute
-		later = later || actual > time.Minute
-	}
-	require.True(t, earlier, "jitter should schedule some polls before the base interval")
-	require.True(t, later, "jitter should schedule some polls after the base interval")
 }

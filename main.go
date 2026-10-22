@@ -2,14 +2,15 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"github.com/spf13/pflag"
 	glog "gopkg.in/op/go-logging.v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -37,7 +38,6 @@ const (
 	defaultKubeAPIQPS               = 20
 	defaultKubeAPIBurst             = 30
 	defaultIntervalJitterPercentage = 15
-	intervalJitterPercentageLimit   = 100
 )
 
 var (
@@ -68,7 +68,7 @@ func main() {
 		kubeAPIQPS                    float64
 		kubeAPIBurst                  int
 		kubeAPIRateLimiterDisabled    bool
-		intervalJitterPercentage      uint
+		intervalJitterOptions         jitter.IntervalOptions
 	)
 
 	flag.StringVar(
@@ -136,18 +136,17 @@ func main() {
 		"Disable the client-side Kubernetes API rate limiter and rely on API priority and fairness instead.",
 	)
 
-	flag.UintVar(&intervalJitterPercentage, "interval-jitter-percentage", defaultIntervalJitterPercentage,
-		"Percentage of jitter applied above and below ComponentVersion polling intervals. Must be less than 100; 0 disables jitter.")
-
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	intervalJitterOptions.BindFlagsWithDefault(pflag.CommandLine, defaultIntervalJitterPercentage)
+	pflag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	if intervalJitterPercentage >= intervalJitterPercentageLimit {
-		setupLog.Error(fmt.Errorf("interval jitter must be between 0 and 99, got %d", intervalJitterPercentage), "invalid --interval-jitter-percentage")
+	if err := intervalJitterOptions.SetGlobalJitter(nil); err != nil {
+		setupLog.Error(err, "unable to configure interval jitter")
 		os.Exit(1)
 	}
 	// 2024-05-11 :
@@ -191,7 +190,7 @@ func main() {
 
 	setupManagers(
 		ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName,
-		ociRegistryInsecureSkipVerify, restConfig, eventsAddr, intervalJitterPercentage,
+		ociRegistryInsecureSkipVerify, restConfig, eventsAddr,
 	)
 
 	//+kubebuilder:scaffold:builder
@@ -220,7 +219,6 @@ func setupManagers(
 	ociRegistryInsecureSkipVerify bool,
 	restConfig *rest.Config,
 	eventsAddr string,
-	intervalJitterPercentage uint,
 ) {
 	cache := oci.NewClient(
 		ociRegistryAddr,
@@ -244,11 +242,10 @@ func setupManagers(
 	}
 
 	if err = (&controllers.ComponentVersionReconciler{
-		Client:                   mgr.GetClient(),
-		Scheme:                   mgr.GetScheme(),
-		EventRecorder:            eventsRecorder,
-		OCMClient:                ocmClient,
-		IntervalJitterPercentage: intervalJitterPercentage,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: eventsRecorder,
+		OCMClient:     ocmClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentVersion")
 		os.Exit(1)
