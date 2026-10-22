@@ -847,10 +847,6 @@ func TestClient_GetLatestValidComponentVersionCachesKeysPerSelection(t *testing.
 				second := component.ComponentDescriptor.Signatures[0]
 				second.Name = "second"
 				component.ComponentDescriptor.Signatures = append(component.ComponentDescriptor.Signatures, second)
-				if version == "2.0.0" {
-					// This candidate has all required names but fails cryptographic verification.
-					component.ComponentDescriptor.Signatures[0].Signature.Value = "invalid"
-				}
 			}
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{Name: "signing-keys", Namespace: "default"},
@@ -882,14 +878,16 @@ func TestClient_GetLatestValidComponentVersionCachesKeysPerSelection(t *testing.
 			ocmClient := NewClient(kubeClient, nil)
 			selected, err := ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
 			if tt.missingSecret {
+				// a key that cannot be loaded is a hard failure, not a silent skip
 				require.ErrorIs(t, err, ErrVerificationFailed)
 				require.Nil(t, selected)
 				require.NoError(t, kubeClient.Create(t.Context(), secret))
 			} else {
+				// each distinct secret loads once per selection, however many signatures use it
 				require.NoError(t, err)
-				require.Equal(t, "1.0.0", selected.GetVersion())
+				require.Equal(t, "2.0.0", selected.GetVersion())
 				require.NoError(t, selected.Close())
-				// The next selection must observe a rotated key, even on the same client.
+				// next selection must see a rotated key, even on the same client
 				secret.Data["first"] = otherPublicKey
 				require.NoError(t, kubeClient.Update(t.Context(), secret))
 			}
@@ -898,9 +896,10 @@ func TestClient_GetLatestValidComponentVersionCachesKeysPerSelection(t *testing.
 			selected, err = ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
 			if tt.missingSecret {
 				require.NoError(t, err)
-				require.Equal(t, "1.0.0", selected.GetVersion())
+				require.Equal(t, "2.0.0", selected.GetVersion())
 				require.NoError(t, selected.Close())
 			} else {
+				// rotated key no longer matches; the selection fails rather than downgrading
 				require.ErrorIs(t, err, ErrVerificationFailed)
 				require.Nil(t, selected)
 			}
@@ -923,6 +922,7 @@ func TestClient_VerifyComponentChecksAllSignatureNamesBeforeKeys(t *testing.T) {
 		available     []string
 		required      []string
 		expectedError string
+		missing       bool
 		keyLookups    int
 	}{
 		{
@@ -930,12 +930,14 @@ func TestClient_VerifyComponentChecksAllSignatureNamesBeforeKeys(t *testing.T) {
 			available:     []string{"development"},
 			required:      []string{"production"},
 			expectedError: "signature with name 'production' not found in the list of provided ocm signatures",
+			missing:       true,
 		},
 		{
 			name:          "missing later signature prevents verification of earlier one",
 			available:     []string{"development"},
 			required:      []string{"development", "production"},
 			expectedError: "signature with name 'production' not found in the list of provided ocm signatures",
+			missing:       true,
 		},
 		{
 			name:          "present signature still requires verification",
@@ -975,7 +977,10 @@ func TestClient_VerifyComponentChecksAllSignatureNamesBeforeKeys(t *testing.T) {
 			if tt.expectedError == "" {
 				require.NoError(t, err)
 			} else {
-				require.EqualError(t, err, tt.expectedError)
+				require.ErrorContains(t, err, tt.expectedError)
+				if tt.missing {
+					require.ErrorIs(t, err, errRequiredSignatureMissing)
+				}
 			}
 			require.Equal(t, tt.keyLookups, kubeClient.gets)
 		})
@@ -1641,8 +1646,7 @@ func TestClient_GetLatestValidComponentVersionClosesRejectedComponents(t *testin
 	}
 	ctx := &verificationContext{Context: octx, repository: countedRepo}
 	selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
-	// Candidates matched the constraint but failed verification: this must be
-	// distinguishable from no matching versions at all.
+	// matched the constraint but failed verification; must be distinct from no matching versions
 	require.ErrorIs(t, err, ErrVerificationFailed)
 	require.ErrorContains(t, err, "signature with name 'production' not found")
 	require.Nil(t, selected)
@@ -1666,7 +1670,7 @@ func TestClient_GetLatestValidComponentVersionNoMatchingConstraint(t *testing.T)
 		},
 	}
 	selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), octx, obj)
-	// No version satisfies the constraint: this is not a verification failure.
+	// no version satisfies the constraint; not a verification failure
 	require.ErrorContains(t, err, "no matching versions found")
 	require.NotErrorIs(t, err, ErrVerificationFailed)
 	require.Nil(t, selected)

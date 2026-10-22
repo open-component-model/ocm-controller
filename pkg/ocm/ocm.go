@@ -322,18 +322,23 @@ type signatureVerificationGroup struct {
 	signatures []v1alpha1.Signature
 }
 
+// errRequiredSignatureMissing marks a candidate that is missing a required signature.
+// Selection skips it and falls back to the next-newest signed version; a present but
+// invalid signature is a hard failure and is not wrapped with this.
+var errRequiredSignatureMissing = errors.New("required signature not present")
+
 func requiredSignatureGroups(obj *v1alpha1.ComponentVersion, cv ocm.ComponentVersionAccess) ([]signatureVerificationGroup, error) {
 	descriptor := cv.GetDescriptor()
 	var groups []signatureVerificationGroup
 	groupIndices := make(map[ocmmetav1.DigestSpec]int)
 
-	// Exit early if any required signature is missing, before loading keys or verifying digests.
+	// fail fast on a missing signature, before loading keys or verifying digests
 	for _, signature := range obj.Spec.Verify {
 		index := descriptor.GetSignatureIndex(signature.Name)
 		if index < 0 {
 			return nil, fmt.Errorf(
-				"signature with name '%s' not found in the list of provided ocm signatures",
-				signature.Name,
+				"signature with name '%s' not found in the list of provided ocm signatures: %w",
+				signature.Name, errRequiredSignatureMissing,
 			)
 		}
 		digest := descriptor.Signatures[index].Digest
@@ -401,10 +406,7 @@ func (c *Client) verifyComponent(
 
 		value := group.digest.Value
 		if value == "" {
-			return fmt.Errorf(
-				"signature with name '%s' not found in the list of provided ocm signatures",
-				group.signatures[0].Name,
-			)
+			return fmt.Errorf("signature '%s' has no digest to verify against", group.signatures[0].Name)
 		}
 
 		if dig.Value != value {
@@ -459,9 +461,9 @@ func (c *Client) signaturePublicKeys(ctx context.Context, obj *v1alpha1.Componen
 	return keys, nil
 }
 
-// ErrVerificationFailed indicates that one or more versions matched the
-// constraint but none passed signature verification. It lets callers tell a
-// verification failure apart from there being no matching versions at all.
+// ErrVerificationFailed indicates that a version matched the constraint but failed
+// verification: either a present signature did not verify, or no matching version carried
+// the required signatures. It distinguishes that from there being no matching versions.
 var ErrVerificationFailed = errors.New("component verification failed")
 
 // GetLatestValidComponentVersion gets the latest verified version that matches the constraint.
@@ -491,8 +493,8 @@ func (c *Client) GetLatestValidComponentVersion(
 		return nil, fmt.Errorf("failed to parse constraint version: %w", err)
 	}
 
-	// Load keys only after the signature-name precheck, once per selection.
-	// The next selection reloads keys and retries any previous loading error.
+	// load keys once per selection, after the signature-name precheck; a new selection
+	// reloads and retries a previous load error
 	loadPublicKeys := sync.OnceValues(func() (map[v1alpha1.Signature][]byte, error) {
 		return c.signaturePublicKeys(ctx, obj)
 	})
@@ -504,28 +506,30 @@ func (c *Client) GetLatestValidComponentVersion(
 		}
 		cv, err := c.GetComponentVersion(ctx, octx, obj.Spec.Repository.URL, obj.Spec.Component, v.Version)
 		if err != nil {
-			if len(obj.Spec.Verify) == 0 {
-				return nil, err
-			}
-			logger.Error(err, "ignoring version as it could not be opened", "version", v.Version, "component", obj.Spec.Component)
-
-			continue
+			return nil, err
 		}
 		if len(obj.Spec.Verify) > 0 {
 			if err := c.verifyComponent(ctx, obj, cv, loadPublicKeys); err != nil {
 				_ = cv.Close()
-				verifyErr = err
-				logger.Error(err, "ignoring version as it failed verification", "version", v.Version, "component", obj.Spec.Component)
 
-				continue
+				// not signed for this policy yet; skip to the next-newest signed version
+				// and remember why in case none remain
+				if errors.Is(err, errRequiredSignatureMissing) {
+					verifyErr = err
+					logger.Info("ignoring version missing a required signature", "version", v.Version, "component", obj.Spec.Component)
+
+					continue
+				}
+
+				// signature present but invalid; fail instead of falling back to an older version
+				return nil, fmt.Errorf("%w: %w", ErrVerificationFailed, err)
 			}
 		}
 
 		return cv, nil
 	}
 
-	// Distinguish "matched but failed verification" from "nothing matched" so the
-	// caller can surface the two cases differently.
+	// matched the constraint but nothing carried the required signatures
 	if verifyErr != nil {
 		return nil, fmt.Errorf("%w: %w", ErrVerificationFailed, verifyErr)
 	}
