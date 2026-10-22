@@ -162,14 +162,6 @@ func checkIsComponentVersionReady(name, namespace string) features.Func {
 	})
 }
 
-func checkIsComponentVersionFailed(name string) features.Func {
-	return checkObjectCondition(&v1alpha1.ComponentVersion{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},
-	}, func(obj fconditions.Getter) bool {
-		return fconditions.IsFalse(obj, meta.ReadyCondition) && reasonMatches(obj, v1alpha1.VerificationFailedReason)
-	})
-}
-
 func checkIsResourceReady(name string) features.Func {
 	return checkObjectCondition(&v1alpha1.Resource{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ocm-system"},

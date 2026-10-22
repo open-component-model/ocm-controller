@@ -31,9 +31,6 @@ type MockFetcher struct {
 	getComponentVersionMap              map[string]ocm.ComponentVersionAccess
 	getComponentVersionErr              error
 	getComponentVersionCalledWith       [][]any
-	verifyComponentErr                  error
-	verifyComponentVerified             bool
-	verifyComponentCalledWith           [][]any
 	getLatestComponentVersionComponent  ocm.ComponentVersionAccess
 	getLatestComponentVersionErr        error
 	getLatestComponentVersionCalledWith [][]any
@@ -112,24 +109,6 @@ func (m *MockFetcher) GetComponentVersionCallCount() int {
 
 func (m *MockFetcher) GetComponentVersionWasNotCalled() bool {
 	return len(m.getComponentVersionCalledWith) == 0
-}
-
-func (m *MockFetcher) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
-	m.verifyComponentCalledWith = append(m.verifyComponentCalledWith, []any{obj, version})
-	return m.verifyComponentVerified, m.verifyComponentErr
-}
-
-func (m *MockFetcher) VerifyComponentReturns(verified bool, err error) {
-	m.verifyComponentVerified = verified
-	m.verifyComponentErr = err
-}
-
-func (m *MockFetcher) VerifyComponentCallingArgumentsOnCall(i int) []any {
-	return m.verifyComponentCalledWith[i]
-}
-
-func (m *MockFetcher) VerifyComponentWasNotCalled() bool {
-	return len(m.verifyComponentCalledWith) == 0
 }
 
 func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (ocm.ComponentVersionAccess, error) {

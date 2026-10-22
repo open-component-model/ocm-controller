@@ -172,11 +172,15 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	update, cv, err := r.checkVersion(ctx, octx, obj)
 	if err != nil {
 		// The component might not be there yet. We don't fail but keep polling instead.
+		reason := v1alpha1.CheckVersionFailedReason
+		if errors.Is(err, ocmclient.ErrVerificationFailed) {
+			reason = v1alpha1.VerificationFailedReason
+		}
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
 			nil,
-			v1alpha1.CheckVersionFailedReason,
+			reason,
 			fmt.Sprintf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
 		)
 		metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
@@ -205,9 +209,12 @@ func (r *ComponentVersionReconciler) reconcile(
 	ctx context.Context,
 	octx ocm.Context,
 	obj *v1alpha1.ComponentVersion,
-	cv ocm.ComponentVersionAccess,
+	sourceCV ocm.ComponentVersionAccess,
 ) (ctrl.Result, error) {
-	version := cv.GetVersion()
+	version := sourceCV.GetVersion()
+	// Build descriptors from the destination after a transfer, since resource
+	// access specifications can change when the component is replicated.
+	descriptorCV := sourceCV
 	if obj.Generation != obj.Status.ObservedGeneration {
 		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason,
 			"processing object: new generation %d -> %d", obj.Status.ObservedGeneration, obj.Generation)
@@ -219,7 +226,7 @@ func (r *ComponentVersionReconciler) reconcile(
 	if obj.Spec.Destination != nil {
 		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "transferring component to target repository: %s", obj.Spec.Destination.URL)
 
-		if err := r.OCMClient.TransferComponent(octx, obj, cv); err != nil {
+		if err := r.OCMClient.TransferComponent(octx, obj, sourceCV); err != nil {
 			err := fmt.Errorf("failed to transfer components: %w", err)
 			status.MarkNotReady(r.EventRecorder, obj, nil, v1alpha1.TransferFailedReason, err.Error())
 
@@ -229,7 +236,7 @@ func (r *ComponentVersionReconciler) reconcile(
 		// set the new URL to the destination URL
 		obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
 
-		// update the ocm component version to be the new version from the replicated destination
+		// Open the replicated component for descriptor and reference creation.
 		transferred, err := r.OCMClient.GetComponentVersion(ctx, octx, obj.GetRepositoryURL(), obj.Spec.Component, version)
 		if err != nil {
 			err = fmt.Errorf("failed to get transferred component version: %w", err)
@@ -245,10 +252,10 @@ func (r *ComponentVersionReconciler) reconcile(
 		}
 
 		defer transferred.Close()
-		cv = transferred
+		descriptorCV = transferred
 	}
 
-	cd, descriptor, err := r.createInitialComponentDescriptor(obj, cv)
+	cd, descriptor, err := r.createInitialComponentDescriptor(obj, descriptorCV)
 	if err != nil {
 		err = fmt.Errorf("failed to create initial component descriptor: %w", err)
 		status.MarkNotReady(
@@ -305,9 +312,9 @@ func (r *ComponentVersionReconciler) reconcile(
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "descriptors created, expanding references")
 
-	desc := cv.GetDescriptor()
+	desc := descriptorCV.GetDescriptor()
 	if desc == nil {
-		return ctrl.Result{}, fmt.Errorf("no descriptor found for component version %s:%s", cv.GetName(), cv.GetVersion())
+		return ctrl.Result{}, fmt.Errorf("no descriptor found for component version %s:%s", descriptorCV.GetName(), descriptorCV.GetVersion())
 	}
 
 	// build up component reference graph
@@ -328,7 +335,7 @@ func (r *ComponentVersionReconciler) reconcile(
 	obj.Status.ComponentDescriptor = componentDescriptor
 	obj.Status.ReconciledVersion = version
 
-	metrics.ComponentVersionReconciledTotal.WithLabelValues(cv.GetName(), cv.GetVersion()).Inc()
+	metrics.ComponentVersionReconciledTotal.WithLabelValues(descriptorCV.GetName(), descriptorCV.GetVersion()).Inc()
 
 	if product := IsProductOwned(obj); product != "" {
 		metrics.MPASComponentVersionReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
