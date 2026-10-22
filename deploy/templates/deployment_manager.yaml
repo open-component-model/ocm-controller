@@ -33,18 +33,24 @@ spec:
         - --zap-log-level=4
         - --leader-elect
         {{- with .Values.manager.concurrency }}
-        {{- $entries := list }}
-        {{- $controllers := list "componentVersion" "resource" "snapshot" "localization" "configuration" "fluxDeployer" }}
-        {{- range $name, $count := . }}
-        {{- if not (has $name $controllers) }}
-        {{- fail (printf "unknown controller in manager.concurrency: %s" $name) }}
+        {{- if .componentVersion }}
+        - {{ printf "--concurrency-component-version=%v" .componentVersion | quote }}
         {{- end }}
-        {{- if not (regexMatch "^[1-9][0-9]*$" (toString $count)) }}
-        {{- fail (printf "manager.concurrency.%s must be a positive integer" $name) }}
+        {{- if .resource }}
+        - {{ printf "--concurrency-resource=%v" .resource | quote }}
         {{- end }}
-        {{- $entries = append $entries (printf "%s=%v" $name $count) }}
+        {{- if .snapshot }}
+        - {{ printf "--concurrency-snapshot=%v" .snapshot | quote }}
         {{- end }}
-        - {{ printf "--controller-concurrency=%s" (join "," $entries) | quote }}
+        {{- if .localization }}
+        - {{ printf "--concurrency-localization=%v" .localization | quote }}
+        {{- end }}
+        {{- if .configuration }}
+        - {{ printf "--concurrency-configuration=%v" .configuration | quote }}
+        {{- end }}
+        {{- if .fluxDeployer }}
+        - {{ printf "--concurrency-flux-deployer=%v" .fluxDeployer | quote }}
+        {{- end }}
         {{- end }}
         - --oci-registry-addr={{ .Values.registry.address }}
         {{- if not .Values.registry.tls.enabled }}

@@ -64,8 +64,7 @@ registry:
 
 manager:
   replicaCount: 1
-  # Optional per-controller worker counts. Unspecified controllers keep their
-  # existing default of one worker. Counts must be positive integers.
+  # Optional per-controller worker counts. Unspecified controllers default to 1.
   concurrency: {}
   # concurrency:
   #   componentVersion: 4
