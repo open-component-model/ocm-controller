@@ -31,10 +31,7 @@ type MockFetcher struct {
 	getComponentVersionMap              map[string]ocm.ComponentVersionAccess
 	getComponentVersionErr              error
 	getComponentVersionCalledWith       [][]any
-	verifyComponentErr                  error
-	verifyComponentVerified             bool
-	verifyComponentCalledWith           [][]any
-	getLatestComponentVersionVersion    string
+	getLatestComponentVersionComponent  ocm.ComponentVersionAccess
 	getLatestComponentVersionErr        error
 	getLatestComponentVersionCalledWith [][]any
 	listComponentVersionsVersions       []ocmctrl.Version
@@ -106,35 +103,21 @@ func (m *MockFetcher) GetComponentVersionCallingArgumentsOnCall(i int) []any {
 	return m.getComponentVersionCalledWith[i]
 }
 
+func (m *MockFetcher) GetComponentVersionCallCount() int {
+	return len(m.getComponentVersionCalledWith)
+}
+
 func (m *MockFetcher) GetComponentVersionWasNotCalled() bool {
 	return len(m.getComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error) {
-	m.verifyComponentCalledWith = append(m.verifyComponentCalledWith, []any{obj, version})
-	return m.verifyComponentVerified, m.verifyComponentErr
-}
-
-func (m *MockFetcher) VerifyComponentReturns(verified bool, err error) {
-	m.verifyComponentVerified = verified
-	m.verifyComponentErr = err
-}
-
-func (m *MockFetcher) VerifyComponentCallingArgumentsOnCall(i int) []any {
-	return m.verifyComponentCalledWith[i]
-}
-
-func (m *MockFetcher) VerifyComponentWasNotCalled() bool {
-	return len(m.verifyComponentCalledWith) == 0
-}
-
-func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error) {
+func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (ocm.ComponentVersionAccess, error) {
 	m.getLatestComponentVersionCalledWith = append(m.getLatestComponentVersionCalledWith, []any{obj})
-	return m.getLatestComponentVersionVersion, m.getLatestComponentVersionErr
+	return m.getLatestComponentVersionComponent, m.getLatestComponentVersionErr
 }
 
-func (m *MockFetcher) GetLatestComponentVersionReturns(version string, err error) {
-	m.getLatestComponentVersionVersion = version
+func (m *MockFetcher) GetLatestComponentVersionReturns(component ocm.ComponentVersionAccess, err error) {
+	m.getLatestComponentVersionComponent = component
 	m.getLatestComponentVersionErr = err
 }
 
