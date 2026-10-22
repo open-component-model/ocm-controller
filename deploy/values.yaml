@@ -64,6 +64,15 @@ registry:
 
 manager:
   replicaCount: 1
+  # Optional per-controller worker counts. Unspecified controllers default to 1.
+  concurrency: {}
+  # concurrency:
+  #   componentVersion: 4
+  #   resource: 2
+  #   snapshot: 2
+  #   localization: 1
+  #   configuration: 1
+  #   fluxDeployer: 1
   image:
     repository: ghcr.io/open-component-model/ocm-controller
     pullPolicy: IfNotPresent

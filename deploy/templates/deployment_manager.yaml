@@ -32,6 +32,26 @@ spec:
         args:
         - --zap-log-level=4
         - --leader-elect
+        {{- with .Values.manager.concurrency }}
+        {{- if .componentVersion }}
+        - {{ printf "--concurrency-component-version=%v" .componentVersion | quote }}
+        {{- end }}
+        {{- if .resource }}
+        - {{ printf "--concurrency-resource=%v" .resource | quote }}
+        {{- end }}
+        {{- if .snapshot }}
+        - {{ printf "--concurrency-snapshot=%v" .snapshot | quote }}
+        {{- end }}
+        {{- if .localization }}
+        - {{ printf "--concurrency-localization=%v" .localization | quote }}
+        {{- end }}
+        {{- if .configuration }}
+        - {{ printf "--concurrency-configuration=%v" .configuration | quote }}
+        {{- end }}
+        {{- if .fluxDeployer }}
+        - {{ printf "--concurrency-flux-deployer=%v" .fluxDeployer | quote }}
+        {{- end }}
+        {{- end }}
         - --oci-registry-addr={{ .Values.registry.address }}
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify
