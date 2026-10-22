@@ -455,9 +455,8 @@ manager:
 ```
 
 Valid controller names: `componentVersion`, `resource`, `snapshot`,
-`localization`, `configuration`, `fluxDeployer`. Counts must be positive
-integers; controllers you omit keep the default of one worker. This renders the
-manager's `--controller-concurrency` flag (comma-separated `name=count` pairs).
+`localization`, `configuration`, `fluxDeployer`. Controllers you omit keep the
+default of one worker.
 
 ## Uninstall
 
