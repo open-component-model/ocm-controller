@@ -65,7 +65,12 @@ type flags struct {
 	kubeAPIQPS                    float64
 	kubeAPIBurst                  int
 	kubeAPIRateLimiterDisabled    bool
-	controllerConcurrency         string
+	concurrencyComponentVersion   int
+	concurrencyResource           int
+	concurrencySnapshot           int
+	concurrencyLocalization       int
+	concurrencyConfiguration      int
+	concurrencyFluxDeployer       int
 }
 
 func bindFlags() (flags, zap.Options) {
@@ -134,14 +139,12 @@ func bindFlags() (flags, zap.Options) {
 		false,
 		"Disable the client-side Kubernetes API rate limiter and rely on API priority and fairness instead.",
 	)
-	flag.StringVar(
-		&f.controllerConcurrency,
-		"controller-concurrency",
-		"",
-		"Per-controller worker counts as comma-separated name=count pairs. "+
-			"Names: componentVersion, resource, snapshot, localization, configuration, fluxDeployer. "+
-			"Unspecified controllers retain their default concurrency.",
-	)
+	flag.IntVar(&f.concurrencyComponentVersion, "concurrency-component-version", 1, "Number of workers for the ComponentVersion controller.")
+	flag.IntVar(&f.concurrencyResource, "concurrency-resource", 1, "Number of workers for the Resource controller.")
+	flag.IntVar(&f.concurrencySnapshot, "concurrency-snapshot", 1, "Number of workers for the Snapshot controller.")
+	flag.IntVar(&f.concurrencyLocalization, "concurrency-localization", 1, "Number of workers for the Localization controller.")
+	flag.IntVar(&f.concurrencyConfiguration, "concurrency-configuration", 1, "Number of workers for the Configuration controller.")
+	flag.IntVar(&f.concurrencyFluxDeployer, "concurrency-flux-deployer", 1, "Number of workers for the FluxDeployer controller.")
 
 	opts := zap.Options{
 		Development: true,
@@ -156,10 +159,14 @@ func main() {
 	f, opts := bindFlags()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	groupKindConcurrency, err := parseControllerConcurrency(f.controllerConcurrency)
-	if err != nil {
-		setupLog.Error(err, "invalid --controller-concurrency")
-		os.Exit(1)
+	gk := func(kind string) string { return v1alpha1.GroupVersion.WithKind(kind).GroupKind().String() }
+	groupKindConcurrency := map[string]int{
+		gk("ComponentVersion"): f.concurrencyComponentVersion,
+		gk("Resource"):         f.concurrencyResource,
+		gk("Snapshot"):         f.concurrencySnapshot,
+		gk("Localization"):     f.concurrencyLocalization,
+		gk("Configuration"):    f.concurrencyConfiguration,
+		gk("FluxDeployer"):     f.concurrencyFluxDeployer,
 	}
 	// 2024-05-11 :
 	// We're setting the go-log leve because it is used by yqlib
