@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"sync"
 
 	"github.com/Masterminds/semver/v3"
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
@@ -40,9 +39,6 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/event"
 	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 )
-
-// Flux runtime v0.119.0 shares a rand.Rand that requires serialized access.
-var intervalJitterMu sync.Mutex
 
 // ComponentVersionReconciler reconciles a ComponentVersion object.
 type ComponentVersionReconciler struct {
@@ -142,9 +138,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
 		if retErr == nil && result.RequeueAfter > 0 {
-			intervalJitterMu.Lock()
 			result = jitter.JitteredRequeueInterval(result)
-			intervalJitterMu.Unlock()
 		}
 		// Keep event messages stable so repeated reconciliations can be aggregated.
 		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter(), retErr); derr != nil {
