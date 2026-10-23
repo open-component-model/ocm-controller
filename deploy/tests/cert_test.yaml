@@ -1,0 +1,54 @@
+suite: certificate Secret references
+templates:
+  - templates/cert.yaml
+set:
+  tlsCert.generateTlsCert: true
+tests:
+  - it: preserves the default bootstrap and serving Secret references
+    asserts:
+      - equal:
+          path: spec.secretName
+          value: ocm-registry-tls-certs
+        documentSelector:
+          path: metadata.name
+          value: ocm-bootstrap-certificate
+      - equal:
+          path: spec.ca.secretName
+          value: ocm-registry-tls-certs
+        documentSelector:
+          path: metadata.name
+          value: ocm-certificate-issuer
+      - equal:
+          path: spec.secretName
+          value: ocm-registry-tls-certs
+        documentSelector:
+          path: metadata.name
+          value: ocm-registry-tls-certs
+  - it: uses a separate bootstrap CA Secret without changing the serving Secret
+    set:
+      tlsCert.bootstrap.secretName: custom-ca
+    asserts:
+      - equal:
+          path: spec.secretName
+          value: custom-ca
+        documentSelector:
+          path: metadata.name
+          value: ocm-bootstrap-certificate
+      - equal:
+          path: spec.ca.secretName
+          value: custom-ca
+        documentSelector:
+          path: metadata.name
+          value: ocm-certificate-issuer
+      - equal:
+          path: spec.secretName
+          value: ocm-registry-tls-certs
+        documentSelector:
+          path: metadata.name
+          value: ocm-registry-tls-certs
+  - it: renders no certificate resources when generation is disabled
+    set:
+      tlsCert.generateTlsCert: false
+    asserts:
+      - hasDocuments:
+          count: 0
