@@ -17,6 +17,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -51,86 +52,99 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-func main() {
-	var (
-		metricsAddr                   string
-		eventsAddr                    string
-		enableLeaderElection          bool
-		probeAddr                     string
-		pprofAddr                     string
-		ociRegistryAddr               string
-		ociRegistryCertSecretName     string
-		ociRegistryInsecureSkipVerify bool
-		ociRegistryNamespace          string
-		kubeAPIQPS                    float64
-		kubeAPIBurst                  int
-		kubeAPIRateLimiterDisabled    bool
-	)
+type flags struct {
+	metricsAddr                   string
+	eventsAddr                    string
+	enableLeaderElection          bool
+	probeAddr                     string
+	pprofAddr                     string
+	ociRegistryAddr               string
+	ociRegistryCertSecretName     string
+	ociRegistryInsecureSkipVerify bool
+	ociRegistryNamespace          string
+	kubeAPIQPS                    float64
+	kubeAPIBurst                  int
+	kubeAPIRateLimiterDisabled    bool
+	concurrencyComponentVersion   int
+	concurrencyResource           int
+	concurrencySnapshot           int
+	concurrencyLocalization       int
+	concurrencyConfiguration      int
+	concurrencyFluxDeployer       int
+}
 
+func bindFlags() (flags, zap.Options) {
+	var f flags
 	flag.StringVar(
-		&metricsAddr,
+		&f.metricsAddr,
 		"metrics-bind-address",
 		":9443",
 		"The address the metric endpoint binds to.",
 	)
-	flag.StringVar(&eventsAddr, "events-addr", "", "The address of the events receiver.")
+	flag.StringVar(&f.eventsAddr, "events-addr", "", "The address of the events receiver.")
 	flag.StringVar(
-		&probeAddr,
+		&f.probeAddr,
 		"health-probe-bind-address",
 		":8081",
 		"The address the probe endpoint binds to.",
 	)
 	flag.StringVar(
-		&pprofAddr,
+		&f.pprofAddr,
 		"pprof-bind-address",
 		":6060",
 		"The address the pprof endpoint binds to (only used in builds with the pprof tag).",
 	)
 	flag.StringVar(
-		&ociRegistryAddr,
+		&f.ociRegistryAddr,
 		"oci-registry-addr",
 		":5000",
 		"The address of the OCI registry.",
 	)
 	flag.StringVar(
-		&ociRegistryCertSecretName,
+		&f.ociRegistryCertSecretName,
 		"certificate-secret-name",
 		v1alpha1.DefaultRegistryCertificateSecretName,
 		"",
 	)
 	flag.StringVar(
-		&ociRegistryNamespace,
+		&f.ociRegistryNamespace,
 		"oci-registry-namespace",
 		"ocm-system",
 		"The namespace in which the registry is running in.",
 	)
 	flag.BoolVar(
-		&ociRegistryInsecureSkipVerify,
+		&f.ociRegistryInsecureSkipVerify,
 		"oci-registry-insecure-skip-verify",
 		false,
 		"Skip verification of the certificate that the registry is using.",
 	)
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+	flag.BoolVar(&f.enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.Float64Var(
-		&kubeAPIQPS,
+		&f.kubeAPIQPS,
 		"kube-api-qps",
 		defaultKubeAPIQPS,
 		"Maximum queries per second to the Kubernetes API. Ignored when --kube-api-rate-limiter-disabled is set.",
 	)
 	flag.IntVar(
-		&kubeAPIBurst,
+		&f.kubeAPIBurst,
 		"kube-api-burst",
 		defaultKubeAPIBurst,
 		"Maximum burst for Kubernetes API client throttling. Ignored when --kube-api-rate-limiter-disabled is set.",
 	)
 	flag.BoolVar(
-		&kubeAPIRateLimiterDisabled,
+		&f.kubeAPIRateLimiterDisabled,
 		"kube-api-rate-limiter-disabled",
 		false,
 		"Disable the client-side Kubernetes API rate limiter and rely on API priority and fairness instead.",
 	)
+	flag.IntVar(&f.concurrencyComponentVersion, "concurrency-component-version", 1, "Number of workers for the ComponentVersion controller.")
+	flag.IntVar(&f.concurrencyResource, "concurrency-resource", 1, "Number of workers for the Resource controller.")
+	flag.IntVar(&f.concurrencySnapshot, "concurrency-snapshot", 1, "Number of workers for the Snapshot controller.")
+	flag.IntVar(&f.concurrencyLocalization, "concurrency-localization", 1, "Number of workers for the Localization controller.")
+	flag.IntVar(&f.concurrencyConfiguration, "concurrency-configuration", 1, "Number of workers for the Configuration controller.")
+	flag.IntVar(&f.concurrencyFluxDeployer, "concurrency-flux-deployer", 1, "Number of workers for the FluxDeployer controller.")
 
 	opts := zap.Options{
 		Development: true,
@@ -138,7 +152,22 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
+	return f, opts
+}
+
+func main() {
+	f, opts := bindFlags()
+
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	gk := func(kind string) string { return v1alpha1.GroupVersion.WithKind(kind).GroupKind().String() }
+	groupKindConcurrency := map[string]int{
+		gk("ComponentVersion"): f.concurrencyComponentVersion,
+		gk("Resource"):         f.concurrencyResource,
+		gk("Snapshot"):         f.concurrencySnapshot,
+		gk("Localization"):     f.concurrencyLocalization,
+		gk("Configuration"):    f.concurrencyConfiguration,
+		gk("FluxDeployer"):     f.concurrencyFluxDeployer,
+	}
 	// 2024-05-11 :
 	// We're setting the go-log leve because it is used by yqlib
 	// If we ever make it possible to set the log level for the service
@@ -147,38 +176,42 @@ func main() {
 	glog.SetLevel(glog.WARNING, "yq-lib")
 
 	restConfig := ctrl.GetConfigOrDie()
-	if kubeAPIRateLimiterDisabled {
+	if f.kubeAPIRateLimiterDisabled {
 		restConfig.QPS = -1
 		restConfig.Burst = 0
 	} else {
-		restConfig.QPS = float32(kubeAPIQPS)
-		restConfig.Burst = kubeAPIBurst
+		restConfig.QPS = float32(f.kubeAPIQPS)
+		restConfig.Burst = f.kubeAPIBurst
 	}
 
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
-			BindAddress: metricsAddr,
+			BindAddress: f.metricsAddr,
 		},
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
+		HealthProbeBindAddress: f.probeAddr,
+		LeaderElection:         f.enableLeaderElection,
 		LeaderElectionID:       "f8b21459.ocm.software",
+		Controller: controllerconfig.Controller{
+			GroupKindConcurrency: groupKindConcurrency,
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
+	ociRegistryAddr := f.ociRegistryAddr
 	if v, found := os.LookupEnv("OCI_REGISTRY_LOCALHOST"); found {
 		ociRegistryAddr = v
 	}
 
 	if pprofEnabled {
-		setupLog.Info("starting pprof server", "address", pprofAddr)
-		startPprof(pprofAddr)
+		setupLog.Info("starting pprof server", "address", f.pprofAddr)
+		startPprof(f.pprofAddr)
 	}
 
-	setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify, restConfig, eventsAddr)
+	setupManagers(ociRegistryAddr, mgr, f.ociRegistryNamespace, f.ociRegistryCertSecretName, f.ociRegistryInsecureSkipVerify, restConfig, f.eventsAddr)
 
 	//+kubebuilder:scaffold:builder
 
