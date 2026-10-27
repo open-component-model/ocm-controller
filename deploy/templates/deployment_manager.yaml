@@ -32,6 +32,9 @@ spec:
         args:
         - --zap-log-level=4
         - --leader-elect
+        {{- if hasKey .Values.manager "intervalJitterPercentage" }}
+        - --interval-jitter-percentage={{ .Values.manager.intervalJitterPercentage }}
+        {{- end }}
         - --oci-registry-addr={{ .Values.registry.address }}
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify

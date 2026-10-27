@@ -441,6 +441,28 @@ helm install ocm-controller oci://ghcr.io/open-component-model/helm/ocm-controll
 This does require that certain items, like certificate secrets are pre-created by the user.
 For details, checkout the prime-test-cluster scripts under the `hack` folder.
 
+### ComponentVersion polling jitter
+
+ComponentVersion polling intervals use Flux's jitter implementation with ±15%
+jitter by default to spread repository scans when many objects have the same
+`spec.interval`. For example, a five-minute interval schedules the next poll
+between 4m15s and 5m45s after reconciliation finishes, followed by any work queue
+delay.
+
+Configure the percentage with `--interval-jitter-percentage` or the Helm value:
+
+```yaml
+manager:
+  intervalJitterPercentage: 15
+```
+
+The value must be an integer from 0 to 99. Set it to `0` to disable jitter.
+Jitter applies to polling requeues, including version-check failures that retry
+on `spec.interval`. It does not delay watch events or change error retry backoff.
+It spreads subsequent polls; the initial reconciliation at startup still runs
+as soon as a worker is available. Events report the configured polling interval
+rather than the sampled delay so repeated events can be aggregated.
+
 ## Uninstall
 
 Again, there are two ways to uninstall the controller. Using the ocm cli run `ocm controller uninstall`.
