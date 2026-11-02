@@ -307,7 +307,7 @@ func (r *FluxDeployerReconciler) reconcileOCIRepo(
 			}
 		}
 		ociRepoCR.Spec = sourcev1.OCIRepositorySpec{
-			Interval: obj.Spec.Interval,
+			Interval: &obj.Spec.Interval,
 			CertSecretRef: &meta.LocalObjectReference{
 				Name: r.CertSecretName,
 			},

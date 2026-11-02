@@ -13,15 +13,15 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/cyphar/filepath-securejoin v0.7.0
 	github.com/distribution/distribution/v3 v3.1.2
-	github.com/fluxcd/helm-controller/api v1.6.5
-	github.com/fluxcd/kustomize-controller/api v1.9.6
+	github.com/fluxcd/helm-controller/api v1.7.1
+	github.com/fluxcd/kustomize-controller/api v1.10.1
 	github.com/fluxcd/pkg/apis/event v0.32.0
-	github.com/fluxcd/pkg/apis/meta v1.36.0
-	github.com/fluxcd/pkg/http/fetch v0.28.0
-	github.com/fluxcd/pkg/kustomize v1.43.0
-	github.com/fluxcd/pkg/runtime v0.120.0
-	github.com/fluxcd/pkg/tar v1.3.0
-	github.com/fluxcd/source-controller/api v1.9.6
+	github.com/fluxcd/pkg/apis/meta v1.38.0
+	github.com/fluxcd/pkg/http/fetch v0.31.0
+	github.com/fluxcd/pkg/kustomize v1.44.0
+	github.com/fluxcd/pkg/runtime v0.122.0
+	github.com/fluxcd/pkg/tar v1.4.0
+	github.com/fluxcd/source-controller/api v1.10.0
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-containerregistry v0.22.1
 	github.com/mandelsoft/logging v0.0.0-20240618075559-fdca28a87b0a
@@ -44,10 +44,10 @@ require (
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.22.1
-	k8s.io/api v0.37.1
-	k8s.io/apiextensions-apiserver v0.37.1
-	k8s.io/apimachinery v0.37.1
-	k8s.io/client-go v0.37.1
+	k8s.io/api v0.37.2
+	k8s.io/apiextensions-apiserver v0.37.2
+	k8s.io/apimachinery v0.37.2
+	k8s.io/client-go v0.37.2
 	ocm.software/ocm v0.53.0
 	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/e2e-framework v0.7.0
@@ -181,7 +181,7 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.12.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.23.0 // indirect
 	github.com/fluxcd/pkg/envsubst v1.9.0 // indirect
-	github.com/fluxcd/pkg/sourceignore v0.21.0 // indirect
+	github.com/fluxcd/pkg/sourceignore v0.22.0 // indirect
 	github.com/fluxcd/pkg/ssa v0.78.0 // indirect
 	github.com/fluxcd/pkg/version v0.16.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
@@ -299,7 +299,7 @@ require (
 	github.com/nozzle/throttler v0.0.0-20180817012639-2ea982251481 // indirect
 	github.com/oklog/ulid/v2 v2.1.2 // indirect
 	github.com/oleiade/reflections v1.1.0 // indirect
-	github.com/opencontainers/go-digest/blake3 v0.0.0-20250116041648-1e56c6daea3b // indirect
+	github.com/opencontainers/go-digest/blake3 v0.0.0-20261015205711-63db54280247 // indirect
 	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
@@ -308,9 +308,9 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.24.1 // indirect
+	github.com/prometheus/client_golang v1.25.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
-	github.com/prometheus/common v0.71.0 // indirect
+	github.com/prometheus/common v0.72.0 // indirect
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20260420112717-c39628bde8b5 // indirect
@@ -424,11 +424,11 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	helm.sh/helm/v4 v4.3.0 // indirect
 	k8s.io/cli-runtime v0.37.1 // indirect
-	k8s.io/component-base v0.37.1 // indirect
+	k8s.io/component-base v0.37.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20261001230523-97fa35140926 // indirect
 	k8s.io/kubectl v0.37.1 // indirect
-	k8s.io/streaming v0.37.1 // indirect
+	k8s.io/streaming v0.37.2 // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
