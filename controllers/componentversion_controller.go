@@ -169,7 +169,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}()
 
 	// reconcile the version before calling reconcile func
-	update, cv, err := r.checkVersion(ctx, octx, obj)
+	update, version, cv, err := r.checkVersion(ctx, octx, obj)
 	if err != nil {
 		// The component might not be there yet. We don't fail but keep polling instead.
 		reason := v1alpha1.CheckVersionFailedReason
@@ -189,8 +189,9 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			RequeueAfter: obj.GetRequeueAfter(),
 		}, nil
 	}
-	defer cv.Close()
-	version := cv.GetVersion()
+	if cv != nil {
+		defer cv.Close()
+	}
 
 	if !update {
 		status.MarkReady(r.EventRecorder, obj, nil, "Applied version: %s", version)
@@ -350,24 +351,23 @@ func (r *ComponentVersionReconciler) checkVersion(
 	ctx context.Context,
 	octx ocm.Context,
 	obj *v1alpha1.ComponentVersion,
-) (update bool, selected ocm.ComponentVersionAccess, retErr error) {
+) (update bool, version string, selected ocm.ComponentVersionAccess, retErr error) {
 	logger := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
-	cv, err := r.OCMClient.GetLatestValidComponentVersion(ctx, octx, obj)
+	latest, cv, err := r.OCMClient.GetLatestValidComponentVersion(ctx, octx, obj)
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to get latest component version: %w", err)
+		return false, "", nil, fmt.Errorf("failed to get latest component version: %w", err)
 	}
 	defer func() {
-		if retErr != nil {
+		if retErr != nil && cv != nil {
 			_ = cv.Close()
 		}
 	}()
-	latest := cv.GetVersion()
 	logger.V(v1alpha1.LevelDebug).Info("got latest version of component", "version", latest)
 
 	latestSemver, err := semver.NewVersion(latest)
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to parse latest version: %w", err)
+		return false, "", nil, fmt.Errorf("failed to parse latest version: %w", err)
 	}
 
 	reconciledVersion := "0.0.0"
@@ -376,7 +376,7 @@ func (r *ComponentVersionReconciler) checkVersion(
 	}
 	current, err := semver.NewVersion(reconciledVersion)
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to parse reconciled version: %w", err)
+		return false, "", nil, fmt.Errorf("failed to parse reconciled version: %w", err)
 	}
 	logger.V(v1alpha1.LevelDebug).Info("current reconciled version is", "reconciled", current.String())
 
@@ -392,14 +392,22 @@ func (r *ComponentVersionReconciler) checkVersion(
 
 	constraint, err := semver.NewConstraint(obj.Spec.Version.Semver)
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to parse constraint version: %w", err)
+		return false, "", nil, fmt.Errorf("failed to parse constraint version: %w", err)
 	}
 
 	if current.LessThan(latestSemver) || !constraint.Check(current) {
-		return true, cv, nil
+		// Unsigned selection only returns a version; open it once an update is needed.
+		if cv == nil {
+			cv, err = r.OCMClient.GetComponentVersion(ctx, octx, obj.Spec.Repository.URL, obj.Spec.Component, latest)
+			if err != nil {
+				return false, "", nil, fmt.Errorf("failed to get component version: %w", err)
+			}
+		}
+
+		return true, latest, cv, nil
 	}
 
-	return false, cv, nil
+	return false, latest, cv, nil
 }
 
 // parseReferences takes a list of references to embedded components and constructs a dependency tree out of them.

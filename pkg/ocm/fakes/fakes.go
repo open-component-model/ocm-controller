@@ -31,6 +31,7 @@ type MockFetcher struct {
 	getComponentVersionMap              map[string]ocm.ComponentVersionAccess
 	getComponentVersionErr              error
 	getComponentVersionCalledWith       [][]any
+	getLatestComponentVersionVersion    string
 	getLatestComponentVersionComponent  ocm.ComponentVersionAccess
 	getLatestComponentVersionErr        error
 	getLatestComponentVersionCalledWith [][]any
@@ -111,12 +112,13 @@ func (m *MockFetcher) GetComponentVersionWasNotCalled() bool {
 	return len(m.getComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (ocm.ComponentVersionAccess, error) {
+func (m *MockFetcher) GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, ocm.ComponentVersionAccess, error) {
 	m.getLatestComponentVersionCalledWith = append(m.getLatestComponentVersionCalledWith, []any{obj})
-	return m.getLatestComponentVersionComponent, m.getLatestComponentVersionErr
+	return m.getLatestComponentVersionVersion, m.getLatestComponentVersionComponent, m.getLatestComponentVersionErr
 }
 
-func (m *MockFetcher) GetLatestComponentVersionReturns(component ocm.ComponentVersionAccess, err error) {
+func (m *MockFetcher) GetLatestComponentVersionReturns(version string, component ocm.ComponentVersionAccess, err error) {
+	m.getLatestComponentVersionVersion = version
 	m.getLatestComponentVersionComponent = component
 	m.getLatestComponentVersionErr = err
 }

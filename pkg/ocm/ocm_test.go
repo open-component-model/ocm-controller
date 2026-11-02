@@ -796,11 +796,16 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			tt.setupComponents(component, octx)
 			cv := tt.componentVersion(component)
 
-			latest, err := ocmClient.GetLatestValidComponentVersion(context.Background(), octx, cv)
+			latest, selected, err := ocmClient.GetLatestValidComponentVersion(context.Background(), octx, cv)
 			require.NoError(t, err)
-			require.NotNil(t, latest)
-			defer latest.Close()
-			assert.Equal(t, tt.expectedVersion, latest.GetVersion())
+			assert.Equal(t, tt.expectedVersion, latest)
+			if len(cv.Spec.Verify) > 0 {
+				require.NotNil(t, selected)
+				defer selected.Close()
+				assert.Equal(t, latest, selected.GetVersion())
+			} else {
+				require.Nil(t, selected)
+			}
 		})
 	}
 }
@@ -876,7 +881,7 @@ func TestClient_GetLatestValidComponentVersionCachesKeysPerSelection(t *testing.
 				obj.Spec.Verify[1].PublicKey.SecretRef.Name = secondSecret.Name
 			}
 			ocmClient := NewClient(kubeClient, nil)
-			selected, err := ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
+			_, selected, err := ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
 			if tt.missingSecret {
 				// a key that cannot be loaded is a hard failure, not a silent skip
 				require.ErrorIs(t, err, ErrVerificationFailed)
@@ -893,7 +898,7 @@ func TestClient_GetLatestValidComponentVersionCachesKeysPerSelection(t *testing.
 			}
 			require.Equal(t, tt.gets, kubeClient.gets)
 
-			selected, err = ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
+			_, selected, err = ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
 			if tt.missingSecret {
 				require.NoError(t, err)
 				require.Equal(t, "2.0.0", selected.GetVersion())
@@ -1573,7 +1578,7 @@ func TestClient_GetLatestValidComponentVersionReusesVerifiedComponent(t *testing
 		},
 	}
 	ctx := &verificationContext{Context: octx, repository: countedRepo}
-	selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
+	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
 	require.NoError(t, err)
 	require.Same(t, countedRepo.components["2.0.0"], selected)
 	require.Equal(t, []string{"3.0.0", "2.0.0"}, countedRepo.lookups)
@@ -1645,7 +1650,7 @@ func TestClient_GetLatestValidComponentVersionClosesRejectedComponents(t *testin
 		},
 	}
 	ctx := &verificationContext{Context: octx, repository: countedRepo}
-	selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
+	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
 	// matched the constraint but failed verification; must be distinct from no matching versions
 	require.ErrorIs(t, err, ErrVerificationFailed)
 	require.ErrorContains(t, err, "signature with name 'production' not found")
@@ -1669,7 +1674,7 @@ func TestClient_GetLatestValidComponentVersionNoMatchingConstraint(t *testing.T)
 			Version:    v1alpha1.Version{Semver: ">=3.0.0"},
 		},
 	}
-	selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), octx, obj)
+	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), octx, obj)
 	// no version satisfies the constraint; not a verification failure
 	require.ErrorContains(t, err, "no matching versions found")
 	require.NotErrorIs(t, err, ErrVerificationFailed)

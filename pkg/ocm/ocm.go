@@ -57,7 +57,11 @@ type Contract interface {
 		octx ocm.Context,
 		repositoryURL, name, version string,
 	) (ocm.ComponentVersionAccess, error)
-	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (ocm.ComponentVersionAccess, error)
+	GetLatestValidComponentVersion(
+		ctx context.Context,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentVersion,
+	) (string, ocm.ComponentVersionAccess, error)
 	ListComponentVersions(ctx context.Context, logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
 	TransferComponent(
 		octx ocm.Context,
@@ -466,22 +470,23 @@ func (c *Client) signaturePublicKeys(ctx context.Context, obj *v1alpha1.Componen
 // the required signatures. It distinguishes that from there being no matching versions.
 var ErrVerificationFailed = errors.New("component verification failed")
 
-// GetLatestValidComponentVersion gets the latest verified version that matches the constraint.
-// The caller must close the returned component version.
+// GetLatestValidComponentVersion selects the latest version matching the constraint and verification policy.
+// Without verification, it returns only the version string to avoid fetching the descriptor.
+// When verification is required, the caller must close the returned verified component.
 func (c *Client) GetLatestValidComponentVersion(
 	ctx context.Context,
 	octx ocm.Context,
 	obj *v1alpha1.ComponentVersion,
-) (ocm.ComponentVersionAccess, error) {
+) (string, ocm.ComponentVersionAccess, error) {
 	logger := log.FromContext(ctx)
 
 	versions, err := c.ListComponentVersions(ctx, logger, octx, obj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get component versions: %w", err)
+		return "", nil, fmt.Errorf("failed to get component versions: %w", err)
 	}
 
 	if len(versions) == 0 {
-		return nil, fmt.Errorf("no versions found for component '%s'", obj.Spec.Component)
+		return "", nil, fmt.Errorf("no versions found for component '%s'", obj.Spec.Component)
 	}
 
 	sort.SliceStable(versions, func(i, j int) bool {
@@ -490,7 +495,7 @@ func (c *Client) GetLatestValidComponentVersion(
 
 	constraint, err := semver.NewConstraint(obj.Spec.Version.Semver)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse constraint version: %w", err)
+		return "", nil, fmt.Errorf("failed to parse constraint version: %w", err)
 	}
 
 	// load keys once per selection, after the signature-name precheck; a new selection
@@ -504,37 +509,38 @@ func (c *Client) GetLatestValidComponentVersion(
 		if valid, _ := constraint.Validate(v.Semver); !valid {
 			continue
 		}
+		if len(obj.Spec.Verify) == 0 {
+			return v.Version, nil, nil
+		}
 		cv, err := c.GetComponentVersion(ctx, octx, obj.Spec.Repository.URL, obj.Spec.Component, v.Version)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
-		if len(obj.Spec.Verify) > 0 {
-			if err := c.verifyComponent(ctx, obj, cv, loadPublicKeys); err != nil {
-				_ = cv.Close()
+		if err := c.verifyComponent(ctx, obj, cv, loadPublicKeys); err != nil {
+			_ = cv.Close()
 
-				// not signed for this policy yet; skip to the next-newest signed version
-				// and remember why in case none remain
-				if errors.Is(err, errRequiredSignatureMissing) {
-					verifyErr = err
-					logger.Info("ignoring version missing a required signature", "version", v.Version, "component", obj.Spec.Component)
+			// not signed for this policy yet; skip to the next-newest signed version
+			// and remember why in case none remain
+			if errors.Is(err, errRequiredSignatureMissing) {
+				verifyErr = err
+				logger.Info("ignoring version missing a required signature", "version", v.Version, "component", obj.Spec.Component)
 
-					continue
-				}
-
-				// signature present but invalid; fail instead of falling back to an older version
-				return nil, fmt.Errorf("%w: %w", ErrVerificationFailed, err)
+				continue
 			}
+
+			// signature present but invalid; fail instead of falling back to an older version
+			return "", nil, fmt.Errorf("%w: %w", ErrVerificationFailed, err)
 		}
 
-		return cv, nil
+		return v.Version, cv, nil
 	}
 
 	// matched the constraint but nothing carried the required signatures
 	if verifyErr != nil {
-		return nil, fmt.Errorf("%w: %w", ErrVerificationFailed, verifyErr)
+		return "", nil, fmt.Errorf("%w: %w", ErrVerificationFailed, verifyErr)
 	}
 
-	return nil, fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Version.Semver)
+	return "", nil, fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Version.Semver)
 }
 
 // Version has two values to be able to sort a list but still return the actual Version.
