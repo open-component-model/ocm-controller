@@ -36,6 +36,9 @@ spec:
         - --interval-jitter-percentage={{ .Values.manager.intervalJitterPercentage }}
         {{- end }}
         - --oci-registry-addr={{ .Values.registry.address }}
+        {{- if .Values.registry.tls.enabled }}
+        - --certificate-secret-name={{ .Values.tlsCert.secretName }}
+        {{- end }}
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify
         {{- end }}
@@ -85,7 +88,7 @@ spec:
       terminationGracePeriodSeconds: 10
       {{- if .Values.registry.tls.enabled }}
       volumes:
-      {{- toYaml .Values.manager.volumes | nindent 8 }}
+      {{- tpl (toYaml .Values.manager.volumes) . | nindent 8 }}
       {{- end}}
       {{- if .Values.manager.nodeSelector }}
       nodeSelector:

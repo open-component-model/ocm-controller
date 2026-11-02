@@ -39,7 +39,7 @@ spec:
           {{- end }}
           {{- if .Values.registry.tls.enabled }}
           volumeMounts:
-          {{- toYaml .Values.registry.tls.volumeMounts | nindent 12 }}
+          {{- tpl (toYaml .Values.registry.tls.volumeMounts) . | nindent 12 }}
           {{- end}}
           readinessProbe:
             httpGet:
@@ -67,7 +67,7 @@ spec:
         - name: registry
           emptyDir: {}
       {{- if .Values.registry.tls.enabled }}
-      {{- toYaml .Values.registry.tls.volumes | nindent 8 }}
+      {{- tpl (toYaml .Values.registry.tls.volumes) . | nindent 8 }}
       {{- end}}
       {{- if .Values.registry.nodeSelector }}
       nodeSelector:

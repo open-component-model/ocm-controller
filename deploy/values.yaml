@@ -12,6 +12,9 @@ tlsCert:
     renewBefore: "720h"  # 30 days before expiry
 
   certificateName: *tlsSecretName
+  # Name of the serving certificate Secret. Drives the registry and manager
+  # volume mounts and the controller's --certificate-secret-name argument, so
+  # it may be set independently of bootstrap.secretName (the CA Secret).
   secretName: *tlsSecretName
   issuerName: "ocm-certificate-issuer"
   duration: "720h"       # 30 days
@@ -38,11 +41,11 @@ registry:
         value: "/certs/key.pem"
     volumeMounts:
       - mountPath: "/certs"
-        name: *tlsSecretName
+        name: '{{ .Values.tlsCert.secretName }}'
     volumes:
-      - name: *tlsSecretName
+      - name: '{{ .Values.tlsCert.secretName }}'
         secret:
-          secretName: *tlsSecretName
+          secretName: '{{ .Values.tlsCert.secretName }}'
           items:
             - key: "tls.crt"
               path: "cert.pem"
@@ -83,7 +86,7 @@ manager:
   volumes:
     - name: "certificates"
       secret:
-        secretName: *tlsSecretName # must match with ocm-controller's certificate-secret-name argument
+        secretName: '{{ .Values.tlsCert.secretName }}' # follows tlsCert.secretName; mounted as the controller's certificate-secret-name
         items:
           - key: "ca.crt"
             path: "registry-root.pem"
