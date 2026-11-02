@@ -326,11 +326,6 @@ type signatureVerificationGroup struct {
 	signatures []v1alpha1.Signature
 }
 
-// errRequiredSignatureMissing marks a candidate that is missing a required signature.
-// Selection skips it and falls back to the next-newest signed version; a present but
-// invalid signature is a hard failure and is not wrapped with this.
-var errRequiredSignatureMissing = errors.New("required signature not present")
-
 func requiredSignatureGroups(obj *v1alpha1.ComponentVersion, cv ocm.ComponentVersionAccess) ([]signatureVerificationGroup, error) {
 	descriptor := cv.GetDescriptor()
 	var groups []signatureVerificationGroup
@@ -341,8 +336,8 @@ func requiredSignatureGroups(obj *v1alpha1.ComponentVersion, cv ocm.ComponentVer
 		index := descriptor.GetSignatureIndex(signature.Name)
 		if index < 0 {
 			return nil, fmt.Errorf(
-				"signature with name '%s' not found in the list of provided ocm signatures: %w",
-				signature.Name, errRequiredSignatureMissing,
+				"signature with name '%s' not found in the list of provided ocm signatures",
+				signature.Name,
 			)
 		}
 		digest := descriptor.Signatures[index].Digest
@@ -465,11 +460,6 @@ func (c *Client) signaturePublicKeys(ctx context.Context, obj *v1alpha1.Componen
 	return keys, nil
 }
 
-// ErrVerificationFailed indicates that a version matched the constraint but failed
-// verification: either a present signature did not verify, or no matching version carried
-// the required signatures. It distinguishes that from there being no matching versions.
-var ErrVerificationFailed = errors.New("component verification failed")
-
 // GetLatestValidComponentVersion selects the latest version matching the constraint and verification policy.
 // Without verification, it returns only the version string to avoid fetching the descriptor.
 // When verification is required, the caller must close the returned verified component.
@@ -504,7 +494,6 @@ func (c *Client) GetLatestValidComponentVersion(
 		return c.signaturePublicKeys(ctx, obj)
 	})
 
-	var verifyErr error
 	for _, v := range versions {
 		if valid, _ := constraint.Validate(v.Semver); !valid {
 			continue
@@ -514,30 +503,18 @@ func (c *Client) GetLatestValidComponentVersion(
 		}
 		cv, err := c.GetComponentVersion(ctx, octx, obj.Spec.Repository.URL, obj.Spec.Component, v.Version)
 		if err != nil {
-			return "", nil, err
+			logger.Error(err, "ignoring version as it failed verification", "version", v.Version, "component", obj.Spec.Component)
+
+			continue
 		}
 		if err := c.verifyComponent(ctx, obj, cv, loadPublicKeys); err != nil {
 			_ = cv.Close()
+			logger.Error(err, "ignoring version as it failed verification", "version", v.Version, "component", obj.Spec.Component)
 
-			// not signed for this policy yet; skip to the next-newest signed version
-			// and remember why in case none remain
-			if errors.Is(err, errRequiredSignatureMissing) {
-				verifyErr = err
-				logger.Info("ignoring version missing a required signature", "version", v.Version, "component", obj.Spec.Component)
-
-				continue
-			}
-
-			// signature present but invalid; fail instead of falling back to an older version
-			return "", nil, fmt.Errorf("%w: %w", ErrVerificationFailed, err)
+			continue
 		}
 
 		return v.Version, cv, nil
-	}
-
-	// matched the constraint but nothing carried the required signatures
-	if verifyErr != nil {
-		return "", nil, fmt.Errorf("%w: %w", ErrVerificationFailed, verifyErr)
 	}
 
 	return "", nil, fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Version.Semver)

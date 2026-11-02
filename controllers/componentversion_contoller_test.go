@@ -450,9 +450,59 @@ func TestComponentVersionReconcileWithoutVerifiedCandidate(t *testing.T) {
 	require.Equal(t, obj.GetRequeueAfter(), result.RequeueAfter)
 	require.NoError(t, kubeClient.Get(t.Context(), key, obj))
 	require.True(t, conditions.IsFalse(obj, meta.ReadyCondition))
-	require.Equal(t, v1alpha1.VerificationFailedReason, conditions.GetReason(obj, meta.ReadyCondition))
-	require.Contains(t, conditions.GetMessage(obj, meta.ReadyCondition), "component verification failed")
+	require.Equal(t, v1alpha1.CheckVersionFailedReason, conditions.GetReason(obj, meta.ReadyCondition))
+	require.Contains(t, conditions.GetMessage(obj, meta.ReadyCondition), "no matching versions found for constraint '>=1.0.0'")
 	require.Empty(t, obj.Status.ReconciledVersion)
+}
+
+func TestComponentVersionReconcileUnsignedLookupFailure(t *testing.T) {
+	obj := DefaultComponent.DeepCopy()
+	obj.Spec.Version.Semver = ">=1.0.0"
+	kubeClient := env.FakeKubeClient(WithObjects(obj))
+	fakeOcm := &fakes.MockFetcher{}
+	fakeOcm.GetLatestComponentVersionReturns("2.0.0", nil, nil)
+	fakeOcm.GetComponentVersionReturnsForName(obj.Spec.Component, nil, errors.New("manifest unknown"))
+	reconciler := ComponentVersionReconciler{
+		Client: kubeClient, Scheme: env.scheme,
+		EventRecorder: &events.FakeRecorder{Events: make(chan string, 32)}, OCMClient: fakeOcm,
+	}
+	key := types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}
+	result, err := reconciler.Reconcile(t.Context(), ctrl.Request{NamespacedName: key})
+	require.NoError(t, err)
+	require.Equal(t, obj.GetRequeueAfter(), result.RequeueAfter)
+	require.NoError(t, kubeClient.Get(t.Context(), key, obj))
+	require.True(t, conditions.IsFalse(obj, meta.ReadyCondition))
+	require.Equal(t, v1alpha1.VerificationFailedReason, conditions.GetReason(obj, meta.ReadyCondition))
+	require.Contains(t, conditions.GetMessage(obj, meta.ReadyCondition), "failed to verify")
+	require.Contains(t, conditions.GetMessage(obj, meta.ReadyCondition), "manifest unknown")
+	require.Empty(t, obj.Status.ReconciledVersion)
+	require.Equal(t, 1, fakeOcm.GetComponentVersionCallCount())
+}
+
+func TestComponentVersionReconcileReadyReportsAppliedVersion(t *testing.T) {
+	for _, latest := range []string{"2.0.0", "3.0.0"} {
+		t.Run(latest, func(t *testing.T) {
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Version.Semver = ">=1.0.0"
+			obj.Status.ReconciledVersion = "3.0.0"
+			kubeClient := env.FakeKubeClient(WithObjects(obj))
+			fakeOcm := &fakes.MockFetcher{}
+			fakeOcm.GetLatestComponentVersionReturns(latest, nil, nil)
+			reconciler := ComponentVersionReconciler{
+				Client: kubeClient, Scheme: env.scheme,
+				EventRecorder: &events.FakeRecorder{Events: make(chan string, 32)}, OCMClient: fakeOcm,
+			}
+			key := types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}
+			result, err := reconciler.Reconcile(t.Context(), ctrl.Request{NamespacedName: key})
+			require.NoError(t, err)
+			require.Equal(t, obj.GetRequeueAfter(), result.RequeueAfter)
+			require.NoError(t, kubeClient.Get(t.Context(), key, obj))
+			require.True(t, conditions.IsTrue(obj, meta.ReadyCondition))
+			require.Equal(t, "3.0.0", obj.Status.ReconciledVersion)
+			require.Equal(t, "Applied version: 3.0.0", conditions.GetMessage(obj, meta.ReadyCondition))
+			require.True(t, fakeOcm.GetComponentVersionWasNotCalled())
+		})
+	}
 }
 
 func TestComponentVersionSemverCheck(t *testing.T) {

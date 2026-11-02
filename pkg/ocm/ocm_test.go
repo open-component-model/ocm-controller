@@ -883,8 +883,8 @@ func TestClient_GetLatestValidComponentVersionCachesKeysPerSelection(t *testing.
 			ocmClient := NewClient(kubeClient, nil)
 			_, selected, err := ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
 			if tt.missingSecret {
-				// a key that cannot be loaded is a hard failure, not a silent skip
-				require.ErrorIs(t, err, ErrVerificationFailed)
+				// All candidates are skipped when the key cannot be loaded.
+				require.EqualError(t, err, "no matching versions found for constraint '>=1.0.0'")
 				require.Nil(t, selected)
 				require.NoError(t, kubeClient.Create(t.Context(), secret))
 			} else {
@@ -904,8 +904,8 @@ func TestClient_GetLatestValidComponentVersionCachesKeysPerSelection(t *testing.
 				require.Equal(t, "2.0.0", selected.GetVersion())
 				require.NoError(t, selected.Close())
 			} else {
-				// rotated key no longer matches; the selection fails rather than downgrading
-				require.ErrorIs(t, err, ErrVerificationFailed)
+				// Neither candidate verifies with the rotated key.
+				require.EqualError(t, err, "no matching versions found for constraint '>=1.0.0'")
 				require.Nil(t, selected)
 			}
 			require.Equal(t, 2*tt.gets, kubeClient.gets)
@@ -927,7 +927,6 @@ func TestClient_VerifyComponentChecksAllSignatureNamesBeforeKeys(t *testing.T) {
 		available     []string
 		required      []string
 		expectedError string
-		missing       bool
 		keyLookups    int
 	}{
 		{
@@ -935,14 +934,12 @@ func TestClient_VerifyComponentChecksAllSignatureNamesBeforeKeys(t *testing.T) {
 			available:     []string{"development"},
 			required:      []string{"production"},
 			expectedError: "signature with name 'production' not found in the list of provided ocm signatures",
-			missing:       true,
 		},
 		{
 			name:          "missing later signature prevents verification of earlier one",
 			available:     []string{"development"},
 			required:      []string{"development", "production"},
 			expectedError: "signature with name 'production' not found in the list of provided ocm signatures",
-			missing:       true,
 		},
 		{
 			name:          "present signature still requires verification",
@@ -983,9 +980,6 @@ func TestClient_VerifyComponentChecksAllSignatureNamesBeforeKeys(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				require.ErrorContains(t, err, tt.expectedError)
-				if tt.missing {
-					require.ErrorIs(t, err, errRequiredSignatureMissing)
-				}
 			}
 			require.Equal(t, tt.keyLookups, kubeClient.gets)
 		})
@@ -1463,12 +1457,16 @@ func (c *verificationComponent) Close() error {
 
 type verificationRepository struct {
 	ocm.Repository
-	components map[string]*verificationComponent
-	lookups    []string
+	components   map[string]*verificationComponent
+	lookupErrors map[string]error
+	lookups      []string
 }
 
 func (r *verificationRepository) LookupComponentVersion(name, version string) (ocm.ComponentVersionAccess, error) {
 	r.lookups = append(r.lookups, version)
+	if err := r.lookupErrors[version]; err != nil {
+		return nil, err
+	}
 	return r.components[version], nil
 }
 
@@ -1651,14 +1649,82 @@ func TestClient_GetLatestValidComponentVersionClosesRejectedComponents(t *testin
 	}
 	ctx := &verificationContext{Context: octx, repository: countedRepo}
 	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
-	// matched the constraint but failed verification; must be distinct from no matching versions
-	require.ErrorIs(t, err, ErrVerificationFailed)
-	require.ErrorContains(t, err, "signature with name 'production' not found")
+	require.EqualError(t, err, "no matching versions found for constraint '>=1.0.0'")
 	require.Nil(t, selected)
 	require.Equal(t, []string{"2.0.0", "1.0.0"}, countedRepo.lookups)
 	for _, component := range countedRepo.components {
 		require.Equal(t, 1, component.closed)
 		require.Zero(t, component.resourcePasses)
+	}
+}
+
+func TestClient_GetLatestValidComponentVersionSkipsFailedCandidates(t *testing.T) {
+	publicKey, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+	require.NoError(t, err)
+
+	for _, failure := range []string{"missing signature", "invalid signature", "digest mismatch", "lookup failure", "all signatures invalid"} {
+		t.Run(failure, func(t *testing.T) {
+			octx := fakeocm.NewFakeOCMContext()
+			repo, err := octx.RepositoryForSpec(nil)
+			require.NoError(t, err)
+			countedRepo := &verificationRepository{
+				Repository: repo, components: make(map[string]*verificationComponent),
+				lookupErrors: make(map[string]error),
+			}
+			for _, version := range []string{"1.0.0", "2.0.0"} {
+				component := &fakeocm.Component{
+					Name: "example.com/component", Version: version,
+					Sign: &fakeocm.Sign{Name: "production", PrivKey: privateKey},
+				}
+				require.NoError(t, octx.AddComponent(component))
+				countedRepo.components[version] = &verificationComponent{ComponentVersionAccess: component}
+				if failure == "all signatures invalid" {
+					component.ComponentDescriptor.Signatures[0].Signature.Value = "00"
+				}
+				if version != "2.0.0" {
+					continue
+				}
+				switch failure {
+				case "missing signature":
+					component.ComponentDescriptor.Signatures = nil
+				case "invalid signature":
+					component.ComponentDescriptor.Signatures[0].Signature.Value = "00"
+				case "digest mismatch":
+					component.ComponentDescriptor.Signatures[0].Digest.Value = "00"
+				case "lookup failure":
+					countedRepo.lookupErrors[version] = errors.New("manifest unknown")
+				}
+			}
+			obj := &v1alpha1.ComponentVersion{Spec: v1alpha1.ComponentVersionSpec{
+				Component: "example.com/component", Repository: v1alpha1.Repository{URL: "localhost"},
+				Version: v1alpha1.Version{Semver: ">=1.0.0"},
+				Verify: []v1alpha1.Signature{{Name: "production", PublicKey: v1alpha1.PublicKey{
+					Value: base64.StdEncoding.EncodeToString(publicKey),
+				}}},
+			}}
+			ctx := &verificationContext{Context: octx, repository: countedRepo}
+			version, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
+			require.Equal(t, []string{"2.0.0", "1.0.0"}, countedRepo.lookups)
+			if failure == "lookup failure" {
+				require.Zero(t, countedRepo.components["2.0.0"].closed)
+			} else {
+				require.Equal(t, 1, countedRepo.components["2.0.0"].closed)
+			}
+			if failure == "all signatures invalid" {
+				require.EqualError(t, err, "no matching versions found for constraint '>=1.0.0'")
+				require.Empty(t, version)
+				require.Nil(t, selected)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, "1.0.0", version)
+				require.Same(t, countedRepo.components["1.0.0"], selected)
+				require.Zero(t, countedRepo.components["1.0.0"].closed)
+				require.NoError(t, selected.Close())
+			}
+			require.Equal(t, 1, countedRepo.components["1.0.0"].closed)
+		})
 	}
 }
 
@@ -1675,8 +1741,6 @@ func TestClient_GetLatestValidComponentVersionNoMatchingConstraint(t *testing.T)
 		},
 	}
 	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), octx, obj)
-	// no version satisfies the constraint; not a verification failure
 	require.ErrorContains(t, err, "no matching versions found")
-	require.NotErrorIs(t, err, ErrVerificationFailed)
 	require.Nil(t, selected)
 }

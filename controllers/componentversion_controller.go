@@ -172,15 +172,11 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	update, version, cv, err := r.checkVersion(ctx, octx, obj)
 	if err != nil {
 		// The component might not be there yet. We don't fail but keep polling instead.
-		reason := v1alpha1.CheckVersionFailedReason
-		if errors.Is(err, ocmclient.ErrVerificationFailed) {
-			reason = v1alpha1.VerificationFailedReason
-		}
 		status.MarkNotReady(
 			r.EventRecorder,
 			obj,
 			nil,
-			reason,
+			v1alpha1.CheckVersionFailedReason,
 			fmt.Sprintf("version check failed for %s %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
 		)
 		metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
@@ -194,7 +190,7 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	if !update {
-		status.MarkReady(r.EventRecorder, obj, nil, "Applied version: %s", version)
+		status.MarkReady(r.EventRecorder, obj, nil, "Applied version: %s", obj.Status.ReconciledVersion)
 
 		return ctrl.Result{
 			RequeueAfter: obj.GetRequeueAfter(),
@@ -202,6 +198,24 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "updating component to new version: %s: %s", obj.Spec.Component, version)
+
+	// Unsigned selection does not open a component. Fetch it only when applying an update.
+	if cv == nil {
+		cv, err = r.OCMClient.GetComponentVersion(ctx, octx, obj.Spec.Repository.URL, obj.Spec.Component, version)
+		if err != nil {
+			status.MarkNotReady(
+				r.EventRecorder,
+				obj,
+				nil,
+				v1alpha1.VerificationFailedReason,
+				fmt.Sprintf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
+			)
+			metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
+
+			return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
+		}
+		defer cv.Close()
+	}
 
 	return r.reconcile(ctx, octx, obj, cv)
 }
@@ -396,14 +410,6 @@ func (r *ComponentVersionReconciler) checkVersion(
 	}
 
 	if current.LessThan(latestSemver) || !constraint.Check(current) {
-		// Unsigned selection only returns a version; open it once an update is needed.
-		if cv == nil {
-			cv, err = r.OCMClient.GetComponentVersion(ctx, octx, obj.Spec.Repository.URL, obj.Spec.Component, latest)
-			if err != nil {
-				return false, "", nil, fmt.Errorf("failed to get component version: %w", err)
-			}
-		}
-
 		return true, latest, cv, nil
 	}
 
