@@ -10,6 +10,7 @@ import (
 	eventv1 "github.com/fluxcd/pkg/apis/event/v1"
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	mh "github.com/open-component-model/pkg/metrics"
@@ -112,7 +113,7 @@ func (r *ComponentVersionReconciler) findObjects(key string) handler.MapFunc {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, retErr error) {
+func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, retErr error) {
 	logger := log.FromContext(ctx).WithName("ocm-component-version-reconcile")
 
 	logger.Info("starting ocm component loop")
@@ -136,6 +137,10 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
+		if retErr == nil && result.RequeueAfter > 0 {
+			result = jitter.JitteredRequeueInterval(result)
+		}
+		// Keep event messages stable so repeated reconciliations can be aggregated.
 		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter(), retErr); derr != nil {
 			retErr = errors.Join(retErr, derr)
 		}

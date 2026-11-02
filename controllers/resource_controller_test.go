@@ -104,13 +104,13 @@ func TestResourceReconciler(t *testing.T) {
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 }
 
 func TestResourceReconcilerWithReferencePath(t *testing.T) {
@@ -195,13 +195,13 @@ func TestResourceReconcilerWithReferencePath(t *testing.T) {
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 }
 
 func XTestResourceReconcilerFailed(t *testing.T) {

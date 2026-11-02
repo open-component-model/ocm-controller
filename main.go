@@ -8,7 +8,9 @@ import (
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"github.com/spf13/pflag"
 	glog "gopkg.in/op/go-logging.v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -32,9 +34,10 @@ import (
 )
 
 const (
-	controllerName      = "ocm-controller"
-	defaultKubeAPIQPS   = 20
-	defaultKubeAPIBurst = 30
+	controllerName                  = "ocm-controller"
+	defaultKubeAPIQPS               = 20
+	defaultKubeAPIBurst             = 30
+	defaultIntervalJitterPercentage = 15
 )
 
 var (
@@ -65,6 +68,7 @@ func main() {
 		kubeAPIQPS                    float64
 		kubeAPIBurst                  int
 		kubeAPIRateLimiterDisabled    bool
+		intervalJitterOptions         jitter.IntervalOptions
 	)
 
 	flag.StringVar(
@@ -136,9 +140,15 @@ func main() {
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	intervalJitterOptions.BindFlagsWithDefault(pflag.CommandLine, defaultIntervalJitterPercentage)
+	pflag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	if err := intervalJitterOptions.SetGlobalJitter(nil); err != nil {
+		setupLog.Error(err, "unable to configure interval jitter")
+		os.Exit(1)
+	}
 	// 2024-05-11 :
 	// We're setting the go-log leve because it is used by yqlib
 	// If we ever make it possible to set the log level for the service
@@ -178,7 +188,10 @@ func main() {
 		startPprof(pprofAddr)
 	}
 
-	setupManagers(ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName, ociRegistryInsecureSkipVerify, restConfig, eventsAddr)
+	setupManagers(
+		ociRegistryAddr, mgr, ociRegistryNamespace, ociRegistryCertSecretName,
+		ociRegistryInsecureSkipVerify, restConfig, eventsAddr,
+	)
 
 	//+kubebuilder:scaffold:builder
 

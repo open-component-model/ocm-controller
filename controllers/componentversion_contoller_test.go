@@ -4,11 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -152,12 +158,12 @@ func TestComponentVersionReconcile(t *testing.T) {
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 	assert.Contains(t, event, "delivery.ocm.software/component_version")
 }
 
@@ -303,12 +309,12 @@ func TestComponentVersionWithTransferReconcile(t *testing.T) {
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 	assert.Contains(t, event, "delivery.ocm.software/component_version")
 }
 
@@ -640,6 +646,133 @@ func TestComponentVersionReconcileReleasesSelectedComponent(t *testing.T) {
 			}
 			require.Equal(t, 1, selected.closed)
 			require.True(t, fakeOcm.GetComponentVersionWasNotCalled())
+		})
+	}
+}
+
+func TestComponentVersionPollingJitter(t *testing.T) {
+	// Flux initializes its global jitter only once. Use a fresh process for each
+	// percentage, including zero, without changing other controller tests.
+	const percentageEnv = "OCM_TEST_INTERVAL_JITTER_PERCENTAGE"
+	percentageValue := os.Getenv(percentageEnv)
+	if percentageValue == "" {
+		for _, value := range []string{"0", "5", "15", "99"} {
+			t.Run(value+" percent", func(t *testing.T) {
+				cmd := exec.Command(os.Args[0], "-test.run=^TestComponentVersionPollingJitter$", "-test.v")
+				cmd.Env = append(os.Environ(), percentageEnv+"="+value)
+				output, err := cmd.CombinedOutput()
+				require.NoError(t, err, string(output))
+			})
+		}
+		return
+	}
+	percentage, err := strconv.ParseUint(percentageValue, 10, 8)
+	require.NoError(t, err)
+	options := jitter.IntervalOptions{Percentage: uint8(percentage)}
+	require.NoError(t, options.SetGlobalJitter(rand.New(rand.NewSource(1))))
+
+	for _, tt := range []struct {
+		name              string
+		update            bool
+		checkFails        bool
+		verificationFails bool
+		transferFails     bool
+		suspended         bool
+	}{
+		{name: "already reconciled"},
+		{name: "successful update", update: true},
+		{name: "version check failure", checkFails: true},
+		{name: "verification failure", update: true, verificationFails: true},
+		{name: "error retry", update: true, transferFails: true},
+		{name: "suspended", suspended: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Interval = metav1.Duration{Duration: time.Minute}
+			obj.Spec.Version.Semver = ">=1.0.0"
+			obj.Spec.Suspend = tt.suspended
+			if !tt.update {
+				obj.Status.ReconciledVersion = "1.0.0"
+			}
+			root := &ocmfake.Component{
+				Name:    obj.Spec.Component,
+				Version: "1.0.0",
+				ComponentDescriptor: &ocmdesc.ComponentDescriptor{
+					ComponentSpec: ocmdesc.ComponentSpec{
+						ObjectMeta: v1.ObjectMeta{
+							Name:    obj.Spec.Component,
+							Version: "1.0.0",
+						},
+					},
+				},
+			}
+			fakeOcm := &fakes.MockFetcher{}
+			fakeOcm.GetLatestComponentVersionReturns("1.0.0", root, nil)
+			fakeOcm.GetComponentVersionReturnsForName(root.Name, root, nil)
+			if tt.checkFails {
+				fakeOcm.GetLatestComponentVersionReturns("", nil, errors.New("no matching version"))
+			}
+			if tt.verificationFails {
+				fakeOcm.GetLatestComponentVersionReturns("", nil, errors.New("invalid signature"))
+			}
+			if tt.transferFails {
+				obj.Spec.Destination = &v1alpha1.Repository{URL: "destination"}
+				fakeOcm.TransferComponentReturns(errors.New("repository unavailable"))
+			}
+			recorder := &events.FakeRecorder{Events: make(chan string, 32)}
+			testEnvironment := &testEnv{scheme: env.scheme}
+			kubeClient := testEnvironment.FakeKubeClient(WithObjects(obj))
+			reconciler := ComponentVersionReconciler{
+				Client:        kubeClient,
+				Scheme:        testEnvironment.scheme,
+				EventRecorder: recorder,
+				OCMClient:     fakeOcm,
+			}
+			// Exercise concurrent access to Flux's shared random generator.
+			t.Parallel()
+			request := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      obj.Name,
+					Namespace: obj.Namespace,
+				},
+			}
+			var previousEvent string
+			for range 2 {
+				result, err := reconciler.Reconcile(t.Context(), request)
+				if tt.transferFails {
+					require.ErrorContains(t, err, "repository unavailable")
+					require.Zero(t, result.RequeueAfter)
+					return
+				}
+				require.NoError(t, err)
+				if tt.suspended {
+					require.Zero(t, result.RequeueAfter)
+					return
+				}
+				if percentage == 0 {
+					require.Equal(t, time.Minute, result.RequeueAfter)
+				} else {
+					minimum := time.Minute - time.Duration(percentage)*time.Minute/100
+					maximum := time.Minute + time.Duration(percentage)*time.Minute/100
+					require.GreaterOrEqual(t, result.RequeueAfter, minimum)
+					require.LessOrEqual(t, result.RequeueAfter, maximum)
+					require.NotEqual(t, time.Minute, result.RequeueAfter)
+				}
+				if !tt.checkFails && !tt.verificationFails {
+					var finishedEvent string
+					for len(recorder.Events) > 0 {
+						event := <-recorder.Events
+						if strings.Contains(event, "Reconciliation finished, polling interval") {
+							finishedEvent = event
+						}
+					}
+					require.Contains(t, finishedEvent, "Reconciliation finished, polling interval 1m0s")
+					if previousEvent != "" {
+						require.Equal(t, previousEvent, finishedEvent, "polling events must remain identical for aggregation")
+					}
+					previousEvent = finishedEvent
+				}
+			}
 		})
 	}
 }

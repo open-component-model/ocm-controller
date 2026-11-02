@@ -35,7 +35,7 @@ func UpdateStatus(
 	// Set status observed generation option if the component is ready.
 	if conditions.IsReady(obj) {
 		obj.SetObservedGeneration(obj.GetGeneration())
-		event.New(recorder, obj, nil, obj.GetVID(), eventv1.EventSeverityInfo, "Reconciliation finished, next run in %s", requeue)
+		event.New(recorder, obj, nil, obj.GetVID(), eventv1.EventSeverityInfo, "Reconciliation finished, polling interval %s", requeue)
 	}
 
 	// Update the object.

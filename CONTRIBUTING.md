@@ -54,3 +54,12 @@ If it's enough to run the manager locally, you don't need a local registry. Simp
 ```
 ./bin/manager -zap-log-level 4
 ```
+
+### Testing the Helm Chart
+
+Install Helm and the `helm-unittest` plugin, then run the chart tests:
+
+```sh
+helm plugin install https://github.com/helm-unittest/helm-unittest.git --verify=false
+make test-helm
+```

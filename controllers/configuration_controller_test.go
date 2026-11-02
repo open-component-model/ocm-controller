@@ -841,13 +841,13 @@ configuration:
 			close(recorder.Events)
 			event := ""
 			for e := range recorder.Events {
-				if strings.Contains(e, "Reconciliation finished, next run in") {
+				if strings.Contains(e, "Reconciliation finished, polling interval") {
 					event = e
 
 					break
 				}
 			}
-			assert.Contains(t, event, "Reconciliation finished, next run in")
+			assert.Contains(t, event, "Reconciliation finished, polling interval")
 		})
 	}
 }
@@ -1101,13 +1101,13 @@ func TestConfigurationValuesFrom(t *testing.T) {
 				assert.True(t, conditions.IsTrue(configuration, meta.ReadyCondition))
 
 				for e := range recorder.Events {
-					if strings.Contains(e, "Reconciliation finished, next run in") {
+					if strings.Contains(e, "Reconciliation finished, polling interval") {
 						event = e
 
 						break
 					}
 				}
-				assert.Contains(t, event, "Reconciliation finished, next run in")
+				assert.Contains(t, event, "Reconciliation finished, polling interval")
 			} else {
 				assert.Equal(t, k8sapierr.ReasonForError(tc.expectedError), k8sapierr.ReasonForError(err))
 			}
@@ -1257,13 +1257,13 @@ func TestPatchStrategicMergeWithGitRepositorySource(t *testing.T) {
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 }
 
 func TestConfigurationShouldReconcile(t *testing.T) {
@@ -1648,13 +1648,13 @@ func TestPatchStrategicMergeWithResourceSource(t *testing.T) {
 			close(recorder.Events)
 			event := ""
 			for e := range recorder.Events {
-				if strings.Contains(e, "Reconciliation finished, next run in") {
+				if strings.Contains(e, "Reconciliation finished, polling interval") {
 					event = e
 
 					break
 				}
 			}
-			assert.Contains(t, event, "Reconciliation finished, next run in")
+			assert.Contains(t, event, "Reconciliation finished, polling interval")
 		})
 	}
 }
