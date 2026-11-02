@@ -1492,9 +1492,11 @@ func TestClient_VerifyComponentSharesDigestWork(t *testing.T) {
 		secondKey      []byte
 		secondHash     string
 		duplicateName  bool
+		emptyDigest    bool
 		wantError      bool
 		resourcePasses int
 	}{
+		{name: "empty digest fails before traversal", secondKey: publicKey, emptyDigest: true, wantError: true},
 		{name: "shared digest", secondKey: publicKey, resourcePasses: 1},
 		{name: "later signature must verify", secondKey: otherPublicKey, wantError: true, resourcePasses: 1},
 		{name: "different digest algorithms", secondKey: publicKey, secondHash: "SHA-512", resourcePasses: 2},
@@ -1535,9 +1537,17 @@ func TestClient_VerifyComponentSharesDigestWork(t *testing.T) {
 				obj.Spec.Verify[0].PublicKey.Value = base64.StdEncoding.EncodeToString(otherPublicKey)
 				obj.Spec.Verify[1].Name = "first"
 			}
+			if tt.emptyDigest {
+				for i := range component.ComponentDescriptor.Signatures {
+					component.ComponentDescriptor.Signatures[i].Digest.Value = ""
+				}
+			}
 			counted := &verificationComponent{ComponentVersionAccess: component}
 			client := NewClient(env.FakeKubeClient(), nil)
 			err = client.verifyComponent(t.Context(), obj, counted, directKeyLoader(client, t.Context(), obj))
+			if tt.emptyDigest {
+				require.EqualError(t, err, "signature 'first' has no digest to verify against")
+			}
 			if tt.wantError {
 				require.Error(t, err)
 			} else {

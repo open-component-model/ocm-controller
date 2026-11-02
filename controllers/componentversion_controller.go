@@ -212,8 +212,8 @@ func (r *ComponentVersionReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				r.EventRecorder,
 				obj,
 				nil,
-				v1alpha1.VerificationFailedReason,
-				fmt.Sprintf("failed to verify %s with constraint %s with error: %s", obj.Spec.Component, obj.Spec.Version.Semver, err),
+				v1alpha1.ComponentVersionInvalidReason,
+				fmt.Sprintf("failed to get component version %s:%s: %s", obj.Spec.Component, version, err),
 			)
 			metrics.ComponentVersionReconcileFailed.WithLabelValues(obj.Spec.Component).Inc()
 

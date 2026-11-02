@@ -384,6 +384,11 @@ func (c *Client) verifyComponent(
 	logger := log.FromContext(ctx)
 	resolver := resolvers.NewCompoundResolver(cv.Repository())
 	for _, group := range groups {
+		value := group.digest.Value
+		if value == "" {
+			return fmt.Errorf("signature '%s' has no digest to verify against", group.signatures[0].Name)
+		}
+
 		options := []signing.Option{signing.Resolver(resolver), signing.VerifyDigests()}
 		for _, signature := range group.signatures {
 			options = append(options,
@@ -401,11 +406,6 @@ func (c *Client) verifyComponent(
 		dig, err := signing.ApplyWithContext(ctx, nil, cv, opts)
 		if err != nil {
 			return fmt.Errorf("failed to apply signing while verifying component: %w", err)
-		}
-
-		value := group.digest.Value
-		if value == "" {
-			return fmt.Errorf("signature '%s' has no digest to verify against", group.signatures[0].Name)
 		}
 
 		if dig.Value != value {
