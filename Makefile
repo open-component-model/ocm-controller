@@ -91,6 +91,12 @@ lint: golangci-lint ## Run golangci-lint.
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
+# Install the helm-unittest plugin before running this target.
+.PHONY: test-helm
+test-helm: ## Run Helm chart unit tests.
+	helm lint ./deploy
+	helm unittest --strict ./deploy
+
 .PHONY: e2e
 e2e: prime-test-cluster test-summary-tool ## Runs e2e tests
 	$(GOTESTSUM) --format testname -- -count=1 -tags=e2e ./e2e

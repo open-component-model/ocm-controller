@@ -42,3 +42,12 @@ cluster with the required CRDs, RBAC, registry and certificates installed:
 ```sh
 ./bin/manager -zap-log-level 4
 ```
+
+### Testing the Helm chart
+
+Install the Helm unittest plugin, then run the chart checks:
+
+```sh
+helm plugin install https://github.com/helm-unittest/helm-unittest.git --version v1.2.1
+make test-helm
+```
