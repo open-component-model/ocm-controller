@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,8 +21,12 @@ import (
 	"ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/compdesc"
 	ocmmetav1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"ocm.software/ocm/api/credentials"
 	"ocm.software/ocm/api/credentials/cpi"
+	"ocm.software/ocm/api/ocm/resolvers"
+	"ocm.software/ocm/api/ocm/tools/signing"
 	"ocm.software/ocm/api/tech/oci/identity"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
@@ -791,9 +796,192 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			tt.setupComponents(component, octx)
 			cv := tt.componentVersion(component)
 
-			latest, err := ocmClient.GetLatestValidComponentVersion(context.Background(), octx, cv)
-			assert.NoError(t, err)
+			latest, selected, err := ocmClient.GetLatestValidComponentVersion(context.Background(), octx, cv)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedVersion, latest)
+			if len(cv.Spec.Verify) > 0 {
+				require.NotNil(t, selected)
+				defer selected.Close()
+				assert.Equal(t, latest, selected.GetVersion())
+			} else {
+				require.Nil(t, selected)
+			}
+		})
+	}
+}
+
+type signatureKeyLookupClient struct {
+	client.Client
+	gets int
+}
+
+func (c *signatureKeyLookupClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	c.gets++
+	if c.Client == nil {
+		return errors.New("unexpected public key lookup")
+	}
+	return c.Client.Get(ctx, key, obj, opts...)
+}
+
+func TestClient_GetLatestValidComponentVersionCachesKeysPerSelection(t *testing.T) {
+	publicKey, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	otherPublicKey, err := os.ReadFile(filepath.Join("testdata", "public2_key.pem"))
+	require.NoError(t, err)
+	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+	require.NoError(t, err)
+
+	for _, tt := range []struct {
+		name          string
+		separateKeys  bool
+		missingSecret bool
+		gets          int
+	}{
+		{name: "shared Secret", gets: 1},
+		{name: "separate Secrets", separateKeys: true, gets: 2},
+		{name: "missing Secret is retried on the next selection", missingSecret: true, gets: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			octx := fakeocm.NewFakeOCMContext()
+			for _, version := range []string{"1.0.0", "2.0.0"} {
+				component := &fakeocm.Component{
+					Name: "example.com/component", Version: version,
+					Sign: &fakeocm.Sign{Name: "first", PrivKey: privateKey, PubKey: publicKey},
+				}
+				require.NoError(t, octx.AddComponent(component))
+				second := component.ComponentDescriptor.Signatures[0]
+				second.Name = "second"
+				component.ComponentDescriptor.Signatures = append(component.ComponentDescriptor.Signatures, second)
+			}
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "signing-keys", Namespace: "default"},
+				Data:       map[string][]byte{"first": publicKey, "second": publicKey},
+			}
+			kubeClient := &signatureKeyLookupClient{Client: env.FakeKubeClient()}
+			if !tt.missingSecret {
+				require.NoError(t, kubeClient.Create(t.Context(), secret))
+			}
+			obj := &v1alpha1.ComponentVersion{
+				ObjectMeta: metav1.ObjectMeta{Namespace: "default"},
+				Spec: v1alpha1.ComponentVersionSpec{
+					Component: "example.com/component", Repository: v1alpha1.Repository{URL: "localhost"},
+					Version: v1alpha1.Version{Semver: ">=1.0.0"},
+				},
+			}
+			for _, name := range []string{"first", "second"} {
+				obj.Spec.Verify = append(obj.Spec.Verify, v1alpha1.Signature{
+					Name: name, PublicKey: v1alpha1.PublicKey{SecretRef: &corev1.LocalObjectReference{Name: secret.Name}},
+				})
+			}
+			if tt.separateKeys {
+				secondSecret := secret.DeepCopy()
+				secondSecret.Name = "other-signing-keys"
+				secondSecret.ResourceVersion = ""
+				require.NoError(t, kubeClient.Create(t.Context(), secondSecret))
+				obj.Spec.Verify[1].PublicKey.SecretRef.Name = secondSecret.Name
+			}
+			ocmClient := NewClient(kubeClient, nil)
+			_, selected, err := ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
+			if tt.missingSecret {
+				// All candidates are skipped when the key cannot be loaded.
+				require.EqualError(t, err, "no matching versions found for constraint '>=1.0.0'")
+				require.Nil(t, selected)
+				require.NoError(t, kubeClient.Create(t.Context(), secret))
+			} else {
+				// each distinct secret loads once per selection, however many signatures use it
+				require.NoError(t, err)
+				require.Equal(t, "2.0.0", selected.GetVersion())
+				require.NoError(t, selected.Close())
+				// next selection must see a rotated key, even on the same client
+				secret.Data["first"] = otherPublicKey
+				require.NoError(t, kubeClient.Update(t.Context(), secret))
+			}
+			require.Equal(t, tt.gets, kubeClient.gets)
+
+			_, selected, err = ocmClient.GetLatestValidComponentVersion(t.Context(), octx, obj)
+			if tt.missingSecret {
+				require.NoError(t, err)
+				require.Equal(t, "2.0.0", selected.GetVersion())
+				require.NoError(t, selected.Close())
+			} else {
+				// Neither candidate verifies with the rotated key.
+				require.EqualError(t, err, "no matching versions found for constraint '>=1.0.0'")
+				require.Nil(t, selected)
+			}
+			require.Equal(t, 2*tt.gets, kubeClient.gets)
+		})
+	}
+}
+
+// directKeyLoader loads the verification keys straight from the object, with no
+// cross-candidate caching. Production selection wraps this in sync.OnceValues.
+func directKeyLoader(c *Client, ctx context.Context, obj *v1alpha1.ComponentVersion) func() (map[v1alpha1.Signature][]byte, error) {
+	return func() (map[v1alpha1.Signature][]byte, error) {
+		return c.signaturePublicKeys(ctx, obj)
+	}
+}
+
+func TestClient_VerifyComponentChecksAllSignatureNamesBeforeKeys(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		available     []string
+		required      []string
+		expectedError string
+		keyLookups    int
+	}{
+		{
+			name:          "missing only required signature",
+			available:     []string{"development"},
+			required:      []string{"production"},
+			expectedError: "signature with name 'production' not found in the list of provided ocm signatures",
+		},
+		{
+			name:          "missing later signature prevents verification of earlier one",
+			available:     []string{"development"},
+			required:      []string{"development", "production"},
+			expectedError: "signature with name 'production' not found in the list of provided ocm signatures",
+		},
+		{
+			name:          "present signature still requires verification",
+			available:     []string{"production"},
+			required:      []string{"production"},
+			expectedError: "failed to get public key for verification: unexpected public key lookup",
+			keyLookups:    1,
+		},
+		{
+			name: "no required signatures",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			octx := fakeocm.NewFakeOCMContext()
+			component := &fakeocm.Component{Name: "example.com/component", Version: "1.0.0"}
+			require.NoError(t, octx.AddComponent(component))
+			for _, name := range tt.available {
+				component.ComponentDescriptor.Signatures = append(component.ComponentDescriptor.Signatures, ocmmetav1.Signature{Name: name})
+			}
+			obj := &v1alpha1.ComponentVersion{
+				Spec: v1alpha1.ComponentVersionSpec{
+					Component:  component.Name,
+					Repository: v1alpha1.Repository{URL: "localhost"},
+				},
+			}
+			for _, name := range tt.required {
+				obj.Spec.Verify = append(obj.Spec.Verify, v1alpha1.Signature{
+					Name: name,
+					PublicKey: v1alpha1.PublicKey{
+						SecretRef: &corev1.LocalObjectReference{Name: "signing-key"},
+					},
+				})
+			}
+			kubeClient := &signatureKeyLookupClient{}
+			client := NewClient(kubeClient, nil)
+			err := client.verifyComponent(t.Context(), obj, component, directKeyLoader(client, t.Context(), obj))
+			if tt.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.expectedError)
+			}
+			require.Equal(t, tt.keyLookups, kubeClient.gets)
 		})
 	}
 }
@@ -811,7 +999,8 @@ func TestClient_VerifyComponent(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			Signature: publicKey1,
+			Signature:   publicKey1,
+			"unrelated": []byte("unrelated key"),
 		},
 	}
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
@@ -832,6 +1021,10 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 	require.NoError(t, octx.AddComponent(c))
+	unrelatedSignature := c.ComponentDescriptor.Signatures[0]
+	unrelatedSignature.Name = "unrelated"
+	unrelatedSignature.Digest.Value = strings.Repeat("0", len(unrelatedSignature.Digest.Value))
+	c.ComponentDescriptor.Signatures = append(ocmmetav1.Signatures{unrelatedSignature}, c.ComponentDescriptor.Signatures...)
 
 	cv := &v1alpha1.ComponentVersion{
 		ObjectMeta: metav1.ObjectMeta{
@@ -859,9 +1052,8 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
+	err = ocmClient.verifyComponent(t.Context(), cv, c, directKeyLoader(ocmClient, t.Context(), cv))
 	require.NoError(t, err)
-	assert.True(t, verified, "verified should have been true, but it did not")
 }
 
 func TestClient_VerifyComponentWithValueKey(t *testing.T) {
@@ -914,9 +1106,8 @@ func TestClient_VerifyComponentWithValueKey(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
+	err = ocmClient.verifyComponent(t.Context(), cv, c, directKeyLoader(ocmClient, t.Context(), cv))
 	require.NoError(t, err)
-	assert.True(t, verified, "verified should have been true, but it did not")
 }
 
 func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
@@ -967,7 +1158,7 @@ func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
 		},
 	}
 
-	_, err = ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
+	err = ocmClient.verifyComponent(t.Context(), cv, c, directKeyLoader(ocmClient, t.Context(), cv))
 	assert.EqualError(t, err, "kubernetes secret reference not provided")
 }
 
@@ -1032,9 +1223,8 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifyComponent(context.Background(), octx, cv, "v0.0.1")
+	err = ocmClient.verifyComponent(t.Context(), cv, c, directKeyLoader(ocmClient, t.Context(), cv))
 	require.Error(t, err)
-	assert.False(t, verified, "verified should have been false, but it did not")
 }
 
 func TestClient_GetResourceUsesComponentDescriptorVersionAsDefault(t *testing.T) {
@@ -1239,4 +1429,328 @@ func TestResourceLookupWithVersionAndExtraIdentity(t *testing.T) {
 
 	require.Equal(t, "sha-17579917197306559277", args.Name, "pushed name did not match constructed name from identity of the resource")
 	require.Equal(t, resourceRef.Version, args.Version)
+}
+
+type verificationComponent struct {
+	ocm.ComponentVersionAccess
+	resourcePasses int
+	closed         int
+	repository     ocm.Repository
+}
+
+func (c *verificationComponent) Repository() ocm.Repository {
+	if c.repository != nil {
+		return c.repository
+	}
+	return c.ComponentVersionAccess.Repository()
+}
+
+func (c *verificationComponent) GetResources() []ocm.ResourceAccess {
+	c.resourcePasses++
+	return c.ComponentVersionAccess.GetResources()
+}
+
+func (c *verificationComponent) Close() error {
+	c.closed++
+	return c.ComponentVersionAccess.Close()
+}
+
+type verificationRepository struct {
+	ocm.Repository
+	components   map[string]*verificationComponent
+	lookupErrors map[string]error
+	lookups      []string
+}
+
+func (r *verificationRepository) LookupComponentVersion(name, version string) (ocm.ComponentVersionAccess, error) {
+	r.lookups = append(r.lookups, version)
+	if err := r.lookupErrors[version]; err != nil {
+		return nil, err
+	}
+	return r.components[version], nil
+}
+
+type verificationContext struct {
+	ocm.Context
+	repository ocm.Repository
+}
+
+func (c *verificationContext) RepositoryForSpec(ocm.RepositorySpec, ...credentials.CredentialsSource) (ocm.Repository, error) {
+	return c.repository, nil
+}
+
+func TestClient_VerifyComponentSharesDigestWork(t *testing.T) {
+	publicKey, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	otherPublicKey, err := os.ReadFile(filepath.Join("testdata", "public2_key.pem"))
+	require.NoError(t, err)
+	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+	require.NoError(t, err)
+
+	for _, tt := range []struct {
+		name           string
+		secondKey      []byte
+		secondHash     string
+		duplicateName  bool
+		emptyDigest    bool
+		wantError      bool
+		resourcePasses int
+	}{
+		{name: "empty digest fails before traversal", secondKey: publicKey, emptyDigest: true, wantError: true},
+		{name: "shared digest", secondKey: publicKey, resourcePasses: 1},
+		{name: "later signature must verify", secondKey: otherPublicKey, wantError: true, resourcePasses: 1},
+		{name: "different digest algorithms", secondKey: publicKey, secondHash: "SHA-512", resourcePasses: 2},
+		{name: "different digest algorithm must verify", secondKey: otherPublicKey, secondHash: "SHA-512", wantError: true, resourcePasses: 2},
+		{name: "duplicate names cannot replace an earlier key", secondKey: publicKey, duplicateName: true, wantError: true, resourcePasses: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			octx := fakeocm.NewFakeOCMContext()
+			component := &fakeocm.Component{
+				Name: "example.com/component", Version: "1.0.0",
+				Sign: &fakeocm.Sign{Name: "first", PrivKey: privateKey, PubKey: publicKey},
+			}
+			require.NoError(t, octx.AddComponent(component))
+			second := component.ComponentDescriptor.Signatures[0]
+			second.Name = "second"
+			if tt.secondHash != "" {
+				opts := signing.NewOptions(
+					signing.SignByAlgo("RSASSA-PKCS1-V1_5", second.Name),
+					signing.HashByAlgo(tt.secondHash),
+					signing.PrivateKey(second.Name, privateKey),
+					signing.Resolver(resolvers.NewCompoundResolver(component.Repository())),
+					signing.Update(),
+				)
+				_, err := signing.ApplyWithContext(t.Context(), nil, component, opts)
+				require.NoError(t, err)
+			} else {
+				component.ComponentDescriptor.Signatures = append(component.ComponentDescriptor.Signatures, second)
+			}
+			obj := &v1alpha1.ComponentVersion{
+				Spec: v1alpha1.ComponentVersionSpec{
+					Verify: []v1alpha1.Signature{
+						{Name: "first", PublicKey: v1alpha1.PublicKey{Value: base64.StdEncoding.EncodeToString(publicKey)}},
+						{Name: "second", PublicKey: v1alpha1.PublicKey{Value: base64.StdEncoding.EncodeToString(tt.secondKey)}},
+					},
+				},
+			}
+			if tt.duplicateName {
+				obj.Spec.Verify[0].PublicKey.Value = base64.StdEncoding.EncodeToString(otherPublicKey)
+				obj.Spec.Verify[1].Name = "first"
+			}
+			if tt.emptyDigest {
+				for i := range component.ComponentDescriptor.Signatures {
+					component.ComponentDescriptor.Signatures[i].Digest.Value = ""
+				}
+			}
+			counted := &verificationComponent{ComponentVersionAccess: component}
+			client := NewClient(env.FakeKubeClient(), nil)
+			err = client.verifyComponent(t.Context(), obj, counted, directKeyLoader(client, t.Context(), obj))
+			if tt.emptyDigest {
+				require.EqualError(t, err, "signature 'first' has no digest to verify against")
+			}
+			if tt.wantError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.resourcePasses, counted.resourcePasses)
+			require.Zero(t, counted.closed)
+		})
+	}
+}
+
+func TestClient_GetLatestValidComponentVersionReusesVerifiedComponent(t *testing.T) {
+	octx := fakeocm.NewFakeOCMContext()
+	repo, err := octx.RepositoryForSpec(nil)
+	require.NoError(t, err)
+	countedRepo := &verificationRepository{Repository: repo, components: make(map[string]*verificationComponent)}
+	for _, version := range []string{"1.0.0", "2.0.0", "3.0.0"} {
+		component := &fakeocm.Component{Name: "example.com/component", Version: version}
+		require.NoError(t, octx.AddComponent(component))
+		if version == "2.0.0" {
+			privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+			require.NoError(t, err)
+			opts := signing.NewOptions(signing.SignByAlgo("RSASSA-PKCS1-V1_5", "production"), signing.PrivateKey("production", privateKey), signing.Update())
+			_, err = signing.ApplyWithContext(t.Context(), nil, component, opts)
+			require.NoError(t, err)
+		}
+		countedRepo.components[version] = &verificationComponent{ComponentVersionAccess: component}
+	}
+	publicKey, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	obj := &v1alpha1.ComponentVersion{
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: "example.com/component", Repository: v1alpha1.Repository{URL: "localhost"},
+			Version: v1alpha1.Version{Semver: ">=1.0.0"},
+			Verify:  []v1alpha1.Signature{{Name: "production", PublicKey: v1alpha1.PublicKey{Value: base64.StdEncoding.EncodeToString(publicKey)}}},
+		},
+	}
+	ctx := &verificationContext{Context: octx, repository: countedRepo}
+	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
+	require.NoError(t, err)
+	require.Same(t, countedRepo.components["2.0.0"], selected)
+	require.Equal(t, []string{"3.0.0", "2.0.0"}, countedRepo.lookups)
+	require.Equal(t, 1, countedRepo.components["3.0.0"].closed)
+	require.Zero(t, countedRepo.components["2.0.0"].closed)
+	require.Zero(t, countedRepo.components["1.0.0"].closed)
+	require.Equal(t, 1, countedRepo.components["2.0.0"].resourcePasses)
+	require.NoError(t, selected.Close())
+	require.Equal(t, 1, countedRepo.components["2.0.0"].closed)
+}
+
+func TestClient_VerifyComponentSharesReferenceLookups(t *testing.T) {
+	publicKey, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+	require.NoError(t, err)
+	octx := fakeocm.NewFakeOCMContext()
+	child := &fakeocm.Component{Name: "example.com/child", Version: "1.0.0"}
+	root := &fakeocm.Component{Name: "example.com/root", Version: "2.0.0"}
+	require.NoError(t, octx.AddComponent(child))
+	require.NoError(t, octx.AddComponent(root))
+	root.ComponentDescriptor.References = append(root.ComponentDescriptor.References, compdesc.Reference{
+		ElementMeta: compdesc.ElementMeta{Name: "child", Version: child.Version}, ComponentName: child.Name,
+	})
+	opts := signing.NewOptions(
+		signing.SignByAlgo("RSASSA-PKCS1-V1_5", "first"), signing.PrivateKey("first", privateKey),
+		signing.Resolver(resolvers.NewCompoundResolver(root.Repository())), signing.Update(),
+	)
+	_, err = signing.ApplyWithContext(t.Context(), nil, root, opts)
+	require.NoError(t, err)
+	second := root.ComponentDescriptor.Signatures[0]
+	second.Name = "second"
+	root.ComponentDescriptor.Signatures = append(root.ComponentDescriptor.Signatures, second)
+	countedRepo := &verificationRepository{
+		Repository: root.Repository(),
+		components: map[string]*verificationComponent{child.Version: {ComponentVersionAccess: child}},
+	}
+	counted := &verificationComponent{ComponentVersionAccess: root, repository: countedRepo}
+	obj := &v1alpha1.ComponentVersion{Spec: v1alpha1.ComponentVersionSpec{}}
+	for _, name := range []string{"first", "second"} {
+		obj.Spec.Verify = append(obj.Spec.Verify, v1alpha1.Signature{
+			Name: name, PublicKey: v1alpha1.PublicKey{Value: base64.StdEncoding.EncodeToString(publicKey)},
+		})
+	}
+	client := NewClient(env.FakeKubeClient(), nil)
+	err = client.verifyComponent(t.Context(), obj, counted, directKeyLoader(client, t.Context(), obj))
+	require.NoError(t, err)
+	require.Equal(t, []string{child.Version}, countedRepo.lookups)
+	require.Equal(t, 1, counted.resourcePasses)
+	require.Equal(t, 1, countedRepo.components[child.Version].resourcePasses)
+	require.Equal(t, 1, countedRepo.components[child.Version].closed)
+}
+
+func TestClient_GetLatestValidComponentVersionClosesRejectedComponents(t *testing.T) {
+	octx := fakeocm.NewFakeOCMContext()
+	repo, err := octx.RepositoryForSpec(nil)
+	require.NoError(t, err)
+	countedRepo := &verificationRepository{Repository: repo, components: make(map[string]*verificationComponent)}
+	for _, version := range []string{"1.0.0", "2.0.0"} {
+		component := &fakeocm.Component{Name: "example.com/component", Version: version}
+		require.NoError(t, octx.AddComponent(component))
+		countedRepo.components[version] = &verificationComponent{ComponentVersionAccess: component}
+	}
+	obj := &v1alpha1.ComponentVersion{
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component: "example.com/component", Repository: v1alpha1.Repository{URL: "localhost"},
+			Version: v1alpha1.Version{Semver: ">=1.0.0"},
+			Verify:  []v1alpha1.Signature{{Name: "production"}},
+		},
+	}
+	ctx := &verificationContext{Context: octx, repository: countedRepo}
+	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
+	require.EqualError(t, err, "no matching versions found for constraint '>=1.0.0'")
+	require.Nil(t, selected)
+	require.Equal(t, []string{"2.0.0", "1.0.0"}, countedRepo.lookups)
+	for _, component := range countedRepo.components {
+		require.Equal(t, 1, component.closed)
+		require.Zero(t, component.resourcePasses)
+	}
+}
+
+func TestClient_GetLatestValidComponentVersionSkipsFailedCandidates(t *testing.T) {
+	publicKey, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
+	require.NoError(t, err)
+
+	for _, failure := range []string{"missing signature", "invalid signature", "digest mismatch", "lookup failure", "all signatures invalid"} {
+		t.Run(failure, func(t *testing.T) {
+			octx := fakeocm.NewFakeOCMContext()
+			repo, err := octx.RepositoryForSpec(nil)
+			require.NoError(t, err)
+			countedRepo := &verificationRepository{
+				Repository: repo, components: make(map[string]*verificationComponent),
+				lookupErrors: make(map[string]error),
+			}
+			for _, version := range []string{"1.0.0", "2.0.0"} {
+				component := &fakeocm.Component{
+					Name: "example.com/component", Version: version,
+					Sign: &fakeocm.Sign{Name: "production", PrivKey: privateKey},
+				}
+				require.NoError(t, octx.AddComponent(component))
+				countedRepo.components[version] = &verificationComponent{ComponentVersionAccess: component}
+				if failure == "all signatures invalid" {
+					component.ComponentDescriptor.Signatures[0].Signature.Value = "00"
+				}
+				if version != "2.0.0" {
+					continue
+				}
+				switch failure {
+				case "missing signature":
+					component.ComponentDescriptor.Signatures = nil
+				case "invalid signature":
+					component.ComponentDescriptor.Signatures[0].Signature.Value = "00"
+				case "digest mismatch":
+					component.ComponentDescriptor.Signatures[0].Digest.Value = "00"
+				case "lookup failure":
+					countedRepo.lookupErrors[version] = errors.New("manifest unknown")
+				}
+			}
+			obj := &v1alpha1.ComponentVersion{Spec: v1alpha1.ComponentVersionSpec{
+				Component: "example.com/component", Repository: v1alpha1.Repository{URL: "localhost"},
+				Version: v1alpha1.Version{Semver: ">=1.0.0"},
+				Verify: []v1alpha1.Signature{{Name: "production", PublicKey: v1alpha1.PublicKey{
+					Value: base64.StdEncoding.EncodeToString(publicKey),
+				}}},
+			}}
+			ctx := &verificationContext{Context: octx, repository: countedRepo}
+			version, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), ctx, obj)
+			require.Equal(t, []string{"2.0.0", "1.0.0"}, countedRepo.lookups)
+			if failure == "lookup failure" {
+				require.Zero(t, countedRepo.components["2.0.0"].closed)
+			} else {
+				require.Equal(t, 1, countedRepo.components["2.0.0"].closed)
+			}
+			if failure == "all signatures invalid" {
+				require.EqualError(t, err, "no matching versions found for constraint '>=1.0.0'")
+				require.Empty(t, version)
+				require.Nil(t, selected)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, "1.0.0", version)
+				require.Same(t, countedRepo.components["1.0.0"], selected)
+				require.Zero(t, countedRepo.components["1.0.0"].closed)
+				require.NoError(t, selected.Close())
+			}
+			require.Equal(t, 1, countedRepo.components["1.0.0"].closed)
+		})
+	}
+}
+
+func TestClient_GetLatestValidComponentVersionNoMatchingConstraint(t *testing.T) {
+	octx := fakeocm.NewFakeOCMContext()
+	for _, version := range []string{"1.0.0", "2.0.0"} {
+		require.NoError(t, octx.AddComponent(&fakeocm.Component{Name: "example.com/component", Version: version}))
+	}
+	obj := &v1alpha1.ComponentVersion{
+		Spec: v1alpha1.ComponentVersionSpec{
+			Component:  "example.com/component",
+			Repository: v1alpha1.Repository{URL: "localhost"},
+			Version:    v1alpha1.Version{Semver: ">=3.0.0"},
+		},
+	}
+	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), octx, obj)
+	require.ErrorContains(t, err, "no matching versions found")
+	require.Nil(t, selected)
 }

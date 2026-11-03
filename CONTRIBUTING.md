@@ -48,6 +48,6 @@ cluster with the required CRDs, RBAC, registry and certificates installed:
 Install the Helm unittest plugin, then run the chart checks:
 
 ```sh
-helm plugin install https://github.com/helm-unittest/helm-unittest.git --version v1.2.1
+helm plugin install https://github.com/helm-unittest/helm-unittest.git --version v1.2.1 --verify=false
 make test-helm
 ```

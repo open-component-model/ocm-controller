@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-logr/logr"
@@ -56,9 +57,12 @@ type Contract interface {
 		octx ocm.Context,
 		repositoryURL, name, version string,
 	) (ocm.ComponentVersionAccess, error)
-	GetLatestValidComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion) (string, error)
+	GetLatestValidComponentVersion(
+		ctx context.Context,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentVersion,
+	) (string, ocm.ComponentVersionAccess, error)
 	ListComponentVersions(ctx context.Context, logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentVersion) ([]Version, error)
-	VerifyComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentVersion, version string) (bool, error)
 	TransferComponent(
 		octx ocm.Context,
 		obj *v1alpha1.ComponentVersion,
@@ -204,7 +208,8 @@ func (c *Client) GetResource(
 	if len(resource.ReferencePath) > 0 {
 		var builder strings.Builder
 		for _, path := range resource.ReferencePath {
-			builder.WriteString(path.String() + ":")
+			builder.WriteString(path.String())
+			builder.WriteByte(':')
 		}
 
 		identity[v1alpha1.ResourceRefPath] = builder.String()
@@ -316,134 +321,162 @@ func (c *Client) GetComponentVersion(
 	return cv, nil
 }
 
-func (c *Client) VerifyComponent(
-	ctx context.Context,
-	octx ocm.Context,
-	obj *v1alpha1.ComponentVersion,
-	version string,
-) (bool, error) {
-	logger := log.FromContext(ctx)
+type signatureVerificationGroup struct {
+	digest     ocmmetav1.DigestSpec
+	signatures []v1alpha1.Signature
+}
 
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Repository.URL, nil)
-	repo, err := octx.RepositoryForSpec(repoSpec)
-	if err != nil {
-		return false, fmt.Errorf("failed to get repository for spec: %w", err)
-	}
-	defer repo.Close()
+func requiredSignatureGroups(obj *v1alpha1.ComponentVersion, cv ocm.ComponentVersionAccess) ([]signatureVerificationGroup, error) {
+	descriptor := cv.GetDescriptor()
+	var groups []signatureVerificationGroup
+	groupIndices := make(map[ocmmetav1.DigestSpec]int)
 
-	cv, err := repo.LookupComponentVersion(obj.Spec.Component, version)
-	if err != nil {
-		return false, fmt.Errorf("failed to look up component Version: %w", err)
-	}
-	defer cv.Close()
-
-	resolver := resolvers.NewCompoundResolver(repo)
-
+	// fail fast on a missing signature, before loading keys or verifying digests
 	for _, signature := range obj.Spec.Verify {
-		var (
-			cert []byte
-			err  error
-		)
-
-		if signature.PublicKey.Value != "" {
-			cert, err = signature.PublicKey.DecodePublicValue()
-		} else {
-			if signature.PublicKey.SecretRef == nil {
-				return false, fmt.Errorf("kubernetes secret reference not provided")
-			}
-
-			cert, err = c.getPublicKey(
-				ctx,
-				obj.Namespace,
-				signature.PublicKey.SecretRef.Name,
-				signature.Name,
-			)
-		}
-
-		if err != nil {
-			return false, fmt.Errorf("failed to get public key for verification: %w", err)
-		}
-
-		opts := signing.NewOptions(
-			signing.Resolver(resolver),
-			signing.PublicKey(signature.Name, cert),
-			signing.VerifyDigests(),
-			signing.VerifySignature(signature.Name),
-		)
-
-		get := signingattr.Get(octx)
-		if err := opts.Complete(get); err != nil {
-			return false, fmt.Errorf("failed to complete signature check: %w", err)
-		}
-
-		dig, err := signing.Apply(nil, nil, cv, opts)
-		if err != nil {
-			return false, fmt.Errorf("failed to apply signing while verifying component: %w", err)
-		}
-
-		var value string
-		for _, s := range cv.GetDescriptor().Signatures {
-			if s.Name == signature.Name {
-				value = s.Digest.Value
-
-				break
-			}
-		}
-
-		if value == "" {
-			return false, fmt.Errorf(
+		index := descriptor.GetSignatureIndex(signature.Name)
+		if index < 0 {
+			return nil, fmt.Errorf(
 				"signature with name '%s' not found in the list of provided ocm signatures",
 				signature.Name,
 			)
 		}
+		digest := descriptor.Signatures[index].Digest
+		groupIndex, found := groupIndices[digest]
+		if found {
+			for _, existing := range groups[groupIndex].signatures {
+				if existing.Name == signature.Name {
+					found = false
+
+					break
+				}
+			}
+		}
+		if !found {
+			groupIndex = len(groups)
+			groupIndices[digest] = groupIndex
+			groups = append(groups, signatureVerificationGroup{digest: digest})
+		}
+		groups[groupIndex].signatures = append(groups[groupIndex].signatures, signature)
+	}
+
+	return groups, nil
+}
+
+// verifyComponent checks the required signatures. Signature names are validated before loadPublicKeys is called,
+// so a missing signature is reported without a key lookup. The caller supplies the loader so the keys can be shared
+// across the candidate versions of a single selection.
+func (c *Client) verifyComponent(
+	ctx context.Context,
+	obj *v1alpha1.ComponentVersion,
+	cv ocm.ComponentVersionAccess,
+	loadPublicKeys func() (map[v1alpha1.Signature][]byte, error),
+) error {
+	groups, err := requiredSignatureGroups(obj, cv)
+	if err != nil {
+		return err
+	}
+
+	publicKeys, err := loadPublicKeys()
+	if err != nil {
+		return err
+	}
+
+	logger := log.FromContext(ctx)
+	resolver := resolvers.NewCompoundResolver(cv.Repository())
+	for _, group := range groups {
+		value := group.digest.Value
+		if value == "" {
+			return fmt.Errorf("signature '%s' has no digest to verify against", group.signatures[0].Name)
+		}
+
+		options := []signing.Option{signing.Resolver(resolver), signing.VerifyDigests()}
+		for _, signature := range group.signatures {
+			options = append(options,
+				signing.PublicKey(signature.Name, publicKeys[signature]),
+				signing.VerifySignature(signature.Name),
+			)
+		}
+
+		opts := signing.NewOptions(options...)
+		get := signingattr.Get(cv.GetContext())
+		if err := opts.Complete(get); err != nil {
+			return fmt.Errorf("failed to complete signature check: %w", err)
+		}
+
+		dig, err := signing.ApplyWithContext(ctx, nil, cv, opts)
+		if err != nil {
+			return fmt.Errorf("failed to apply signing while verifying component: %w", err)
+		}
 
 		if dig.Value != value {
-			return false, fmt.Errorf("%s signature did not match key value", signature.Name)
+			return fmt.Errorf("%s signature did not match key value", group.signatures[0].Name)
 		}
 
-		logger.Info("component verified", "signature", signature.Name)
-	}
-
-	return true, nil
-}
-
-func (c *Client) getPublicKey(
-	ctx context.Context,
-	namespace, name, signature string,
-) ([]byte, error) {
-	var secret corev1.Secret
-	secretKey := client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}
-	if err := c.client.Get(ctx, secretKey, &secret); err != nil {
-		return nil, err
-	}
-
-	for key, value := range secret.Data {
-		if key == signature {
-			return value, nil
+		for _, signature := range group.signatures {
+			logger.Info("component verified", "signature", signature.Name)
 		}
 	}
 
-	return nil, errors.New("public key not found")
+	return nil
 }
 
-// GetLatestValidComponentVersion gets the latest version that still matches the constraint.
+func (c *Client) signaturePublicKeys(ctx context.Context, obj *v1alpha1.ComponentVersion) (map[v1alpha1.Signature][]byte, error) {
+	keys := make(map[v1alpha1.Signature][]byte)
+	secrets := make(map[string]*corev1.Secret)
+
+	for _, signature := range obj.Spec.Verify {
+		if signature.PublicKey.Value != "" {
+			cert, err := signature.PublicKey.DecodePublicValue()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get public key for verification: %w", err)
+			}
+			keys[signature] = cert
+
+			continue
+		}
+
+		if signature.PublicKey.SecretRef == nil {
+			return nil, errors.New("kubernetes secret reference not provided")
+		}
+
+		name := signature.PublicKey.SecretRef.Name
+		secret, found := secrets[name]
+		if !found {
+			secret = &corev1.Secret{}
+			if err := c.client.Get(ctx, client.ObjectKey{Namespace: obj.Namespace, Name: name}, secret); err != nil {
+				return nil, fmt.Errorf("failed to get public key for verification: %w", err)
+			}
+			secrets[name] = secret
+		}
+
+		cert, ok := secret.Data[signature.Name]
+		if !ok {
+			return nil, errors.New("failed to get public key for verification: public key not found")
+		}
+
+		keys[signature] = cert
+	}
+
+	return keys, nil
+}
+
+// GetLatestValidComponentVersion selects the latest version matching the constraint and verification policy.
+// Without verification, it returns only the version string to avoid fetching the descriptor.
+// When verification is required, the caller must close the returned verified component.
 func (c *Client) GetLatestValidComponentVersion(
 	ctx context.Context,
 	octx ocm.Context,
 	obj *v1alpha1.ComponentVersion,
-) (string, error) {
+) (string, ocm.ComponentVersionAccess, error) {
 	logger := log.FromContext(ctx)
 
 	versions, err := c.ListComponentVersions(ctx, logger, octx, obj)
 	if err != nil {
-		return "", fmt.Errorf("failed to get component versions: %w", err)
+		return "", nil, fmt.Errorf("failed to get component versions: %w", err)
 	}
 
 	if len(versions) == 0 {
-		return "", fmt.Errorf("no versions found for component '%s'", obj.Spec.Component)
+		return "", nil, fmt.Errorf("no versions found for component '%s'", obj.Spec.Component)
 	}
 
 	sort.SliceStable(versions, func(i, j int) bool {
@@ -452,24 +485,39 @@ func (c *Client) GetLatestValidComponentVersion(
 
 	constraint, err := semver.NewConstraint(obj.Spec.Version.Semver)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse constraint version: %w", err)
+		return "", nil, fmt.Errorf("failed to parse constraint version: %w", err)
 	}
+
+	// load keys once per selection, after the signature-name precheck; a new selection
+	// reloads and retries a previous load error
+	loadPublicKeys := sync.OnceValues(func() (map[v1alpha1.Signature][]byte, error) {
+		return c.signaturePublicKeys(ctx, obj)
+	})
 
 	for _, v := range versions {
-		if valid, _ := constraint.Validate(v.Semver); valid {
-			if len(obj.Spec.Verify) > 0 {
-				if _, err := c.VerifyComponent(ctx, octx, obj, v.Version); err != nil {
-					logger.Error(err, "ignoring version as it failed verification", "version", v.Version, "component", obj.Spec.Component)
-
-					continue
-				}
-			}
-
-			return v.Version, nil
+		if valid, _ := constraint.Validate(v.Semver); !valid {
+			continue
 		}
+		if len(obj.Spec.Verify) == 0 {
+			return v.Version, nil, nil
+		}
+		cv, err := c.GetComponentVersion(ctx, octx, obj.Spec.Repository.URL, obj.Spec.Component, v.Version)
+		if err != nil {
+			logger.Error(err, "ignoring version as it failed verification", "version", v.Version, "component", obj.Spec.Component)
+
+			continue
+		}
+		if err := c.verifyComponent(ctx, obj, cv, loadPublicKeys); err != nil {
+			_ = cv.Close()
+			logger.Error(err, "ignoring version as it failed verification", "version", v.Version, "component", obj.Spec.Component)
+
+			continue
+		}
+
+		return v.Version, cv, nil
 	}
 
-	return "", fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Version.Semver)
+	return "", nil, fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Version.Semver)
 }
 
 // Version has two values to be able to sort a list but still return the actual Version.

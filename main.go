@@ -8,7 +8,9 @@ import (
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	"github.com/fluxcd/pkg/runtime/events"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"github.com/spf13/pflag"
 	glog "gopkg.in/op/go-logging.v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -33,9 +35,10 @@ import (
 )
 
 const (
-	controllerName      = "ocm-controller"
-	defaultKubeAPIQPS   = 20
-	defaultKubeAPIBurst = 30
+	controllerName                  = "ocm-controller"
+	defaultKubeAPIQPS               = 20
+	defaultKubeAPIBurst             = 30
+	defaultIntervalJitterPercentage = 15
 )
 
 var (
@@ -71,6 +74,7 @@ type flags struct {
 	concurrencyLocalization       int
 	concurrencyConfiguration      int
 	concurrencyFluxDeployer       int
+	intervalJitterOptions         jitter.IntervalOptions
 }
 
 func bindFlags() (flags, zap.Options) {
@@ -150,7 +154,9 @@ func bindFlags() (flags, zap.Options) {
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	f.intervalJitterOptions.BindFlagsWithDefault(pflag.CommandLine, defaultIntervalJitterPercentage)
+	pflag.Parse()
 
 	return f, opts
 }
@@ -159,6 +165,10 @@ func main() {
 	f, opts := bindFlags()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	if err := f.intervalJitterOptions.SetGlobalJitter(nil); err != nil {
+		setupLog.Error(err, "unable to configure interval jitter")
+		os.Exit(1)
+	}
 	gk := func(kind string) string { return v1alpha1.GroupVersion.WithKind(kind).GroupKind().String() }
 	groupKindConcurrency := map[string]int{
 		gk("ComponentVersion"): f.concurrencyComponentVersion,
@@ -211,7 +221,10 @@ func main() {
 		startPprof(f.pprofAddr)
 	}
 
-	setupManagers(ociRegistryAddr, mgr, f.ociRegistryNamespace, f.ociRegistryCertSecretName, f.ociRegistryInsecureSkipVerify, restConfig, f.eventsAddr)
+	setupManagers(
+		ociRegistryAddr, mgr, f.ociRegistryNamespace, f.ociRegistryCertSecretName,
+		f.ociRegistryInsecureSkipVerify, restConfig, f.eventsAddr,
+	)
 
 	//+kubebuilder:scaffold:builder
 

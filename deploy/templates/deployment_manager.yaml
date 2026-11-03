@@ -52,6 +52,9 @@ spec:
         - {{ printf "--concurrency-flux-deployer=%v" .fluxDeployer | quote }}
         {{- end }}
         {{- end }}
+        {{- if hasKey .Values.manager "intervalJitterPercentage" }}
+        - --interval-jitter-percentage={{ .Values.manager.intervalJitterPercentage }}
+        {{- end }}
         - --oci-registry-addr={{ .Values.registry.address }}
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify

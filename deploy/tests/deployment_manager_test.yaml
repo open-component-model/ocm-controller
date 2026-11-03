@@ -6,7 +6,7 @@ tests:
     asserts:
       - lengthEqual:
           path: spec.template.spec.containers[0].args
-          count: 5
+          count: 6
   - it: configures a subset of controllers without overriding the others
     set:
       manager.concurrency:
@@ -21,7 +21,7 @@ tests:
           content: --concurrency-resource=2
       - lengthEqual:
           path: spec.template.spec.containers[0].args
-          count: 7
+          count: 8
   - it: maps every controller name to its binary flag
     set:
       manager.concurrency:
@@ -52,7 +52,7 @@ tests:
           content: --concurrency-flux-deployer=7
       - lengthEqual:
           path: spec.template.spec.containers[0].args
-          count: 11
+          count: 12
   - it: allows an explicit single worker
     set:
       manager.concurrency.resource: 1
@@ -62,4 +62,4 @@ tests:
           content: --concurrency-resource=1
       - lengthEqual:
           path: spec.template.spec.containers[0].args
-          count: 6
+          count: 7

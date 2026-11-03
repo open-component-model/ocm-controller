@@ -73,6 +73,6 @@ metadata:
   name: {{ .Values.tlsCert.issuerName }}
 spec:
   ca:
-    secretName: {{ .Values.tlsCert.secretName }}
+    secretName: {{ .Values.tlsCert.bootstrap.secretName }}
 
 {{- end}}

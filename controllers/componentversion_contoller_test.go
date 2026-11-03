@@ -2,12 +2,19 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math/rand"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -16,11 +23,14 @@ import (
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"ocm.software/ocm/api/credentials"
+	"ocm.software/ocm/api/ocm"
 	ocmdesc "ocm.software/ocm/api/ocm/compdesc"
 	v1 "ocm.software/ocm/api/ocm/compdesc/meta/v1"
 
 	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	ocmfake "github.com/open-component-model/ocm-controller/pkg/fakes"
+	ocmclient "github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/ocm/fakes"
 )
 
@@ -89,12 +99,11 @@ func TestComponentVersionReconcile(t *testing.T) {
 		},
 	}
 
+	selected := &reconciledComponent{ComponentVersionAccess: root}
 	fakeOcm := &fakes.MockFetcher{}
-	fakeOcm.VerifyComponentReturns(true, nil)
 	fakeOcm.GetComponentVersionReturnsForName(embedded.ComponentDescriptor.ComponentSpec.Name, embedded, nil)
 	fakeOcm.GetComponentVersionReturnsForName(root.ComponentDescriptor.ComponentSpec.Name, root, nil)
-	fakeOcm.VerifyComponentReturns(true, nil)
-	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+	fakeOcm.GetLatestComponentVersionReturns(selected.GetVersion(), selected, nil)
 	recorder := &events.FakeRecorder{
 		Events:  make(chan string, 32),
 		Verbose: true,
@@ -121,9 +130,13 @@ func TestComponentVersionReconcile(t *testing.T) {
 	}, cv)
 	require.NoError(t, err)
 
+	assert.Equal(t, 1, selected.closed)
 	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
+	assert.Equal(t, 1, fakeOcm.GetComponentVersionCallCount())
+	assert.Equal(t, embedded.ComponentDescriptor.Name, fakeOcm.GetComponentVersionCallingArgumentsOnCall(0)[1])
 	assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
+	assert.Equal(t, "v0.0.1", cv.Status.ReconciledVersion)
 
 	t.Log("checking label values")
 	nns := types.NamespacedName{Name: cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name, Namespace: cv.Status.ComponentDescriptor.ComponentDescriptorRef.Namespace}
@@ -145,12 +158,12 @@ func TestComponentVersionReconcile(t *testing.T) {
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 	assert.Contains(t, event, "delivery.ocm.software/component_version")
 }
 
@@ -222,12 +235,18 @@ func TestComponentVersionWithTransferReconcile(t *testing.T) {
 		},
 	}
 
+	// The source descriptor differs from the replicated destination, whose
+	// labels and references must be used when creating Kubernetes descriptors.
+	source := *root
+	source.ComponentDescriptor = root.ComponentDescriptor.Copy()
+	source.ComponentDescriptor.Labels = nil
+	source.ComponentDescriptor.References = nil
+	selected := &reconciledComponent{ComponentVersionAccess: &source}
+	destination := &reconciledComponent{ComponentVersionAccess: root}
 	fakeOcm := &fakes.MockFetcher{}
-	fakeOcm.VerifyComponentReturns(true, nil)
 	fakeOcm.GetComponentVersionReturnsForName(embedded.ComponentDescriptor.ComponentSpec.Name, embedded, nil)
-	fakeOcm.GetComponentVersionReturnsForName(root.ComponentDescriptor.ComponentSpec.Name, root, nil)
-	fakeOcm.VerifyComponentReturns(true, nil)
-	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+	fakeOcm.GetComponentVersionReturnsForName(root.ComponentDescriptor.ComponentSpec.Name, destination, nil)
+	fakeOcm.GetLatestComponentVersionReturns(selected.GetVersion(), selected, nil)
 	fakeOcm.TransferComponentReturns(nil)
 	recorder := &events.FakeRecorder{
 		Events:  make(chan string, 32),
@@ -255,10 +274,14 @@ func TestComponentVersionWithTransferReconcile(t *testing.T) {
 	}, cv)
 	require.NoError(t, err)
 
+	assert.Equal(t, 1, selected.closed)
+	assert.Equal(t, 1, destination.closed)
 	assert.Len(t, cv.Status.ComponentDescriptor.References, 1)
 	assert.Equal(t, "test-ref-1", cv.Status.ComponentDescriptor.References[0].Name)
+
 	assert.Equal(t, "github.com/open-component-model/internal-test", cv.GetRepositoryURL())
 	assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
+	assert.Equal(t, "v0.0.1", cv.Status.ReconciledVersion)
 
 	t.Log("checking label values")
 	nns := types.NamespacedName{Name: cv.Status.ComponentDescriptor.ComponentDescriptorRef.Name, Namespace: cv.Status.ComponentDescriptor.ComponentDescriptorRef.Namespace}
@@ -277,19 +300,21 @@ func TestComponentVersionWithTransferReconcile(t *testing.T) {
 		"ocm.software/label-value-2": "1.32",
 	}, cd.Labels)
 
-	// the second call to GetComponentVersion should fetch it from the new place
-	args := fakeOcm.GetComponentVersionCallingArgumentsOnCall(1)
+	assert.Equal(t, 2, fakeOcm.GetComponentVersionCallCount())
+	assert.Same(t, selected, fakeOcm.TransferComponentCallingArgumentsOnCall(0)[1])
+	// The first lookup after selection fetches the transferred component.
+	args := fakeOcm.GetComponentVersionCallingArgumentsOnCall(0)
 	assert.Equal(t, "github.com/open-component-model/internal-test", args[0])
 
 	close(recorder.Events)
 	event := ""
 	for e := range recorder.Events {
-		if strings.Contains(e, "Reconciliation finished, next run in") {
+		if strings.Contains(e, "Reconciliation finished, polling interval") {
 			event = e
 			break
 		}
 	}
-	assert.Contains(t, event, "Reconciliation finished, next run in")
+	assert.Contains(t, event, "Reconciliation finished, polling interval")
 	assert.Contains(t, event, "delivery.ocm.software/component_version")
 }
 
@@ -303,7 +328,7 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 	}
 
 	fakeOcm := &fakes.MockFetcher{}
-	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+	fakeOcm.GetLatestComponentVersionReturns("v0.0.1", &ocmfake.Component{Version: "v0.0.1"}, nil)
 	cvr := ComponentVersionReconciler{
 		Scheme:        env.scheme,
 		Client:        client,
@@ -338,6 +363,152 @@ func TestComponentVersionReconcileFailure(t *testing.T) {
 	}
 	assert.True(t, found)
 	assert.Contains(t, event, v1alpha1.CheckVersionFailedReason)
+}
+
+type componentVersionTestClient struct {
+	ocmclient.Contract
+	context ocm.Context
+}
+
+func (c *componentVersionTestClient) CreateAuthenticatedOCMContext(context.Context, *v1alpha1.ComponentVersion) (ocm.Context, error) {
+	return c.context, nil
+}
+
+type componentVersionLookupRepository struct {
+	ocm.Repository
+	lookups int
+}
+
+func (r *componentVersionLookupRepository) LookupComponentVersion(name, version string) (ocm.ComponentVersionAccess, error) {
+	r.lookups++
+	return r.Repository.LookupComponentVersion(name, version)
+}
+
+type componentVersionLookupContext struct {
+	ocm.Context
+	repository ocm.Repository
+}
+
+func (c *componentVersionLookupContext) RepositoryForSpec(ocm.RepositorySpec, ...credentials.CredentialsSource) (ocm.Repository, error) {
+	return c.repository, nil
+}
+
+func TestComponentVersionReconcileUnsignedLookupCount(t *testing.T) {
+	for _, tt := range []struct {
+		name              string
+		reconciledVersion string
+		lookups           int
+	}{
+		{name: "unchanged version", reconciledVersion: "2.0.0", lookups: 0},
+		{name: "new version", reconciledVersion: "1.0.0", lookups: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Version.Semver = ">=1.0.0"
+			obj.Status.ReconciledVersion = tt.reconciledVersion
+			kubeClient := env.FakeKubeClient(WithObjects(obj))
+			octx := ocmfake.NewFakeOCMContext()
+			for _, version := range []string{"1.0.0", "2.0.0"} {
+				require.NoError(t, octx.AddComponent(&ocmfake.Component{Name: obj.Spec.Component, Version: version}))
+			}
+			repo, err := octx.RepositoryForSpec(nil)
+			require.NoError(t, err)
+			counted := &componentVersionLookupRepository{Repository: repo}
+			reconciler := ComponentVersionReconciler{
+				Client: kubeClient, Scheme: env.scheme,
+				EventRecorder: &events.FakeRecorder{Events: make(chan string, 32)},
+				OCMClient: &componentVersionTestClient{
+					Contract: ocmclient.NewClient(kubeClient, nil),
+					context:  &componentVersionLookupContext{Context: octx, repository: counted},
+				},
+			}
+			key := types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}
+			result, err := reconciler.Reconcile(t.Context(), ctrl.Request{NamespacedName: key})
+			require.NoError(t, err)
+			require.Equal(t, tt.lookups, counted.lookups)
+			require.Equal(t, obj.GetRequeueAfter(), result.RequeueAfter)
+			require.NoError(t, kubeClient.Get(t.Context(), key, obj))
+			require.True(t, conditions.IsTrue(obj, meta.ReadyCondition))
+			require.Equal(t, "2.0.0", obj.Status.ReconciledVersion)
+		})
+	}
+}
+
+func TestComponentVersionReconcileWithoutVerifiedCandidate(t *testing.T) {
+	obj := DefaultComponent.DeepCopy()
+	obj.Spec.Version.Semver = ">=1.0.0"
+	obj.Spec.Verify = []v1alpha1.Signature{{Name: "production"}}
+	kubeClient := env.FakeKubeClient(WithObjects(obj))
+	octx := ocmfake.NewFakeOCMContext()
+	for _, version := range []string{"1.0.0", "2.0.0"} {
+		require.NoError(t, octx.AddComponent(&ocmfake.Component{Name: obj.Spec.Component, Version: version}))
+	}
+	reconciler := ComponentVersionReconciler{
+		Client: kubeClient, Scheme: env.scheme,
+		EventRecorder: &events.FakeRecorder{Events: make(chan string, 32)},
+		OCMClient: &componentVersionTestClient{
+			Contract: ocmclient.NewClient(kubeClient, nil), context: octx,
+		},
+	}
+	key := types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}
+	result, err := reconciler.Reconcile(t.Context(), ctrl.Request{NamespacedName: key})
+	require.NoError(t, err)
+	require.Equal(t, obj.GetRequeueAfter(), result.RequeueAfter)
+	require.NoError(t, kubeClient.Get(t.Context(), key, obj))
+	require.True(t, conditions.IsFalse(obj, meta.ReadyCondition))
+	require.Equal(t, v1alpha1.CheckVersionFailedReason, conditions.GetReason(obj, meta.ReadyCondition))
+	require.Contains(t, conditions.GetMessage(obj, meta.ReadyCondition), "no matching versions found for constraint '>=1.0.0'")
+	require.Empty(t, obj.Status.ReconciledVersion)
+}
+
+func TestComponentVersionReconcileUnsignedLookupFailure(t *testing.T) {
+	obj := DefaultComponent.DeepCopy()
+	obj.Spec.Version.Semver = ">=1.0.0"
+	kubeClient := env.FakeKubeClient(WithObjects(obj))
+	fakeOcm := &fakes.MockFetcher{}
+	fakeOcm.GetLatestComponentVersionReturns("2.0.0", nil, nil)
+	fakeOcm.GetComponentVersionReturnsForName(obj.Spec.Component, nil, errors.New("manifest unknown"))
+	reconciler := ComponentVersionReconciler{
+		Client: kubeClient, Scheme: env.scheme,
+		EventRecorder: &events.FakeRecorder{Events: make(chan string, 32)}, OCMClient: fakeOcm,
+	}
+	key := types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}
+	result, err := reconciler.Reconcile(t.Context(), ctrl.Request{NamespacedName: key})
+	require.NoError(t, err)
+	require.Equal(t, obj.GetRequeueAfter(), result.RequeueAfter)
+	require.NoError(t, kubeClient.Get(t.Context(), key, obj))
+	require.True(t, conditions.IsFalse(obj, meta.ReadyCondition))
+	require.Equal(t, v1alpha1.ComponentVersionInvalidReason, conditions.GetReason(obj, meta.ReadyCondition))
+	require.Contains(t, conditions.GetMessage(obj, meta.ReadyCondition), "failed to get component version")
+	require.Contains(t, conditions.GetMessage(obj, meta.ReadyCondition), "manifest unknown")
+	require.Empty(t, obj.Status.ReconciledVersion)
+	require.Equal(t, 1, fakeOcm.GetComponentVersionCallCount())
+}
+
+func TestComponentVersionReconcileReadyReportsAppliedVersion(t *testing.T) {
+	for _, latest := range []string{"2.0.0", "3.0.0"} {
+		t.Run(latest, func(t *testing.T) {
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Version.Semver = ">=1.0.0"
+			obj.Status.ReconciledVersion = "3.0.0"
+			kubeClient := env.FakeKubeClient(WithObjects(obj))
+			fakeOcm := &fakes.MockFetcher{}
+			fakeOcm.GetLatestComponentVersionReturns(latest, nil, nil)
+			reconciler := ComponentVersionReconciler{
+				Client: kubeClient, Scheme: env.scheme,
+				EventRecorder: &events.FakeRecorder{Events: make(chan string, 32)}, OCMClient: fakeOcm,
+			}
+			key := types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}
+			result, err := reconciler.Reconcile(t.Context(), ctrl.Request{NamespacedName: key})
+			require.NoError(t, err)
+			require.Equal(t, obj.GetRequeueAfter(), result.RequeueAfter)
+			require.NoError(t, kubeClient.Get(t.Context(), key, obj))
+			require.True(t, conditions.IsTrue(obj, meta.ReadyCondition))
+			require.Equal(t, "3.0.0", obj.Status.ReconciledVersion)
+			require.Equal(t, "Applied version: 3.0.0", conditions.GetMessage(obj, meta.ReadyCondition))
+			require.True(t, fakeOcm.GetComponentVersionWasNotCalled())
+		})
+	}
 }
 
 func TestComponentVersionSemverCheck(t *testing.T) {
@@ -401,7 +572,7 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 			obj.Status.ReconciledVersion = tt.reconciledVersion
 			fakeClient := env.FakeKubeClient(WithObjects(obj))
 			fakeOcm := &fakes.MockFetcher{}
-			fakeOcm.GetLatestComponentVersionReturns(tt.latestVersion, nil)
+			fakeOcm.GetLatestComponentVersionReturns(tt.latestVersion, &ocmfake.Component{Version: tt.latestVersion}, nil)
 			recorder := &events.FakeRecorder{
 				Events: make(chan string, 32),
 			}
@@ -412,14 +583,194 @@ func TestComponentVersionSemverCheck(t *testing.T) {
 				EventRecorder: recorder,
 				OCMClient:     fakeOcm,
 			}
-			update, _, err := cvr.checkVersion(context.Background(), nil, obj)
+			update, version, selected, err := cvr.checkVersion(context.Background(), nil, obj)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedUpdate, update)
+			require.Equal(t, tt.latestVersion, version)
+			require.NoError(t, selected.Close())
 
 			close(recorder.Events)
 			for e := range recorder.Events {
 				if tt.expectedUpdate {
 					assert.Contains(t, e, "Version check succeeded, found latest")
+				}
+			}
+		})
+	}
+}
+
+type reconciledComponent struct {
+	ocm.ComponentVersionAccess
+	closed int
+}
+
+func (c *reconciledComponent) Close() error {
+	c.closed++
+	return c.ComponentVersionAccess.Close()
+}
+
+func TestComponentVersionReconcileReleasesSelectedComponent(t *testing.T) {
+	for _, tt := range []struct {
+		name              string
+		selectedVersion   string
+		reconciledVersion string
+		constraint        string
+		transferFails     bool
+	}{
+		{name: "already reconciled", selectedVersion: "1.0.0", reconciledVersion: "1.0.0", constraint: ">=1.0.0"},
+		{name: "invalid selected version", selectedVersion: "invalid", constraint: ">=1.0.0"},
+		{name: "invalid reconciled version", selectedVersion: "1.0.0", reconciledVersion: "invalid", constraint: ">=1.0.0"},
+		{name: "invalid constraint", selectedVersion: "1.0.0", constraint: "invalid"},
+		{name: "transfer failure", selectedVersion: "1.0.0", constraint: ">=1.0.0", transferFails: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Version.Semver = tt.constraint
+			obj.Status.ReconciledVersion = tt.reconciledVersion
+			selected := &reconciledComponent{ComponentVersionAccess: &ocmfake.Component{Version: tt.selectedVersion}}
+			fakeOcm := &fakes.MockFetcher{}
+			fakeOcm.GetLatestComponentVersionReturns(selected.GetVersion(), selected, nil)
+			if tt.transferFails {
+				obj.Spec.Destination = &v1alpha1.Repository{URL: "destination"}
+				fakeOcm.TransferComponentReturns(errors.New("transfer failed"))
+			}
+			reconciler := ComponentVersionReconciler{
+				Client: env.FakeKubeClient(WithObjects(obj)), Scheme: env.scheme,
+				EventRecorder: &events.FakeRecorder{Events: make(chan string, 32)}, OCMClient: fakeOcm,
+			}
+			_, err := reconciler.Reconcile(t.Context(), ctrl.Request{NamespacedName: types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}})
+			if tt.transferFails {
+				require.ErrorContains(t, err, "transfer failed")
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, 1, selected.closed)
+			require.True(t, fakeOcm.GetComponentVersionWasNotCalled())
+		})
+	}
+}
+
+func TestComponentVersionPollingJitter(t *testing.T) {
+	// Flux initializes its global jitter only once. Use a fresh process for each
+	// percentage, including zero, without changing other controller tests.
+	const percentageEnv = "OCM_TEST_INTERVAL_JITTER_PERCENTAGE"
+	percentageValue := os.Getenv(percentageEnv)
+	if percentageValue == "" {
+		for _, value := range []string{"0", "5", "15", "99"} {
+			t.Run(value+" percent", func(t *testing.T) {
+				cmd := exec.Command(os.Args[0], "-test.run=^TestComponentVersionPollingJitter$", "-test.v")
+				cmd.Env = append(os.Environ(), percentageEnv+"="+value)
+				output, err := cmd.CombinedOutput()
+				require.NoError(t, err, string(output))
+			})
+		}
+		return
+	}
+	percentage, err := strconv.ParseUint(percentageValue, 10, 8)
+	require.NoError(t, err)
+	options := jitter.IntervalOptions{Percentage: uint8(percentage)}
+	require.NoError(t, options.SetGlobalJitter(rand.New(rand.NewSource(1))))
+
+	for _, tt := range []struct {
+		name              string
+		update            bool
+		checkFails        bool
+		verificationFails bool
+		transferFails     bool
+		suspended         bool
+	}{
+		{name: "already reconciled"},
+		{name: "successful update", update: true},
+		{name: "version check failure", checkFails: true},
+		{name: "verification failure", update: true, verificationFails: true},
+		{name: "error retry", update: true, transferFails: true},
+		{name: "suspended", suspended: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := DefaultComponent.DeepCopy()
+			obj.Spec.Interval = metav1.Duration{Duration: time.Minute}
+			obj.Spec.Version.Semver = ">=1.0.0"
+			obj.Spec.Suspend = tt.suspended
+			if !tt.update {
+				obj.Status.ReconciledVersion = "1.0.0"
+			}
+			root := &ocmfake.Component{
+				Name:    obj.Spec.Component,
+				Version: "1.0.0",
+				ComponentDescriptor: &ocmdesc.ComponentDescriptor{
+					ComponentSpec: ocmdesc.ComponentSpec{
+						ObjectMeta: v1.ObjectMeta{
+							Name:    obj.Spec.Component,
+							Version: "1.0.0",
+						},
+					},
+				},
+			}
+			fakeOcm := &fakes.MockFetcher{}
+			fakeOcm.GetLatestComponentVersionReturns("1.0.0", root, nil)
+			fakeOcm.GetComponentVersionReturnsForName(root.Name, root, nil)
+			if tt.checkFails {
+				fakeOcm.GetLatestComponentVersionReturns("", nil, errors.New("no matching version"))
+			}
+			if tt.verificationFails {
+				fakeOcm.GetLatestComponentVersionReturns("", nil, errors.New("invalid signature"))
+			}
+			if tt.transferFails {
+				obj.Spec.Destination = &v1alpha1.Repository{URL: "destination"}
+				fakeOcm.TransferComponentReturns(errors.New("repository unavailable"))
+			}
+			recorder := &events.FakeRecorder{Events: make(chan string, 32)}
+			testEnvironment := &testEnv{scheme: env.scheme}
+			kubeClient := testEnvironment.FakeKubeClient(WithObjects(obj))
+			reconciler := ComponentVersionReconciler{
+				Client:        kubeClient,
+				Scheme:        testEnvironment.scheme,
+				EventRecorder: recorder,
+				OCMClient:     fakeOcm,
+			}
+			// Exercise concurrent access to Flux's shared random generator.
+			t.Parallel()
+			request := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      obj.Name,
+					Namespace: obj.Namespace,
+				},
+			}
+			var previousEvent string
+			for range 2 {
+				result, err := reconciler.Reconcile(t.Context(), request)
+				if tt.transferFails {
+					require.ErrorContains(t, err, "repository unavailable")
+					require.Zero(t, result.RequeueAfter)
+					return
+				}
+				require.NoError(t, err)
+				if tt.suspended {
+					require.Zero(t, result.RequeueAfter)
+					return
+				}
+				if percentage == 0 {
+					require.Equal(t, time.Minute, result.RequeueAfter)
+				} else {
+					minimum := time.Minute - time.Duration(percentage)*time.Minute/100
+					maximum := time.Minute + time.Duration(percentage)*time.Minute/100
+					require.GreaterOrEqual(t, result.RequeueAfter, minimum)
+					require.LessOrEqual(t, result.RequeueAfter, maximum)
+					require.NotEqual(t, time.Minute, result.RequeueAfter)
+				}
+				if !tt.checkFails && !tt.verificationFails {
+					var finishedEvent string
+					for len(recorder.Events) > 0 {
+						event := <-recorder.Events
+						if strings.Contains(event, "Reconciliation finished, polling interval") {
+							finishedEvent = event
+						}
+					}
+					require.Contains(t, finishedEvent, "Reconciliation finished, polling interval 1m0s")
+					if previousEvent != "" {
+						require.Equal(t, previousEvent, finishedEvent, "polling events must remain identical for aggregation")
+					}
+					previousEvent = finishedEvent
 				}
 			}
 		})
