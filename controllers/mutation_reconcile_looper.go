@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"ocm.software/ocm/api/datacontext"
+	"ocm.software/ocm/api/oci"
 	ocmcore "ocm.software/ocm/api/ocm"
 	"ocm.software/ocm/api/ocm/resourcerefs"
 	"ocm.software/ocm/api/utils/tarutils"
@@ -452,7 +453,14 @@ func (m *MutationReconcileLooper) performLocalization(
 	}
 
 	if l.Tag != "" {
-		if err := localizations.Add("tag", l.File, l.Tag, pRef.Identifier()); err != nil {
+		tag := pRef.Identifier()
+		// Digest references lose their tag in Name() and Identifier(). Recover
+		// it from the original input, preserving legacy digest-only behavior.
+		if ref, err := oci.ParseRef(pRef.String()); err == nil && ref.Tag != nil && ref.Digest != nil {
+			tag = *ref.Tag + "@" + tag
+		}
+
+		if err := localizations.Add("tag", l.File, l.Tag, tag); err != nil {
 			return fmt.Errorf("failed to add identifier: %w", err)
 		}
 	}
