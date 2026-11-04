@@ -1,6 +1,3 @@
-# Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/open-component-model/ocm-controller
-TAG ?= v0.11.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 GITHUBORG                                      ?= open-component-model
 OCMREPO                                        ?= ghcr.io/$(GITHUBORG)/ocm-controller
@@ -94,8 +91,10 @@ lint: golangci-lint ## Run golangci-lint.
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
+# Install the helm-unittest plugin before running this target.
 .PHONY: test-helm
-test-helm: ## Run Helm chart unit tests (requires helm-unittest).
+test-helm: ## Run Helm chart unit tests.
+	helm lint ./deploy
 	helm unittest --strict ./deploy
 
 .PHONY: e2e
@@ -113,7 +112,6 @@ prime-test-cluster: mkcert
 ##@ Build
 
 PPROF_GO_TAGS ?= pprof
-PPROF_IMAGE_TAG_SUFFIX ?= -debug
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
@@ -126,18 +124,6 @@ build-debug: generate fmt vet ## Build manager binary with pprof enabled.
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run .
-
-.PHONY: docker-build
-docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG}:${TAG} .
-
-.PHONY: docker-build-debug
-docker-build-debug: ## Build docker image with pprof enabled.
-	docker build --build-arg GO_TAGS=$(PPROF_GO_TAGS) -t ${IMG}:${TAG}$(PPROF_IMAGE_TAG_SUFFIX) .
-
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker push ${IMG}:${TAG}
 
 ##@ Component
 

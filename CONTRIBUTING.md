@@ -17,49 +17,37 @@ To work on CRD definitions, after changes always run `make manifests && make gen
 
 ### Testing the Controller
 
-To test the controller locally you need to build it first with `make`.
+For in-cluster development, use the maintained Tilt workflow described in
+[Local Testing](README.md#local-testing). It builds the controller image using
+`tilt.dockerfile` (or `tilt.debug.dockerfile` when debugging) and reloads it as the
+code changes:
 
-There are two ways to test a controller. In-cluster or running it locally. In either cases a cluster is required to run
-the manager first. Using kind, create a cluster with:
-
-```
-kind create cluster --name controller-test
-```
-
-If in-cluster is the preferred way to test the controller, create a kind registry that kind can pull images from.
-To do that follow [this](https://kind.sigs.k8s.io/docs/user/local-registry/) guide.
-
-Once a local registry exists, build the controller image with:
-
-```
-docker build -t localhost:5001/ocm-controller/manager:v0.0.1 .
+```sh
+make prime-test-cluster
+flux install
+tilt up
 ```
 
-When it's done, push it to the local registry:
+The cluster setup provisions the registry certificates required by the controller.
+It requires kind, kubectl, Docker, Flux and Tilt, and installs the generated root
+certificate into your local trust store.
 
-```
-docker push localhost:5001/ocm-controller/manager:v0.0.1
-```
+Per-controller concurrency can be set via `manager.concurrency`, e.g.
+`--set manager.concurrency.resource=3` when installing the Helm chart. See
+[Controller concurrency](README.md#controller-concurrency) for the supported names.
 
-Now the controller can be installed onto the cluster. Before that, install all crds and rbacs with `make install`.
-There is a deployment manifest located [here](config/manager/deployment.yaml) which can be used to install the
-controller.
+To run the manager on your host instead, build it with `make` and run it against a
+cluster with the required CRDs, RBAC, registry and certificates installed:
 
-_Note_: If a local kind cluster with local registry is used, change the `image: ` value from 
-`image: open-component-model/ocm-controller` to `localhost:5001/ocm-controller/manager:v0.0.1` so the Kind workers can
-pull to image from the local registry.
-
-If it's enough to run the manager locally, you don't need a local registry. Simply run:
-
-```
+```sh
 ./bin/manager -zap-log-level 4
 ```
 
-### Testing the Helm Chart
+### Testing the Helm chart
 
-Install Helm and the `helm-unittest` plugin, then run the chart tests:
+Install the Helm unittest plugin, then run the chart checks:
 
 ```sh
-helm plugin install https://github.com/helm-unittest/helm-unittest.git --verify=false
+helm plugin install https://github.com/helm-unittest/helm-unittest.git --version v1.2.1 --verify=false
 make test-helm
 ```

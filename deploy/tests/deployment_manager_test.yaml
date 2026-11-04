@@ -1,0 +1,65 @@
+suite: controller concurrency
+templates:
+  - templates/deployment_manager.yaml
+tests:
+  - it: omits concurrency flags by default
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers[0].args
+          count: 6
+  - it: configures a subset of controllers without overriding the others
+    set:
+      manager.concurrency:
+        componentVersion: 4
+        resource: 2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-component-version=4
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-resource=2
+      - lengthEqual:
+          path: spec.template.spec.containers[0].args
+          count: 8
+  - it: maps every controller name to its binary flag
+    set:
+      manager.concurrency:
+        componentVersion: 2
+        resource: 3
+        snapshot: 4
+        localization: 5
+        configuration: 6
+        fluxDeployer: 7
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-component-version=2
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-resource=3
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-snapshot=4
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-localization=5
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-configuration=6
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-flux-deployer=7
+      - lengthEqual:
+          path: spec.template.spec.containers[0].args
+          count: 12
+  - it: allows an explicit single worker
+    set:
+      manager.concurrency.resource: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --concurrency-resource=1
+      - lengthEqual:
+          path: spec.template.spec.containers[0].args
+          count: 7
