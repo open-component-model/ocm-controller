@@ -45,6 +45,7 @@ localization:
   registry: image.registry
   repository: image.repository
   tag: image.tag
+  digest: image.digest
   resource:
     name: introspect-image
 - file: custom_resource.yaml
@@ -789,6 +790,10 @@ localization:
 				args.Content,
 				"tag: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
 				"the reference should have been altered during localization",
+			)
+			assert.Contains(t, args.Content,
+				"digest: sha256:7f0168496f273c1e2095703a050128114d339c580b0906cd124a93b66ae471e2",
+				"the digest field should contain the digest without an @ separator",
 			)
 
 			assert.Contains(

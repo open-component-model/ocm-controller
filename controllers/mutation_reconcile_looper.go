@@ -465,6 +465,17 @@ func (m *MutationReconcileLooper) performLocalization(
 		}
 	}
 
+	if l.Digest != "" {
+		digestRef, ok := pRef.(name.Digest)
+		if !ok {
+			return fmt.Errorf("cannot localize digest for reference %q: no digest is present", pRef.String())
+		}
+
+		if err := localizations.Add("digest", l.File, l.Digest, digestRef.DigestStr()); err != nil {
+			return fmt.Errorf("failed to add digest: %w", err)
+		}
+	}
+
 	return nil
 }
 
