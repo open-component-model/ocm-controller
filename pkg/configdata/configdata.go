@@ -64,8 +64,10 @@ localization:
 // The available Localization resource properties are:
 // - **image**
 // - **repository**
+// - **fullyQualifiedRepository**
 // - **registry**
-// - **tag**.
+// - **tag**
+// - **digest**.
 type ConfigData struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitzero"`
