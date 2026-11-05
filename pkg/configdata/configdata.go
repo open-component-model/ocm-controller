@@ -64,8 +64,10 @@ localization:
 // The available Localization resource properties are:
 // - **image**
 // - **repository**
+// - **fullyQualifiedRepository**
 // - **registry**
-// - **tag**.
+// - **tag**
+// - **digest**.
 type ConfigData struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitzero"`
@@ -94,6 +96,9 @@ type LocalizationRule struct {
 	FullyQualifiedRepository string       `json:"fullyQualifiedRepository,omitempty"`
 	Image                    string       `json:"image,omitempty"`
 	Tag                      string       `json:"tag,omitempty"`
+
+	// Digest is the destination path for an algorithm-prefixed digest without @.
+	Digest string `json:"digest,omitempty"`
 }
 
 type Mapping struct {

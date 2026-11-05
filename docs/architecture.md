@@ -129,6 +129,9 @@ localization:
 
 Localization parameters are specified under the `localization` stanza. The Localization controller will apply the localization rules that apply to the resource specified in the `sourceRef` field. 
 
+See [image localization](localization.md) for repository, tag, and digest rules,
+reference formats, and chart examples.
+
 ```mermaid
 sequenceDiagram
     User->>Kubernetes API: submit Localization CR
