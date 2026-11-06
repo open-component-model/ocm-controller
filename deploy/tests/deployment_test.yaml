@@ -1,0 +1,72 @@
+suite: serving Secret wiring
+templates:
+  - templates/deployment_manager.yaml
+  - templates/deployment_registry.yaml
+tests:
+  - it: wires the default serving Secret into the controller arg and both mounts
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --certificate-secret-name=ocm-registry-tls-certs
+        template: templates/deployment_manager.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: ocm-registry-tls-certs
+        template: templates/deployment_manager.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: ocm-registry-tls-certs
+        template: templates/deployment_registry.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].secret.secretName
+          value: ocm-registry-tls-certs
+        template: templates/deployment_registry.yaml
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: ocm-registry-tls-certs
+        template: templates/deployment_registry.yaml
+
+  - it: propagates a separate serving Secret name to the arg, registry mount, and manager mount
+    set:
+      tlsCert.secretName: custom-serving
+      tlsCert.bootstrap.secretName: custom-ca
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --certificate-secret-name=custom-serving
+        template: templates/deployment_manager.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: custom-serving
+        template: templates/deployment_manager.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: ocm-registry-tls-certs
+        template: templates/deployment_registry.yaml
+      - equal:
+          path: spec.template.spec.volumes[1].secret.secretName
+          value: custom-serving
+        template: templates/deployment_registry.yaml
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: ocm-registry-tls-certs
+        template: templates/deployment_registry.yaml
+
+  - it: drops the certificate arg and cert mounts when registry TLS is disabled
+    set:
+      registry.tls.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --certificate-secret-name=ocm-registry-tls-certs
+        template: templates/deployment_manager.yaml
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --oci-registry-insecure-skip-verify
+        template: templates/deployment_manager.yaml
+      - notExists:
+          path: spec.template.spec.volumes
+        template: templates/deployment_manager.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].volumeMounts
+        template: templates/deployment_registry.yaml
