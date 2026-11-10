@@ -9,10 +9,15 @@ import (
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"ocm.software/ocm/api/ocm/ocmutils/localize"
 	ocmruntime "ocm.software/ocm/api/utils/runtime"
+	ocm_yqlib "ocm.software/ocm/api/utils/yqlib"
 )
 
 // Key we store spiff rules under within spiff template doc.
 const ocmAdjustmentsTemplateKey = "ocmAdjustmentsTemplateKey"
+
+func init() {
+	ocm_yqlib.InitYq()
+}
 
 // makeYqNode unmarshalls bytes into a CandidateNode
 // In order to make debugging easier later during yaml processing we take in
