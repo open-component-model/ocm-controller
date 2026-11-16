@@ -40,7 +40,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
 	github.com/xeipuuv/gojsonschema v1.2.0
-	go.podman.io/image/v5 v5.42.0
+	go.podman.io/image/v5 v5.42.1
 	gopkg.in/op/go-logging.v1 v1.0.0-20160211212156-b2cb9fa56473
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.22.1
@@ -396,7 +396,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
-	go.podman.io/storage v1.65.0 // indirect
+	go.podman.io/storage v1.65.1 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
