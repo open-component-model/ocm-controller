@@ -14,7 +14,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -336,7 +335,7 @@ func (r *ConfigurationReconciler) reconcile(
 	metrics.ConfigurationReconcileSuccess.WithLabelValues(obj.Name).Inc()
 
 	if product := IsProductOwned(obj); product != "" {
-		metrics.MPASConfigurationReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+		metrics.MPASConfigurationReconciledStatus.WithLabelValues(product, metrics.MPASStatusSuccess).Inc()
 	}
 
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil

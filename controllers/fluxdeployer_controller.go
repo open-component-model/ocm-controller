@@ -12,7 +12,6 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/cache"
 	"github.com/open-component-model/ocm-controller/pkg/metrics"
 	"github.com/open-component-model/ocm-controller/pkg/status"
-	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -250,7 +249,7 @@ func (r *FluxDeployerReconciler) reconcile(
 	metrics.FluxDeployerReconcileSuccess.WithLabelValues(obj.Name).Inc()
 
 	if product := IsProductOwned(obj); product != "" {
-		metrics.MPASDeployerReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+		metrics.MPASDeployerReconciledStatus.WithLabelValues(product, metrics.MPASStatusSuccess).Inc()
 	}
 
 	return ctrl.Result{}, nil
