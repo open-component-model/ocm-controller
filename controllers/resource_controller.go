@@ -19,7 +19,6 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/snapshot"
 	"github.com/open-component-model/ocm-controller/pkg/status"
-	mh "github.com/open-component-model/pkg/metrics"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -273,7 +272,7 @@ func (r *ResourceReconciler) reconcile(
 	metrics.ResourceReconcileSuccess.WithLabelValues(obj.Name).Inc()
 
 	if product := IsProductOwned(obj); product != "" {
-		metrics.MPASResourceReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+		metrics.MPASResourceReconciledStatus.WithLabelValues(product, metrics.MPASStatusSuccess).Inc()
 	}
 
 	status.MarkReady(r.EventRecorder, obj, componentVersion, "Applied version: %s", obj.Status.LastAppliedComponentVersion)

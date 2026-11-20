@@ -2,8 +2,6 @@ package metrics
 
 import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
-
-	mh "github.com/open-component-model/pkg/metrics"
 )
 
 const (
@@ -35,7 +33,7 @@ func init() {
 
 // ComponentVersionReconciledTotal counts the number times a component version was reconciled.
 // [component, version].
-var ComponentVersionReconciledTotal = mh.MustRegisterCounterVec(
+var ComponentVersionReconciledTotal = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"component_version_reconciled_total",
@@ -45,7 +43,7 @@ var ComponentVersionReconciledTotal = mh.MustRegisterCounterVec(
 
 // ComponentVersionReconcileFailed counts the number times we failed to reconcile a component version.
 // [component].
-var ComponentVersionReconcileFailed = mh.MustRegisterCounterVec(
+var ComponentVersionReconcileFailed = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"component_version_reconcile_failed",
@@ -55,7 +53,7 @@ var ComponentVersionReconcileFailed = mh.MustRegisterCounterVec(
 
 // ConfigurationReconcileFailed counts the number times we failed to reconcile a Configuration.
 // [configuration].
-var ConfigurationReconcileFailed = mh.MustRegisterCounterVec(
+var ConfigurationReconcileFailed = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"configuration_reconcile_failed",
@@ -65,7 +63,7 @@ var ConfigurationReconcileFailed = mh.MustRegisterCounterVec(
 
 // ConfigurationReconcileSuccess counts the number times we succeeded to reconcile a Configuration.
 // [configuration].
-var ConfigurationReconcileSuccess = mh.MustRegisterCounterVec(
+var ConfigurationReconcileSuccess = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"configuration_reconcile_success",
@@ -75,7 +73,7 @@ var ConfigurationReconcileSuccess = mh.MustRegisterCounterVec(
 
 // SnapshotReconcileFailed counts the number times we failed to reconcile a Snapshot.
 // [configuration].
-var SnapshotReconcileFailed = mh.MustRegisterCounterVec(
+var SnapshotReconcileFailed = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"snapshot_reconcile_failed",
@@ -85,7 +83,7 @@ var SnapshotReconcileFailed = mh.MustRegisterCounterVec(
 
 // SnapshotReconcileSuccess counts the number times we succeeded to reconcile a Snapshot.
 // [configuration].
-var SnapshotReconcileSuccess = mh.MustRegisterCounterVec(
+var SnapshotReconcileSuccess = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"snapshot_reconcile_success",
@@ -95,7 +93,7 @@ var SnapshotReconcileSuccess = mh.MustRegisterCounterVec(
 
 // LocalizationReconcileFailed counts the number times we failed to reconcile a Localization.
 // [localization].
-var LocalizationReconcileFailed = mh.MustRegisterCounterVec(
+var LocalizationReconcileFailed = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"localization_reconcile_failed",
@@ -105,7 +103,7 @@ var LocalizationReconcileFailed = mh.MustRegisterCounterVec(
 
 // LocalizationReconcileSuccess counts the number times we succeeded to reconcile a Localization.
 // [localization].
-var LocalizationReconcileSuccess = mh.MustRegisterCounterVec(
+var LocalizationReconcileSuccess = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"localization_reconcile_success",
@@ -115,7 +113,7 @@ var LocalizationReconcileSuccess = mh.MustRegisterCounterVec(
 
 // ResourceReconcileFailed counts the number times we failed to reconcile a resource.
 // [resource].
-var ResourceReconcileFailed = mh.MustRegisterCounterVec(
+var ResourceReconcileFailed = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"resource_reconcile_failed",
@@ -125,7 +123,7 @@ var ResourceReconcileFailed = mh.MustRegisterCounterVec(
 
 // ResourceReconcileSuccess counts the number times we failed to reconcile a resource.
 // [resource].
-var ResourceReconcileSuccess = mh.MustRegisterCounterVec(
+var ResourceReconcileSuccess = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"resource_reconcile_success",
@@ -135,7 +133,7 @@ var ResourceReconcileSuccess = mh.MustRegisterCounterVec(
 
 // FluxDeployerReconcileFailed counts the number times we failed to reconcile a flux deployer.
 // [deployer].
-var FluxDeployerReconcileFailed = mh.MustRegisterCounterVec(
+var FluxDeployerReconcileFailed = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"flux_deployer_reconcile_failed",
@@ -145,7 +143,7 @@ var FluxDeployerReconcileFailed = mh.MustRegisterCounterVec(
 
 // FluxDeployerReconcileSuccess counts the number times we failed to reconcile a flux deployer.
 // [deployer].
-var FluxDeployerReconcileSuccess = mh.MustRegisterCounterVec(
+var FluxDeployerReconcileSuccess = MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"flux_deployer_reconcile_success",
@@ -155,7 +153,7 @@ var FluxDeployerReconcileSuccess = mh.MustRegisterCounterVec(
 
 // SnapshotNumberOfBytesReconciled number of bytes reconciled through snapshots.
 // [snapshot, digest, component].
-var SnapshotNumberOfBytesReconciled = mh.MustRegisterGaugeVec(
+var SnapshotNumberOfBytesReconciled = MustRegisterGaugeVec(
 	"ocm_system",
 	metricsComponent,
 	"snapshot_size_bytes",
@@ -165,50 +163,50 @@ var SnapshotNumberOfBytesReconciled = mh.MustRegisterGaugeVec(
 
 // MPASComponentVersionReconciledStatus updates the status of an MPAS component version.
 // [product, status].
-var MPASComponentVersionReconciledStatus = mh.MustRegisterCounterVec(
+var MPASComponentVersionReconciledStatus = MustRegisterCounterVec(
 	"mpas_system",
 	metricsComponent,
-	mh.MPASProductComponentVersionCounterLabel,
+	MPASProductComponentVersionCounterLabel,
 	"The status of an mpas product.",
-	"product", mh.MPASProductInstallationCounterStatusLabel,
+	"product", MPASProductInstallationCounterStatusLabel,
 )
 
 // MPASLocationReconciledStatus updates the status of an MPAS component version.
 // [product, status].
-var MPASLocationReconciledStatus = mh.MustRegisterCounterVec(
+var MPASLocationReconciledStatus = MustRegisterCounterVec(
 	"mpas_system",
 	metricsComponent,
-	mh.MPASProductLocalizationCounterLabel,
+	MPASProductLocalizationCounterLabel,
 	"The status of an mpas product.",
-	"product", mh.MPASProductInstallationCounterStatusLabel,
+	"product", MPASProductInstallationCounterStatusLabel,
 )
 
 // MPASConfigurationReconciledStatus updates the status of an MPAS component version.
 // [product, status].
-var MPASConfigurationReconciledStatus = mh.MustRegisterCounterVec(
+var MPASConfigurationReconciledStatus = MustRegisterCounterVec(
 	"mpas_system",
 	metricsComponent,
-	mh.MPASProductConfigurationCounterLabel,
+	MPASProductConfigurationCounterLabel,
 	"The status of an mpas product.",
-	"product", mh.MPASProductInstallationCounterStatusLabel,
+	"product", MPASProductInstallationCounterStatusLabel,
 )
 
 // MPASDeployerReconciledStatus updates the status of an MPAS component version.
 // [product, status].
-var MPASDeployerReconciledStatus = mh.MustRegisterCounterVec(
+var MPASDeployerReconciledStatus = MustRegisterCounterVec(
 	"mpas_system",
 	metricsComponent,
-	mh.MPASProductDeployerCounterLabel,
+	MPASProductDeployerCounterLabel,
 	"The status of an mpas product.",
-	"product", mh.MPASProductInstallationCounterStatusLabel,
+	"product", MPASProductInstallationCounterStatusLabel,
 )
 
 // MPASResourceReconciledStatus updates the status of an MPAS component version.
 // [product, status].
-var MPASResourceReconciledStatus = mh.MustRegisterCounterVec(
+var MPASResourceReconciledStatus = MustRegisterCounterVec(
 	"mpas_system",
 	metricsComponent,
-	mh.MPASProductResourceCounterLabel,
+	MPASProductResourceCounterLabel,
 	"The status of an mpas product.",
-	"product", mh.MPASProductInstallationCounterStatusLabel,
+	"product", MPASProductInstallationCounterStatusLabel,
 )

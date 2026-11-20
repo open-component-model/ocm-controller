@@ -13,7 +13,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/jitter"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
-	mh "github.com/open-component-model/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -358,7 +357,7 @@ func (r *ComponentVersionReconciler) reconcile(
 	metrics.ComponentVersionReconciledTotal.WithLabelValues(descriptorCV.GetName(), descriptorCV.GetVersion()).Inc()
 
 	if product := IsProductOwned(obj); product != "" {
-		metrics.MPASComponentVersionReconciledStatus.WithLabelValues(product, mh.MPASStatusSuccess).Inc()
+		metrics.MPASComponentVersionReconciledStatus.WithLabelValues(product, metrics.MPASStatusSuccess).Inc()
 	}
 
 	status.MarkReady(r.EventRecorder, obj, nil, "Applied version: %s", version)
