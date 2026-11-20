@@ -37,20 +37,12 @@ jobs:
     steps:
     - name: Self Hosted Runner Post Job Cleanup Action
       uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
-    - name: Generate release App token
-      id: release-token
-      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-      with:
-        client-id: ${{ secrets.RELEASE_BOT_CLIENT_ID }}
-        private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
-        repositories: ${{ github.event.repository.name }}
-        permission-contents: write
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         fetch-depth: 0
-        # Persist the release App token for the branch and tag pushes below.
-        token: ${{ steps.release-token.outputs.token }}
+        # The release App token is passed only to the push steps below.
+        persist-credentials: false
     - name: Setup Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
       with:
@@ -80,14 +72,26 @@ jobs:
           >&2 echo "Must have release notes ${{ env.RELEASE_NOTES_FILE }}"
           exit 6
         fi
+    - name: Generate release App token
+      id: release-token
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      with:
+        client-id: ${{ secrets.RELEASE_BOT_CLIENT_ID }}
+        private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+        repositories: ${{ github.event.repository.name }}
+        permission-contents: write
     - name: Create and push branch
       env:
         RELEASE_BRANCH: release-${{ env.RELEASE_VERSION }}
+        RELEASE_TOKEN: ${{ steps.release-token.outputs.token }}
       run: |
         if ! git checkout ${RELEASE_BRANCH} >/dev/null; then
             echo "Creating ${RELEASE_BRANCH} from $(git branch --show-current)"
             git checkout -b ${RELEASE_BRANCH}
-            git push origin "$(git branch --show-current)"
+            auth="$(printf 'x-access-token:%s' "${RELEASE_TOKEN}" | base64 -w0)"
+            echo "::add-mask::${auth}"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
+              push origin "$(git branch --show-current)"
         else
             git checkout ${RELEASE_BRANCH}
             git pull --ff-only origin ${RELEASE_BRANCH}
@@ -97,10 +101,15 @@ jobs:
         git config user.name "GitHub Actions Bot"
         git config user.email "<41898282+github-actions[bot]@users.noreply.github.com>"
     - name: Create and push tag
+      env:
+        RELEASE_TOKEN: ${{ steps.release-token.outputs.token }}
       run: |
-        msg="Release ${{ env.RELEASE_VERSION }}"
-        git tag --annotate --message "${msg}" ${{ env.RELEASE_VERSION }}
-        git push origin ${{ env.RELEASE_VERSION }}
+        msg="Release ${RELEASE_VERSION}"
+        git tag --annotate --message "${msg}" "${RELEASE_VERSION}"
+        auth="$(printf 'x-access-token:%s' "${RELEASE_TOKEN}" | base64 -w0)"
+        echo "::add-mask::${auth}"
+        git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
+          push origin "${RELEASE_VERSION}"
     - name: Log in to the Container registry
       uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
       with:
