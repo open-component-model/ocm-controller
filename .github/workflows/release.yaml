@@ -21,52 +21,58 @@ jobs:
     permissions:
       contents: read
       pull-requests: 'read'
-  release:
+  tag:
     needs: tests
-    name: Trigger release build
+    name: Create release branch and tag
     runs-on: ubuntu-latest
+    # Holds the release App credentials. Only first-party actions and git run in
+    # this job; publishing happens in a separate job with GITHUB_TOKEN only.
+    environment:
+      name: release-automation
+      deployment: false
     permissions:
-      contents: 'write'
-      id-token: 'write'
-      pull-requests: 'read'
-      repository-projects: 'write'
-      packages: 'write'
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      notes_file: ${{ steps.version.outputs.notes_file }}
     steps:
-    - name: Self Hosted Runner Post Job Cleanup Action
-      uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
+    - name: Generate release App token
+      id: release-token
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      with:
+        client-id: ${{ secrets.RELEASE_BOT_CLIENT_ID }}
+        private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+        repositories: ${{ github.event.repository.name }}
+        permission-contents: write
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         fetch-depth: 0
+        # Persisted for the branch and tag pushes below; this job uploads no artifacts.
+        token: ${{ steps.release-token.outputs.token }} # zizmor: ignore[artipacked]
     - name: Setup Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
       with:
         go-version-file: '${{ github.workspace }}/go.mod'
-    - name: Cache go-build and mod
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-      with:
-        path: |
-          ~/.cache/go-build/
-          ~/go/pkg/mod/
-        key: go-${{ hashFiles('go.sum') }}
-        restore-keys: |
-          go-
+        cache: false
     - name: Set release version
+      id: version
+      env:
+        RELEASE_CANDIDATE: ${{ inputs.release_candidate }}
       run: |
-        if ${{ inputs.release_candidate }}; then
-          echo "RELEASE_VERSION=$(go run $GITHUB_WORKSPACE/pkg/version/generate/release_generate.go print-rc-version)" >> $GITHUB_ENV
+        if [[ "${RELEASE_CANDIDATE}" == "true" ]]; then
+          version="$(go run ./pkg/version/generate/release_generate.go print-rc-version)"
         else
-          echo "RELEASE_VERSION=$(go run $GITHUB_WORKSPACE/pkg/version/generate/release_generate.go print-version)" >> $GITHUB_ENV
+          version="$(go run ./pkg/version/generate/release_generate.go print-version)"
         fi
-    - name: Set release notes file
-      run: |
-        echo "RELEASE_NOTES_FILE=docs/release_notes/$(go run $GITHUB_WORKSPACE/pkg/version/generate/release_generate.go print-version).md" >> $GITHUB_ENV
-    - name: Validate release notes
-      run: |
-        if [[ ! -f ${{ env.RELEASE_NOTES_FILE }} ]]; then
-          >&2 echo "Must have release notes ${{ env.RELEASE_NOTES_FILE }}"
+        notes_file="docs/release_notes/$(go run ./pkg/version/generate/release_generate.go print-version).md"
+        if [[ ! -f "${notes_file}" ]]; then
+          >&2 echo "Must have release notes ${notes_file}"
           exit 6
         fi
+        echo "RELEASE_VERSION=${version}" >> "${GITHUB_ENV}"
+        echo "version=${version}" >> "${GITHUB_OUTPUT}"
+        echo "notes_file=${notes_file}" >> "${GITHUB_OUTPUT}"
     - name: Create and push branch
       env:
         RELEASE_BRANCH: release-${{ env.RELEASE_VERSION }}
@@ -85,9 +91,43 @@ jobs:
         git config user.email "<41898282+github-actions[bot]@users.noreply.github.com>"
     - name: Create and push tag
       run: |
-        msg="Release ${{ env.RELEASE_VERSION }}"
-        git tag --annotate --message "${msg}" ${{ env.RELEASE_VERSION }}
-        git push origin ${{ env.RELEASE_VERSION }}
+        git tag --annotate --message "Release ${RELEASE_VERSION}" "${RELEASE_VERSION}"
+        git push origin "${RELEASE_VERSION}"
+  release:
+    needs: tag
+    name: Publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+      pull-requests: 'read'
+      repository-projects: 'write'
+      packages: 'write'
+    env:
+      RELEASE_VERSION: ${{ needs.tag.outputs.version }}
+      RELEASE_NOTES_FILE: ${{ needs.tag.outputs.notes_file }}
+    steps:
+    - name: Self Hosted Runner Post Job Cleanup Action
+      uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: refs/tags/${{ needs.tag.outputs.version }}
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      with:
+        go-version-file: '${{ github.workspace }}/go.mod'
+    - name: Cache go-build and mod
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: |
+          ~/.cache/go-build/
+          ~/go/pkg/mod/
+        key: go-${{ hashFiles('go.sum') }}
+        restore-keys: |
+          go-
     - name: Log in to the Container registry
       uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
       with:
