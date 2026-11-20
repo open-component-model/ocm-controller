@@ -23,7 +23,7 @@ jobs:
       pull-requests: 'read'
   tag:
     needs: tests
-    name: Create release branch and tag
+    name: Create release tag
     runs-on: ubuntu-latest
     # Holds the release App credentials. Only first-party actions and git run in
     # this job; publishing happens in a separate job with GITHUB_TOKEN only.
@@ -48,7 +48,7 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         fetch-depth: 0
-        # Persisted for the branch and tag pushes below; this job uploads no artifacts.
+        # Persisted for the tag push below; this job uploads no artifacts.
         token: ${{ steps.release-token.outputs.token }} # zizmor: ignore[artipacked]
     - name: Setup Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -73,18 +73,6 @@ jobs:
         echo "RELEASE_VERSION=${version}" >> "${GITHUB_ENV}"
         echo "version=${version}" >> "${GITHUB_OUTPUT}"
         echo "notes_file=${notes_file}" >> "${GITHUB_OUTPUT}"
-    - name: Create and push branch
-      env:
-        RELEASE_BRANCH: release-${{ env.RELEASE_VERSION }}
-      run: |
-        if ! git checkout ${RELEASE_BRANCH} >/dev/null; then
-            echo "Creating ${RELEASE_BRANCH} from $(git branch --show-current)"
-            git checkout -b ${RELEASE_BRANCH}
-            git push origin "$(git branch --show-current)"
-        else
-            git checkout ${RELEASE_BRANCH}
-            git pull --ff-only origin ${RELEASE_BRANCH}
-        fi
     - name: Setup git config
       run: |
         git config user.name "GitHub Actions Bot"
