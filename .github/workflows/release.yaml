@@ -21,35 +21,22 @@ jobs:
     permissions:
       contents: read
       pull-requests: 'read'
-  tag:
+  version:
     needs: tests
-    name: Create release branch and tag
+    name: Determine release version
     runs-on: ubuntu-latest
-    # Holds the release App credentials. Only first-party actions and git run in
-    # this job; publishing happens in a separate job with GITHUB_TOKEN only.
-    environment:
-      name: release-automation
-      deployment: false
+    # Runs repository code (go run), so it gets no write credentials; the release
+    # App token is only created in the tag job.
     permissions:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
       notes_file: ${{ steps.version.outputs.notes_file }}
     steps:
-    - name: Generate release App token
-      id: release-token
-      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-      with:
-        client-id: ${{ secrets.RELEASE_BOT_CLIENT_ID }}
-        private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
-        repositories: ${{ github.event.repository.name }}
-        permission-contents: write
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
-        fetch-depth: 0
-        # Persisted for the branch and tag pushes below; this job uploads no artifacts.
-        token: ${{ steps.release-token.outputs.token }} # zizmor: ignore[artipacked]
+        persist-credentials: false
     - name: Setup Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
       with:
@@ -70,31 +57,49 @@ jobs:
           >&2 echo "Must have release notes ${notes_file}"
           exit 6
         fi
-        echo "RELEASE_VERSION=${version}" >> "${GITHUB_ENV}"
         echo "version=${version}" >> "${GITHUB_OUTPUT}"
         echo "notes_file=${notes_file}" >> "${GITHUB_OUTPUT}"
-    - name: Create and push branch
-      env:
-        RELEASE_BRANCH: release-${{ env.RELEASE_VERSION }}
-      run: |
-        if ! git checkout ${RELEASE_BRANCH} >/dev/null; then
-            echo "Creating ${RELEASE_BRANCH} from $(git branch --show-current)"
-            git checkout -b ${RELEASE_BRANCH}
-            git push origin "$(git branch --show-current)"
-        else
-            git checkout ${RELEASE_BRANCH}
-            git pull --ff-only origin ${RELEASE_BRANCH}
-        fi
+  tag:
+    needs: version
+    name: Create release tag
+    runs-on: ubuntu-latest
+    # Holds the release App credentials. Only first-party actions, git and gh run in
+    # this job; publishing happens in a separate job with GITHUB_TOKEN only.
+    environment:
+      name: release-automation
+      deployment: false
+    permissions:
+      contents: read
+    steps:
+    - name: Generate release App token
+      id: release-token
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      with:
+        client-id: ${{ secrets.RELEASE_BOT_CLIENT_ID }}
+        private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+        repositories: ${{ github.event.repository.name }}
+        permission-contents: write
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        # Persisted for the tag push below; this job uploads no artifacts.
+        token: ${{ steps.release-token.outputs.token }} # zizmor: ignore[artipacked]
     - name: Setup git config
+      env:
+        GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        APP_SLUG: ${{ steps.release-token.outputs.app-slug }}
       run: |
-        git config user.name "GitHub Actions Bot"
-        git config user.email "<41898282+github-actions[bot]@users.noreply.github.com>"
+        bot_id="$(gh api "users/${APP_SLUG}%5Bbot%5D" --jq .id)"
+        git config user.name "${APP_SLUG}[bot]"
+        git config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
     - name: Create and push tag
+      env:
+        RELEASE_VERSION: ${{ needs.version.outputs.version }}
       run: |
         git tag --annotate --message "Release ${RELEASE_VERSION}" "${RELEASE_VERSION}"
         git push origin "${RELEASE_VERSION}"
   release:
-    needs: tag
+    needs: [version, tag]
     name: Publish release
     runs-on: ubuntu-latest
     permissions:
@@ -104,15 +109,15 @@ jobs:
       repository-projects: 'write'
       packages: 'write'
     env:
-      RELEASE_VERSION: ${{ needs.tag.outputs.version }}
-      RELEASE_NOTES_FILE: ${{ needs.tag.outputs.notes_file }}
+      RELEASE_VERSION: ${{ needs.version.outputs.version }}
+      RELEASE_NOTES_FILE: ${{ needs.version.outputs.notes_file }}
     steps:
     - name: Self Hosted Runner Post Job Cleanup Action
       uses: TooMuch4U/actions-clean@9b358e33df99574ac0bdf2e92fa3db1ae1415563
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
-        ref: refs/tags/${{ needs.tag.outputs.version }}
+        ref: refs/tags/${{ needs.version.outputs.version }}
         fetch-depth: 0
         persist-credentials: false
     - name: Setup Go
