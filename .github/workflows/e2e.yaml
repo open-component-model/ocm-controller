@@ -51,7 +51,7 @@ jobs:
         run: make e2e-verbose
       - name: Notify on Failure
         id: slack-notification
-        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d
+        uses: slackapi/slack-github-action@0bc3581177d9a0f8d555e07689384b376528e8fa
         if: ${{ github.ref_name  == 'main' && github.event_name == 'schedule' && always() }}
         with:
           method: chat.postMessage
