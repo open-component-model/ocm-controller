@@ -56,6 +56,8 @@ jobs:
         with:
           method: chat.postMessage
           token: ${{ secrets.OCM_GITHUB_SLACK_BOT_TOKEN }}
+          # fail the step if Slack rejects the message (e.g. bot not in channel) instead of silently succeeding
+          errors: true
           payload: |
             {
               "channel": "C03NF7KH128",
