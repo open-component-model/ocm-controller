@@ -1110,7 +1110,12 @@ func TestClient_VerifyComponentWithValueKey(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
+// With option B, an empty PublicKey (no value, no secretRef) means "no pinned
+// key": verification falls back to extracting the key from the signature
+// certificate chain. A plain (non-PEM) signature has no chain, so extraction
+// fails - but with a key-extraction error, not the old "secret reference not
+// provided" error that no longer exists.
+func TestClient_VerifyComponentWithEmptyPublicKeyUsesSignatureChain(t *testing.T) {
 	publicKey1, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
 	require.NoError(t, err)
 	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
@@ -1159,7 +1164,12 @@ func TestClient_VerifyComponentWithValueKeyFailsIfValueIsEmpty(t *testing.T) {
 	}
 
 	err = ocmClient.verifyComponent(t.Context(), cv, c, directKeyLoader(ocmClient, t.Context(), cv))
-	assert.EqualError(t, err, "kubernetes secret reference not provided")
+	// No pinned key -> library tries to read the key from the signature; the
+	// plain signature has no embedded certificate, so this fails with a
+	// public-key error rather than the removed secret-reference error.
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "secret reference not provided")
+	assert.Contains(t, err.Error(), "public key")
 }
 
 func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
@@ -1753,4 +1763,68 @@ func TestClient_GetLatestValidComponentVersionNoMatchingConstraint(t *testing.T)
 	_, selected, err := NewClient(env.FakeKubeClient(), nil).GetLatestValidComponentVersion(t.Context(), octx, obj)
 	require.ErrorContains(t, err, "no matching versions found")
 	require.Nil(t, selected)
+}
+
+// TestClient_SignaturePublicKeysSkipsEmptyPublicKey verifies that a signature
+// with neither an inline value nor a secretRef is skipped (no map entry) and
+// does not error. This is the controller analogue of the OCM CLI leaving the
+// key unregistered so the library extracts it from the signature chain.
+func TestClient_SignaturePublicKeysSkipsEmptyPublicKey(t *testing.T) {
+	fakeKubeClient := env.FakeKubeClient()
+	ocmClient := NewClient(fakeKubeClient, nil)
+
+	obj := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Verify: []v1alpha1.Signature{
+				{Name: "no-pinned-key", PublicKey: v1alpha1.PublicKey{}},
+			},
+		},
+	}
+
+	keys, err := ocmClient.signaturePublicKeys(t.Context(), obj)
+	require.NoError(t, err)
+	require.Empty(t, keys, "an empty PublicKey must not produce a key entry")
+}
+
+// TestClient_SignaturePublicKeysMixedPinnedAndEmpty verifies that pinned and
+// un-pinned signatures coexist: the pinned one yields a key entry, the empty
+// one is skipped, and there is no error.
+func TestClient_SignaturePublicKeysMixedPinnedAndEmpty(t *testing.T) {
+	publicKey1, err := os.ReadFile(filepath.Join("testdata", "public1_key.pem"))
+	require.NoError(t, err)
+
+	fakeKubeClient := env.FakeKubeClient()
+	ocmClient := NewClient(fakeKubeClient, nil)
+
+	pinned := v1alpha1.Signature{
+		Name:      "pinned",
+		PublicKey: v1alpha1.PublicKey{Value: base64.StdEncoding.EncodeToString(publicKey1)},
+	}
+	empty := v1alpha1.Signature{Name: "empty", PublicKey: v1alpha1.PublicKey{}}
+
+	obj := &v1alpha1.ComponentVersion{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		Spec: v1alpha1.ComponentVersionSpec{
+			Verify: []v1alpha1.Signature{pinned, empty},
+		},
+	}
+
+	keys, err := ocmClient.signaturePublicKeys(t.Context(), obj)
+	require.NoError(t, err)
+	require.Len(t, keys, 1, "only the pinned signature should produce a key entry")
+	_, ok := keys[pinned]
+	require.True(t, ok, "pinned signature must have a key entry")
+	_, ok = keys[empty]
+	require.False(t, ok, "empty-PublicKey signature must be skipped")
+}
+
+// TestClient_WithRootCertsFile verifies the functional option records the
+// configured root-certificates path on the Client.
+func TestClient_WithRootCertsFile(t *testing.T) {
+	c := NewClient(env.FakeKubeClient(), nil, WithRootCertsFile("/etc/ocm/trust/roots.pem"))
+	require.Equal(t, "/etc/ocm/trust/roots.pem", c.rootCertsPath)
+
+	c = NewClient(env.FakeKubeClient(), nil)
+	require.Empty(t, c.rootCertsPath, "root certs path must default to empty")
 }

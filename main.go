@@ -75,6 +75,7 @@ type flags struct {
 	concurrencyConfiguration      int
 	concurrencyFluxDeployer       int
 	intervalJitterOptions         jitter.IntervalOptions
+	signingRootCertsFile          string
 }
 
 func bindFlags() (flags, zap.Options) {
@@ -121,6 +122,15 @@ func bindFlags() (flags, zap.Options) {
 		"oci-registry-insecure-skip-verify",
 		false,
 		"Skip verification of the certificate that the registry is using.",
+	)
+	flag.StringVar(
+		&f.signingRootCertsFile,
+		"signing-root-certs-file",
+		"",
+		"Path to a PEM bundle of trusted root certificates (signing root CA "+
+			"and TSA root CA) used to verify component signatures that carry an "+
+			"embedded certificate chain and/or an RFC 3161 TSA timestamp. "+
+			"Empty disables root-certificate verification.",
 	)
 	flag.BoolVar(&f.enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -224,6 +234,7 @@ func main() {
 	setupManagers(
 		ociRegistryAddr, mgr, f.ociRegistryNamespace, f.ociRegistryCertSecretName,
 		f.ociRegistryInsecureSkipVerify, restConfig, f.eventsAddr,
+		f.signingRootCertsFile,
 	)
 
 	//+kubebuilder:scaffold:builder
@@ -252,6 +263,7 @@ func setupManagers(
 	ociRegistryInsecureSkipVerify bool,
 	restConfig *rest.Config,
 	eventsAddr string,
+	signingRootCertsFile string,
 ) {
 	cache := oci.NewClient(
 		ociRegistryAddr,
@@ -260,7 +272,7 @@ func setupManagers(
 		oci.WithCertificateSecret(ociRegistryCertSecretName),
 		oci.WithInsecureSkipVerify(ociRegistryInsecureSkipVerify),
 	)
-	ocmClient := ocm.NewClient(mgr.GetClient(), cache)
+	ocmClient := ocm.NewClient(mgr.GetClient(), cache, ocm.WithRootCertsFile(signingRootCertsFile))
 	snapshotWriter := snapshot.NewOCIWriter(mgr.GetClient(), cache, mgr.GetScheme())
 	dynClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {

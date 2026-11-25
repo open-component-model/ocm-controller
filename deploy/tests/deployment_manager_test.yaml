@@ -63,3 +63,53 @@ tests:
       - lengthEqual:
           path: spec.template.spec.containers[0].args
           count: 8
+  - it: omits signing-root-certs wiring by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --signing-root-certs-file=/etc/ocm/trust/roots.pem
+      - lengthEqual:
+          path: spec.template.spec.containers[0].args
+          count: 7
+  - it: wires signing root certs independently of registry TLS
+    set:
+      registry.tls.enabled: false
+      manager.signingRootCerts.enabled: true
+      manager.signingRootCerts.secretName: my-truststore
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --signing-root-certs-file=/etc/ocm/trust/roots.pem
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: signing-root-certs
+            mountPath: "/etc/ocm/trust"
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: signing-root-certs
+            secret:
+              secretName: my-truststore
+              items:
+                - key: roots.pem
+                  path: roots.pem
+  - it: mounts both registry TLS and signing root certs when both enabled
+    set:
+      registry.tls.enabled: true
+      manager.signingRootCerts.enabled: true
+      manager.signingRootCerts.secretName: my-truststore
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: signing-root-certs
+            mountPath: "/etc/ocm/trust"
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            mountPath: /etc/ssl/certs/registry-root.pem
+            subPath: registry-root.pem
+            name: certificates

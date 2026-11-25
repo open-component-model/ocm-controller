@@ -88,6 +88,23 @@ manager:
     # A fully qualified image should be with format [registry_hostname[:port]/][namespace/]repository_name[:tag|@digest]
     # If set, it will override the repository and tag above
     fullyQualifiedImageName: ""
+  # Trusted root certificates for component-signature verification. When
+  # enabled, the referenced Secret is mounted as a directory and the controller
+  # is told to read the PEM bundle from a file within it via
+  # --signing-root-certs-file. The bundle should contain the signing root CA
+  # (and, for RFC 3161 TSA timestamped signatures, the TSA root CA). A
+  # directory mount (no subPath) is used so that updates to the Secret
+  # propagate into the container without a pod restart. Independent of
+  # registry.tls.
+  signingRootCerts:
+    enabled: false
+    # Name of the Secret holding the PEM bundle of trusted root certificates.
+    secretName: ""
+    # Key within the Secret whose value is the PEM bundle; also the file name
+    # the bundle is projected to inside mountDir.
+    key: "roots.pem"
+    # Directory the Secret is mounted at inside the manager container.
+    mountDir: "/etc/ocm/trust"
   volumeMounts:
     - mountPath: "/etc/ssl/certs/registry-root.pem"
       subPath: "registry-root.pem"

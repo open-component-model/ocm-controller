@@ -32,6 +32,7 @@ import (
 	"ocm.software/ocm/api/ocm/tools/signing"
 	"ocm.software/ocm/api/ocm/tools/transfer"
 	"ocm.software/ocm/api/ocm/tools/transfer/transferhandler/standard"
+	"ocm.software/ocm/api/tech/signing/signutils"
 	"ocm.software/ocm/api/utils/iotools"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -74,16 +75,37 @@ type Contract interface {
 type Client struct {
 	client client.Client
 	cache  cache.Cache
+	// rootCertsPath, when set, is a path to a PEM bundle of trusted root
+	// certificates (signing root CA + TSA root CA). It is supplied to signature
+	// verification so that signatures carrying an embedded certificate chain
+	// (and any RFC 3161 TSA timestamp) can be validated against these roots.
+	rootCertsPath string
 }
 
 var _ Contract = &Client{}
 
+// ClientOption configures optional Client behaviour.
+type ClientOption func(*Client)
+
+// WithRootCertsFile sets the path to a PEM bundle of trusted root certificates
+// used during signature verification (for PEM certificate-chain / TSA
+// signatures). An empty path disables root-certificate verification.
+func WithRootCertsFile(path string) ClientOption {
+	return func(c *Client) {
+		c.rootCertsPath = path
+	}
+}
+
 // NewClient creates a new fetcher Client using the provided k8s client.
-func NewClient(client client.Client, cache cache.Cache) *Client {
-	return &Client{
+func NewClient(client client.Client, cache cache.Cache, opts ...ClientOption) *Client {
+	c := &Client{
 		client: client,
 		cache:  cache,
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentVersion) (ocm.Context, error) {
@@ -383,6 +405,23 @@ func (c *Client) verifyComponent(
 
 	logger := log.FromContext(ctx)
 	resolver := resolvers.NewCompoundResolver(cv.Repository())
+
+	// Load the trusted root certificates once per call (not per signature
+	// group). When configured, the same pool anchors both the signing-cert
+	// chain and the TSA token chain for every group below.
+	var rootCertsOption signing.Option
+	if c.rootCertsPath != "" {
+		pem, err := os.ReadFile(c.rootCertsPath)
+		if err != nil {
+			return fmt.Errorf("failed to read root certificates file %q: %w", c.rootCertsPath, err)
+		}
+		pool, err := signutils.GetCertPool(pem, false)
+		if err != nil {
+			return fmt.Errorf("failed to build root certificate pool from %q: %w", c.rootCertsPath, err)
+		}
+		rootCertsOption = signing.RootCertificates(pool)
+	}
+
 	for _, group := range groups {
 		value := group.digest.Value
 		if value == "" {
@@ -390,11 +429,18 @@ func (c *Client) verifyComponent(
 		}
 
 		options := []signing.Option{signing.Resolver(resolver), signing.VerifyDigests()}
+		if rootCertsOption != nil {
+			options = append(options, rootCertsOption)
+		}
 		for _, signature := range group.signatures {
-			options = append(options,
-				signing.PublicKey(signature.Name, publicKeys[signature]),
-				signing.VerifySignature(signature.Name),
-			)
+			// Only register a public key when one was configured. When absent,
+			// omit the PublicKey option so opts.PublicKey(name) stays nil and the
+			// library extracts/validates the key from the signature certificate
+			// chain (and any TSA timestamp) against the configured root certs.
+			if key, ok := publicKeys[signature]; ok {
+				options = append(options, signing.PublicKey(signature.Name, key))
+			}
+			options = append(options, signing.VerifySignature(signature.Name))
 		}
 
 		opts := signing.NewOptions(options...)
@@ -435,8 +481,14 @@ func (c *Client) signaturePublicKeys(ctx context.Context, obj *v1alpha1.Componen
 			continue
 		}
 
+		// No inline value and no secret reference means "no pinned public key"
+		// for this signature. This mirrors how the OCM CLI/library expresses the
+		// absence of a key: nothing is registered, so opts.PublicKey(name) is nil,
+		// which drives the library to extract the key from the signature embedded
+		// certificate chain and validate it (incl. any RFC 3161 TSA timestamp)
+		// against the configured root certificates. Skip without recording a key.
 		if signature.PublicKey.SecretRef == nil {
-			return nil, errors.New("kubernetes secret reference not provided")
+			continue
 		}
 
 		name := signature.PublicKey.SecretRef.Name
