@@ -62,6 +62,9 @@ spec:
         {{- if not .Values.registry.tls.enabled }}
         - --oci-registry-insecure-skip-verify
         {{- end }}
+        {{- if .Values.manager.signingRootCerts.enabled }}
+        - --signing-root-certs-file={{ .Values.manager.signingRootCerts.mountDir }}/{{ .Values.manager.signingRootCerts.key }}
+        {{- end }}
         {{- if .Values.manager.kubeAPI }}
         {{- if .Values.manager.kubeAPI.rateLimiterDisabled }}
         - --kube-api-rate-limiter-disabled
@@ -81,9 +84,16 @@ spec:
         {{- end }}
         name: manager
         imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
-        {{- if .Values.registry.tls.enabled }}
+        {{- if or .Values.registry.tls.enabled .Values.manager.signingRootCerts.enabled }}
         volumeMounts:
+        {{- if .Values.registry.tls.enabled }}
         {{- toYaml .Values.manager.volumeMounts | nindent 10 }}
+        {{- end }}
+        {{- if .Values.manager.signingRootCerts.enabled }}
+          - name: signing-root-certs
+            mountPath: {{ .Values.manager.signingRootCerts.mountDir | quote }}
+            readOnly: true
+        {{- end }}
         {{- end}}
         securityContext:
           allowPrivilegeEscalation: false
@@ -106,9 +116,19 @@ spec:
         {{- toYaml .Values.manager.resources | nindent 10 }}
       serviceAccountName: ocm-controller
       terminationGracePeriodSeconds: 10
-      {{- if .Values.registry.tls.enabled }}
+      {{- if or .Values.registry.tls.enabled .Values.manager.signingRootCerts.enabled }}
       volumes:
+      {{- if .Values.registry.tls.enabled }}
       {{- tpl (toYaml .Values.manager.volumes) . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.manager.signingRootCerts.enabled }}
+        - name: signing-root-certs
+          secret:
+            secretName: {{ .Values.manager.signingRootCerts.secretName | quote }}
+            items:
+              - key: {{ .Values.manager.signingRootCerts.key | quote }}
+                path: {{ .Values.manager.signingRootCerts.key | quote }}
+      {{- end }}
       {{- end}}
       {{- if .Values.manager.nodeSelector }}
       nodeSelector:
